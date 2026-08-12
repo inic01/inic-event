@@ -129,7 +129,7 @@
     <div class="subtabs"><div class="subtab active" data-sub="order" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="order" data-v="inelig">부적합</div></div>
     <div class="hint" id="orderHint"></div>
     <div class="filters"><span id="oCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
-      <button id="dlOrder" class="sm primary">📦 발주용 다운로드 + 출고완료</button></div>
+      <button id="dlOrder" class="sm primary">📦 전체 다운로드</button></div>
     <div class="tablewrap"><table class="data" id="tableOrder"><thead></thead><tbody></tbody></table>
       <div class="empty" id="emptyOrder" style="display:none">대상 데이터가 없습니다.</div></div>
     <div class="pager" id="pagerOrder"></div>
@@ -140,7 +140,7 @@
     <div class="subtabs"><div class="subtab active" data-sub="acct" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="acct" data-v="inelig">부적합</div></div>
     <div class="hint" id="acctHint"></div>
     <div class="filters"><span id="aCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
-      <button id="dlAcct" class="sm primary">🎟️ 상품권 다운로드 + 출고완료</button></div>
+      <button id="dlAcct" class="sm primary">🎟️ 전체 다운로드</button></div>
     <div class="tablewrap"><table class="data" id="tableAcct"><thead></thead><tbody></tbody></table>
       <div class="empty" id="emptyAcct" style="display:none">대상 데이터가 없습니다.</div></div>
     <div class="pager" id="pagerAcct"></div>
@@ -194,6 +194,17 @@
       </div>
     </div>
   </section>
+</div>
+
+<div id="imgModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:200;align-items:center;justify-content:center;padding:20px" onclick="if(event.target.id==='imgModal')closeImg()">
+  <div style="background:#fff;padding:12px;border-radius:14px;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-weight:800;font-size:13px">리뷰 이미지</span>
+      <button class="sm" onclick="closeImg()">닫기 ✕</button>
+    </div>
+    <img id="imgModalImg" alt="리뷰 이미지" style="max-width:86vw;max-height:78vh;object-fit:contain;border-radius:8px;background:#f4f2f0">
+    <a id="imgModalOpen" href="#" target="_blank" class="img" style="font-size:12px;text-align:right">새 탭에서 원본 열기 ↗</a>
+  </div>
 </div>
 
 <script>
@@ -256,8 +267,13 @@ function shipStatus(e){
   if(e.type==="coupang" && dupSerialIds.has(e._id))return "ineligible"; // 시리얼 중복 → 부적합
   return "eligible";
 }
+function cleanReason(r){
+  if(!r)return r;
+  if(/AI 심사 오류|"error"|UNAVAILABLE|high demand|503|overload|429|quota/i.test(r)) return "AI 심사 일시 오류 — 재심사 필요";
+  return r;
+}
 function reasonOf(e){
-  if(e.aiReason)return e.aiReason;
+  if(e.aiReason)return cleanReason(e.aiReason);
   if(e.reason)return e.reason;
   if(e.type==="coupang" && dupSerialIds.has(e._id))return "시리얼번호 중복 (이미 등록됨)";
   return "";
@@ -327,6 +343,10 @@ function pager(navId,total,key){
   el.innerHTML=h;
 }
 window.__page=(key,n)=>{pageState[key]=n;renderActiveTab();};
+function openImg(url){$("#imgModalImg").src=url;$("#imgModalOpen").href=url;$("#imgModal").style.display="flex";}
+function closeImg(){$("#imgModal").style.display="none";$("#imgModalImg").src="";}
+window.openImg=openImg;window.closeImg=closeImg;
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeImg();});
 function slice(rows,key){return rows.slice((pageState[key]-1)*PAGE_SIZE,pageState[key]*PAGE_SIZE);}
 
 /* 전체 (필터 없음 — 전체 리스트) */
@@ -337,7 +357,7 @@ const COLS=[
   ["보상",e=>`<span class="pill ${e.rewardType}">${REWARD_LABEL[e.rewardType]||"-"}</span>`],["사은품/상품권",e=>e.giftItem||"-"],
   ["구입처",e=>e.source||"-"],["주문번호",e=>e.orderNo||"-"],["S/N",e=>e.serial||"-"],["수령인",e=>e.name||"-"],
   ["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-"],["사유",e=>reasonOf(e)||"-"],
-  ["이미지",e=>e.imageUrl?`<a class="img" href="${e.imageUrl}" target="_blank">보기</a>`:"-"]
+  ["이미지",e=>e.imageUrl?`<button class="imgbtn" onclick="openImg('${e.imageUrl}')">보기</button>`:"-"]
 ];
 function renderTableAll(){
   const all=filteredAll(),rows=slice(all,"all");
@@ -377,14 +397,13 @@ function renderSurvey(){
 /* 사은품/상품권 */
 function teamElig(rw){return ALL.filter(e=>e.rewardType===rw&&isEligible(e)&&!isReserve(e)&&shipStateOf(e)!=="shipped");}
 function teamInelig(rw){return ALL.filter(e=>e.rewardType===rw&&shipStatus(e)!=="eligible");}
-function imgBtn(e){return e.imageUrl?`<a class="img" href="${e.imageUrl}" target="_blank">이미지</a>`:"-";}
-const ELIG_ORDER=[["출고",e=>shipBadge(e)],["처리",e=>`<button class="sm primary" onclick="setShipState('${e._id}','shipped')">출고완료</button>`],
-  ["접수일시",e=>fmtDate(e._date)],["제품",e=>e.product||"-"],["사은품",e=>e.giftItem||"-"],["수령인",e=>e.name||"-"],
-  ["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-"],["주문번호",e=>e.orderNo||"-"],["구입처",e=>e.source||"-"]];
-const ELIG_ACCT=[["출고",e=>shipBadge(e)],["처리",e=>`<button class="sm primary" onclick="setShipState('${e._id}','shipped')">출고완료</button>`],
-  ["접수일시",e=>fmtDate(e._date)],["제품",e=>e.product||"-"],["상품권",e=>e.giftItem||"-"],["수령인",e=>e.name||"-"],
-  ["연락처",e=>e.phone||"-"],["주문번호",e=>e.orderNo||"-"],["구입처",e=>e.source||"-"]];
-const INELIG_COLS=[["심사",e=>statusBadge(e)],["사유",e=>reasonOf(e)||"-"],["이미지",e=>imgBtn(e)],
+function imgBtn(e){return e.imageUrl?`<button class="imgbtn" onclick="openImg('${e.imageUrl}')">이미지</button>`:"-";}
+const ELIG_ORDER=[["검수",e=>`<span class="pill eligible">적합</span>`],["접수일시",e=>fmtDate(e._date)],["제품",e=>e.product||"-"],
+  ["사은품",e=>e.giftItem||"-"],["수령인",e=>e.name||"-"],["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-"]];
+const ELIG_ACCT=[["검수",e=>`<span class="pill eligible">적합</span>`],["접수일시",e=>fmtDate(e._date)],["제품",e=>e.product||"-"],
+  ["상품권",e=>e.giftItem||"-"],["수령인",e=>e.name||"-"],["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-"]];
+const INELIG_COLS=[["검수",e=>statusBadge(e)],["사유",e=>reasonOf(e)||"-"],["이미지",e=>imgBtn(e)],
+  ["재심사",e=>(e.type==="review"&&e.imageUrl)?`<button class="sm" onclick="reJudge('${e._id}')">재심사</button>`:"-"],
   ["접수일시",e=>fmtDate(e._date)],["제품",e=>e.product||"-"],["사은품/상품권",e=>e.giftItem||"-"],
   ["수령인",e=>e.name||"-"],["연락처",e=>e.phone||"-"],["주문번호",e=>e.orderNo||"-"]];
 function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
@@ -399,13 +418,13 @@ function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
 }
 function renderOrder(){
   const v=subView.order;
-  $("#orderHint").innerHTML=v==="inelig"?"사은품 대상 중 <b>부적합·확인필요</b> 건입니다. 이미지와 사유를 확인하세요.":"사은품 대상 <b>적격·미출고</b> 건입니다(예약발송 제품 제외). 다운로드하면 출고완료 처리되어 목록에서 사라집니다.";
+  $("#orderHint").innerHTML=v==="inelig"?"사은품 대상 중 <b>부적합·확인필요</b> 건입니다. 이미지와 사유를 확인하세요.":"사은품 대상 <b>적합</b> 건입니다(예약발송 제품 제외). '전체 다운로드'로 목록을 받으세요.";
   $("#dlOrder").style.display=(v==="elig")?"":"none";
   renderTeam("gift","#tableOrder","#emptyOrder","#oCount","#pagerOrder","order",v);
 }
 function renderAcct(){
   const v=subView.acct;
-  $("#acctHint").innerHTML=v==="inelig"?"상품권 대상 중 <b>부적합·확인필요</b> 건입니다. 이미지와 사유를 확인하세요.":"상품권 대상 <b>적격·미출고</b> 건입니다. 다운로드하면 출고완료 처리되어 목록에서 사라집니다.";
+  $("#acctHint").innerHTML=v==="inelig"?"상품권 대상 중 <b>부적합·확인필요</b> 건입니다. 이미지와 사유를 확인하세요.":"상품권 대상 <b>적합</b> 건입니다. '전체 다운로드'로 목록을 받으세요.";
   $("#dlAcct").style.display=(v==="elig")?"":"none";
   renderTeam("coupon","#tableAcct","#emptyAcct","#aCount","#pagerAcct","acct",v);
 }
@@ -418,6 +437,14 @@ async function setShipState(id,state){
   }catch(err){alert("출고 상태 저장 실패: "+(err.message||err));}
 }
 window.setShipState=setShipState;
+async function reJudge(id){
+  try{
+    const db=await initFirebase();
+    await db.collection(COLLECTION).doc(id).update({reJudge:true});
+    alert("재심사를 요청했습니다.\n몇 초 뒤 상단의 '↻ 새로고침'을 눌러 결과를 확인하세요.");
+  }catch(err){alert("재심사 요청 실패: "+(err.message||err));}
+}
+window.reJudge=reJudge;
 async function markShipped(rows){
   const db=await initFirebase();
   await Promise.all(rows.map(e=>db.collection(COLLECTION).doc(e._id).update({shipState:"shipped",shipped:true,shippedAt:firebase.firestore.FieldValue.serverTimestamp()})));
@@ -574,8 +601,9 @@ $("#xlsxBtn").addEventListener("click",()=>downloadRows(exportAllRows(),"아이�
 $("#csvBtn").addEventListener("click",()=>{const rows=exportAllRows();if(!rows.length){alert("다운로드할 데이터가 없습니다.");return;}
   const heads=Object.keys(rows[0]);const csv=[heads.join(",")].concat(rows.map(r=>heads.map(h=>`"${String(r[h]).replace(/"/g,'""')}"`).join(","))).join("\n");
   const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="아이닉이벤트_리포트_"+todayStr()+".csv";a.click();});
-$("#dlOrder").addEventListener("click",()=>dlAndShip(teamElig("gift"),DL_ORDER,"아이닉_발주목록(사은품)"));
-$("#dlAcct").addEventListener("click",()=>dlAndShip(teamElig("coupon"),DL_ACCT,"아이닉_회계목록(상품권)"));
+function dlPlain(list,cols,fname){if(!list.length){alert("대상 데이터가 없습니다.");return;}const rows=list.map(e=>{const o={};cols.forEach(([l,fn])=>o[l]=fn(e));return o;});downloadRows(rows,fname);}
+$("#dlOrder").addEventListener("click",()=>dlPlain(teamElig("gift"),DL_ORDER,"아이닉_사은품목록"));
+$("#dlAcct").addEventListener("click",()=>dlPlain(teamElig("coupon"),DL_ACCT,"아이닉_상품권목록"));
 $("#dlReserve").addEventListener("click",()=>dlAndShip(reserveRows($("#rSearch").value),DL_ORDER,"아이닉_예약발송목록"));
 $("#reload").addEventListener("click",loadData);
 onTypeChange();

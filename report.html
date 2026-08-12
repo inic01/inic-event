@@ -440,7 +440,7 @@ window.setShipState=setShipState;
 async function reJudge(id){
   try{
     const db=await initFirebase();
-    await db.collection(COLLECTION).doc(id).update({reJudge:true});
+    await db.collection(COLLECTION).doc(id).update({reJudge:true, reJudgeAt:firebase.firestore.FieldValue.serverTimestamp()});
     alert("재심사를 요청했습니다.\n몇 초 뒤 상단의 '↻ 새로고침'을 눌러 결과를 확인하세요.");
   }catch(err){alert("재심사 요청 실패: "+(err.message||err));}
 }

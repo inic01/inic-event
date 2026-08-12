@@ -243,7 +243,7 @@ const subView={order:"elig",acct:"elig"};
 const pageState={all:1,order:1,acct:1,reserve:1,cs:1};
 const TYPE_LABEL={review:"포토리뷰",coupang:"쿠팡 정품등록"};
 const REWARD_LABEL={gift:"사은품",coupon:"상품권"};
-let PRODREWARD={}, SOURCES=[], PNAME={};
+let PRODREWARD={}, SOURCES=[], PNAME={}, dupSerialIds=new Set();
 
 function shipStatus(e){
   if(e.type==="review" && e.imagePath){
@@ -253,7 +253,14 @@ function shipStatus(e){
     return "pending";
   }
   if(e.status==="ineligible")return "ineligible";
+  if(e.type==="coupang" && dupSerialIds.has(e._id))return "ineligible"; // 시리얼 중복 → 부적합
   return "eligible";
+}
+function reasonOf(e){
+  if(e.aiReason)return e.aiReason;
+  if(e.reason)return e.reason;
+  if(e.type==="coupang" && dupSerialIds.has(e._id))return "시리얼번호 중복 (이미 등록됨)";
+  return "";
 }
 function shipStateOf(e){if(e.shipState)return e.shipState;if(e.shipped)return "shipped";return "pending";}
 const STATUS_META={eligible:["적격","eligible"],ineligible:["부적합","ineligible"],review:["확인필요","needreview"],pending:["미심사","pending"]};
@@ -296,6 +303,13 @@ function buildCatalog(){
     if(e.source)src.add(e.source);
   });
   SOURCES=[...src];
+  computeSerialDups();
+}
+function computeSerialDups(){
+  dupSerialIds=new Set();const used=new Set();
+  ALL.filter(e=>e.type==="coupang"&&e.serial).slice()
+     .sort((a,b)=>(a._date?.getTime()||0)-(b._date?.getTime()||0))
+     .forEach(e=>{const k=String(e.serial).trim().toLowerCase();if(!k)return;if(used.has(k))dupSerialIds.add(e._id);else used.add(k);});
 }
 function allProducts(){const s=[];for(const c in PRODUCTS)PRODUCTS[c].forEach(([code])=>s.push(code));ALL.forEach(e=>{if(e.product&&!s.includes(e.product))s.push(e.product);});return s;}
 
@@ -322,7 +336,7 @@ const COLS=[
   ["심사",e=>statusBadge(e)],["출고",e=>shipBadge(e)],["카테고리",e=>e.category||"-"],["제품",e=>e.product||"-"],
   ["보상",e=>`<span class="pill ${e.rewardType}">${REWARD_LABEL[e.rewardType]||"-"}</span>`],["사은품/상품권",e=>e.giftItem||"-"],
   ["구입처",e=>e.source||"-"],["주문번호",e=>e.orderNo||"-"],["S/N",e=>e.serial||"-"],["수령인",e=>e.name||"-"],
-  ["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-"],["사유",e=>e.aiReason||e.reason||"-"],
+  ["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-"],["사유",e=>reasonOf(e)||"-"],
   ["이미지",e=>e.imageUrl?`<a class="img" href="${e.imageUrl}" target="_blank">보기</a>`:"-"]
 ];
 function renderTableAll(){
@@ -370,7 +384,7 @@ const ELIG_ORDER=[["출고",e=>shipBadge(e)],["처리",e=>`<button class="sm pri
 const ELIG_ACCT=[["출고",e=>shipBadge(e)],["처리",e=>`<button class="sm primary" onclick="setShipState('${e._id}','shipped')">출고완료</button>`],
   ["접수일시",e=>fmtDate(e._date)],["제품",e=>e.product||"-"],["상품권",e=>e.giftItem||"-"],["수령인",e=>e.name||"-"],
   ["연락처",e=>e.phone||"-"],["주문번호",e=>e.orderNo||"-"],["구입처",e=>e.source||"-"]];
-const INELIG_COLS=[["심사",e=>statusBadge(e)],["사유",e=>e.aiReason||e.reason||"-"],["이미지",e=>imgBtn(e)],
+const INELIG_COLS=[["심사",e=>statusBadge(e)],["사유",e=>reasonOf(e)||"-"],["이미지",e=>imgBtn(e)],
   ["접수일시",e=>fmtDate(e._date)],["제품",e=>e.product||"-"],["사은품/상품권",e=>e.giftItem||"-"],
   ["수령인",e=>e.name||"-"],["연락처",e=>e.phone||"-"],["주문번호",e=>e.orderNo||"-"]];
 function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
@@ -447,7 +461,7 @@ function renderCS(){
       <div class="who">${e.name||"(이름없음)"} <span class="pill ${e.type}">${TYPE_LABEL[e.type]||e.type}</span>${e.manual?' <span class="pill manual">수기</span>':""}</div>
       <div class="meta">${e.phone||"-"} · ${e.product||"-"} · ${REWARD_LABEL[e.rewardType]||"-"}${e.giftItem?"("+e.giftItem+")":""}</div>
       <div class="meta">접수 ${fmtDate(e._date)} · 주문 ${e.orderNo||"-"} · ${e.source||"-"}</div>
-      ${(e.aiReason||e.reason)?`<div class="meta">사유: ${e.aiReason||e.reason}</div>`:""}
+      ${reasonOf(e)?`<div class="meta">사유: ${reasonOf(e)}</div>`:""}
       </div><div class="stat"><span class="big pill ${c}">${l}</span><div style="margin-top:6px">${shipBadge(e)}</div></div></div>`;}).join("");
   pager("#pagerCs",all.length,"cs");
 }
@@ -520,7 +534,7 @@ function exportAllRows(){
   return filteredAll().map(e=>({"접수일시":fmtDate(e._date),"유형":TYPE_LABEL[e.type]||e.type,"심사":STATUS_META[shipStatus(e)][0],"출고":SHIP_META[shipStateOf(e)][0],
     "카테고리":e.category||"","제품":e.product||"","보상종류":REWARD_LABEL[e.rewardType]||"","사은품/상품권":e.giftItem||"","구입처":e.source||"",
     "고객ID":e.custId||"","주문번호":e.orderNo||"","S/N":e.serial||"","수령인":e.name||"","연락처":e.phone||"","주소":e.address||"",
-    "심사사유":e.aiReason||e.reason||"","수기여부":e.manual?"수기":"","이미지URL":e.imageUrl||"","문서ID":e._id||""}));
+    "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"","이미지URL":e.imageUrl||"","문서ID":e._id||""}));
 }
 const DL_ORDER=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["사은품",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주소",e=>e.address||""],["주문번호",e=>e.orderNo||""],["구입처",e=>e.source||""],["문서ID",e=>e._id||""]];
 const DL_ACCT=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["상품권",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["구입처",e=>e.source||""],["문서ID",e=>e._id||""]];

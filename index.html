@@ -638,7 +638,7 @@ async function submit(){
     status:"pending",createdAt:new Date().toISOString()};
   const rw=rewardType(state.type,state.product); entry.rewardType=rw;
   const g=giftOf(state.product);
-  entry.category=state.category; entry.product=state.product;
+  entry.category=state.category; entry.product=state.product; entry.productName=prodNameOf(state.product);
   entry.giftItem = g ? (g.choice ? (state.giftChoice!=null?g.options[state.giftChoice].label:"") : g.label) : "";
   entry.source = state.source==="기타" ? ("기타: "+$("#sourceEtc").value.trim()) : state.source;
   entry.custId=$("#custId").value.trim(); entry.orderNo=$("#order").value.trim();

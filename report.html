@@ -167,7 +167,7 @@
     <div class="hint">심사에서 <b>부적합</b>으로 판정된 고객을 한 곳에 모았습니다. 전화 응대(아웃콜) 후 <b>응대상태·결과</b>를 기록하고, 수정에 응하면 <b>출고 승인</b>을 누르세요. (AI가 애매·오류로 판정 못한 건은 각 사은품/상품권 탭의 '확인필요'에 있습니다.)</div>
     <div class="filters">
       <select id="bfReward"><option value="">보상 전체</option><option value="gift">사은품</option><option value="coupon">상품권</option></select>
-      <select id="bfReason"><option value="">사유 전체</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="dup">중복 참여</option></select>
+      <select id="bfReason"><option value="">사유 전체</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="dup">중복 참여</option></select>
       <input type="text" id="bfSearch" placeholder="이름·연락처·제품 검색">
       <span id="bCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span>
       <span style="flex:1"></span>
@@ -357,6 +357,8 @@ function reasonOf(e){
       return cleanReason(e.aiReason)==="AI 심사 일시 오류 — 재심사 필요" ? "AI 심사 일시 오류 — 재심사 필요" : "별점 확인 불가 — 재심사 필요";
     }
     const parts=[];
+    if(e.aiAbuseFree===false) parts.push("욕설·비방 리뷰");
+    if(e.aiProductMatch===false) parts.push("다른 제품 리뷰 (접수 제품과 무관)");
     if(e.aiRatingPass===false) parts.push(`별점 미달 (개인 별점 ${e.aiPersonalRating!=null?e.aiPersonalRating+"점":"?"} / 기준 4점 이상)`);
     if(e.aiPhotoPass===false) parts.push("사진 부적합 (제품 사진·동영상 없음 또는 무관 이미지)");
     return parts.join(" / ");
@@ -633,6 +635,8 @@ function renderReserve(){
 /* 부적합 아웃콜(응대) */
 function badReasonType(e){
   if(!e.manual && dupIds.has(e._id))return "dup";
+  if(e.aiAbuseFree===false)return "abuse";
+  if(e.aiProductMatch===false)return "wrongprod";
   if(e.aiPhotoPass===false)return "photo";
   if(e.aiRatingPass===false)return "rating";
   return "";

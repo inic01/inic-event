@@ -180,7 +180,7 @@
 
   <!-- 예약발송 -->
   <section class="page" id="page-reserve">
-    <div class="hint">품절 등으로 나중에 발송할 <b>제품을 지정</b>하세요. 지정한 제품의 적격 건은 사은품/상품권 발송목록에서 빠지고 아래 예약발송 목록으로 모입니다. 재고가 오면 <b>출고완료</b>를 누르세요.</div>
+    <div class="hint">품절 등으로 나중에 발송할 <b>제품을 지정</b>하세요. 지정한 제품의 적격 건은 사은품/상품권 발송목록에서 빠지고 아래 예약발송 목록으로 모입니다. <b>재고가 입고되면 위에서 해당 제품 체크를 해제</b>하세요 → 그 건들이 사은품/상품권 발송목록(적합)으로 이동해 거기서 일괄출고하면 됩니다.</div>
     <div class="panel" style="margin-bottom:14px">
       <h3>예약발송 제품 지정</h3>
       <div class="chkgrid" id="reserveConfig"></div>
@@ -188,8 +188,7 @@
     </div>
     <div class="subtabs"><div class="subtab active" data-sub="reserve" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="reserve" data-v="inelig">확인필요</div></div>
     <div class="filters"><input type="text" id="rSearch" placeholder="이름·연락처·제품 검색">
-      <span id="rCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
-      <button id="dlReserve" class="sm primary">예약발송 다운로드 + 출고완료</button></div>
+      <span id="rCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span></div>
     <div class="tablewrap"><table class="data" id="tableReserve"><thead></thead><tbody></tbody></table>
       <div class="empty" id="emptyReserve" style="display:none">예약발송 대상이 없습니다.</div></div>
     <div class="pager" id="pagerReserve"></div>
@@ -218,6 +217,7 @@
         <div class="field"><label>주문번호</label><input type="text" id="mOrder" placeholder="예) 123456789"></div>
         <div class="field"><label>고객ID</label><input type="text" id="mCust" placeholder="예) 네이버 아이디"></div>
         <div class="field full" id="mSerialField"><label>시리얼번호(S/N)</label><input type="text" id="mSerial" placeholder="쿠팡 정품등록 시 입력"></div>
+        <div class="field"><label>배송구분(사은품)</label><select id="mShipFee"><option value="착불">착불</option><option value="선불">선불</option></select></div>
         <div class="field full"><label>주소(사은품 착불 배송 시)</label><input type="text" id="mAddress" placeholder="도로명 주소 + 상세주소"></div>
         <div class="field full"><label>사유</label><input type="text" id="mReason" placeholder="예) 동일제품 2개 구매 / 상담사 확인건 등"></div>
       </div>
@@ -289,7 +289,7 @@ const PRODUCTS={
   "주방가전":[["AO-16LS","에어프라이어 16L"],["iSA7","에어프라이어 7L"],["iSA6L","에어프라이어 6L"],
     ["iFD01-H","음식물처리기 iFD01 (밀페키친홀더)"],["iFD01-F","음식물처리기 iFD01 (활성탄필터)"],["iEK01","분유포트 iEK01"]],
   "생활가전":[["i50T","무선청소기 아이타워 i50"],["i50D","무선청소기 AI 디텍트 i50"],["i90","무선청소기 맥스제로 i90"],
-    ["iV10","무선청소기 iV10"],["iv11","무선청소기 iv11"],["iX30","로봇청소기 iX30"]],
+    ["iV10","무선청소기 iV10"],["iv11","무선청소기 iv11"]],
   "계절가전":[["iH05","가습기 iH05"],["iAP22","공기청정기 iAP22"],["iC01","선풍기 iC01 (유선)"],
     ["iH12","가습기 iH12 Pro"],["iSC02","서큘레이터 iSC02 (무선)"]],
   "이미용가전":[["iHD01","헤어드라이어 iHD01"]]
@@ -625,7 +625,6 @@ function renderReserve(){
   const all=(v==="inelig"?reserveInelig:reserveElig)($("#rSearch").value),rows=slice(all,"reserve");
   const cols=v==="inelig"?RESERVE_INELIG:RESERVE_ELIG;
   $("#rCount").textContent="총 "+all.length+"건";
-  $("#dlReserve").style.display=(v==="elig")?"":"none";
   $("#tableReserve thead").innerHTML="<tr>"+cols.map(c=>`<th>${c[0]}</th>`).join("")+"</tr>";
   $("#tableReserve tbody").innerHTML=rows.map(e=>"<tr>"+cols.map(c=>`<td>${c[1](e)}</td>`).join("")+"</tr>").join("");
   $("#emptyReserve").style.display=all.length?"none":"block";pager("#pagerReserve",all.length,"reserve");
@@ -771,10 +770,11 @@ async function submitManual(){
   const giftItem=$("#mGift").value;const o=$("#mGift").selectedOptions[0];const rewardType=(o&&o.dataset.reward)||"gift";
   const name=$("#mName").value.trim(),phone=$("#mPhone").value.trim(),orderNo=$("#mOrder").value.trim(),custId=$("#mCust").value.trim();
   const serial=$("#mSerial").value.trim(),address=$("#mAddress").value.trim(),reason=$("#mReason").value.trim();
+  const shipFee=$("#mShipFee").value||"착불";
   if(!category||!product||!name||!phone){msg.className="msg bad";msg.textContent="카테고리·제품·수령인·연락처는 필수입니다.";return;}
   if(!giftItem && $("#mGift").querySelector('option[value]:not([value=""])')){msg.className="msg bad";msg.textContent="사은품/상품권을 선택하세요.";return;}
   const phoneKey=onlyDigits(phone);
-  const payload={type,rewardType,category,product,giftItem,source,name,phone,orderNo,custId,serial,address,
+  const payload={type,rewardType,category,product,giftItem,source,name,phone,orderNo,custId,serial,address,shipFee,
     phoneKey,nameAddrKey:(name+"|"+address),kNA:(product+"|"+name+"|"+address),kOrder:(product+"|"+orderNo),kPhone:(product+"|"+phoneKey),
     status:"eligible",manual:true,reason,shipState:"pending",
     consent:{privacy:"agree",marketing:"",reward:rewardType,agreedAt:new Date().toISOString(),manual:true},
@@ -822,6 +822,66 @@ async function dlAndShip(list,cols,fname){
   try{await markShipped(list);renderActiveTab();}catch(err){alert("출고완료 처리 실패: "+(err.message||err));}
 }
 
+/* 사방넷 발주 양식 (사은품/상품권) — 같은 수령인·같은 품목은 한 줄로 합치고 '수량' 표기.
+   사이트칸은 '사은품' 고정, 배송구분(착불/선불)은 시트로 분리. */
+function shipFeeOf(e){return e.shipFee==="선불"?"선불":"착불";}  // 기본 착불
+function aggShipRows(items,feeLabel){
+  const map=new Map();
+  items.forEach(e=>{
+    const ph=(e.phone||"").replace(/\D/g,"");
+    // 사은품: 연락처+주소+품목 / 상품권: 연락처+품목  (주문번호는 묶는 기준이 아니라 참고 표기)
+    const key=(e.rewardType==="gift")
+      ? ph+"|"+(e.address||"").replace(/\s+/g,"")+"|"+(e.giftItem||"")
+      : ph+"|"+(e.giftItem||"");
+    if(!map.has(key))map.set(key,[]);
+    map.get(key).push(e);
+  });
+  const rows=[],flat=[];
+  map.forEach(grp=>{
+    grp.forEach(x=>flat.push(x));
+    const e=grp[0];
+    const orders=[...new Set(grp.map(x=>x.orderNo).filter(Boolean))].join(", ");
+    const row={"사이트":"사은품","제품군":e.giftItem||"","수량":grp.length,"이름":e.name||"",
+      "전화번호1":e.phone||"","전화번호2":"","주소":(e.rewardType==="gift")?(e.address||""):"","배송메세지":"",
+      "운송장번호":"","주문번호":orders,"사방넷":""};
+    row[feeLabel]="";  // 마지막 칸 헤더 = 착불/선불
+    rows.push(row);
+  });
+  return {rows,flat};
+}
+function downloadSheets(sheets,baseName){
+  const ne=sheets.filter(s=>s.rows.length);
+  if(!ne.length){alert("대상 데이터가 없습니다.");return false;}
+  const fname=baseName+"_"+todayStr();
+  if(typeof XLSX!=="undefined"){
+    const wb=XLSX.utils.book_new();
+    ne.forEach(s=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(s.rows),s.name));
+    XLSX.writeFile(wb,fname+".xlsx");
+  }else{
+    const all=[];ne.forEach(s=>s.rows.forEach(r=>all.push({"배송구분":s.name,...r})));
+    const heads=Object.keys(all[0]);
+    const csv=[heads.join(",")].concat(all.map(r=>heads.map(h=>`"${String(r[h]==null?"":r[h]).replace(/"/g,'""')}"`).join(","))).join("\n");
+    const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=fname+".csv";a.click();
+  }
+  return true;
+}
+async function dlShipTemplate(rw,fname){
+  const list=teamElig(rw);
+  if(!list.length){alert("대상 데이터가 없습니다.");return;}
+  const buckets={"착불":[],"선불":[]};
+  list.forEach(e=>buckets[shipFeeOf(e)].push(e));
+  const sheets=[],flat=[];
+  ["착불","선불"].forEach(bk=>{
+    if(!buckets[bk].length)return;
+    const r=aggShipRows(buckets[bk],bk);
+    sheets.push({name:bk,rows:r.rows});r.flat.forEach(x=>flat.push(x));
+  });
+  const lines=sheets.reduce((a,s)=>a+s.rows.length,0);
+  if(!confirm(list.length+"건(합산 "+lines+"줄)을 다운로드하고 '출고완료' 처리합니다.\n출고완료된 건은 목록에서 사라집니다. 계속할까요?"))return;
+  if(!downloadSheets(sheets,fname))return;
+  try{await markShipped(flat);renderActiveTab();}catch(err){alert("출고완료 처리 실패: "+(err.message||err));}
+}
+
 /* 탭/이벤트 */
 function renderActiveTab(){
   if(curTab==="all")renderTableAll();
@@ -857,9 +917,8 @@ $("#csvBtn").addEventListener("click",()=>{const rows=exportAllRows();if(!rows.l
   const heads=Object.keys(rows[0]);const csv=[heads.join(",")].concat(rows.map(r=>heads.map(h=>`"${String(r[h]).replace(/"/g,'""')}"`).join(","))).join("\n");
   const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="아이닉이벤트_리포트_"+todayStr()+".csv";a.click();});
 function dlPlain(list,cols,fname){if(!list.length){alert("대상 데이터가 없습니다.");return;}const rows=list.map(e=>{const o={};cols.forEach(([l,fn])=>o[l]=fn(e));return o;});downloadRows(rows,fname);}
-$("#dlOrder").addEventListener("click",()=>dlAndShip(teamElig("gift"),DL_ORDER,"아이닉_사은품_일괄출고"));
-$("#dlAcct").addEventListener("click",()=>dlAndShip(teamElig("coupon"),DL_ACCT,"아이닉_상품권_일괄출고"));
-$("#dlReserve").addEventListener("click",()=>dlAndShip(reserveElig($("#rSearch").value),DL_ORDER,"아이닉_예약발송목록"));
+$("#dlOrder").addEventListener("click",()=>dlShipTemplate("gift","아이닉_사은품_사방넷"));
+$("#dlAcct").addEventListener("click",()=>dlShipTemplate("coupon","아이닉_상품권_사방넷"));
 $("#reAllOrder").addEventListener("click",reJudgeAll);
 $("#reAllAcct").addEventListener("click",reJudgeAll);
 $("#reload").addEventListener("click",loadData);

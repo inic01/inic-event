@@ -619,8 +619,8 @@ async function lookupParticipation(){
       list.map(e=>{const st=custStatus(e);const tp=e.type==="coupang"?"쿠팡 정품등록":"포토리뷰";
         let h=`<div class="cpcard"><b>${prodNameOf(e.product)}</b> · ${tp}<span class="cpbadge ${st.cls}">${st.label}</span>`;
         if(st.consult){const url=KAKAO_CHANNELS[e.category]||"";
-          h+=url?`<div style="margin-top:9px;font-size:12.5px;color:var(--sub);line-height:1.5">발송이 보류된 건입니다. 아래 채널로 문의해 주세요.<div style="margin-top:6px"><a href="${url}" target="_blank" rel="noopener" class="cpkakao">💬 상담사 문의하기</a></div></div>`
-            :`<div style="margin-top:8px;font-size:12.5px;color:var(--sub)">발송이 보류된 건입니다. 상담사에게 문의해 주세요.</div>`;}
+          h+=url?`<div style="margin-top:9px;font-size:12.5px;color:var(--sub);line-height:1.5">리뷰 검수 중이므로 출고 전입니다. 출고 일정이 궁금하시면 아래 채널로 문의해 주세요.<div style="margin-top:6px"><a href="${url}" target="_blank" rel="noopener" class="cpkakao">💬 상담사 문의하기</a></div></div>`
+            :`<div style="margin-top:8px;font-size:12.5px;color:var(--sub)">리뷰 검수 중이므로 출고 전입니다. 출고 일정이 궁금하시면 상담사에게 문의해 주세요.</div>`;}
         return h+`</div>`;}).join("");
   }catch(err){box.innerHTML='<div class="cpempty">조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';}
 }

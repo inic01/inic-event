@@ -89,6 +89,8 @@
   .shipbig.done{background:transparent;color:var(--ok)}
   .shipbig.wait{background:#f2eeea;color:#8a827c}
   .shipbig.resv{background:#e9f0fb;color:var(--blue)}
+  .shipbig.hold{background:#fbeedd;color:#b26a00}
+  .rescard.clickable{cursor:pointer;transition:.12s} .rescard.clickable:hover{border-color:#c9cfdd;box-shadow:0 2px 10px rgba(0,0,0,.06)}
   .rescard.shipped{background:#eef8f1;border-color:#cde9d6}
   .chkgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
   @media(max-width:820px){.chkgrid{grid-template-columns:repeat(2,1fr)}}
@@ -359,7 +361,7 @@ function reasonOf(e){
     const parts=[];
     if(e.aiAbuseFree===false) parts.push("욕설·비방 리뷰");
     if(e.aiProductMatch===false) parts.push("다른 제품 리뷰 (접수 제품과 무관)");
-    if(e.aiRatingPass===false) parts.push(`별점 미달 (개인 별점 ${e.aiPersonalRating!=null?e.aiPersonalRating+"점":"?"} / 기준 4점 이상)`);
+    if(e.aiRatingPass===false) parts.push(`별점 미달 (개인 별점 ${e.aiPersonalRating!=null?e.aiPersonalRating+"점":"?"} / 기준 3점 이상)`);
     if(e.aiPhotoPass===false) parts.push("사진 부적합 (제품 사진·동영상 없음 또는 무관 이미지)");
     return parts.join(" / ");
   }
@@ -716,6 +718,13 @@ window.openDetail=openDetail;window.closeDetail=closeDetail;
 window.saveDetail=saveDetail;window.approveDetail=approveDetail;
 
 /* 고객검색 */
+/* 고객검색 발송 상태: 발송(출고완료) / 출고대기(부적합·리뷰 검수) / 예약발송 / 미발송 */
+function csShipBadge(e){
+  if(e.shipped||e.shipState==="shipped")return '<span class="shipbig done">✓ 발송</span>';
+  if(shipStatus(e)==="ineligible" && !e.overrideEligible)return '<span class="shipbig hold">출고대기</span>';
+  if(isReserve(e))return '<span class="shipbig resv">예약발송</span>';
+  return '<span class="shipbig wait">미발송</span>';
+}
 function renderCS(){
   const q=$("#csSearch").value.trim(),box=$("#csResult");
   if(!q){box.innerHTML='<div class="empty">검색어를 입력하세요.</div>';$("#pagerCs").innerHTML="";return;}
@@ -723,9 +732,9 @@ function renderCS(){
   if(!all.length){box.innerHTML=`<div class="empty">'${q}' 로 참여한 내역이 없습니다. (이벤트 미참여)</div>`;$("#pagerCs").innerHTML="";return;}
   const rows=slice(all,"cs");
   box.innerHTML=rows.map(e=>{
-    const st=shipStateOf(e);
-    const sb=st==="shipped"?'<span class="shipbig done">✓ 출고완료</span>':st==="reserved"?'<span class="shipbig resv">예약발송</span>':'<span class="shipbig wait">미발송</span>';
-    return `<div class="rescard ${st==="shipped"?"shipped":""}"><div style="flex:1">
+    const shipped=e.shipped||e.shipState==="shipped";
+    const sb=csShipBadge(e);
+    return `<div class="rescard clickable ${shipped?"shipped":""}" onclick="openDetail('${e._id}')"><div style="flex:1">
       <div class="who">${e.name||"(이름없음)"} <span class="pill ${e.type}">${TYPE_LABEL[e.type]||e.type}</span>${e.manual?' <span class="pill manual">수기</span>':""}</div>
       <div class="meta">접수일자 ${fmtDate(e._date)} · 출고일자 ${shippedDate(e)}</div>
       <div class="csdetail">

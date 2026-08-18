@@ -39,6 +39,19 @@
   .type:hover{border-color:#dcd3c8}
   .type.on{border-color:var(--brand);background:#f4f1ec;box-shadow:0 0 0 2px #e4ddd3 inset}
   .type .emo{font-size:28px}.type .tt{font-weight:800;font-size:14.5px;margin-top:10px;line-height:1.35}
+  .checkpart{margin-top:20px}
+  #chkOpen{width:100%;padding:14px;border:1.5px dashed var(--brand,#3d7bfd);border-radius:12px;background:#f4f7ff;color:var(--brand,#3d7bfd);font-weight:800;font-size:14px;cursor:pointer}
+  #chkBody{margin-top:12px;padding:16px;border:1px solid var(--line);border-radius:14px;background:#faf8f6}
+  .cprow{display:flex;gap:6px;flex-wrap:wrap}
+  .cprow input{flex:1;min-width:120px;padding:10px;border:1px solid var(--line);border-radius:9px;font-size:14px}
+  .cprow #chkBtn{padding:0 18px;border:none;border-radius:9px;background:var(--brand,#3d7bfd);color:#fff;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap}
+  .cpresult{margin-top:10px}
+  .cpresult:empty{display:none}
+  .cpcard{padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-top:8px;font-size:13px;line-height:1.5}
+  .cpcard .st{font-weight:800}
+  .cpempty{padding:11px 13px;border:1px dashed var(--line);border-radius:10px;background:#fff;font-size:13px;color:var(--sub)}
+  .cpbadge{display:inline-block;font-size:11.5px;font-weight:800;border-radius:6px;padding:2px 8px;margin-left:4px}
+  .cpbadge.ok{background:#eaf3ee;color:#1f7a45}.cpbadge.wait{background:#fdf0e3;color:#b26a00}.cpbadge.no{background:#fdecec;color:#b23b3b}.cpbadge.ship{background:#e7f1fb;color:#1f5fae}
   .cats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
   .cat{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;
     font-size:13px;font-weight:700;cursor:pointer;color:var(--sub)}
@@ -118,6 +131,19 @@
       <div class="type" data-type="coupang"><div class="emo">🚀</div><div class="tt">쿠팡·로켓배송<br>정품 등록</div></div>
     </div>
     <div class="err" id="err-type">참여 유형을 선택해 주세요.</div>
+
+    <div class="checkpart" id="checkPart">
+      <button type="button" id="chkOpen" onclick="toggleCheck()">🔍 포토리뷰 이벤트 참여 조회</button>
+      <div id="chkBody" class="hide">
+        <p class="desc" style="margin:12px 0 10px">성함과 연락처를 입력하시면 포토리뷰 이벤트 참여 내역을 확인하실 수 있습니다.</p>
+        <div class="cprow">
+          <input type="text" id="chkName" placeholder="성함">
+          <input type="tel" id="chkPhone" placeholder="연락처 (예: 010-1234-5678)" inputmode="numeric" oninput="fmtPhone(this)" maxlength="13">
+          <button type="button" id="chkBtn" onclick="lookupParticipation()">조회</button>
+        </div>
+        <div id="chkResult" class="cpresult"></div>
+      </div>
+    </div>
   </div>
 
   <div class="card step hide" id="step-consent">
@@ -566,6 +592,41 @@ function openPostcode(){
   }}).open();
 }
 window.openPostcode=openPostcode;
+/* 참여 확인 조회 (성함+연락처) */
+function prodNameOf(code){for(const c in PRODUCTS){const f=PRODUCTS[c].find(p=>p.code===code);if(f)return f.name;}return code||"";}
+function custStatus(e){
+  if(e.shipped||e.shipState==="shipped")return ["발송 완료","ship"];
+  const s=e.status;
+  if(e.type==="coupang"){
+    if(s==="eligible")return ["정품등록 완료 · 발송 예정","ok"];
+    if(s==="review")return ["확인 중","wait"];
+    if(s==="ineligible")return ["확인 필요 (상담사 문의)","no"];
+    return ["심사 중","wait"];
+  }
+  if(s==="eligible")return ["적격 · 발송 예정","ok"];
+  if(s==="review")return ["확인 중","wait"];
+  if(s==="ineligible")return ["기준 미충족 (상담사 문의)","no"];
+  return ["심사 중","wait"];
+}
+function toggleCheck(){const body=$("#chkBody");const open=body.classList.toggle("hide")===false;$("#chkOpen").textContent=open?"✕ 참여 조회 닫기":"🔍 포토리뷰 이벤트 참여 조회";if(open)$("#chkName").focus();}
+window.toggleCheck=toggleCheck;
+async function lookupParticipation(){
+  const name=$("#chkName").value.trim(),phone=$("#chkPhone").value.trim(),box=$("#chkResult");
+  if(!name||normPhone(phone).length<10){box.innerHTML='<div class="cpempty">성함과 연락처를 정확히 입력해 주세요.</div>';return;}
+  const pk=normPhone(phone),nm=name.replace(/\s/g,"");
+  box.innerHTML='<div class="cpempty">조회 중…</div>';
+  try{
+    let list=[];
+    if(DEMO_MODE){list=demoStore.filter(e=>e.phoneKey===pk);}
+    else{await initFirebase();const q=await db.collection(COLLECTION).where("phoneKey","==",pk).get();q.forEach(d=>list.push(d.data()));}
+    list=list.filter(e=>(e.name||"").replace(/\s/g,"")===nm);   // 성함+연락처 모두 일치해야 노출
+    if(!list.length){box.innerHTML=`<div class="cpempty"><b>${name}</b> 님으로 참여하신 내역이 없습니다. 아래에서 참여를 진행해 주세요.</div>`;return;}
+    box.innerHTML=`<div class="cpempty" style="border-style:solid;color:var(--ink)"><b>${name}</b> 님 · 참여 ${list.length}건</div>`+
+      list.map(e=>{const [lbl,cls]=custStatus(e);const tp=e.type==="coupang"?"쿠팡 정품등록":"포토리뷰";
+        return `<div class="cpcard"><b>${prodNameOf(e.product)}</b> · ${tp}<span class="cpbadge ${cls}">${lbl}</span></div>`;}).join("");
+  }catch(err){box.innerHTML='<div class="cpempty">조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';}
+}
+window.lookupParticipation=lookupParticipation;
 function collectSurvey(){ const list=surveyOf(state.product)||[]; const out=[];
   list.forEach((q,qi)=>{ const a=state.survey[qi]; if(!a)return;
     out.push({q:q.q, a:a.etc?("기타: "+$("#etc_"+qi).value.trim()):q.opts[a.val]}); }); return out; }

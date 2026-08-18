@@ -179,16 +179,16 @@
     <h2 id="infoTitle">캡처 및 받으실 정보 <span class="req">*</span></h2>
     <p class="desc">정확히 입력해 주세요. 오기재 시 발송이 지연되거나 누락될 수 있습니다.</p>
     <div id="rewardBox"></div>
-    <div class="field only-review">
-      <label class="fld">포토리뷰 캡처 이미지 <span class="req">*</span></label>
-      <div class="hint" style="margin:0 0 8px">리뷰를 작성한 화면(별점·후기·사진이 보이게)을 캡처해 등록해 주세요.</div>
+    <div class="field">
+      <label class="fld" id="fileLabel">포토리뷰 캡처 이미지 <span class="req">*</span></label>
+      <div class="hint" id="fileHint" style="margin:0 0 8px">리뷰를 작성한 화면(별점·후기·사진이 보이게)을 캡처해 등록해 주세요.</div>
       <label class="drop" id="drop">
         <input type="file" id="file" accept="image/*">
         <div id="dropInner"><div style="font-size:30px">📷</div>
-          <div style="margin-top:6px">여기를 눌러 캡처 이미지를 등록</div><span class="upbtn">파일 선택</span></div>
+          <div style="margin-top:6px" id="dropText">여기를 눌러 캡처 이미지를 등록</div><span class="upbtn">파일 선택</span></div>
       </label>
       <div class="filename" id="filename"></div>
-      <div class="err" id="err-file">캡처 이미지를 등록해 주세요.</div>
+      <div class="err" id="err-file">이미지를 등록해 주세요.</div>
     </div>
     <div class="field">
       <label class="fld">수령인 성함 <span class="req">*</span></label>
@@ -370,7 +370,13 @@ $$(".type").forEach(t=>t.addEventListener("click",()=>{
 }));
 function applyType(){
   const review=state.type==="review";
-  $("#infoTitle").innerHTML = review ? '캡처 및 받으실 정보 <span class="req">*</span>' : '기프티콘 받으실 정보 <span class="req">*</span>';
+  $("#infoTitle").innerHTML = review ? '캡처 및 받으실 정보 <span class="req">*</span>' : '정품등록 및 받으실 정보 <span class="req">*</span>';
+  // 이미지 업로드: 포토리뷰는 리뷰 캡처, 쿠팡은 S/N·제품 사진 (둘 다 필수)
+  $("#fileLabel").innerHTML = review ? '포토리뷰 캡처 이미지 <span class="req">*</span>' : 'S/N·제품 사진 <span class="req">*</span>';
+  $("#fileHint").textContent = review
+    ? "리뷰를 작성한 화면(별점·후기·사진이 보이게)을 캡처해 등록해 주세요."
+    : "제품 뒷면 시리얼번호(S/N) 스티커 또는 제품 실물이 보이게 촬영해 등록해 주세요.";
+  {const dt=$("#dropText"); if(dt) dt.textContent = review ? "여기를 눌러 캡처 이미지를 등록" : "여기를 눌러 사진을 등록";}
   $$(".only-review").forEach(el=>el.classList.toggle("hide",!review));
   $$(".only-coupang").forEach(el=>el.classList.toggle("hide",review));
   renderConsent(); renderCats(); renderProds();
@@ -520,7 +526,7 @@ function validateStep(step){
     return ok; }
   if(step==="info"){
     let ok=true; const g=giftOf(state.product), rw=rewardType(state.type,state.product);
-    if(state.type==="review" && !state.file){showErr("err-file");ok=false;}else hideErr("err-file");
+    if(!state.file){showErr("err-file");ok=false;}else hideErr("err-file");
     if(!$("#name").value.trim()){showErr("err-name");ok=false;}else hideErr("err-name");
     if($("#phone").value.replace(/[^0-9]/g,"").length<10){showErr("err-phone");ok=false;}else hideErr("err-phone");
     if(state.type!=="coupang" && g && g.choice && state.giftChoice==null){showErr("err-gift");ok=false;}
@@ -550,7 +556,7 @@ async function submit(){
   const review=state.type==="review";
   const entry={type:state.type,name:$("#name").value.trim(),phone:$("#phone").value.trim(),phoneKey:normPhone($("#phone").value),
     consent:{...state.consent,agreedAt:new Date().toISOString()},
-    status:review?"pending":"coupang_registered",createdAt:new Date().toISOString()};
+    status:"pending",createdAt:new Date().toISOString()};
   const rw=rewardType(state.type,state.product); entry.rewardType=rw;
   const g=giftOf(state.product);
   entry.category=state.category; entry.product=state.product;
@@ -572,7 +578,7 @@ async function submit(){
       demoStore.push(entry); showDone(entry,true);
     } else {
       const dup=await checkDuplicate(entry); if(dup){showDup(dup,review);resetBtn();return;}
-      await saveEntry(entry,review?state.file:null); showDone(entry,false);
+      await saveEntry(entry,state.file); showDone(entry,false);
     }
   }catch(err){console.error(err);alert("접수 저장 중 오류가 발생했습니다.\n"+(err&&err.message?err.message:err)+"\n\n※ 포토리뷰 이미지는 Storage를 켜야 저장됩니다.");resetBtn();}
 }
@@ -580,7 +586,7 @@ function resetBtn(){const b=$("#submitBtn");b.disabled=false;b.textContent="참�
 function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅";$("#mTitle").textContent="참여가 접수되었습니다";state.lastModal="done";
   const review=e.type==="review";
   const rlabel=e.rewardType==="coupon"?"기프티콘(상품권)이":"사은품이";
-  const pre=review?"리뷰 심사(별점·사진 자동 확인) 후 ":"확인 후 ";
+  const pre=review?"리뷰 심사(별점·사진 자동 확인) 후 ":"정품등록 심사(제품 사진 자동 확인) 후 ";
   $("#mDesc").textContent=pre+rlabel+" 발송됩니다."+(demo?" ※ 데모라 실제 저장은 안 됩니다.":"");
   const prod=(PRODUCTS[e.category].find(p=>p.code===e.product)||{}).name||e.product;
   let kv=`<div><b>유형</b> ${review?"포토리뷰 이벤트":"쿠팡·로켓배송 정품 등록"}</div>`+
@@ -602,7 +608,7 @@ function resetForm(){
   ["#name","#phone","#order","#custId","#addr","#serial","#sourceEtc","#file"].forEach(s=>{const el=$(s);if(el)el.value="";});
   document.querySelectorAll(".type").forEach(x=>x.classList.remove("on"));
   const sb=$("#sourceBox"); if(sb) sb.dataset.for="";
-  const di=$("#dropInner"); if(di) di.innerHTML='<div style="font-size:30px">📷</div><div style="margin-top:6px">여기를 눌러 캡처 이미지를 등록</div><span class="upbtn">파일 선택</span>';
+  const di=$("#dropInner"); if(di) di.innerHTML='<div style="font-size:30px">📷</div><div style="margin-top:6px" id="dropText">여기를 눌러 이미지를 등록</div><span class="upbtn">파일 선택</span>';
   const fn=$("#filename"); if(fn) fn.textContent="";
   resetBtn(); current=0; showStep();
 }

@@ -372,10 +372,10 @@ function applyType(){
   const review=state.type==="review";
   $("#infoTitle").innerHTML = review ? '캡처 및 받으실 정보 <span class="req">*</span>' : '정품등록 및 받으실 정보 <span class="req">*</span>';
   // 이미지 업로드: 포토리뷰는 리뷰 캡처, 쿠팡은 S/N·제품 사진 (둘 다 필수)
-  $("#fileLabel").innerHTML = review ? '포토리뷰 캡처 이미지 <span class="req">*</span>' : 'S/N·제품 사진 <span class="req">*</span>';
+  $("#fileLabel").innerHTML = review ? '포토리뷰 캡처 이미지 <span class="req">*</span>' : '시리얼번호(S/N) 라벨 사진 <span class="req">*</span>';
   $("#fileHint").textContent = review
     ? "리뷰를 작성한 화면(별점·후기·사진이 보이게)을 캡처해 등록해 주세요."
-    : "제품 뒷면 시리얼번호(S/N) 스티커 또는 제품 실물이 보이게 촬영해 등록해 주세요.";
+    : "제품 뒷면/박스의 시리얼번호(S/N) 라벨이 또렷하게 보이게 촬영해 등록해 주세요. (입력하신 S/N과 대조합니다)";
   {const dt=$("#dropText"); if(dt) dt.textContent = review ? "여기를 눌러 캡처 이미지를 등록" : "여기를 눌러 사진을 등록";}
   $$(".only-review").forEach(el=>el.classList.toggle("hide",!review));
   $$(".only-coupang").forEach(el=>el.classList.toggle("hide",review));
@@ -586,7 +586,7 @@ function resetBtn(){const b=$("#submitBtn");b.disabled=false;b.textContent="참�
 function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅";$("#mTitle").textContent="참여가 접수되었습니다";state.lastModal="done";
   const review=e.type==="review";
   const rlabel=e.rewardType==="coupon"?"기프티콘(상품권)이":"사은품이";
-  const pre=review?"리뷰 심사(별점·사진 자동 확인) 후 ":"정품등록 심사(제품 사진 자동 확인) 후 ";
+  const pre=review?"리뷰 심사(별점·사진 자동 확인) 후 ":"정품등록 심사(시리얼번호 자동 대조) 후 ";
   $("#mDesc").textContent=pre+rlabel+" 발송됩니다."+(demo?" ※ 데모라 실제 저장은 안 됩니다.":"");
   const prod=(PRODUCTS[e.category].find(p=>p.code===e.product)||{}).name||e.product;
   let kv=`<div><b>유형</b> ${review?"포토리뷰 이벤트":"쿠팡·로켓배송 정품 등록"}</div>`+

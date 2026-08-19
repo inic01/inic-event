@@ -175,7 +175,7 @@
     <div class="hint">심사에서 <b>부적합</b>으로 판정된 고객을 한 곳에 모았습니다. 전화 응대(아웃콜) 후 <b>응대상태·결과</b>를 기록하고, 수정에 응하면 <b>출고 승인</b>을 누르세요. (AI가 애매·오류로 판정 못한 건은 각 사은품/상품권 탭의 '확인필요'에 있습니다.)</div>
     <div class="filters">
       <select id="bfReward"><option value="">보상 전체</option><option value="gift">사은품</option><option value="coupon">상품권</option></select>
-      <select id="bfReason"><option value="">사유 전체</option><option value="notcap">리뷰 캡처·S/N 사진 아님</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="snmismatch">S/N 불일치</option><option value="dup">중복 참여</option></select>
+      <select id="bfReason"><option value="">사유 전체</option><option value="notcap">리뷰 캡처·S/N 사진 아님</option><option value="ratingunread">별점 미확인</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="snmismatch">S/N 불일치</option><option value="snunread">S/N 미확인</option><option value="dup">중복 참여</option></select>
       <input type="text" id="bfSearch" placeholder="이름·연락처·제품 검색">
       <span id="bCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span>
       <span style="flex:1"></span>
@@ -305,11 +305,13 @@
             <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">부적합으로 처리할 경우 사유</label>
             <select id="dtManualReason" style="padding:8px;width:100%;margin:4px 0 10px">
               <option value="리뷰 캡처 아님">리뷰 캡처 아님</option>
+              <option value="별점 미확인">별점 미확인 (캡처에 별점 없음)</option>
               <option value="별점 미달">별점 미달</option>
               <option value="사진 없음">사진 없음</option>
               <option value="욕설·비방">욕설·비방</option>
               <option value="다른 제품 리뷰">다른 제품 리뷰</option>
               <option value="S/N 라벨 사진 아님">S/N 라벨 사진 아님</option>
+              <option value="S/N 미확인">S/N 미확인 (라벨 판독 불가)</option>
               <option value="S/N 불일치">S/N 불일치</option>
             </select>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -405,8 +407,14 @@ const REASON_RULES=[
   {key:"wrongprod",label:"다른 제품 리뷰",  hit:e=>e.aiProductMatch===false,     text:()=>"다른 제품 리뷰"},
   {key:"photo",    label:"사진 없음",       hit:e=>e.aiPhotoPass===false,        text:()=>"사진 없음"},
   {key:"snmismatch",label:"S/N 불일치",     hit:e=>e.aiSerialMatch===false,      text:()=>"S/N 불일치"},
-  {key:"rating",   label:"별점 미달",       hit:e=>e.aiRatingPass===false&&shipStatus(e)!=="review",
-                                                                                 text:e=>"별점 미달"+(e.aiPersonalRating!=null?` (${e.aiPersonalRating}점)`:"")},
+  /* 라벨 사진은 맞는데 글자를 못 읽음 → 대조 불가 → 부적합(재촬영 안내) */
+  {key:"snunread", label:"S/N 미확인",      hit:e=>e.type==="coupang"&&e.aiSerialPhoto!==false&&e.aiSerialInImage===null&&e.aiSerialMatch!==true,
+                                                                                 text:()=>"S/N 미확인 (라벨 판독 불가)"},
+  /* 리뷰 화면은 맞는데 별점이 캡처에 안 잡힘 → 조건 확인 불가 → 부적합 */
+  {key:"ratingunread",label:"별점 미확인",  hit:e=>e.type==="review"&&e.aiRatingPass===false&&e.aiPersonalRating==null&&shipStatus(e)!=="review",
+                                                                                 text:()=>"별점 미확인 (캡처에 별점 없음)"},
+  {key:"rating",   label:"별점 미달",       hit:e=>e.aiRatingPass===false&&e.aiPersonalRating!=null&&shipStatus(e)!=="review",
+                                                                                 text:e=>`별점 미달 (${e.aiPersonalRating}점)`},
 ];
 /* 부적합 탭 드롭다운 필터용 대표 사유 1개 (위 순서 그대로) */
 function badReasonType(e){const r=REASON_RULES.find(r=>r.hit(e));return r?r.key:"";}
@@ -632,14 +640,14 @@ function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
 }
 function renderOrder(){
   const v=subView.order;
-  $("#orderHint").innerHTML=v==="inelig"?"사은품 대상 중 <b>확인필요</b>(AI가 별점을 못 읽거나 일시 오류) 건입니다. '재심사'로 다시 판정하세요. (부적합은 상단 '부적합' 탭에 있습니다.)":"사은품 대상 <b>적합·미출고</b> 건입니다(예약발송 제품 제외). '일괄출고'를 누르면 목록을 내려받고 전부 출고완료 처리되어 목록에서 사라집니다.";
+  $("#orderHint").innerHTML=v==="inelig"?"사은품 대상 중 <b>확인필요</b> 건입니다. <b>AI 심사가 실패한 건만</b> 여기 남습니다(일시 오류·사용량 초과). '재심사'로 다시 판정하고, 계속 실패하면 행을 클릭해 <b>직접 판정</b>하세요. (별점·사진 등 기준 미충족은 '부적합' 탭에 있습니다.)":"사은품 대상 <b>적합·미출고</b> 건입니다(예약발송 제품 제외). '일괄출고'를 누르면 목록을 내려받고 전부 출고완료 처리되어 목록에서 사라집니다.";
   $("#dlOrder").style.display=(v==="elig")?"":"none";
   $("#reAllOrder").style.display=(v==="inelig")?"":"none";
   renderTeam("gift","#tableOrder","#emptyOrder","#oCount","#pagerOrder","order",v);
 }
 function renderAcct(){
   const v=subView.acct;
-  $("#acctHint").innerHTML=v==="inelig"?"상품권 대상 중 <b>확인필요</b> 건입니다. (포토리뷰는 별점 판독 불가·오류, 정품등록은 이미지 S/N 불일치·판독 불가) '재심사'로 다시 판정하세요. (부적합은 상단 '부적합' 탭에 있습니다.)":"상품권 대상 <b>적합·미출고</b> 건입니다. '일괄출고'를 누르면 목록을 내려받고 전부 출고완료 처리되어 목록에서 사라집니다.";
+  $("#acctHint").innerHTML=v==="inelig"?"상품권 대상 중 <b>확인필요</b> 건입니다. <b>AI 심사가 실패한 건만</b> 여기 남습니다(일시 오류·사용량 초과). '재심사'로 다시 판정하고, 계속 실패하면 행을 클릭해 <b>직접 판정</b>하세요. (별점·사진 등 기준 미충족은 '부적합' 탭에 있습니다.)":"상품권 대상 <b>적합·미출고</b> 건입니다. '일괄출고'를 누르면 목록을 내려받고 전부 출고완료 처리되어 목록에서 사라집니다.";
   $("#dlAcct").style.display=(v==="elig")?"":"none";
   $("#reAllAcct").style.display=(v==="inelig")?"":"none";
   renderTeam("coupon","#tableAcct","#emptyAcct","#aCount","#pagerAcct","acct",v);

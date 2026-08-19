@@ -265,6 +265,7 @@
         <div class="dtrow"><b>사은품/상품권</b><span id="dtReward">-</span></div>
         <div class="dtrow"><b>제품</b><span id="dtProduct">-</span></div>
         <div class="dtrow"><b>주문번호</b><span id="dtOrder">-</span></div>
+        <div class="dtrow" id="dtSnRow" style="display:none"><b>S/N</b><span id="dtSn">-</span></div>
         <div class="dtrow"><b>주소</b><span id="dtAddr">-</span></div>
         <div class="dtrow"><b>상태</b><span id="dtState">-</span></div>
         <div class="dtrow" id="dtReasonRow"><b id="dtReasonLabel">부적합 사유</b><span id="dtReason" style="color:var(--bad,#c0392b)">-</span></div>
@@ -603,9 +604,9 @@ function reasonCell(e){
   return det ? `${base}<div style="font-size:11px;color:var(--sub);margin-top:3px;white-space:normal">원인: ${det.replace(/</g,"&lt;")}</div>` : base;
 }
 const ELIG_ORDER=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["검수",e=>eligCheck(e)],["사은품",e=>e.giftItem||"-","wrapcell"],
-  SN_COL,["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-","wrapcell"]];
+  SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-","wrapcell"]];
 const ELIG_ACCT=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>e.giftItem||"-","wrapcell"],
-  SN_COL,["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-","wrapcell"]];
+  SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-","wrapcell"]];
 /* 확인필요 = 재심사 담당. 재심사 누르면 결과에 따라 적합/부적합으로 자동 이동 */
 const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>e.product||"-"],SN_COL,
   ["별점",e=>ratingCell(e)],["사진",e=>photoCell(e)],["사유",e=>reasonCell(e),"wrapcell"],
@@ -819,6 +820,18 @@ function openDetail(id){
   $("#dtReward").textContent=(REWARD_LABEL[e.rewardType]||"사은품/상품권")+" : "+(e.giftItem||"-");
   $("#dtProduct").textContent=e.product||"-";
   $("#dtOrder").textContent=e.orderNo||"-";
+  /* 정품등록이면 고객 입력 S/N + AI가 이미지에서 읽은 S/N을 나란히 */
+  if(e.type==="coupang"){
+    $("#dtSnRow").style.display="";
+    const inp=e.serial||"(미입력)";
+    let h=`<span style="${MONO}">${inp}</span>`;
+    if(e.aiSerialInImage!==undefined){
+      const same=e.aiSerialMatch===true;
+      h+=`<div style="${MONO};margin-top:3px;color:${same?"var(--ok,#12a150)":"var(--bad,#c0392b)"}">`
+        +(e.aiSerialInImage?`AI 판독 ${e.aiSerialInImage} ${same?"✓ 일치":"✕ 불일치"}`:"AI 판독 불가")+`</div>`;
+    }
+    $("#dtSn").innerHTML=h;
+  } else $("#dtSnRow").style.display="none";
   $("#dtAddr").textContent=e.address||"-";
 
   /* ── 부적합 여부에 따라 모달 구성 분기 ──
@@ -935,6 +948,7 @@ function renderCS(){
         <div><b>${REWARD_LABEL[e.rewardType]||"사은품/상품권"}</b>${e.giftItem||"-"}</div>
         <div><b>구입처</b>${e.source||"-"}</div>
         <div><b>주문번호</b>${e.orderNo||"-"}</div>
+        ${e.type==="coupang"?`<div><b>S/N</b><span style="${MONO}">${e.serial||"(미입력)"}</span></div>`:""}
         <div><b>연락처</b>${e.phone||"-"}</div>
         <div><b>주소</b>${e.address||"-"}</div>
       </div>

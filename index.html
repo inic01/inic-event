@@ -177,8 +177,9 @@
     <h2>시리얼번호(S/N) 등록 <span class="req">*</span></h2>
     <div class="notice">시리얼번호를 정확히 기재해 주셔야 기프티콘 발송이 가능합니다.
       <b>동일한 시리얼번호가 등록될 경우, 사은품/기프티콘은 최초 등록한 1명에게만 발송</b>됩니다.</div>
+    <div id="snPhotoSlot"></div>
     <div class="field">
-      <label class="fld">전원선에 부착된 택의 S/N 번호 <span class="req">*</span></label>
+      <label class="fld" id="serialLabel">전원선에 부착된 택의 S/N 번호 <span class="req">*</span></label>
       <input type="text" id="serial" placeholder="예) iHD01">
       <div class="hint">중복 참여 확인에 사용됩니다.</div>
       <div class="err" id="err-serial">시리얼번호를 입력해 주세요.</div>
@@ -193,11 +194,6 @@
     <div id="sourceBox"></div>
     <input type="text" id="sourceEtc" class="hide" placeholder="구입처를 직접 입력" style="margin-top:8px">
     <div class="err" id="err-source">구입처를 선택해 주세요. (기타는 직접 입력)</div>
-    <div class="field" style="margin-top:16px">
-      <label class="fld">구매 사이트 고객 ID <span class="req">*</span></label>
-      <input type="text" id="custId" placeholder="구매하신 사이트의 고객 ID">
-      <div class="err" id="err-custid">고객 ID를 입력해 주세요.</div>
-    </div>
     <div class="field">
       <label class="fld">구매 사이트 주문번호 <span class="req">*</span></label>
       <input type="text" id="order" placeholder="구매하신 사이트의 주문번호">
@@ -210,7 +206,7 @@
     <h2 id="infoTitle">캡처 및 받으실 정보 <span class="req">*</span></h2>
     <p class="desc">정확히 입력해 주세요. 오기재 시 발송이 지연되거나 누락될 수 있습니다.</p>
     <div id="rewardBox"></div>
-    <div class="field">
+    <div id="fileHome"><div class="field" id="fileField">
       <label class="fld" id="fileLabel">포토리뷰 캡처 이미지 <span class="req">*</span></label>
       <div class="hint" id="fileHint" style="margin:0 0 8px"><b>본인이 작성한 리뷰 화면</b>을 캡처해 등록해 주세요. <b>별점·후기 내용·첨부하신 사진</b>이 함께 보여야 합니다.<br><span style="color:#c0392b">※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.</span></div>
       <label class="drop" id="drop">
@@ -220,7 +216,7 @@
       </label>
       <div class="filename" id="filename"></div>
       <div class="err" id="err-file">이미지를 등록해 주세요.</div>
-    </div>
+    </div></div>
     <div class="field">
       <label class="fld">수령인 성함 <span class="req">*</span></label>
       <input type="text" id="name" placeholder="반드시 수령받으실 때 수령인명을 입력해주세요">
@@ -234,12 +230,13 @@
     </div>
     <div class="field" id="addrField">
       <label class="fld">주소 <span class="req">*</span></label>
+      <div class="hint" style="margin:0 0 8px;color:#c0392b;line-height:1.5">주소 오기재 또는 상세주소 누락 시 배송이 지연되거나 발송이 누락될 수 있으니, <b>[주소 검색]</b> 후 등록 부탁드립니다.</div>
       <div style="display:flex;gap:6px">
         <input type="text" id="addrRoad" placeholder="주소 검색을 눌러주세요" readonly style="flex:1;background:#f7f5f3;cursor:pointer" onclick="openPostcode()">
         <button type="button" id="addrSearch" onclick="openPostcode()" style="white-space:nowrap;padding:0 14px;border-radius:9px;border:1.5px solid var(--brand,#3d7bfd);background:var(--brand,#3d7bfd);color:#fff;font-weight:800;font-size:13px;cursor:pointer">주소 검색</button>
       </div>
       <input type="text" id="addrDetail" placeholder="상세주소 (동/호수 등)" style="margin-top:6px">
-      <div class="err" id="err-addr">주소를 검색하고 상세주소를 입력해 주세요.</div>
+      <div class="err" id="err-addr">[주소 검색]으로 기본주소를 등록한 뒤 상세주소를 입력해 주세요.</div>
     </div>
   </div>
 </div>
@@ -397,8 +394,23 @@ function showStep(){
   $("#barFill").style.width = state.type ? Math.round((current+1)/flow.length*100)+"%" : "0";
   if(step==="survey") renderSurvey();
   if(step==="source") renderSource();
-  if(step==="serial"){ const el=$("#serial"); if(el) el.placeholder="예) "+(state.product||"iHD01"); }
-  if(step==="info") renderInfo();
+  if(step==="serial"){
+    const el=$("#serial"); if(el) el.placeholder="예) "+(state.product||"iHD01");
+    // 정품등록은 '사진 먼저 촬영 → 보면서 S/N 입력' 순서. 사진 입력칸을 S/N 단계 위로 옮긴다.
+    const ff=$("#fileField"), slot=$("#snPhotoSlot");
+    if(ff&&slot&&ff.parentElement!==slot) slot.appendChild(ff);
+    renderFileField();
+    const lab=$("#serialLabel"); if(lab) lab.innerHTML=snPosOf(state.product)+' S/N 번호 <span class="req">*</span>';
+  }
+  if(step==="info"){
+    // 포토리뷰는 사진 입력칸이 원래 자리(정보 입력 단계 맨 위)에 있어야 한다.
+    const ff=$("#fileField"), home=$("#fileHome");
+    if(ff&&home&&ff.parentElement!==home) home.insertBefore(ff,home.firstChild);
+    // 정품등록이면 사진칸은 S/N 단계에 있으므로 이 단계에서는 숨긴다
+    if(home) home.classList.toggle("hide", state.type==="coupang");
+    renderFileField();
+    renderInfo();
+  }
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
@@ -410,12 +422,7 @@ $$(".type").forEach(t=>t.addEventListener("click",()=>{
 function applyType(){
   const review=state.type==="review";
   $("#infoTitle").innerHTML = review ? '캡처 및 받으실 정보 <span class="req">*</span>' : '정품등록 및 받으실 정보 <span class="req">*</span>';
-  // 이미지 업로드: 포토리뷰는 리뷰 캡처, 쿠팡은 S/N·제품 사진 (둘 다 필수)
-  $("#fileLabel").innerHTML = review ? '포토리뷰 캡처 이미지 <span class="req">*</span>' : '시리얼번호(S/N) 라벨 사진 <span class="req">*</span>';
-  $("#fileHint").innerHTML = review
-    ? '<b>본인이 작성한 리뷰 화면</b>을 캡처해 등록해 주세요. <b>별점·후기 내용·첨부하신 사진</b>이 함께 보여야 합니다.<br><span style="color:#c0392b">※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.</span>'
-    : '제품 뒷면/박스의 <b>시리얼번호(S/N) 라벨</b>이 또렷하게 보이게 촬영해 등록해 주세요. (입력하신 S/N과 대조합니다)<br><span style="color:#c0392b">※ 라벨이 보이지 않는 사진이나 입력하신 S/N과 다른 경우 지급 대상에서 제외됩니다.</span>';
-  {const dt=$("#dropText"); if(dt) dt.textContent = review ? "여기를 눌러 캡처 이미지를 등록" : "여기를 눌러 사진을 등록";}
+  renderFileField();
   $$(".only-review").forEach(el=>el.classList.toggle("hide",!review));
   $$(".only-coupang").forEach(el=>el.classList.toggle("hide",review));
   renderConsent(); renderCats(); renderProds();
@@ -514,6 +521,27 @@ function renderInfo(){
     renderRewardInner();
   }
 }
+/* ── S/N 라벨 위치 안내 (제품별) ───────────────────────── */
+const SN_POS={
+  "AO-16LS":"제품 하단면에 부착된",   // 에어프라이어 16L
+  "iSA7":"제품 하단면에 부착된",      // 에어프라이어 7L
+  "iEK01":"제품 하단면에 부착된",     // 분유포트
+  "iFD01-H":"제품 하단면에 부착된",   // 음식물처리기
+  "iFD01-F":"제품 하단면에 부착된",
+  "iSA6L":"제품 뒷면에 부착된"        // 에어프라이어 6L
+};
+function snPosOf(code){ return SN_POS[code]||"전원선에 부착된 택의"; }
+
+/* 사진 입력칸은 포토리뷰(정보 단계)와 정품등록(S/N 단계) 양쪽에서 쓰인다 — 문구만 바꿔 재사용 */
+function renderFileField(){
+  const review=state.type!=="coupang";
+  const lab=$("#fileLabel"), hint=$("#fileHint"), dt=$("#dropText");
+  if(lab) lab.innerHTML = review ? '포토리뷰 캡처 이미지 <span class="req">*</span>' : '시리얼번호(S/N) 라벨 사진 <span class="req">*</span>';
+  if(hint) hint.innerHTML = review
+    ? '<b>본인이 작성한 리뷰 화면</b>을 캡처해 등록해 주세요. <b>별점·후기 내용·첨부하신 사진</b>이 함께 보여야 합니다.<br><span style="color:#c0392b">※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.</span>'
+    : '<b>'+snPosOf(state.product)+' 시리얼번호(S/N) 라벨</b>이 또렷하게 보이게 촬영해 등록해 주세요.<br>사진을 먼저 올리신 뒤, 사진을 보면서 아래에 번호를 입력하시면 편합니다.<br><span style="color:#c0392b">※ 라벨이 보이지 않는 사진이거나 입력하신 S/N과 다른 경우 지급 대상에서 제외됩니다.</span>';
+  if(dt) dt.textContent = review ? "여기를 눌러 캡처 이미지를 등록" : "여기를 눌러 사진을 등록";
+}
 function renderRewardInner(){
   const g=giftOf(state.product); const rw=rewardType(state.type,state.product);
   if(state.consent) state.consent.reward=null;
@@ -599,20 +627,24 @@ function validateStep(step){
   if(step==="source"){ let ok=true;
     if(!state.source){showErr("err-source");ok=false;}
     else if(state.source==="기타" && !$("#sourceEtc").value.trim()){showErr("err-source");ok=false;}else hideErr("err-source");
-    if(!$("#custId").value.trim()){showErr("err-custid");ok=false;}else hideErr("err-custid");
     if(!$("#order").value.trim()){showErr("err-order");ok=false;}else hideErr("err-order");
     return ok; }
   if(step==="serial"){ let ok=true;
+    if(!state.file){showErr("err-file");ok=false;}else hideErr("err-file");   // 사진이 이 단계로 옮겨옴
     if(!$("#serial").value.trim()){showErr("err-serial");ok=false;}else hideErr("err-serial");
     if(!$("#serialAck").checked){showErr("err-serialack");ok=false;}else hideErr("err-serialack");
     return ok; }
   if(step==="info"){
     let ok=true; const g=giftOf(state.product), rw=rewardType(state.type,state.product);
-    if(!state.file){showErr("err-file");ok=false;}else hideErr("err-file");
+    if(state.type!=="coupang"){ if(!state.file){showErr("err-file");ok=false;}else hideErr("err-file"); }
     if(!$("#name").value.trim()){showErr("err-name");ok=false;}else hideErr("err-name");
     if($("#phone").value.replace(/[^0-9]/g,"").length<10){showErr("err-phone");ok=false;}else hideErr("err-phone");
     if(state.type!=="coupang" && g && g.choice && state.giftChoice==null){showErr("err-gift");ok=false;}
-    if(rw==="gift"){ if(!getAddress()){showErr("err-addr");ok=false;}else hideErr("err-addr"); } else hideErr("err-addr");
+    // 기본주소(주소검색 결과)가 없으면 상세주소만 입력해도 통과시키지 않는다 — 오기재·발송누락 방지
+    if(rw==="gift"){
+      const road=($("#addrRoad").value||"").trim(), det=($("#addrDetail").value||"").trim();
+      if(!road||!det){showErr("err-addr");ok=false;}else hideErr("err-addr");
+    } else hideErr("err-addr");
     if(state.consent.reward!==rw){showErr("err-reward");ok=false;}else hideErr("err-reward");
     return ok;
   } return true;
@@ -660,13 +692,22 @@ async function lookupParticipation(){
     if(DEMO_MODE){list=demoStore.filter(e=>e.phoneKey===pk);}
     else{await initFirebase();const q=await db.collection(COLLECTION).where("phoneKey","==",pk).get();q.forEach(d=>list.push(d.data()));}
     list=list.filter(e=>(e.name||"").replace(/\s/g,"")===nm);   // 성함+연락처 모두 일치해야 노출
-    if(!list.length){box.innerHTML=`<div class="cpempty"><b>${name}</b> 님으로 참여하신 내역이 없습니다. 아래에서 참여를 진행해 주세요.</div>`;return;}
+    if(!list.length){box.innerHTML=`<div class="cpempty"><b>${name}</b> 님으로 참여하신 내역이 없습니다.<br>포토리뷰 이벤트 또는 쿠팡 로켓배송 정품등록 여부 선택 후 다음을 눌러 접수 부탁드립니다.</div>`;return;}
+    const MSG='margin-top:9px;font-size:12.5px;color:var(--sub);line-height:1.55';
     box.innerHTML=`<div class="cpempty" style="border-style:solid;color:var(--ink)"><b>${name}</b> 님 · 참여 ${list.length}건</div>`+
       list.map(e=>{const st=custStatus(e);const tp=e.type==="coupang"?"쿠팡 정품등록":"포토리뷰";
         let h=`<div class="cpcard"><b>${prodNameOf(e.product)}</b> · ${tp}<span class="cpbadge ${st.cls}">${st.label}</span>`;
-        if(st.consult){const url=KAKAO_CHANNELS[e.category]||"";
-          h+=url?`<div style="margin-top:9px;font-size:12.5px;color:var(--sub);line-height:1.5">리뷰 검수 중이므로 출고 전입니다. 출고 일정이 궁금하시면 아래 채널로 문의해 주세요.<div style="margin-top:6px"><a href="${url}" target="_blank" rel="noopener" class="cpkakao">💬 상담사 문의하기</a></div></div>`
-            :`<div style="margin-top:8px;font-size:12.5px;color:var(--sub)">리뷰 검수 중이므로 출고 전입니다. 출고 일정이 궁금하시면 상담사에게 문의해 주세요.</div>`;}
+        const url=KAKAO_CHANNELS[e.category]||"";
+        const kakao=url?`<div style="margin-top:6px"><a href="${url}" target="_blank" rel="noopener" class="cpkakao">💬 상담사 문의하기</a></div>`:"";
+        if(st.consult){
+          // 검수 지연·부적합 등 상담이 필요한 건
+          h+=`<div style="${MSG}">리뷰 검수가 진행 중입니다. 첨부 이미지를 확인하기 어렵거나 중복 참여, 구매 정보 확인이 어려운 경우 이벤트 참여 검수가 지연될 수 있습니다. 처리가 지연되는 경우 아래 채널을 통해 문의해 주세요.${kakao}</div>`;
+        } else if(st.cls==="wait"){
+          // 정상 접수 · 아직 미발송
+          const ev=e.type==="coupang"?"쿠팡 로켓배송 정품등록":"포토리뷰 이벤트";
+          const what=e.rewardType==="coupon"?"기프티콘":"사은품";
+          h+=`<div style="${MSG}"><b>${ev}에 정상 참여되었습니다.</b><br>${what}은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.</div>`;
+        }
         return h+`</div>`;}).join("");
   }catch(err){box.innerHTML='<div class="cpempty">조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';}
 }
@@ -687,7 +728,7 @@ async function submit(){
   entry.category=state.category; entry.product=state.product; entry.productName=prodNameOf(state.product);
   entry.giftItem = g ? (g.choice ? (state.giftChoice!=null?g.options[state.giftChoice].label:"") : g.label) : "";
   entry.source = state.source==="기타" ? ("기타: "+$("#sourceEtc").value.trim()) : state.source;
-  entry.custId=$("#custId").value.trim(); entry.orderNo=$("#order").value.trim();
+  entry.orderNo=$("#order").value.trim();
   const addr=getAddress();
   entry.address=rw==="gift"?addr:""; entry.nameAddrKey=rw==="gift"?naKey($("#name").value,addr):null;
   if(review) entry.survey=collectSurvey();
@@ -745,7 +786,7 @@ function showDup(dup,review){$("#box").className="box dup";$("#mIcon").textConte
 function resetForm(){
   state.type=null;state.category="주방가전";state.product=null;state.file=null;
   state.consent={};state.survey={};state.surveyFor=null;state.giftChoice=null;state.source=null;state.infoFor=null;
-  ["#name","#phone","#order","#custId","#addrRoad","#addrDetail","#serial","#sourceEtc","#file"].forEach(s=>{const el=$(s);if(el)el.value="";});
+  ["#name","#phone","#order","#addrRoad","#addrDetail","#serial","#sourceEtc","#file"].forEach(s=>{const el=$(s);if(el)el.value="";});
   document.querySelectorAll(".type").forEach(x=>x.classList.remove("on"));
   const sb=$("#sourceBox"); if(sb) sb.dataset.for="";
   const di=$("#dropInner"); if(di) di.innerHTML='<div style="font-size:30px">📷</div><div style="margin-top:6px" id="dropText">여기를 눌러 이미지를 등록</div><span class="upbtn">파일 선택</span>';

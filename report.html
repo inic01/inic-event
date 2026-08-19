@@ -172,7 +172,7 @@
     <div class="hint">심사에서 <b>부적합</b>으로 판정된 고객을 한 곳에 모았습니다. 전화 응대(아웃콜) 후 <b>응대상태·결과</b>를 기록하고, 수정에 응하면 <b>출고 승인</b>을 누르세요. (AI가 애매·오류로 판정 못한 건은 각 사은품/상품권 탭의 '확인필요'에 있습니다.)</div>
     <div class="filters">
       <select id="bfReward"><option value="">보상 전체</option><option value="gift">사은품</option><option value="coupon">상품권</option></select>
-      <select id="bfReason"><option value="">사유 전체</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="dup">중복 참여</option></select>
+      <select id="bfReason"><option value="">사유 전체</option><option value="notcap">리뷰 캡처·S/N 사진 아님</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="snmismatch">S/N 불일치</option><option value="dup">중복 참여</option></select>
       <input type="text" id="bfSearch" placeholder="이름·연락처·제품 검색">
       <span id="bCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span>
       <span style="flex:1"></span>
@@ -291,6 +291,28 @@
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             <button id="dtReJudge" class="sm" style="display:none" onclick="reJudgeDetail()">🔄 재심사</button>
           </div>
+
+          <!-- 확인필요 전용 : 담당자가 이미지 보고 직접 판정 -->
+          <div id="dtManualBox" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#faf8f6">
+            <div style="font-size:12.5px;font-weight:800;margin-bottom:8px">담당자 직접 판정</div>
+            <div style="font-size:11.5px;color:var(--sub);line-height:1.55;margin-bottom:9px">
+              AI가 판정하지 못한 건입니다. 재심사를 눌러도 같은 결과가 반복되면 왼쪽 이미지를 보고 직접 처리하세요.
+            </div>
+            <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">부적합으로 처리할 경우 사유</label>
+            <select id="dtManualReason" style="padding:8px;width:100%;margin:4px 0 10px">
+              <option value="리뷰 캡처 아님">리뷰 캡처 아님</option>
+              <option value="별점 미달">별점 미달</option>
+              <option value="사진 없음">사진 없음</option>
+              <option value="욕설·비방">욕설·비방</option>
+              <option value="다른 제품 리뷰">다른 제품 리뷰</option>
+              <option value="S/N 라벨 사진 아님">S/N 라벨 사진 아님</option>
+              <option value="S/N 불일치">S/N 불일치</option>
+            </select>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="sm" style="background:#eef8f1;border-color:#bfe3cd;color:#1f7a45;font-weight:800" onclick="manualVerdict('eligible')">✅ 적합 처리</button>
+              <button class="sm" style="background:#fdeeee;border-color:#f0c4c4;color:#b03636;font-weight:800" onclick="manualVerdict('ineligible')">❌ 부적합 처리</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -359,6 +381,7 @@ function shipStatus(e){
 /* AI 실패 문구 분류 — 쿼터 소진과 일시 오류를 구분(대응 방법이 완전히 다름) */
 function aiErrMsg(r){
   if(!r)return "";
+  if(/이미지 용량 초과/.test(r)) return "이미지 용량 초과 — 재촬영 안내 필요";
   if(/exceeded your current quota|billing details|RESOURCE_EXHAUSTED|429/i.test(r)) return "AI 사용량 초과 (재심사 불가)";
   if(/AI 심사 오류|AI 심사 일시 오류|"error"|UNAVAILABLE|high demand|503|overload|quota|deadline|ECONNRESET/i.test(r)) return "AI 일시 오류";
   return "";
@@ -369,12 +392,17 @@ function cleanReason(r){return aiErrMsg(r)||r;}
    여기 REASON_RULES 하나만 고치면 사유 문구·부적합 탭 필터가 같이 바뀝니다.
    위에서부터가 우선순위. 해당되는 것은 모두 표시하되 문구는 짧게. */
 const REASON_RULES=[
-  {key:"dup",      label:"중복 참여",     hit:e=>!e.manual&&dupIds.has(e._id), text:e=>dupReasonMap[e._id]||"중복 참여"},
-  {key:"abuse",    label:"욕설·비방",     hit:e=>e.aiAbuseFree===false,        text:()=>"욕설·비방"},
-  {key:"wrongprod",label:"다른 제품 리뷰",hit:e=>e.aiProductMatch===false,     text:()=>"다른 제품 리뷰"},
-  {key:"photo",    label:"사진 없음",     hit:e=>e.aiPhotoPass===false,        text:()=>"사진 없음"},
-  {key:"rating",   label:"별점 미달",     hit:e=>e.aiRatingPass===false&&shipStatus(e)!=="review",
-                                                                               text:e=>"별점 미달"+(e.aiPersonalRating!=null?` (${e.aiPersonalRating}점)`:"")},
+  {key:"dup",      label:"중복 참여",       hit:e=>!e.manual&&dupIds.has(e._id), text:e=>dupReasonMap[e._id]||"중복 참여"},
+  /* solo: 이 사유가 걸리면 단독 표시. 애초에 리뷰 캡처가 아니면 '사진 없음·별점 미달'은 의미가 없음 */
+  {key:"notcap",   label:"캡처·사진 아님",  solo:true,
+                   hit:e=>e.aiReviewCapture===false||e.aiSerialPhoto===false,
+                                                                                 text:e=>e.type==="coupang"?"S/N 라벨 사진 아님":"리뷰 캡처 아님"},
+  {key:"abuse",    label:"욕설·비방",       hit:e=>e.aiAbuseFree===false,        text:()=>"욕설·비방"},
+  {key:"wrongprod",label:"다른 제품 리뷰",  hit:e=>e.aiProductMatch===false,     text:()=>"다른 제품 리뷰"},
+  {key:"photo",    label:"사진 없음",       hit:e=>e.aiPhotoPass===false,        text:()=>"사진 없음"},
+  {key:"snmismatch",label:"S/N 불일치",     hit:e=>e.aiSerialMatch===false,      text:()=>"S/N 불일치"},
+  {key:"rating",   label:"별점 미달",       hit:e=>e.aiRatingPass===false&&shipStatus(e)!=="review",
+                                                                                 text:e=>"별점 미달"+(e.aiPersonalRating!=null?` (${e.aiPersonalRating}점)`:"")},
 ];
 /* 부적합 탭 드롭다운 필터용 대표 사유 1개 (위 순서 그대로) */
 function badReasonType(e){const r=REASON_RULES.find(r=>r.hit(e));return r?r.key:"";}
@@ -391,8 +419,11 @@ function reasonOf(e){
   if(st==="pending") return aiErrOf(e) || "AI 심사 대기";
   // ③ 부적합 — 해당되는 사유만 짧게 나열
   if(st==="ineligible"){
-    const parts=REASON_RULES.filter(r=>r.key!=="dup"&&r.hit(e)).map(r=>r.text(e));
-    if(parts.length) return parts.join(" / ");
+    if(e.manualVerdict==="ineligible" && e.manualReason) return e.manualReason+" (담당자 판정)";
+    const hits=REASON_RULES.filter(r=>r.key!=="dup"&&r.hit(e));
+    const solo=hits.find(r=>r.solo);
+    if(solo) return solo.text(e);                       // 근본 사유 하나만
+    if(hits.length) return hits.map(r=>r.text(e)).join(" / ");
     return aiErrOf(e) || cleanReason(e.aiReason) || e.reason || "부적합";
   }
   // ④ 적격 — 사유 없음 (AI 원문 노출 방지)
@@ -494,9 +525,16 @@ function shippedDate(e){const t=e.shippedAt;if(!t)return "-";let d=null;
   return d&&!isNaN(d)?fmtDate(d):"-";}
 /* 공통 컬럼 — 세 번째 값은 td/th class (wrapcell = 줄바꿈 허용) */
 const TYPE_COL=["유형",e=>`<span class="pill ${e.type}">${TYPE_LABEL[e.type]||e.type}</span>`];
-const SN_COL=["S/N",e=>e.type==="coupang"
-  ? `<span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;letter-spacing:.2px">${(e.serial||"(미입력)")}</span>`
-  : '<span style="color:var(--sub)">-</span>',"wrapcell"];
+const MONO='font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;letter-spacing:.2px';
+/* 정품등록은 '고객 입력 S/N'과 'AI가 이미지에서 읽은 S/N'을 나란히 보여줘야 담당자가 바로 비교 가능 */
+const SN_COL=["S/N (입력 / AI판독)",e=>{
+  if(e.type!=="coupang")return '<span style="color:var(--sub)">-</span>';
+  const inp=e.serial||"(미입력)";
+  const ai=e.aiSerialInImage;
+  if(ai===undefined)return `<span style="${MONO}">${inp}</span>`;
+  const same=e.aiSerialMatch===true;
+  return `<span style="${MONO}">${inp}</span><div style="${MONO};margin-top:2px;color:${same?"var(--ok,#12a150)":"var(--bad,#c0392b)"}">${ai?("AI "+ai):"AI 판독불가"}</div>`;
+},"wrapcell"];
 const COLS=[
   ["접수일시",e=>fmtDate(e._date)],["구입처",e=>e.source||"-","wrapcell"],["출고",e=>shipBadge(e)],["출고일자",e=>shippedDate(e)],
   TYPE_COL,["제품",e=>e.product||"-"],
@@ -580,7 +618,9 @@ function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
   const rows=slice(all,key);
   $(countId).textContent="총 "+all.length+"건";
   $(tableId+" thead").innerHTML=headHtml(cols);
-  $(tableId+" tbody").innerHTML=rows.map(e=>rowHtml(cols,e)).join("");
+  // 확인필요 행은 클릭 → 상세(이미지 + 담당자 직접 판정)
+  $(tableId+" tbody").innerHTML=rows.map(e=>rowHtml(cols,e,
+    view==="inelig"?` class="clickrow" onclick="openDetail('${e._id}')"`:"")).join("");
   $(emptyId).style.display=all.length?"none":"block";pager(pagerId,all.length,key);
 }
 function renderOrder(){
@@ -800,6 +840,10 @@ function openDetail(id){
   if(!isBad){
     const canRe=(e.type==="review"||e.type==="coupang")&&e.imageUrl&&st==="review";
     $("#dtReJudge").style.display = canRe ? "" : "none";
+    $("#dtManualBox").style.display = st==="review" ? "" : "none";
+    if(st==="review"){
+      $("#dtManualReason").value = e.type==="coupang" ? "S/N 라벨 사진 아님" : "리뷰 캡처 아님";
+    }
     $("#dtInfoMsg").innerHTML =
       st==="review" ? "AI가 판정하지 못한 <b>확인필요</b> 건입니다. 왼쪽 이미지를 확인한 뒤 <b>재심사</b>를 누르면 다시 판정합니다."
       : st==="pending" ? "아직 <b>AI 심사 대기</b> 중인 건입니다. 잠시 후 새로고침하면 결과가 반영됩니다."
@@ -827,6 +871,25 @@ function closeDetail(){$("#detailModal").style.display="none";detailId=null;}
 async function reJudgeDetail(){
   if(!detailId)return;const id=detailId;closeDetail();await reJudge(id);
 }
+/* 확인필요 건을 담당자가 직접 판정 — 재심사해도 계속 확인필요로 남는 건 처리용 */
+async function manualVerdict(v){
+  if(!detailId)return;const id=detailId;
+  const reason=$("#dtManualReason").value;
+  const msg = v==="eligible"
+    ? "이 건을 '적합'으로 처리합니다.\n발송목록(적합)으로 이동합니다. 계속할까요?"
+    : `이 건을 '부적합'으로 처리합니다.\n사유: ${reason}\n부적합(아웃콜) 탭으로 이동합니다. 계속할까요?`;
+  if(!confirm(msg))return;
+  try{
+    const db=await initFirebase();
+    const patch = v==="eligible"
+      ? {overrideEligible:true, manualVerdict:"eligible", manualReason:"", manualJudgedAt:firebase.firestore.FieldValue.serverTimestamp(), reJudge:false}
+      : {status:"ineligible", overrideEligible:false, manualVerdict:"ineligible", manualReason:reason, manualJudgedAt:firebase.firestore.FieldValue.serverTimestamp(), reJudge:false};
+    await db.collection(COLLECTION).doc(id).update(patch);
+    const x=ALL.find(y=>y._id===id); if(x)Object.assign(x,patch,{manualJudgedAt:new Date()});
+    closeDetail(); computeDups(); renderActiveTab();
+  }catch(err){alert("판정 처리 실패: "+(err.message||err));}
+}
+window.manualVerdict=manualVerdict;
 async function saveDetail(){
   if(!detailId)return;
   if($("#dtCallBox").style.display==="none")return;   // 부적합 아닌 건에서는 동작 안 함

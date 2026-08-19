@@ -208,7 +208,7 @@
     <div id="rewardBox"></div>
     <div class="field">
       <label class="fld" id="fileLabel">포토리뷰 캡처 이미지 <span class="req">*</span></label>
-      <div class="hint" id="fileHint" style="margin:0 0 8px">리뷰를 작성한 화면(별점·후기·사진이 보이게)을 캡처해 등록해 주세요.</div>
+      <div class="hint" id="fileHint" style="margin:0 0 8px"><b>본인이 작성한 리뷰 화면</b>을 캡처해 등록해 주세요. <b>별점·후기 내용·첨부하신 사진</b>이 함께 보여야 합니다.<br><span style="color:#c0392b">※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.</span></div>
       <label class="drop" id="drop">
         <input type="file" id="file" accept="image/*">
         <div id="dropInner"><div style="font-size:30px">📷</div>
@@ -409,9 +409,9 @@ function applyType(){
   $("#infoTitle").innerHTML = review ? '캡처 및 받으실 정보 <span class="req">*</span>' : '정품등록 및 받으실 정보 <span class="req">*</span>';
   // 이미지 업로드: 포토리뷰는 리뷰 캡처, 쿠팡은 S/N·제품 사진 (둘 다 필수)
   $("#fileLabel").innerHTML = review ? '포토리뷰 캡처 이미지 <span class="req">*</span>' : '시리얼번호(S/N) 라벨 사진 <span class="req">*</span>';
-  $("#fileHint").textContent = review
-    ? "리뷰를 작성한 화면(별점·후기·사진이 보이게)을 캡처해 등록해 주세요."
-    : "제품 뒷면/박스의 시리얼번호(S/N) 라벨이 또렷하게 보이게 촬영해 등록해 주세요. (입력하신 S/N과 대조합니다)";
+  $("#fileHint").innerHTML = review
+    ? '<b>본인이 작성한 리뷰 화면</b>을 캡처해 등록해 주세요. <b>별점·후기 내용·첨부하신 사진</b>이 함께 보여야 합니다.<br><span style="color:#c0392b">※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.</span>'
+    : '제품 뒷면/박스의 <b>시리얼번호(S/N) 라벨</b>이 또렷하게 보이게 촬영해 등록해 주세요. (입력하신 S/N과 대조합니다)<br><span style="color:#c0392b">※ 라벨이 보이지 않는 사진이나 입력하신 S/N과 다른 경우 지급 대상에서 제외됩니다.</span>';
   {const dt=$("#dropText"); if(dt) dt.textContent = review ? "여기를 눌러 캡처 이미지를 등록" : "여기를 눌러 사진을 등록";}
   $$(".only-review").forEach(el=>el.classList.toggle("hide",!review));
   $$(".only-coupang").forEach(el=>el.classList.toggle("hide",review));
@@ -529,9 +529,52 @@ function renderRewardInner(){
   const af=$("#addrField"); if(af) af.classList.toggle("hide", rw!=="gift");
   $("#infoTitle").innerHTML=(rw==="gift"?"받으실 정보":"기프티콘 받으실 정보")+' <span class="req">*</span>';
 }
-$("#file").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;state.file=f;
-  const r=new FileReader();r.onload=ev=>{$("#dropInner").innerHTML=`<img class="preview" src="${ev.target.result}"><div style="margin-top:8px"><span class="upbtn">다른 이미지로 변경</span></div>`;};
-  r.readAsDataURL(f);$("#filename").textContent="📎 "+f.name;hideErr("err-file");});
+/* ── 업로드 이미지 리사이즈 ─────────────────────────────────
+   폰 사진은 3~8MB라 업로드 실패·시간초과가 잦고, AI 심사 요청 상한(20MB)에도 걸립니다.
+   업로드 "전에" 폰 안에서 줄여 보냅니다. 실패하면 원본을 그대로 올려 접수는 절대 막지 않습니다.
+   포토리뷰 캡처는 글자가 커서 1536px면 충분하고, S/N 라벨은 작은 글씨라 2048px로 여유를 둡니다. */
+const IMG_LIMIT={review:{max:1536,q:0.85},coupang:{max:2048,q:0.9}};
+const HARD_MAX_BYTES=12*1024*1024;   // AI 심사 요청 상한(20MB) 역산 — base64로 약 1.33배 부풀기 때문
+function fmtBytes(n){return n>=1048576?(n/1048576).toFixed(1)+"MB":Math.max(1,Math.round(n/1024))+"KB";}
+async function shrinkImage(file,maxSide,quality){
+  let bmp;
+  try{ bmp=await createImageBitmap(file,{imageOrientation:"from-image"}); }  // 폰 사진 회전정보 반영
+  catch(_){ bmp=await createImageBitmap(file); }                             // 옵션 미지원 브라우저
+  const w=bmp.width,h=bmp.height;
+  const scale=Math.min(1,maxSide/Math.max(w,h));
+  const cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
+  const cv=document.createElement("canvas"); cv.width=cw; cv.height=ch;
+  const ctx=cv.getContext("2d"); ctx.drawImage(bmp,0,0,cw,ch); bmp.close&&bmp.close();
+  // 크기가 그대로여도 항상 다시 인코딩한다 — 회전정보를 그림에 굽고(EXIF 제거),
+  // HEIC 등 어떤 형식이든 JPEG로 통일해 심사 단계에서 형식 문제가 안 생기게.
+  const blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",quality));
+  if(!blob) throw new Error("이미지 변환 실패");
+  const base=(file.name||"capture").replace(/\.[^.]+$/,"");
+  return new File([blob],base+".jpg",{type:"image/jpeg"});
+}
+function resetDropInner(){
+  $("#dropInner").innerHTML='<div style="font-size:30px">📷</div><div style="margin-top:6px" id="dropText">여기를 눌러 캡처 이미지를 등록</div><span class="upbtn">파일 선택</span>';
+}
+let lastPreviewUrl=null;
+$("#file").addEventListener("change",async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  hideErr("err-file");
+  $("#dropInner").innerHTML='<div style="font-size:26px">⏳</div><div style="margin-top:6px">이미지 준비 중…</div>';
+  const cfg=IMG_LIMIT[state.type==="coupang"?"coupang":"review"];
+  let out=f;
+  try{ out=await shrinkImage(f,cfg.max,cfg.q); }
+  catch(err){ console.warn("리사이즈 실패 → 원본 사용",err); out=f; }   // 절대 막지 않음
+  if(out.size>HARD_MAX_BYTES){
+    state.file=null; e.target.value=""; resetDropInner(); $("#filename").textContent="";
+    alert(`사진 용량이 너무 큽니다 (${fmtBytes(out.size)}).\n\n다른 사진으로 시도하시거나, 화면을 캡처해서 올려주세요.`);
+    return;
+  }
+  state.file=out;
+  if(lastPreviewUrl)URL.revokeObjectURL(lastPreviewUrl);
+  lastPreviewUrl=URL.createObjectURL(out);
+  $("#dropInner").innerHTML=`<img class="preview" src="${lastPreviewUrl}"><div style="margin-top:8px"><span class="upbtn">다른 이미지로 변경</span></div>`;
+  $("#filename").textContent="📎 "+(f.name||"이미지")+" · "+fmtBytes(out.size)+(out!==f?` (원본 ${fmtBytes(f.size)}에서 줄임)`:"");
+});
 
 function validateConsent(){
   const list=[...CONSENTS.common,...(state.type==="review"?CONSENTS.review:CONSENTS.coupang)];
@@ -659,7 +702,16 @@ async function submit(){
       const dup=await checkDuplicate(entry); if(dup){showDup(dup,review);resetBtn();return;}
       await saveEntry(entry,state.file); showDone(entry,false);
     }
-  }catch(err){console.error(err);alert("접수 저장 중 오류가 발생했습니다.\n"+(err&&err.message?err.message:err)+"\n\n※ 포토리뷰 이미지는 Storage를 켜야 저장됩니다.");resetBtn();}
+  }catch(err){console.error(err);alert(uploadErrMsg(err));resetBtn();}
+}
+/* 업로드 실패 원인별 한국어 안내 (영어 원문·개발자 메모 노출 방지) */
+function uploadErrMsg(err){
+  const s=((err&&(err.code||err.name))||"")+" "+((err&&err.message)||String(err||""));
+  if(/retry-limit-exceeded|canceled|network|Network|timeout|deadline/i.test(s))
+    return "네트워크가 불안정해 사진 전송이 중단되었습니다.\n\nWi-Fi 연결 후 다시 시도해 주세요.";
+  if(/unauthorized|permission|denied|forbidden|quota-exceeded|payload|too large|entity-too-large/i.test(s))
+    return "사진을 저장하지 못했습니다. 용량이 크거나 형식이 맞지 않을 수 있습니다.\n\n다른 사진으로 다시 시도해 주세요.";
+  return "접수 중 오류가 발생했습니다.\n\n잠시 후 다시 시도해 주세요. 계속 실패하면 고객센터로 문의해 주세요.";
 }
 function resetBtn(){const b=$("#submitBtn");b.disabled=false;b.textContent="참여 신청하기";}
 function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅";$("#mTitle").textContent="참여가 접수되었습니다";state.lastModal="done";
@@ -722,7 +774,12 @@ function makeDocId(e){
 }
 async function saveEntry(e,file){await initFirebase();
   if(file){const ts=Date.now();const path=`${STORAGE_DIR}/${ts}_${(file.name||"capture").replace(/[^\w.\-]/g,"_")}`;
-    const snap=await storage.ref().child(path).put(file);e.imagePath=path;e.imageUrl=await snap.ref.getDownloadURL();}
+    const task=storage.ref().child(path).put(file);
+    const btn=$("#submitBtn");
+    task.on("state_changed",s=>{const pct=s.totalBytes?Math.round(s.bytesTransferred/s.totalBytes*100):0;
+      btn.textContent=`사진 전송 중… ${pct}%`;});
+    const snap=await task; btn.textContent="접수 처리 중…";
+    e.imagePath=path;e.imageUrl=await snap.ref.getDownloadURL();}
   await db.collection(COLLECTION).doc(makeDocId(e)).set({...e,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
 
 if(!DEMO_MODE)$("#demoBadge").style.display="none";

@@ -356,35 +356,46 @@ function shipStatus(e){
   }
   return "eligible";
 }
-function cleanReason(r){
-  if(!r)return r;
-  if(/AI 심사 오류|"error"|UNAVAILABLE|high demand|503|overload|429|quota/i.test(r)) return "AI 심사 일시 오류 — 재심사 필요";
-  return r;
+/* AI 실패 문구 분류 — 쿼터 소진과 일시 오류를 구분(대응 방법이 완전히 다름) */
+function aiErrMsg(r){
+  if(!r)return "";
+  if(/exceeded your current quota|billing details|RESOURCE_EXHAUSTED|429/i.test(r)) return "AI 사용량 초과 (재심사 불가)";
+  if(/AI 심사 오류|AI 심사 일시 오류|"error"|UNAVAILABLE|high demand|503|overload|quota|deadline|ECONNRESET/i.test(r)) return "AI 일시 오류";
+  return "";
 }
+function aiErrOf(e){return aiErrMsg(e.aiErrorDetail)||aiErrMsg(e.aiReason);}
+function cleanReason(r){return aiErrMsg(r)||r;}
+/* ── 사유 기준 (단일 정의) ──────────────────────────────────
+   여기 REASON_RULES 하나만 고치면 사유 문구·부적합 탭 필터가 같이 바뀝니다.
+   위에서부터가 우선순위. 해당되는 것은 모두 표시하되 문구는 짧게. */
+const REASON_RULES=[
+  {key:"dup",      label:"중복 참여",     hit:e=>!e.manual&&dupIds.has(e._id), text:e=>dupReasonMap[e._id]||"중복 참여"},
+  {key:"abuse",    label:"욕설·비방",     hit:e=>e.aiAbuseFree===false,        text:()=>"욕설·비방"},
+  {key:"wrongprod",label:"다른 제품 리뷰",hit:e=>e.aiProductMatch===false,     text:()=>"다른 제품 리뷰"},
+  {key:"photo",    label:"사진 없음",     hit:e=>e.aiPhotoPass===false,        text:()=>"사진 없음"},
+  {key:"rating",   label:"별점 미달",     hit:e=>e.aiRatingPass===false&&shipStatus(e)!=="review",
+                                                                               text:e=>"별점 미달"+(e.aiPersonalRating!=null?` (${e.aiPersonalRating}점)`:"")},
+];
+/* 부적합 탭 드롭다운 필터용 대표 사유 1개 (위 순서 그대로) */
+function badReasonType(e){const r=REASON_RULES.find(r=>r.hit(e));return r?r.key:"";}
 function reasonOf(e){
   if(!e.manual && dupIds.has(e._id))return dupReasonMap[e._id]||"중복 참여";
-  // AI 심사된 정품등록(쿠팡) → 오직 S/N 대조 기반 문구
-  if(e.type==="coupang" && e.imagePath && (e.aiSerialMatch!==undefined || e.aiSerialInImage!==undefined)){
-    if(shipStatus(e)==="review"){
-      if(cleanReason(e.aiReason)==="AI 심사 일시 오류 — 재심사 필요") return "AI 심사 일시 오류 — 재심사 필요";
-      if(e.aiSerialMatch===false) return "이미지 S/N과 입력 S/N 불일치 — 확인필요";
-      return "이미지에서 S/N 판독 불가 — 확인필요";
-    }
+  const st=shipStatus(e);
+  // ① AI가 판정을 못 한 건(확인필요) — 오류/쿼터가 먼저, 그 다음 판독 실패
+  if(st==="review"){
+    const em=aiErrOf(e); if(em) return em;
+    if(e.type==="coupang") return e.aiSerialMatch===false ? "S/N 불일치" : "S/N 판독 불가";
+    return "별점 판독 불가";
   }
-  // AI 심사된 포토리뷰 → 판정값 기반 통일 문구
-  if(e.type==="review" && e.imagePath && (e.aiRatingPass!==undefined || e.aiPhotoPass!==undefined)){
-    if(shipStatus(e)==="review"){
-      return cleanReason(e.aiReason)==="AI 심사 일시 오류 — 재심사 필요" ? "AI 심사 일시 오류 — 재심사 필요" : "별점 확인 불가 — 재심사 필요";
-    }
-    const parts=[];
-    if(e.aiAbuseFree===false) parts.push("욕설·비방 리뷰");
-    if(e.aiProductMatch===false) parts.push("다른 제품 리뷰 (접수 제품과 무관)");
-    if(e.aiRatingPass===false) parts.push(`별점 미달 (개인 별점 ${e.aiPersonalRating!=null?e.aiPersonalRating+"점":"?"} / 기준 3점 이상)`);
-    if(e.aiPhotoPass===false) parts.push("사진 부적합 (제품 사진·동영상 없음 또는 무관 이미지)");
-    return parts.join(" / ");
+  // ② 아직 심사 전
+  if(st==="pending") return aiErrOf(e) || "AI 심사 대기";
+  // ③ 부적합 — 해당되는 사유만 짧게 나열
+  if(st==="ineligible"){
+    const parts=REASON_RULES.filter(r=>r.key!=="dup"&&r.hit(e)).map(r=>r.text(e));
+    if(parts.length) return parts.join(" / ");
+    return aiErrOf(e) || cleanReason(e.aiReason) || e.reason || "부적합";
   }
-  if(e.aiReason)return cleanReason(e.aiReason);
-  if(e.reason)return e.reason;
+  // ④ 적격 — 사유 없음 (AI 원문 노출 방지)
   return "";
 }
 function shipStateOf(e){if(e.shipState)return e.shipState;if(e.shipped)return "shipped";return "pending";}
@@ -449,7 +460,7 @@ function computeDups(){
          if(phone && seenP.has(kP)) hit.push("연락처");
          if((nm||addr) && seenNA.has(kNA)) hit.push("이름·주소");
          if(t==="coupang" && kS && seenS.has(kS)) hit.push("시리얼번호");
-         if(hit.length){ dupIds.add(e._id); dupReasonMap[e._id]="중복 참여 ("+hit.join("/")+" 이미 등록됨)"; }
+         if(hit.length){ dupIds.add(e._id); dupReasonMap[e._id]="중복 참여 ("+hit.join("·")+")"; }
          else { if(phone)seenP.add(kP); if(nm||addr)seenNA.add(kNA); if(t==="coupang"&&kS)seenS.add(kS); }
        });
   });
@@ -561,7 +572,7 @@ const ELIG_ACCT=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["검수",e=>elig
 const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>e.product||"-"],SN_COL,
   ["별점",e=>ratingCell(e)],["사진",e=>photoCell(e)],["사유",e=>reasonCell(e),"wrapcell"],
   ["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],
-  ["재심사",e=>((e.type==="review"||e.type==="coupang")&&e.imageUrl)?`<button class="sm" onclick="reJudge('${e._id}')">재심사</button>`:"-"]];
+  ["재심사",e=>reJudgeBtn(e)]];
 function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
   let all,cols;
   if(view==="inelig"){all=teamInelig(reward);cols=INELIG_COLS;}
@@ -604,23 +615,72 @@ async function setOverride(id,val){
   }catch(err){alert("출고 승인 처리 실패: "+(err.message||err));}
 }
 window.setOverride=setOverride;
+/* ── 재심사 쿨다운 ──────────────────────────────
+   심사 결과가 오기 전에 또 누르면 AI 호출만 중복돼 비용·할당량을 태웁니다.
+   한 번 누르면 60초간 잠그고 남은 초를 버튼에 표시합니다. */
+const REJUDGE_COOLDOWN=60000;
+const reJudgeUntil=new Map();            // 문서ID → 다시 누를 수 있는 시각(ms)
+const reJudgeAllUntil={gift:0,coupon:0}; // 탭별 '전체 재심사' 버튼
+let cdTimer=null;
+function cdLeft(t){return t?Math.max(0,Math.ceil((t-Date.now())/1000)):0;}
+function cdActive(){
+  if(reJudgeAllUntil.gift>Date.now()||reJudgeAllUntil.coupon>Date.now())return true;
+  for(const t of reJudgeUntil.values())if(t>Date.now())return true;
+  return false;
+}
+function startCdTicker(){
+  if(cdTimer)return;
+  cdTimer=setInterval(()=>{
+    if(!cdActive()){clearInterval(cdTimer);cdTimer=null;}
+    renderActiveTab();
+    syncReAllButtons();
+  },1000);
+  syncReAllButtons();
+}
+function syncReAllButtons(){
+  [["#reAllOrder","gift"],["#reAllAcct","coupon"]].forEach(([sel,rw])=>{
+    const b=$(sel);if(!b)return;
+    const left=cdLeft(reJudgeAllUntil[rw]);
+    b.disabled=left>0;
+    b.textContent=left>0?`🔄 재심사 중… ${left}초`:"🔄 확인필요 전체 재심사";
+    b.style.opacity=left>0?"0.55":"";
+  });
+}
+/* 표에 들어갈 재심사 버튼 (쿨다운이면 잠금 + 남은 초 표시) */
+function reJudgeBtn(e){
+  if(!((e.type==="review"||e.type==="coupang")&&e.imageUrl))return "-";
+  const left=cdLeft(reJudgeUntil.get(e._id));
+  return left
+    ? `<button class="sm" disabled style="opacity:.55">${left}초</button>`
+    : `<button class="sm" onclick="event.stopPropagation();reJudge('${e._id}')">재심사</button>`;
+}
 async function reJudge(id){
+  if(cdLeft(reJudgeUntil.get(id)))return;
+  reJudgeUntil.set(id,Date.now()+REJUDGE_COOLDOWN);
+  startCdTicker();renderActiveTab();
   try{
     const db=await initFirebase();
     await db.collection(COLLECTION).doc(id).update({reJudge:true, reJudgeAt:firebase.firestore.FieldValue.serverTimestamp()});
-    alert("재심사를 요청했습니다.\n몇 초 뒤 상단의 '↻ 새로고침'을 눌러 결과를 확인하세요.");
-  }catch(err){alert("재심사 요청 실패: "+(err.message||err));}
+    alert("재심사를 요청했습니다.\n결과가 오기까지 약 1분 걸립니다. 그동안 이 건의 버튼은 잠깁니다.\n\n※ 잠금이 풀린 뒤 상단 '↻ 새로고침'을 눌러 결과를 확인하세요.");
+  }catch(err){
+    reJudgeUntil.delete(id);renderActiveTab();   // 요청 자체가 실패했으면 바로 다시 누를 수 있게
+    alert("재심사 요청 실패: "+(err.message||err));
+  }
 }
 window.reJudge=reJudge;
-/* rw("gift"|"coupon")를 주면 그 탭에 실제로 보이는 목록만 재심사 → 화면 건수와 항상 일치 */
+/* rw("gift"|"coupon")를 주면 그 탭에 실제로 보이는 목록만 재심사 → 화면 건수와 항상 일치.
+   쿨다운 중인 건은 제외(심사 결과가 아직 안 온 건을 또 쏘지 않도록) */
 function reJudgeTargets(rw){
   const base = rw ? teamInelig(rw) : ALL.filter(e=>shipStatus(e)==="review"||shipStatus(e)==="pending");
-  return base.filter(e=>(e.type==="review"||e.type==="coupang")&&e.imageUrl);
+  return base.filter(e=>(e.type==="review"||e.type==="coupang")&&e.imageUrl&&!cdLeft(reJudgeUntil.get(e._id)));
 }
 async function reJudgeAll(rw){
   const list=reJudgeTargets(rw);
-  if(!list.length){alert("재심사할 '확인필요' 건이 없습니다.");return;}
+  if(!list.length){alert("재심사할 '확인필요' 건이 없습니다.\n(방금 재심사한 건은 결과가 올 때까지 제외됩니다)");return;}
   if(!confirm("화면에 보이는 '확인필요' "+list.length+"건을 전체 재심사합니다.\n(AI 오류 등으로 확인필요가 된 건을 다시 판정합니다) 계속할까요?"))return;
+  list.forEach(e=>reJudgeUntil.set(e._id,Date.now()+REJUDGE_COOLDOWN));
+  if(rw)reJudgeAllUntil[rw]=Date.now()+REJUDGE_COOLDOWN;
+  startCdTicker();
   try{
     const db=await initFirebase();
     await Promise.all(list.map(e=>db.collection(COLLECTION).doc(e._id).update({reJudge:true,reJudgeAt:firebase.firestore.FieldValue.serverTimestamp()})));
@@ -660,7 +720,7 @@ const RESERVE_ELIG=[["검수",e=>eligCheck(e)],["출고",e=>shipBadge(e)],["처�
 const RESERVE_INELIG=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>e.product||"-"],SN_COL,
   ["별점",e=>ratingCell(e)],["사진",e=>photoCell(e)],["사유",e=>reasonCell(e),"wrapcell"],
   ["이미지",e=>imgBtn(e)],["보상",e=>`<span class="pill ${e.rewardType}">${REWARD_LABEL[e.rewardType]||"-"}</span>`],
-  ["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],["재심사",e=>((e.type==="review"||e.type==="coupang")&&e.imageUrl)?`<button class="sm" onclick="reJudge('${e._id}')">재심사</button>`:"-"]];
+  ["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],["재심사",e=>reJudgeBtn(e)]];
 function renderReserve(){
   const v=subView.reserve||"elig";
   const all=(v==="inelig"?reserveInelig:reserveElig)($("#rSearch").value),rows=slice(all,"reserve");
@@ -672,14 +732,7 @@ function renderReserve(){
 }
 
 /* 부적합 아웃콜(응대) */
-function badReasonType(e){
-  if(!e.manual && dupIds.has(e._id))return "dup";
-  if(e.aiAbuseFree===false)return "abuse";
-  if(e.aiProductMatch===false)return "wrongprod";
-  if(e.aiPhotoPass===false)return "photo";
-  if(e.aiRatingPass===false)return "rating";
-  return "";
-}
+/* badReasonType 은 REASON_RULES 기준으로 위에서 정의됨 (기준 이중화 방지) */
 function badRows(){
   const rw=$("#bfReward").value, rs=$("#bfReason").value, q=$("#bfSearch").value;
   return ALL.filter(e=>{

@@ -89,6 +89,9 @@
   .csdetail b{color:var(--sub);font-weight:700;margin-right:8px;display:inline-block;min-width:62px}
   .big{font-size:15px;font-weight:800;padding:4px 10px;border-radius:8px}
   .shipbig{display:inline-block;font-size:17px;font-weight:800;padding:8px 16px;border-radius:10px}
+  /* 상세 모달 안에서는 옆의 pill과 크기를 맞춘다 (고객검색 카드에서만 크게) */
+  .dtrow .shipbig{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;vertical-align:middle}
+  .dtrow .pill{vertical-align:middle}
   .shipbig.done{background:transparent;color:var(--ok)}
   .shipbig.wait{background:#f2eeea;color:#8a827c}
   .shipbig.resv{background:#e9f0fb;color:var(--blue)}
@@ -594,9 +597,12 @@ function photoCell(e){
   if(e.aiPhotoPass===undefined) return "-";
   return `<span class="pill ${e.aiPhotoPass?'eligible':'ineligible'}">${e.aiPhotoPass?'통과':'실패'}</span>`;
 }
-function eligCheck(e){return e.overrideEligible
-  ? `<span class="pill reserved">수동승인</span> <button class="sm" onclick="setOverride('${e._id}',false)">취소</button>`
-  : `<span class="pill eligible">적합</span>`;}
+function eligCheck(e){
+  if(e.overrideEligible) return `<span class="pill reserved">수동승인</span> <button class="sm" onclick="event.stopPropagation();setOverride('${e._id}',false)">취소</button>`;
+  // 수기접수는 AI 심사를 거치지 않은 건이라 구분해서 표시 (이미지·S/N이 비어 있는 이유)
+  if(e.manual) return `<span class="pill eligible">적합(수기)</span>`;
+  return `<span class="pill eligible">적합</span>`;
+}
 /* 확인필요 사유 셀 — AI 오류면 실제 원인(aiErrorDetail)까지 함께 표시 */
 function reasonCell(e){
   const base=reasonOf(e)||"-";

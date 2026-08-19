@@ -151,7 +151,7 @@
     <div class="subtabs"><div class="subtab active" data-sub="order" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="order" data-v="inelig">확인필요</div></div>
     <div class="hint" id="orderHint"></div>
     <div class="filters"><span id="oCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
-      <button id="reAllOrder" class="sm" style="display:none">🔄 확인필요 전체 재심사</button>
+      <button id="reAllOrder" class="sm" style="display:none">🔄 확인필요 전체 재심사 (사은품+상품권)</button>
       <button id="dlOrder" class="sm primary">📦 일괄출고</button></div>
     <div class="tablewrap"><table class="data" id="tableOrder"><thead></thead><tbody></tbody></table>
       <div class="empty" id="emptyOrder" style="display:none">대상 데이터가 없습니다.</div></div>
@@ -163,7 +163,7 @@
     <div class="subtabs"><div class="subtab active" data-sub="acct" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="acct" data-v="inelig">확인필요</div></div>
     <div class="hint" id="acctHint"></div>
     <div class="filters"><span id="aCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
-      <button id="reAllAcct" class="sm" style="display:none">🔄 확인필요 전체 재심사</button>
+      <button id="reAllAcct" class="sm" style="display:none">🔄 확인필요 전체 재심사 (사은품+상품권)</button>
       <button id="dlAcct" class="sm primary">🎟️ 일괄출고</button></div>
     <div class="tablewrap"><table class="data" id="tableAcct"><thead></thead><tbody></tbody></table>
       <div class="empty" id="emptyAcct" style="display:none">대상 데이터가 없습니다.</div></div>
@@ -335,29 +335,29 @@ const PAGE_SIZE=20;
 /* ===== 접수폼 기준 제품 카탈로그 (코드, 표시명) ===== */
 const PRODUCTS={
   "주방가전":[["AO-16LS","에어프라이어 16L"],["iSA7","에어프라이어 7L"],["iSA6L","에어프라이어 6L"],
-    ["iFD01-H","음식물처리기 iFD01 (밀페키친홀더)"],["iFD01-F","음식물처리기 iFD01 (활성탄필터)"],["iEK01","분유포트 iEK01"]],
+    ["iFD01-H","음식물처리기 iFD01 (밀폐키친홀더)"],["iFD01-F","음식물처리기 iFD01 (활성탄필터)"],["iEK01","분유포트 iEK01"]],
   "생활가전":[["i50T","무선청소기 아이타워 i50"],["i50D","무선청소기 AI 디텍트 i50"],["i90","무선청소기 맥스제로 i90"],
     ["iV10","무선청소기 iV10"],["iv11","무선청소기 iv11"]],
-  "계절가전":[["iH05","가습기 iH05"],["iAP22","공기청정기 iAP22"],["iC01","선풍기 iC01 (유선)"],
-    ["iH12","가습기 iH12 Pro"],["iSC02","서큘레이터 iSC02 (무선)"]],
+  "계절가전":[["iH05","복합식가습기 iH05UV"],["iAP22","공기청정기 iAP22"],["iC01","유선 서큘레이터 iC01"],
+    ["iH12","복합식가습기 iH12"],["iSC02","서큘레이터 iSC02"]],
   "이미용가전":[["iHD01","헤어드라이어 iHD01"]]
 };
 /* 제품별 사은품/상품권 (name, gift|coupon) — 사은품표 기준 */
 const PRODUCT_REWARD={
-  "i90":[["스팀물걸레키트","gift"],["배터리","gift"],["네이버페이 2만원","coupon"]],
-  "i50T":[["미니 악세사리 거치대","gift"]],
-  "i50D":[["워셔블필터+배기부필터 1set","gift"]],
-  "iV10":[["거치대","gift"]],
-  "iv11":[["거치대","gift"]],
-  "AO-16LS":[["튀김용 바스켓","gift"]],
-  "iSA7":[["디바이더","gift"]],
+  "i90":[["네이버페이 20,000원","coupon"]],
+  "i50T":[["워셔블필터+배기부필터 1set i50,i50T","gift"]],
+  "i50D":[["미니 악세사리 거치대 i30,i50T","gift"]],
+  "iV10":[["거치대 iv10,iv11","gift"]],
+  "iv11":[["거치대 iv10,iv11","gift"]],
+  "AO-16LS":[["튀김용바스켓 16L,16LS","gift"]],
+  "iSA7":[["디바이더 7L","gift"]],
   "iSA6L":[["CU 3,000원","coupon"]],
-  "iFD01-H":[["밀페키친홀더 iFD01","gift"]],
+  "iFD01-H":[["밀폐키친홀더 iFD01","gift"]],
   "iFD01-F":[["활성탄필터 iFD01","gift"]],
   "iEK01":[["배민 3,000원","coupon"]],
-  "iH12":[["전용 관리 set (가습기용)","gift"]],
+  "iH12":[["전용 관리 set 가습기용","gift"]],
   "iAP22":[["배민 3,000원","coupon"]],
-  "iSC02":[["보관백","gift"]],
+  "iSC02":[["보관백 iSC01,iSC02","gift"]],
   "iC01":[["배민 3,000원","coupon"]],
   "iH05":[["배민 3,000원","coupon"]],
   "iHD01":[["CU 3,000원","coupon"]]
@@ -697,7 +697,7 @@ function syncReAllButtons(){
     const b=$(sel);if(!b)return;
     const left=cdLeft(reJudgeAllUntil[rw]);
     b.disabled=left>0;
-    b.textContent=left>0?`🔄 재심사 중… ${left}초`:"🔄 확인필요 전체 재심사";
+    b.textContent=left>0?`🔄 재심사 중… ${left}초`:"🔄 확인필요 전체 재심사 (사은품+상품권)";
     b.style.opacity=left>0?"0.55":"";
   });
 }
@@ -723,22 +723,32 @@ async function reJudge(id){
   }
 }
 window.reJudge=reJudge;
-/* rw("gift"|"coupon")를 주면 그 탭에 실제로 보이는 목록만 재심사 → 화면 건수와 항상 일치.
-   쿨다운 중인 건은 제외(심사 결과가 아직 안 온 건을 또 쏘지 않도록) */
-function reJudgeTargets(rw){
-  const base = rw ? teamInelig(rw) : ALL.filter(e=>shipStatus(e)==="review"||shipStatus(e)==="pending");
-  return base.filter(e=>(e.type==="review"||e.type==="coupang")&&e.imageUrl&&!cdLeft(reJudgeUntil.get(e._id)));
+/* 재심사 대상 = 확인필요·미심사 전체(사은품·상품권·예약발송 구분 없음).
+   수동 승인된 건과 쿨다운 중인 건은 제외(결과가 아직 안 온 건을 또 쏘지 않도록) */
+function reJudgeTargets(){
+  return ALL.filter(e=>(shipStatus(e)==="review"||shipStatus(e)==="pending")
+    && !e.overrideEligible
+    && (e.type==="review"||e.type==="coupang") && e.imageUrl
+    && !cdLeft(reJudgeUntil.get(e._id)));
 }
-async function reJudgeAll(rw){
-  const list=reJudgeTargets(rw);
+/* 확인필요는 이제 'AI 심사 실패' 전용이라 사은품·상품권을 나눌 이유가 없다.
+   어느 버튼을 눌러도 전체(예약발송 포함)를 한 번에 재심사한다. */
+async function reJudgeAll(){
+  const list=reJudgeTargets();
   if(!list.length){alert("재심사할 '확인필요' 건이 없습니다.\n(방금 재심사한 건은 결과가 올 때까지 제외됩니다)");return;}
-  if(!confirm("화면에 보이는 '확인필요' "+list.length+"건을 전체 재심사합니다.\n(AI 오류 등으로 확인필요가 된 건을 다시 판정합니다) 계속할까요?"))return;
+  if(!confirm("'확인필요' 전체 "+list.length+"건(사은품+상품권)을 재심사합니다.\nAI 심사가 실패한 건을 다시 판정합니다. 계속할까요?"))return;
   list.forEach(e=>reJudgeUntil.set(e._id,Date.now()+REJUDGE_COOLDOWN));
-  if(rw)reJudgeAllUntil[rw]=Date.now()+REJUDGE_COOLDOWN;
+  reJudgeAllUntil.gift=reJudgeAllUntil.coupon=Date.now()+REJUDGE_COOLDOWN;
   startCdTicker();
   try{
     const db=await initFirebase();
-    await Promise.all(list.map(e=>db.collection(COLLECTION).doc(e._id).update({reJudge:true,reJudgeAt:firebase.firestore.FieldValue.serverTimestamp()})));
+    // 한꺼번에 쏘면 AI 분당 호출 한도에 걸린다 → 8건씩 끊어서 보냄
+    const CHUNK=8;
+    for(let i=0;i<list.length;i+=CHUNK){
+      const part=list.slice(i,i+CHUNK);
+      await Promise.all(part.map(e=>db.collection(COLLECTION).doc(e._id).update({reJudge:true,reJudgeAt:firebase.firestore.FieldValue.serverTimestamp()})));
+      if(i+CHUNK<list.length)await new Promise(r=>setTimeout(r,1500));
+    }
     alert(list.length+"건 재심사를 요청했습니다.\n30~60초 뒤 '↻ 새로고침'을 눌러 결과를 확인하세요.");
   }catch(err){alert("전체 재심사 요청 실패: "+(err.message||err));}
 }
@@ -1153,8 +1163,8 @@ $("#csvBtn").addEventListener("click",()=>{const rows=exportAllRows();if(!rows.l
 function dlPlain(list,cols,fname){if(!list.length){alert("대상 데이터가 없습니다.");return;}const rows=list.map(e=>{const o={};cols.forEach(([l,fn])=>o[l]=fn(e));return o;});downloadRows(rows,fname);}
 $("#dlOrder").addEventListener("click",()=>dlShipTemplate("gift","아이닉_사은품_사방넷"));
 $("#dlAcct").addEventListener("click",()=>dlShipTemplate("coupon","아이닉_상품권_사방넷"));
-$("#reAllOrder").addEventListener("click",()=>reJudgeAll("gift"));
-$("#reAllAcct").addEventListener("click",()=>reJudgeAll("coupon"));
+$("#reAllOrder").addEventListener("click",()=>reJudgeAll());
+$("#reAllAcct").addEventListener("click",()=>reJudgeAll());
 $("#reload").addEventListener("click",loadData);
 onTypeChange();
 

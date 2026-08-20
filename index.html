@@ -163,6 +163,22 @@
     </div>
   </div>
 
+  <!-- 송장번호 확인 (포토리뷰 전용) -->
+  <div class="card step hide" id="step-invoice">
+    <h2>송장번호 확인 <span class="req">*</span></h2>
+    <p class="desc">구매하신 제품의 <b>송장번호</b>를 입력하시면 접수를 진행하실 수 있습니다.</p>
+    <div class="notice" style="margin:0 0 12px">송장번호는 배송 완료 문자나 쇼핑몰 <b>주문/배송 조회</b>에서 확인하실 수 있습니다. (숫자 12자리)</div>
+    <div class="field">
+      <label class="fld">송장번호 <span class="req">*</span></label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="invNo" inputmode="numeric" placeholder="예) 522430980554" style="flex:1">
+        <button type="button" id="invBtn" onclick="lookupInvoice()" style="white-space:nowrap;padding:0 16px;border-radius:9px;border:1.5px solid var(--brand,#3f3939);background:var(--brand,#3f3939);color:#fff;font-weight:800;font-size:13px;cursor:pointer">확인</button>
+      </div>
+      <div class="err" id="err-inv">송장번호를 확인해 주세요.</div>
+    </div>
+    <div id="invResult" style="margin-top:12px"></div>
+  </div>
+
   <div class="card step hide" id="step-consent">
     <h2>참여 안내 및 동의 <span class="req">*</span></h2>
     <p class="desc">아래 항목을 선택해 주세요. 필수 항목을 "거부"하시면 사은품/기프티콘이 발행되지 않습니다.</p>
@@ -388,7 +404,7 @@ const GIFT_NOTICE="사은품은 <b>착불 발송</b>(택배비 3,200원, 배송 
 const COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 발송</b>(기프티쇼비즈)됩니다. 발송일: 매주 월요일(월요일 신청 건은 익주 월요일). 사용 기한: 수령 후 30일, 경과 후 재발송이 어렵습니다.";
 /* ============================================================ */
 
-const state={type:null,category:"주방가전",product:null,file:null,serialPrefix:"",consent:{},survey:{},surveyFor:null,giftChoice:null,source:null};
+const state={type:null,category:"주방가전",product:null,file:null,serialPrefix:"",invOk:false,invRow:null,invNo:"",invPick:null,autoName:"",autoPhone:"",consent:{},survey:{},surveyFor:null,giftChoice:null,source:null};
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 /* 오류 안내 : 빨간 문구 + 해당 입력칸에 빨간 테두리까지 표시한다.
    글씨만으로는 어디가 문제인지 못 알아채는 경우가 많아서. */
@@ -430,11 +446,16 @@ function focusFirstError(){
 }
 const surveyOf=code=>SURVEYS[code]||null;
 
-const STEP_EL={type:"#step-type",consent:"#step-consent",product:"#step-product",
+const STEP_EL={type:"#step-type",invoice:"#step-invoice",consent:"#step-consent",product:"#step-product",
   survey:"#step-survey",source:"#step-source",serial:"#step-serial",info:"#step-info"};
 function getFlow(){
   if(!state.type) return ["type"];
-  if(state.type==="review"){ const f=["type","consent","product"]; if(surveyOf(state.product)) f.push("survey"); f.push("source"); f.push("info"); return f; }
+  if(state.type==="review"){
+    // 송장번호로 본인 확인 → 제품이 자동 확정되므로 제품 선택 단계는 건너뛴다
+    const f=["type","invoice","consent"];
+    if(!state.invOk || state.invPick) f.push("product");        // 음식물처리기 등 세부 선택이 필요할 때만
+    if(surveyOf(state.product)) f.push("survey");
+    f.push("source"); f.push("info"); return f; }
   return ["type","consent","product","source","serial","info"];
 }
 let current=0;
@@ -454,6 +475,7 @@ function showStep(){
   $("#submitBtn").classList.toggle("hide",!last);
   $("#prog").textContent = state.type ? (current+1)+" / "+flow.length : "";
   $("#barFill").style.width = state.type ? Math.round((current+1)/flow.length*100)+"%" : "0";
+  if(step==="product"){ renderCats(); renderProds(); }   // 송장 확인 결과에 따라 목록이 달라질 수 있어 매번 다시 그림
   if(step==="survey") renderSurvey();
   if(step==="source") renderSource();
   if(step==="serial"){
@@ -474,6 +496,9 @@ function showStep(){
     if(home) home.classList.toggle("hide", state.type==="coupang");
     renderFileField();
     renderInfo();
+    // 송장번호로 확인된 고객정보 자동 입력 (고객이 고칠 수 있게 열어둠)
+    if(state.autoName && !$("#name").value) $("#name").value=state.autoName;
+    if(state.autoPhone && !$("#phone").value){ $("#phone").value=state.autoPhone; fmtPhone($("#phone")); }
   }
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -519,7 +544,23 @@ function renderCats(){const box=$("#cats");box.innerHTML="";
     el.className="cat"+(cat===state.category?" on":"");el.textContent=cat;
     if(PRODUCTS[cat].length===0&&cat!==state.category)el.setAttribute("disabled","");
     el.onclick=()=>{state.category=cat;state.product=null;state.surveyFor=null;renderCats();renderProds();};box.appendChild(el);});}
-function renderProds(){const box=$("#prods");box.innerHTML="";const list=PRODUCTS[state.category]||[];
+function renderProds(){
+  // 송장번호로 후보가 좁혀진 경우(예: 음식물처리기 2종) 그 제품만 보여준다
+  if(state.invPick && state.invPick.length){
+    const box=$("#prods"); const all=[];
+    for(const c in PRODUCTS) PRODUCTS[c].forEach(p=>{ if(state.invPick.includes(p.code)) all.push(p); });
+    box.innerHTML="";
+    all.forEach(p=>{const el=document.createElement("div");el.className="prod"+(state.product===p.code?" on":"");
+      el.innerHTML=(p.img?`<img class="pimg" src="${p.img}" alt="${p.name}">`:`<div class="pph">이미지</div>`)
+        +`<span class="badge">${p.code}</span><div class="pname">${p.name}</div><div class="check">✓</div>`;
+      el.onclick=()=>{state.product=p.code;state.surveyFor=null;hideErr("err-prod");renderProds();};
+      box.appendChild(el);});
+    const cats=$("#cats"); if(cats) cats.style.display="none";
+    const d=document.querySelector("#step-product .desc"); if(d) d.textContent="구매하신 제품의 종류를 선택해 주세요.";
+    return;
+  }
+  const cats0=$("#cats"); if(cats0) cats0.style.display="";
+const box=$("#prods");box.innerHTML="";const list=PRODUCTS[state.category]||[];
   if(!list.length){box.innerHTML='<div style="grid-column:1/3;color:#6b7280;font-size:13px;padding:10px 2px">이 카테고리의 제품 목록은 준비 중입니다.</div>';return;}
   list.forEach(p=>{const el=document.createElement("div");el.className="prod"+(state.product===p.code?" on":"");
     const imgHtml=p.img?`<img class="pimg" src="${p.img}">`:`<div class="pph">이미지 준비중</div>`;
@@ -804,6 +845,63 @@ $("#file").addEventListener("change",async e=>{
   $("#filename").textContent="📎 "+(f.name||"이미지")+" · "+fmtBytes(out.size)+(out!==f?` (원본 ${fmtBytes(f.size)}에서 줄임)`:"");
 });
 
+/* ══════════ 송장번호 확인 ══════════
+   리포트 '주문DB'에 올려둔 구매 원장(orders/I_<송장번호>)에서 한 건만 조회한다.
+   개인정보는 마스킹해서 보여주고, 본인이 맞다고 확인해야 다음 단계로 넘어간다. */
+function normInv(v){return String(v||"").toUpperCase().replace(/[\s\-.\/]/g,"");}
+function maskName(n){n=String(n||"").trim(); if(n.length<=1)return n||"-";
+  return n[0]+"*".repeat(Math.max(1,n.length-2))+(n.length>1?n[n.length-1]:"");}
+function maskPhone(p){const d=String(p||"").replace(/\D/g,"");
+  return d.length<8?"-":d.slice(0,3)+"-****-"+d.slice(-4);}
+
+async function lookupInvoice(){
+  const raw=$("#invNo").value.trim(), box=$("#invResult"), btn=$("#invBtn");
+  state.invOk=false; state.invRow=null; state.invPick=null;
+  if(normInv(raw).length<8){ box.innerHTML='<div class="notice" style="margin:0;color:#c1121f">송장번호를 정확히 입력해 주세요.</div>'; return; }
+  btn.disabled=true; box.innerHTML='<div class="notice" style="margin:0">조회 중…</div>';
+  try{
+    await initFirebase();
+    const doc=await db.collection("orders").doc("I_"+normInv(raw)).get();
+    if(!doc.exists){
+      box.innerHTML='<div class="notice" style="margin:0;line-height:1.6"><b style="color:#c1121f">등록된 송장번호가 없습니다.</b><br>'
+        +'숫자를 다시 확인해 주세요. 최근 구매 건은 아직 등록 전일 수 있습니다.<br>계속 안 되시면 아래 채널로 문의해 주세요.'
+        +(KAKAO_CHANNELS["생활가전"]?`<div style="margin-top:8px"><a href="${KAKAO_CHANNELS["생활가전"]}" target="_blank" rel="noopener" class="cpkakao">💬 상담사 문의하기</a></div>`:"")+'</div>';
+      return;
+    }
+    const row=(doc.data().rows||[])[0];
+    if(!row){ box.innerHTML='<div class="notice" style="margin:0;color:#c1121f">주문 정보를 읽지 못했습니다. 상담사에게 문의해 주세요.</div>'; return; }
+    if(!row.code && !(row.pick&&row.pick.length)){
+      box.innerHTML='<div class="notice" style="margin:0;line-height:1.6"><b style="color:#c1121f">이벤트 대상 제품이 아닙니다.</b><br>'
+        +(row.prodRaw?`구매하신 제품 : ${row.prodRaw}<br>`:"")+'자세한 내용은 상담사에게 문의해 주세요.</div>';
+      return;
+    }
+    state.invRow=row; state.invPick=(row.pick&&row.pick.length>1)?row.pick:null;
+    const pname = row.code ? (prodNameOf(row.code)||row.prodRaw) : row.prodRaw;
+    box.innerHTML=
+      '<div class="consent" style="margin:0"><div class="ctitle">이 정보가 맞으신가요?</div>'
+      +'<div style="margin:10px 0;font-size:13.5px;line-height:1.9">'
+      +`<div><b style="display:inline-block;min-width:62px;color:var(--sub)">수령인</b>${maskName(row.name)}</div>`
+      +`<div><b style="display:inline-block;min-width:62px;color:var(--sub)">연락처</b>${maskPhone(row.phone)}</div>`
+      +`<div><b style="display:inline-block;min-width:62px;color:var(--sub)">제품</b>${pname||"-"}</div>`
+      +(row.date?`<div><b style="display:inline-block;min-width:62px;color:var(--sub)">주문일</b>${row.date}</div>`:"")
+      +'</div>'
+      +'<div class="hint" style="margin:0 0 8px">개인정보 보호를 위해 일부만 표시합니다.</div>'
+      +'<label class="chk"><input type="checkbox" id="invAck"><span>본인이 맞습니다. 이 정보로 참여하겠습니다. <span class="req">*</span></span></label></div>';
+    $("#invAck").addEventListener("change",e=>{
+      state.invOk=e.target.checked;
+      if(state.invOk){
+        hideErr("err-inv");
+        state.invNo=normInv(raw);
+        state.autoName=row.name||""; state.autoPhone=row.phone||"";
+        if(row.code){ state.product=row.code; state.category=categoryOf(row.code)||state.category; }
+      }
+    });
+  }catch(err){
+    box.innerHTML='<div class="notice" style="margin:0;color:#c1121f">조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';
+  }finally{ btn.disabled=false; }
+}
+window.lookupInvoice=lookupInvoice;
+function categoryOf(code){ for(const c in PRODUCTS){ if(PRODUCTS[c].some(p=>p.code===code)) return c; } return ""; }
 function validateConsent(){
   const list=[...CONSENTS.common,...(state.type==="review"?CONSENTS.review:CONSENTS.coupang)];
   for(const c of list){const v=state.consent[c.id];
@@ -814,6 +912,7 @@ function validateConsent(){
 }
 function validateStep(step){
   if(step==="type"){ if(!state.type){showErr("err-type");return false;} return true; }
+  if(step==="invoice"){ if(!state.invOk){showErr("err-inv");return false;} hideErr("err-inv"); return true; }
   if(step==="consent"){
     const r=validateConsent();
     markConsentInvalid();                                  // 문제가 된 항목만 테두리
@@ -933,6 +1032,7 @@ async function submit(){
   entry.giftItem = g ? (g.choice ? (state.giftChoice!=null?g.options[state.giftChoice].label:"") : g.label) : "";
   entry.source = state.source==="기타" ? ("기타: "+$("#sourceEtc").value.trim()) : state.source;
   entry.orderNo=$("#order").value.trim();
+  if(state.invNo){ entry.invoiceNo=state.invNo; entry.kInv=state.invNo; }   // 송장번호 단위 중복 방지
   const addr=getAddress();
   entry.address=rw==="gift"?addr:""; entry.nameAddrKey=rw==="gift"?naKey($("#name").value,addr):null;
   if(review) entry.survey=collectSurvey();
@@ -972,7 +1072,7 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
     `<div><b>제품</b> ${prod}</div>`+(e.giftItem?`<div><b>${e.rewardType==="coupon"?"상품권":"사은품"}</b> ${e.giftItem}</div>`:``)+
     `<div><b>주문번호</b> ${e.orderNo}</div><div><b>수령인</b> ${e.name}</div><div><b>연락처</b> ${e.phone}</div>`;
   $("#mKv").innerHTML=kv;$("#modal").classList.add("on");}
-const DUP_LABEL={phone:"연락처가 이미 접수되었습니다",order:"주문번호가 이미 접수되었습니다",nameAddr:"수령인·주소가 이미 접수되었습니다",serial:"시리얼번호(S/N)가 이미 등록되었습니다"};
+const DUP_LABEL={invoice:"이 송장번호로 이미 접수되었습니다",phone:"연락처가 이미 접수되었습니다",order:"주문번호가 이미 접수되었습니다",nameAddr:"수령인·주소가 이미 접수되었습니다",serial:"시리얼번호(S/N)가 이미 등록되었습니다"};
 function showDup(dup,review){$("#box").className="box dup";$("#mIcon").textContent="⚠️";$("#mTitle").textContent="이미 참여하신 내역이 있습니다";state.lastModal="dup";
   const cat=state.category;
   const prod=(PRODUCTS[cat]&&PRODUCTS[cat].find(p=>p.code===state.product)||{}).name||state.product||"-";
@@ -989,6 +1089,8 @@ function showDup(dup,review){$("#box").className="box dup";$("#mIcon").textConte
   $("#modal").classList.add("on");}
 function resetForm(){
   state.type=null;state.category="주방가전";state.product=null;state.file=null;
+  state.invOk=false;state.invRow=null;state.invNo="";state.invPick=null;state.autoName="";state.autoPhone="";
+  {const b=$("#invResult");if(b)b.innerHTML="";const i=$("#invNo");if(i)i.value="";}
   state.consent={};state.survey={};state.surveyFor=null;state.giftChoice=null;state.source=null;state.infoFor=null;
   ["#name","#phone","#order","#addrRoad","#addrDetail","#serial","#sourceEtc","#file"].forEach(s=>{const el=$(s);if(el)el.value="";});
   document.querySelectorAll(".type").forEach(x=>x.classList.remove("on"));
@@ -1001,15 +1103,17 @@ $("#mClose").addEventListener("click",()=>{$("#modal").classList.remove("on"); i
 
 /* Firebase (DEMO_MODE=false) */
 let db=null,storage=null;
+window.__setDb=x=>{db=x;};   // 테스트용 주입
 async function initFirebase(){if(db)return;
   await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js");
   await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js");
   await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js");
   firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();storage=firebase.storage();}
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error("스크립트 로드 실패: "+src));document.head.appendChild(s);});}
-const DUP_FIELD_TYPE={kPhone:"phone",kOrder:"order",kNA:"nameAddr",serial:"serial"};
+const DUP_FIELD_TYPE={kInv:"invoice",kPhone:"phone",kOrder:"order",kNA:"nameAddr",serial:"serial"};
 async function checkDuplicate(e){await initFirebase();const col=db.collection(COLLECTION);
-  const checks=[["kPhone",e.kPhone],["kOrder",e.kOrder],["kNA",e.kNA]]; if(e.serial) checks.push(["serial",e.serial]);
+  const checks=[]; if(e.kInv) checks.push(["kInv",e.kInv]);
+  checks.push(["kPhone",e.kPhone],["kOrder",e.kOrder],["kNA",e.kNA]); if(e.serial) checks.push(["serial",e.serial]);
   for(const [f,v] of checks){if(v==null)continue;const q=await col.where(f,"==",v).limit(1).get();if(!q.empty)return {data:q.docs[0].data(),type:DUP_FIELD_TYPE[f]};}
   return null;}
 function makeDocId(e){

@@ -227,7 +227,14 @@
         <div class="field"><label>고객ID</label><input type="text" id="mCust" placeholder="예) 네이버 아이디"></div>
         <div class="field full" id="mSerialField"><label>시리얼번호(S/N)</label><input type="text" id="mSerial" placeholder="쿠팡 정품등록 시 입력"></div>
         <div class="field"><label>배송구분(사은품)</label><select id="mShipFee"><option value="착불">착불</option><option value="선불">선불</option></select></div>
-        <div class="field full"><label>주소(사은품 착불 배송 시)</label><input type="text" id="mAddress" placeholder="도로명 주소 + 상세주소"></div>
+        <div class="field full"><label>주소(사은품 착불 배송 시)</label>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="mAddrRoad" placeholder="주소 검색을 눌러주세요" readonly style="flex:1;background:#faf8f6;cursor:pointer" onclick="openManualPostcode()">
+            <button type="button" class="sm primary" onclick="openManualPostcode()" style="white-space:nowrap">주소 검색</button>
+          </div>
+          <input type="text" id="mAddrDetail" placeholder="상세주소 (동/호수 등)" style="margin-top:6px">
+          <input type="hidden" id="mAddress">
+        </div>
         <div class="field full"><label>사유</label><input type="text" id="mReason" placeholder="예) 동일제품 2개 구매 / 상담사 확인건 등"></div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;align-items:center">
@@ -255,6 +262,18 @@
       </div>
       <div id="odSummary" style="margin-top:12px"></div>
     </div>
+    <div class="panel" style="margin-bottom:14px">
+      <h3>사은품 명칭 최신화</h3>
+      <div class="hint">사은품 이름을 바꾸기 <b>전에 접수된 건</b>은 옛 이름을 그대로 갖고 있어, 사방넷 다운로드에 옛 이름이 섞입니다.
+        아래 버튼으로 <b>현재 사은품표 기준</b>으로 한 번에 맞출 수 있습니다. (제품별 사은품이 1개인 건만 대상)</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        <button id="gfCheck" class="sm">대상 확인</button>
+        <button id="gfApply" class="sm primary" disabled>이름 맞추기</button>
+        <span id="gfState" style="font-size:12.5px;font-weight:800"></span>
+      </div>
+      <div id="gfList" style="margin-top:10px"></div>
+    </div>
+
     <div class="panel">
       <h3>미리보기 <span style="color:var(--sub);font-weight:600;font-size:12px">(앞 20건)</span></h3>
       <div class="tablewrap"><table class="data" id="tableOrders"><thead></thead><tbody></tbody></table></div>
@@ -504,12 +523,34 @@ async function loadData(){
 }
 function fmtDate(d){if(!d)return "-";const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
 
+/* 수기접수 주소 — 접수폼과 동일하게 카카오(다음) 주소검색 사용 */
+function manualAddress(){
+  const r=($("#mAddrRoad").value||"").trim(), d=($("#mAddrDetail").value||"").trim();
+  return (r+" "+d).trim();
+}
+function openManualPostcode(){
+  const go=()=>new daum.Postcode({oncomplete:function(data){
+    $("#mAddrRoad").value=data.roadAddress||data.jibunAddress||"";
+    $("#mAddrDetail").focus();
+  }}).open();
+  if(typeof daum!=="undefined"&&daum.Postcode) return go();
+  const sc=document.createElement("script");
+  sc.src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+  sc.onload=go;
+  sc.onerror=()=>{const el=$("#mAddrRoad");el.readOnly=false;el.style.cursor="text";el.placeholder="주소를 직접 입력해 주세요";el.focus();};
+  document.head.appendChild(sc);
+}
+window.openManualPostcode=openManualPostcode;
 function buildCatalog(){
   PRODREWARD={};PNAME={};const src=new Set(SEED_SOURCES);
   for(const c in PRODUCTS)PRODUCTS[c].forEach(([code,name])=>{PNAME[code]=name;});
   for(const p in PRODUCT_REWARD)PRODREWARD[p]=PRODUCT_REWARD[p].map(([name,rt])=>({name,rewardType:rt}));
   ALL.forEach(e=>{
-    if(e.product&&e.giftItem){const a=PRODREWARD[e.product]=PRODREWARD[e.product]||[];if(!a.some(x=>x.name===e.giftItem))a.push({name:e.giftItem,rewardType:e.rewardType||"gift"});}
+    // 사은품표에 없는 제품만 기존 데이터에서 보완한다 (표에 있으면 표가 정답 — 옛 명칭 혼입 방지)
+    if(e.product&&e.giftItem&&!PRODUCT_REWARD[e.product]){
+      const a=PRODREWARD[e.product]=PRODREWARD[e.product]||[];
+      if(!a.some(x=>x.name===e.giftItem))a.push({name:e.giftItem,rewardType:e.rewardType||"gift"});
+    }
     if(e.source)src.add(e.source);
   });
   SOURCES=[...src];
@@ -1059,7 +1100,7 @@ async function submitManual(){
   const category=$("#mCategory").value,product=$("#mProduct").value,source=$("#mSource").value;
   const giftItem=$("#mGift").value;const o=$("#mGift").selectedOptions[0];const rewardType=(o&&o.dataset.reward)||"gift";
   const name=$("#mName").value.trim(),phone=$("#mPhone").value.trim(),orderNo=$("#mOrder").value.trim(),custId=$("#mCust").value.trim();
-  const serial=$("#mSerial").value.trim(),address=$("#mAddress").value.trim(),reason=$("#mReason").value.trim();
+  const serial=$("#mSerial").value.trim(),address=manualAddress(),reason=$("#mReason").value.trim();
   const shipFee=$("#mShipFee").value||"착불";
   if(!category||!product||!name||!phone){msg.className="msg bad";msg.textContent="카테고리·제품·수령인·연락처는 필수입니다.";return;}
   if(!giftItem && $("#mGift").querySelector('option[value]:not([value=""])')){msg.className="msg bad";msg.textContent="사은품/상품권을 선택하세요.";return;}
@@ -1081,7 +1122,7 @@ async function submitManual(){
   finally{$("#mSubmit").disabled=false;}
 }
 function resetManual(clearMsg){
-  ["#mName","#mPhone","#mOrder","#mCust","#mSerial","#mAddress","#mReason"].forEach(s=>$(s).value="");
+  ["#mName","#mPhone","#mOrder","#mCust","#mSerial","#mAddress","#mAddrRoad","#mAddrDetail","#mReason"].forEach(s=>{const el=$(s);if(el)el.value="";});
   if(clearMsg)$("#mMsg").textContent="";
   $("#mCategory").value="";$("#mSource").value="";onCategoryChange();
 }
@@ -1324,6 +1365,40 @@ async function odUpload(){
   }finally{ $("#odUpload").disabled=false; }
 }
 
+/* 옛 사은품 명칭을 현재 표 기준으로 맞추기 */
+let gfTargets=[];
+function gfScan(){
+  gfTargets=ALL.filter(e=>{
+    const list=PRODUCT_REWARD[e.product];
+    if(!list||list.length!==1) return false;          // 택1 제품은 건드리지 않음
+    return e.giftItem && e.giftItem!==list[0][0];
+  }).map(e=>({id:e._id,from:e.giftItem,to:PRODUCT_REWARD[e.product][0][0],rw:PRODUCT_REWARD[e.product][0][1],name:e.name,product:e.product}));
+  const box=$("#gfList");
+  if(!gfTargets.length){ box.innerHTML='<div class="empty">바꿀 건이 없습니다. 모두 최신 이름입니다.</div>'; $("#gfApply").disabled=true; $("#gfState").textContent=""; return; }
+  const cnt={};gfTargets.forEach(t=>{const k=t.from+" → "+t.to;cnt[k]=(cnt[k]||0)+1;});
+  box.innerHTML='<table class="mini">'+Object.entries(cnt).sort((a,b)=>b[1]-a[1])
+    .map(([k,v])=>{const [f,t]=k.split(" → ");return `<tr><td style="color:var(--sub)">${f}</td><td>→ <b>${t}</b></td><td style="text-align:right">${v}건</td></tr>`;}).join("")+'</table>';
+  $("#gfApply").disabled=false;
+  $("#gfState").textContent=`총 ${gfTargets.length}건`; $("#gfState").style.color="var(--sub)";
+}
+async function gfApply(){
+  if(!gfTargets.length)return;
+  if(!confirm(`${gfTargets.length}건의 사은품 이름을 현재 표 기준으로 바꿉니다.\n이미 출고된 건도 포함됩니다. 계속할까요?`))return;
+  const db=await initFirebase(); const CH=400; let done=0;
+  $("#gfApply").disabled=true;
+  try{
+    for(let i=0;i<gfTargets.length;i+=CH){
+      const batch=db.batch();
+      gfTargets.slice(i,i+CH).forEach(t=>batch.update(db.collection(COLLECTION).doc(t.id),{giftItem:t.to,rewardType:t.rw}));
+      await batch.commit(); done=Math.min(i+CH,gfTargets.length);
+      $("#gfState").textContent=`${done} / ${gfTargets.length}`;
+    }
+    gfTargets.forEach(t=>{const x=ALL.find(y=>y._id===t.id);if(x){x.giftItem=t.to;x.rewardType=t.rw;}});
+    $("#gfState").textContent="✔ 완료"; $("#gfState").style.color="var(--ok)";
+    buildCatalog(); renderActiveTab(); gfScan();
+  }catch(err){ $("#gfState").textContent="실패: "+(err.message||err); $("#gfState").style.color="var(--bad,#c1121f)"; }
+  finally{ $("#gfApply").disabled=false; }
+}
 function switchTab(name){curTab=name;$$(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));$$(".page").forEach(p=>p.classList.remove("on"));$("#page-"+name).classList.add("on");renderActiveTab();}
 function reset(key,fn){return()=>{pageState[key]=1;fn();};}
 
@@ -1331,6 +1406,8 @@ $$(".tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.tab)));
 $("#odFile").addEventListener("change",e=>{const f=e.target.files[0];if(f)odParseFile(f).catch(err=>odSetState("파일 읽기 실패: "+(err.message||err),"var(--bad,#c0392b)"));});
 $("#odUpload").addEventListener("click",odUpload);
 $("#odClear").addEventListener("click",odReset);
+$("#gfCheck").addEventListener("click",gfScan);
+$("#gfApply").addEventListener("click",gfApply);
 $$(".subtab").forEach(t=>t.addEventListener("click",()=>{const sub=t.dataset.sub;subView[sub]=t.dataset.v;$$(`.subtab[data-sub="${sub}"]`).forEach(x=>x.classList.toggle("active",x===t));pageState[sub]=1;
   const fn={order:renderOrder,acct:renderAcct,reserve:renderReserve}[sub];if(fn)fn();}));
 $("#rSearch").addEventListener("input",reset("reserve",renderReserve));

@@ -73,6 +73,10 @@
   .prod .badge{display:inline-block;font-size:10.5px;font-weight:800;color:var(--brand);
     background:#f1ede7;border-radius:6px;padding:2px 7px;margin-bottom:6px}
   /* 사은품/상품권 미리보기 */
+  /* 미입력·오류 강조 */
+  .invalid{border-color:#e5484d !important;box-shadow:0 0 0 3px rgba(229,72,77,.13) !important}
+  .drop.invalid{border-style:dashed}
+  label.chk.invalid,.consent.invalid{border-radius:10px;padding:6px 8px}
   .giftbox{border:1.5px solid var(--line);border-radius:12px;padding:12px;margin:0 0 10px;background:#fff;text-align:center}
   .giftimg{display:block;width:100%;max-width:320px;aspect-ratio:4/3;object-fit:contain;margin:0 auto;
     border-radius:9px;background:#f7f5f3}
@@ -201,7 +205,7 @@
     <div id="sourceBox"></div>
     <input type="text" id="sourceEtc" class="hide" placeholder="구입처를 직접 입력" style="margin-top:8px">
     <div class="err" id="err-source">구입처를 선택해 주세요. (기타는 직접 입력)</div>
-    <div class="field">
+    <div class="field" style="margin-top:18px">
       <label class="fld">구매 사이트 주문번호 <span class="req">*</span></label>
       <input type="text" id="order" placeholder="구매하신 사이트의 주문번호">
       <div class="hint">주문번호 1건당 1회 참여 가능합니다.</div>
@@ -374,8 +378,34 @@ const COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 �
 
 const state={type:null,category:"주방가전",product:null,file:null,consent:{},survey:{},surveyFor:null,giftChoice:null,source:null};
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
-function showErr(id){const e=$("#"+id);if(e)e.style.display="block";}
-function hideErr(id){const e=$("#"+id);if(e)e.style.display="none";}
+/* 오류 안내 : 빨간 문구 + 해당 입력칸에 빨간 테두리까지 표시한다.
+   글씨만으로는 어디가 문제인지 못 알아채는 경우가 많아서. */
+const ERR_TARGET={
+  "err-type":["#typeBox",".types"],
+  "err-consent":["#consentBox"],
+  "err-prod":["#prodBox",".prods"],
+  "err-survey":["#surveyBox"],
+  "err-source":["#sourceBox"],
+  "err-order":["#order"],
+  "err-file":["#drop"],
+  "err-serial":["#serial"],
+  "err-serialack":["#serialAck"],
+  "err-gift":["#rewardBox .consent"],
+  "err-reward":["#rewardInner .consent"],
+  "err-name":["#name"],
+  "err-phone":["#phone"],
+  "err-addr":["#addrRoad","#addrDetail"]
+};
+function errEls(id){const out=[];(ERR_TARGET[id]||[]).forEach(sel=>{const el=document.querySelector(sel);if(el)out.push(el);});return out;}
+function showErr(id){const e=$("#"+id);if(e)e.style.display="block";errEls(id).forEach(el=>el.classList.add("invalid"));}
+function hideErr(id){const e=$("#"+id);if(e)e.style.display="none";errEls(id).forEach(el=>el.classList.remove("invalid"));}
+/* 검증 실패 시 첫 오류 위치로 스크롤 */
+function focusFirstError(){
+  const el=document.querySelector(".step:not(.hide) .invalid, .step:not(.hide) .err[style*='block']");
+  if(!el)return;
+  el.scrollIntoView({behavior:"smooth",block:"center"});
+  if(el.tagName==="INPUT"&&el.type==="text"&&!el.readOnly) setTimeout(()=>el.focus({preventScroll:true}),320);
+}
 const surveyOf=code=>SURVEYS[code]||null;
 
 const STEP_EL={type:"#step-type",consent:"#step-consent",product:"#step-product",
@@ -391,6 +421,9 @@ function showStep(){
   const step=flow[current];
   Object.values(STEP_EL).forEach(sel=>$(sel).classList.add("hide"));
   $(STEP_EL[step]).classList.remove("hide");
+  // 단계를 옮기면 이전 오류 표시는 지운다 ('다음'을 누를 때 다시 검사)
+  $$(".invalid").forEach(el=>el.classList.remove("invalid"));
+  $$(".err").forEach(el=>el.style.display="none");
   const first=current===0;
   $("#back").style.display=first?"none":"block";
   $("#prog").style.display=first?"none":"block";
@@ -675,7 +708,7 @@ function validateStep(step){
   } return true;
 }
 
-$("#next").addEventListener("click",()=>{ const flow=getFlow(); if(validateStep(flow[current])){ current++; showStep(); } });
+$("#next").addEventListener("click",()=>{ const flow=getFlow(); if(validateStep(flow[current])){ current++; showStep(); } else focusFirstError(); });
 $("#back").addEventListener("click",()=>{ if(current>0){ current--; showStep(); } });
 $("#submitBtn").addEventListener("click",submit);
 

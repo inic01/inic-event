@@ -454,7 +454,7 @@ const COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 �
 /* ============================================================ */
 
 const state={type:null,category:"주방가전",product:null,file:null,serialPrefix:"",
-  vTab:"np",invOk:false,rows:[],qtyByCode:{},prodCodes:[],buyQty:1,qtyMode:null,doneCodes:[],
+  vTab:"np",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
   invNo:"",ordNo:"",autoName:"",autoPhone:"",
   consent:{},survey:{},surveyFor:null,giftChoice:null,source:null};
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
@@ -604,13 +604,14 @@ function renderProds(){
     for(const c in PRODUCTS) PRODUCTS[c].forEach(p=>{ if(state.prodCodes.includes(p.code)) all.push(p); });
     box.innerHTML="";
     all.forEach(p=>{const el=document.createElement("div");el.className="prod"+(state.product===p.code?" on":"");
-      const q=state.qtyByCode[p.code]||1;
+      const q=Math.max(1,(state.qtyByCode[p.code]||1)-(state.usedByCode[p.code]||0));
       el.innerHTML=(p.img?`<img class="pimg" src="${p.img}" alt="${p.name}">`:`<div class="pph">이미지</div>`)
         +`<span class="badge">${p.code}</span><div class="pname">${p.name}${q>1?` <span style="color:#c1121f">${q}개</span>`:""}</div><div class="check">✓</div>`;
       el.onclick=()=>{
         if(state.product!==p.code){ state.surveyFor=null; state.infoFor=null; state.qtyMode=null; }
         state.product=p.code; state.category=categoryOf(p.code)||state.category;
         state.buyQty=state.qtyByCode[p.code]||1;
+        state.usedQty=state.usedByCode[p.code]||0;
         hideErr("err-prod"); renderProds();};
       box.appendChild(el);});
     const cats=$("#cats"); if(cats) cats.style.display="none";
@@ -860,13 +861,14 @@ function renderRewardInner(){
 
 /* 수량 2개 이상 구매 고객 — 한 번에 받을지, 나눠서 접수할지 고르게 한다.
    나눠서 받으면 접수 건마다 따로 발송되므로 배송비(착불)가 각각 부과된다. */
+function leftQty(){ return Math.max(1,(state.buyQty||1)-(state.usedQty||0)); }
 function qtyPickHtml(rw){
-  if(state.type!=="review" || !((state.buyQty||1)>1)) return "";
-  const n=state.buyQty, unit=(rw==="gift")?"사은품":"기프티콘";
+  if(state.type!=="review" || !(leftQty()>1)) return "";
+  const n=leftQty(), unit=(rw==="gift")?"사은품":"기프티콘";
   const feeAll  = (rw==="gift") ? " 배송비는 <b>한 번만</b> 발생합니다." : "";
   const feeSplit= (rw==="gift") ? ' <span style="color:#c0392b">접수 건마다 <b>따로 발송</b>되어 <b>배송비(착불)가 각각 부과</b>됩니다.</span>' : "";
   return '<div class="consent" id="qtyPick"><div class="ctitle">'+unit+' 수량 선택<span class="ctag must">필수</span></div>'
-    +'<div class="notice" style="margin:6px 0 4px">구매하신 수량이 <b>'+n+'개</b>로 확인되었습니다. 받으실 방법을 선택해 주세요.</div>'
+    +'<div class="notice" style="margin:6px 0 4px">'+((state.usedQty||0)>0?('구매하신 수량 <b>'+state.buyQty+'개</b> 중 <b>'+n+'개</b>가 남아 있습니다.'):('구매하신 수량이 <b>'+n+'개</b>로 확인되었습니다.'))+' 받으실 방법을 선택해 주세요.</div>'
     +'<label class="radio"><input type="radio" name="qtym" value="all"><span><b>'+unit+' '+n+'개를 한 번에 받기</b> — 지금 올리신 리뷰 1건으로 접수하고 '+n+'개를 함께 보내드립니다.'+feeAll+'</span></label>'
     +'<label class="radio"><input type="radio" name="qtym" value="split"><span><b>나눠서 접수하기</b> — 이번에는 1개만 받고, 리뷰를 추가로 남기신 뒤 이어서 접수합니다.'+feeSplit+'</span></label>'
     +'<div class="err" id="err-qty">받으실 방법을 선택해 주세요.</div></div>';
@@ -962,6 +964,7 @@ function setVTab(t){
 window.setVTab=setVTab;
 function clearLookup(){
   state.invOk=false; state.rows=[]; state.qtyByCode={}; state.prodCodes=[];
+  state.usedByCode={}; state.usedQty=0;
   state.buyQty=1; state.qtyMode=null; state.product=null; state.surveyFor=null; state.infoFor=null;
   state.invNo=""; state.ordNo=""; state.autoName=""; state.autoPhone="";
 }
@@ -978,6 +981,27 @@ function dedupRows(rows){
     if(seen.has(k))return; seen.add(k); out.push(r);
   });
   return out;
+}
+
+/* 이미 접수한 제품·수량을 미리 확인한다.
+   조회 단계에서 걸러줘야 고객이 중복인 줄 모르고 리뷰까지 올린 뒤 마지막에 막히는 일이 없다.
+   원장 연락처와 고객이 입력한 연락처가 다를 수 있어 둘 다 본다. */
+async function loadUsedByCode(codes,phones){
+  const keys=[...new Set(phones.map(p=>phoneDigits(p)).filter(p=>p.length>=10))];
+  const used={};
+  if(!keys.length) return used;
+  try{
+    for(const c of codes){
+      let mx=0;
+      for(const k of keys){
+        const q=await db.collection(COLLECTION).where("kPhone","==",c+"|"+k).get();
+        let sum=0; q.docs.forEach(d=>{ sum+=Math.max(1,(d.data().giftQty)||1); });
+        if(sum>mx) mx=sum;
+      }
+      if(mx) used[c]=mx;
+    }
+  }catch(err){ console.warn("참여 이력 조회 실패",err); }   // 조회 실패해도 접수는 막지 않는다
+  return used;
 }
 
 async function lookupPurchase(){
@@ -1014,13 +1038,16 @@ async function lookupPurchase(){
     if(!rows.length){ ivNotice('<b style="color:#c1121f">주문 정보를 읽지 못했습니다.</b> 상담사에게 문의해 주세요.'+ivKakao()); return; }
 
     // 제품·수량 집계 — 코드가 확정된 행은 그 코드로, 후보가 둘인 행(음식물처리기)은 후보 모두에 얹는다
-    const qtyByCode={}, lines=[]; let skipped=[];
+    const qtyByCode={}, groups=[], gidx={}; let skipped=[];
     rows.forEach(r=>{
       const q=Math.max(1,parseInt(r.qty,10)||1);
-      const codes = r.code ? [r.code] : (Array.isArray(r.pick)?r.pick:[]);
-      if(!codes.length){ if(r.prodRaw) skipped.push(r.prodRaw); return; }
-      codes.forEach(c=>{ qtyByCode[c]=(qtyByCode[c]||0)+q; });
-      lines.push({label:(r.code?(prodNameOf(r.code)||r.prodRaw):r.prodRaw)||"-", qty:q});
+      const cds = r.code ? [r.code] : (Array.isArray(r.pick)?r.pick:[]);
+      if(!cds.length){ if(r.prodRaw) skipped.push(r.prodRaw); return; }
+      cds.forEach(c=>{ qtyByCode[c]=(qtyByCode[c]||0)+q; });
+      const label=(r.code?(prodNameOf(r.code)||r.prodRaw):r.prodRaw)||"-";
+      if(gidx[label]==null){ gidx[label]=groups.length; groups.push({label,qty:0,codes:[]}); }
+      const g=groups[gidx[label]]; g.qty+=q;
+      cds.forEach(c=>{ if(!g.codes.includes(c)) g.codes.push(c); });
     });
     const codes=Object.keys(qtyByCode);
     if(!codes.length){
@@ -1030,19 +1057,36 @@ async function lookupPurchase(){
       return;
     }
 
-    state.rows=rows; state.qtyByCode=qtyByCode; state.prodCodes=codes;
-    if(codes.length===1){
-      state.product=codes[0];
-      state.category=categoryOf(codes[0])||state.category;
-      state.buyQty=qtyByCode[codes[0]];
-    }
     const r0=rows[0];
+    // 이미 접수한 제품·수량은 빼고 보여준다
+    const usedByCode=await loadUsedByCode(codes,[r0.phone,typed.phone||""]);
+    const remainCodes=codes.filter(c=>((qtyByCode[c]||1)-(usedByCode[c]||0))>0);
+
+    const prodHtml=groups.map(g=>{
+      const u=g.codes.reduce((m,c)=>Math.max(m,usedByCode[c]||0),0);
+      const left=g.qty-u;
+      if(left<=0) return `<span style="color:#9b9b9b;text-decoration:line-through">${g.label} · ${g.qty}개</span> <span style="color:#c1121f;font-weight:800;font-size:13.5px">참여 완료</span>`;
+      if(u>0)     return `${g.label} · <b>${g.qty}개</b> <span style="color:#b26a00;font-size:13.5px">(${u}개 참여 · <b>${left}개</b> 남음)</span>`;
+      return `${g.label} · <b>${g.qty}개</b>`;
+    }).join("<br>");
+
+    if(!remainCodes.length){
+      ivNotice('<b style="color:#c1121f">이미 참여하신 내역이 있습니다.</b><br>'
+        +prodHtml+'<br>구매하신 수량만큼 모두 접수되어 추가 참여가 어렵습니다.<br>'
+        +'더 참여하셔야 하는 사정이 있으시면 아래로 문의해 주세요.'+ivKakao());
+      return;
+    }
+
+    state.rows=rows; state.qtyByCode=qtyByCode; state.usedByCode=usedByCode; state.prodCodes=remainCodes;
+    if(remainCodes.length===1){
+      const c0=remainCodes[0];
+      state.product=c0;
+      state.category=categoryOf(c0)||state.category;
+      state.buyQty=qtyByCode[c0];
+      state.usedQty=usedByCode[c0]||0;
+    }
     state.autoName = typed.name || r0.name || "";
     state.autoPhone= typed.phone || r0.phone || "";
-
-    // 같은 제품명이 여러 행으로 나뉘어 있으면 합쳐서 보여준다
-    const merged={}; lines.forEach(l=>{ merged[l.label]=(merged[l.label]||0)+l.qty; });
-    const prodHtml=Object.entries(merged).map(([k,v])=>`${k} · <b>${v}개</b>`).join("<br>");
     const ivRow=(k,v)=>`<div class="ivrow"><div class="ivk">${k}</div><div class="ivv">${v}</div></div>`;
     $("#invResult").innerHTML=
       '<div class="ivcard"><div class="ivtitle">이 정보가 맞으신가요?</div>'
@@ -1053,7 +1097,7 @@ async function lookupPurchase(){
       +(r0.date?ivRow("출고일",r0.date):"")
       +'</div>'
       +'<div class="hint">개인정보 보호를 위해 일부만 표시합니다.'
-      +(codes.length>1?' 여러 제품을 구매하셨습니다 — 다음 단계에서 이번에 리뷰를 남기신 제품을 골라 주세요.':'')
+      +(remainCodes.length>1?' 여러 제품을 구매하셨습니다 — 다음 단계에서 이번에 리뷰를 남기신 제품을 골라 주세요.':'')
       +'</div>'
       +'<label class="chk"><input type="checkbox" id="invAck"><span>본인이 맞습니다. 이 정보로 참여하겠습니다. <span class="req">*</span></span></label></div>';
     $("#invAck").addEventListener("change",e=>{
@@ -1114,7 +1158,7 @@ function validateStep(step){
       const road=($("#addrRoad").value||"").trim(), det=($("#addrDetail").value||"").trim();
       if(!road||!det){showErr("err-addr");ok=false;}else hideErr("err-addr");
     } else hideErr("err-addr");
-    if(state.type==="review" && (state.buyQty||1)>1 && !state.qtyMode){showErr("err-qty");ok=false;}else hideErr("err-qty");
+    if(state.type==="review" && leftQty()>1 && !state.qtyMode){showErr("err-qty");ok=false;}else hideErr("err-qty");
     if(state.consent.reward!==rw){showErr("err-reward");ok=false;}else hideErr("err-reward");
     return ok;
   } return true;
@@ -1201,7 +1245,9 @@ async function submit(){
   entry.orderNo=$("#order").value.trim();
   /* 구매 수량(buyQty) = 원장의 수량, 이번 접수가 가져가는 수량(giftQty) = 한 번에 받기면 전량, 나눠 받기면 1 */
   entry.buyQty = review ? Math.max(1,state.buyQty||1) : 1;
-  entry.giftQty = (review && entry.buyQty>1 && state.qtyMode==="all") ? entry.buyQty : 1;
+  entry.usedBefore = review ? Math.max(0,state.usedQty||0) : 0;      // 이 제품으로 이미 접수한 개수
+  const canTake = review ? leftQty() : 1;                            // 이번에 가져갈 수 있는 최대
+  entry.giftQty = (review && canTake>1 && state.qtyMode==="all") ? canTake : 1;
   if(state.invNo){ entry.invoiceNo=state.invNo; entry.kInv=state.product+"|"+state.invNo; }   // 제품+송장 단위
   const addr=getAddress();
   entry.address=rw==="gift"?addr:""; entry.nameAddrKey=rw==="gift"?naKey($("#name").value,addr):null;
@@ -1247,15 +1293,15 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
   const pname=(prod&&prod.name)||e.productName||e.product;
   const unit=e.rewardType==="coupon"?"기프티콘":"사은품";
   const rname=e.giftItem||unit;
-  const q=Math.max(1,e.giftQty||1), cap=Math.max(1,e.buyQty||1), left=cap-q;
+  const q=Math.max(1,e.giftQty||1), cap=Math.max(1,e.buyQty||1), left=cap-Math.max(0,e.usedBefore||0)-q;
   /* 수량 2개 이상 구매 고객에게는 몇 개가 나가는지 한 번 더 알려준다 */
   let head="";
   if(q>1){
     head=`<div style="margin:2px 0 12px;padding:12px 13px;background:#eef6ee;border:1px solid #cfe3cf;border-radius:10px;font-size:13.5px;font-weight:700;color:#2c6b3c;line-height:1.6">`
       +`${e.name} 고객님, 이벤트 참여가 완료되었습니다.<br>신청하신 <b>${rname}</b> <b>${q}개</b>가 구매 수량에 맞게 발송될 예정입니다.</div>`;
-  } else if(cap>1){
+  } else if(left>0){
     head=`<div style="margin:2px 0 12px;padding:12px 13px;background:#fff7e6;border:1px solid #f0e0c0;border-radius:10px;font-size:13.5px;font-weight:700;color:#8a5a10;line-height:1.6">`
-      +`${e.name} 고객님, 구매 수량 <b>${cap}개</b> 중 <b>1개</b>가 접수되었습니다.<br>남은 <b>${left}개</b>는 리뷰를 추가로 남기신 뒤 아래 버튼으로 이어서 접수해 주세요.`
+      +`${e.name} 고객님, 구매 수량 <b>${cap}개</b> 중 <b>${cap-left}개</b>가 접수되었습니다.<br>남은 <b>${left}개</b>는 리뷰를 추가로 남기신 뒤 아래 버튼으로 이어서 접수해 주세요.`
       +(e.rewardType==="gift"?`<br><span style="color:#c0392b">※ 접수 건마다 따로 발송되어 배송비(착불)가 각각 부과됩니다.</span>`:"")+`</div>`;
   }
   let kv=head
@@ -1264,13 +1310,15 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
     +(e.giftItem?`<div><b>${e.rewardType==="coupon"?"상품권":"사은품"}</b> ${e.giftItem}${q>1?` · ${q}개`:""}</div>`:``)
     +`<div><b>주문번호</b> ${e.orderNo}</div><div><b>수령인</b> ${e.name}</div><div><b>연락처</b> ${e.phone}</div>`;
   $("#mKv").innerHTML=kv;
+  /* 접수한 만큼 참여 이력에 반영 — 이어서 신청 화면에서 남은 수량이 정확해진다 */
+  if(review && e.product) state.usedByCode[e.product]=(state.usedByCode[e.product]||0)+q;
   /* 이어서 신청 — 다른 제품이 남았거나(A→B), 나눠 받기로 수량이 남은 경우 */
-  const remainProd = review && state.prodCodes.filter(c=>c!==e.product).length>0;
-  const remainQty  = review && left>0;
+  const remainList = review ? state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-(state.usedByCode[c]||0))>0) : [];
+  const otherProd  = remainList.some(c=>c!==e.product);
   const more=$("#mMore");
   if(more){
-    more.classList.toggle("hide", !(remainProd||remainQty));
-    more.textContent = remainProd ? "➕ 다른 제품도 이어서 신청하기" : "➕ 남은 수량 이어서 신청하기";
+    more.classList.toggle("hide", !remainList.length);
+    more.textContent = otherProd ? "➕ 다른 제품도 이어서 신청하기" : "➕ 남은 수량 이어서 신청하기";
   }
   $("#modal").classList.add("on");}
 const DUP_LABEL={invoice:"이 송장번호로 이미 접수되었습니다",phone:"연락처가 이미 접수되었습니다",order:"주문번호가 이미 접수되었습니다",nameAddr:"수령인·주소가 이미 접수되었습니다",serial:"시리얼번호(S/N)가 이미 등록되었습니다"};
@@ -1300,7 +1348,14 @@ function continueEntry(){
   state.giftChoice=null; state.qtyMode=null;
   const fi=$("#file"); if(fi) fi.value="";
   resetDropInner(); const fn=$("#filename"); if(fn) fn.textContent="";
-  if(state.prodCodes.length>1){ state.product=null; state.buyQty=1; }   // 제품 선택 단계로 되돌린다
+  // 다 쓴 제품은 목록에서 빼서 다시 못 고르게 한다
+  state.prodCodes=state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-(state.usedByCode[c]||0))>0);
+  if(state.prodCodes.length>1){ state.product=null; state.buyQty=1; state.usedQty=0; }   // 제품 선택 단계로
+  else if(state.prodCodes.length===1){
+    const c=state.prodCodes[0];
+    state.product=c; state.category=categoryOf(c)||state.category;
+    state.buyQty=state.qtyByCode[c]||1; state.usedQty=state.usedByCode[c]||0;
+  }
   resetBtn();
   const f=getFlow();
   const idx=f.indexOf("consent");

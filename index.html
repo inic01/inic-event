@@ -74,9 +74,10 @@
     background:#f1ede7;border-radius:6px;padding:2px 7px;margin-bottom:6px}
   /* 사은품/상품권 미리보기 */
   /* 미입력·오류 강조 */
-  .invalid{border-color:#e5484d !important;box-shadow:0 0 0 3px rgba(229,72,77,.13) !important}
+  .invalid{border-color:#c1121f !important;box-shadow:0 0 0 3px rgba(193,18,31,.20) !important}
   .drop.invalid{border-style:dashed}
-  label.chk.invalid,.consent.invalid{border-radius:10px;padding:6px 8px}
+  .consent.invalid,.qitem.invalid{border:1.5px solid #c1121f !important;border-radius:12px;padding:10px}
+  .err{color:#c1121f}
   .giftbox{border:1.5px solid var(--line);border-radius:12px;padding:12px;margin:0 0 10px;background:#fff;text-align:center}
   .giftimg{display:block;width:100%;max-width:320px;aspect-ratio:4/3;object-fit:contain;margin:0 auto;
     border-radius:9px;background:#f7f5f3}
@@ -382,9 +383,9 @@ const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll
    글씨만으로는 어디가 문제인지 못 알아채는 경우가 많아서. */
 const ERR_TARGET={
   "err-type":["#typeBox",".types"],
-  "err-consent":["#consentBox"],
+  "err-consent":[],   // 항목별로 따로 표시(markConsentInvalid)
   "err-prod":["#prodBox",".prods"],
-  "err-survey":["#surveyBox"],
+  "err-survey":[],    // 문항별로 따로 표시
   "err-source":["#sourceBox"],
   "err-order":["#order"],
   "err-file":["#drop"],
@@ -396,6 +397,16 @@ const ERR_TARGET={
   "err-phone":["#phone"],
   "err-addr":["#addrRoad","#addrDetail"]
 };
+/* 동의 단계 : 아직 고르지 않았거나 필수인데 '거부'한 항목만 테두리 */
+function markConsentInvalid(){
+  const list=[...CONSENTS.common,...(state.type==="review"?CONSENTS.review:CONSENTS.coupang)];
+  list.forEach(c=>{
+    const el=document.querySelector(`#consentBox .consent[data-cid="${c.id}"]`); if(!el)return;
+    const v=state.consent[c.id];
+    const bad = c.ack ? (v!=="ack") : (!v || (c.tag==="must" && v==="deny"));
+    el.classList.toggle("invalid", !!bad);
+  });
+}
 function errEls(id){const out=[];(ERR_TARGET[id]||[]).forEach(sel=>{const el=document.querySelector(sel);if(el)out.push(el);});return out;}
 function showErr(id){const e=$("#"+id);if(e)e.style.display="block";errEls(id).forEach(el=>el.classList.add("invalid"));}
 function hideErr(id){const e=$("#"+id);if(e)e.style.display="none";errEls(id).forEach(el=>el.classList.remove("invalid"));}
@@ -472,7 +483,7 @@ function renderConsent(){
   const box=$("#consentBox"); box.innerHTML=""; state.consent={};
   const list=[...CONSENTS.common,...(state.type==="review"?CONSENTS.review:CONSENTS.coupang)];
   list.forEach(c=>{
-    const el=document.createElement("div"); el.className="consent";
+    const el=document.createElement("div"); el.className="consent"; el.dataset.cid=c.id;
     const tag=c.tag==="must"?'<span class="ctag must">필수</span>':'<span class="ctag opt">선택</span>';
     let inner=`<div class="ctitle">${c.title}${tag}</div><div class="notice" style="margin:6px 0 4px">${c.notice}</div>`;
     if(c.ack){ inner+=`<label class="chk"><input type="checkbox" data-cid="${c.id}"><span>${c.ackLabel} <span class="req">*</span></span></label>`; }
@@ -508,7 +519,7 @@ function renderSurvey(){
   state.surveyFor=state.product; state.survey={}; box.innerHTML="";
   if(!list){ box.innerHTML='<div class="desc">이 제품은 추가 설문이 없습니다. 다음으로 진행해 주세요.</div>'; return; }
   list.forEach((q,qi)=>{
-    const el=document.createElement("div"); el.className="qitem";
+    const el=document.createElement("div"); el.className="qitem"; el.dataset.qi=qi;
     let h=`<div class="qtt">${qi+1}. ${q.q}</div>`;
     q.opts.forEach((o,oi)=>{ const etc=/^기타/.test(o);
       h+=`<label class="radio"><input type="radio" name="s_${qi}" value="${oi}" data-qi="${qi}" data-etc="${etc}"><span>${o}</span></label>`; });
@@ -675,12 +686,19 @@ function validateConsent(){
 }
 function validateStep(step){
   if(step==="type"){ if(!state.type){showErr("err-type");return false;} return true; }
-  if(step==="consent"){ const r=validateConsent(); if(!r.ok){showErr("err-consent"); if(r.msg)alert(r.msg); return false;} hideErr("err-consent"); return true; }
+  if(step==="consent"){
+    const r=validateConsent();
+    markConsentInvalid();                                  // 문제가 된 항목만 테두리
+    if(!r.ok){showErr("err-consent"); if(r.msg)alert(r.msg); return false;}
+    hideErr("err-consent"); return true; }
   if(step==="product"){ if(!state.product){showErr("err-prod");return false;} return true; }
   if(step==="survey"){ const list=surveyOf(state.product); if(!list) return true;
+    let bad=-1;
+    $$("#surveyBox .qitem").forEach(el=>el.classList.remove("invalid"));
     for(let qi=0;qi<list.length;qi++){ const a=state.survey[qi];
-      if(!a){showErr("err-survey");return false;}
-      if(a.etc && !$("#etc_"+qi).value.trim()){showErr("err-survey");return false;} }
+      const miss = !a || (a.etc && !$("#etc_"+qi).value.trim());
+      if(miss){ const el=document.querySelector(`#surveyBox .qitem[data-qi="${qi}"]`); if(el)el.classList.add("invalid"); if(bad<0)bad=qi; } }
+    if(bad>=0){ showErr("err-survey"); return false; }
     hideErr("err-survey"); return true; }
   if(step==="source"){ let ok=true;
     if(!state.source){showErr("err-source");ok=false;}

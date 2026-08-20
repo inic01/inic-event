@@ -72,6 +72,13 @@
     background:#f2f4f8;border-radius:8px;margin-bottom:4px;color:#9aa4b2;font-size:11px}
   .prod .badge{display:inline-block;font-size:10.5px;font-weight:800;color:var(--brand);
     background:#f1ede7;border-radius:6px;padding:2px 7px;margin-bottom:6px}
+  /* 사은품/상품권 미리보기 */
+  .giftbox{border:1.5px solid var(--line);border-radius:12px;padding:12px;margin:0 0 10px;background:#fff;text-align:center}
+  .giftimg{display:block;width:100%;max-width:320px;aspect-ratio:4/3;object-fit:contain;margin:0 auto;
+    border-radius:9px;background:#f7f5f3}
+  .giftph{display:flex;align-items:center;justify-content:center;color:#b3aaa2;font-size:12px;border:1px dashed var(--line)}
+  .giftname{margin-top:10px;font-size:14px;font-weight:800;line-height:1.35}
+  .giftkind{display:block;font-size:11.5px;font-weight:800;color:var(--sub);margin-bottom:3px}
   .prod .pname{font-size:12.5px;font-weight:700;line-height:1.3}
   .prod .check{position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;
     background:var(--brand);color:#fff;font-size:12px;line-height:18px;display:none}
@@ -179,7 +186,7 @@
       <b>동일한 시리얼번호가 등록될 경우, 사은품/기프티콘은 최초 등록한 1명에게만 발송</b>됩니다.</div>
     <div id="snPhotoSlot"></div>
     <div class="field">
-      <label class="fld" id="serialLabel">전원선에 부착된 택의 S/N 번호 <span class="req">*</span></label>
+      <label class="fld" id="serialLabel">제품에 부착된 S/N 번호를 입력해주세요 <span class="req">*</span></label>
       <input type="text" id="serial" placeholder="예) iHD01">
       <div class="hint">중복 참여 확인에 사용됩니다.</div>
       <div class="err" id="err-serial">시리얼번호를 입력해 주세요.</div>
@@ -400,7 +407,7 @@ function showStep(){
     const ff=$("#fileField"), slot=$("#snPhotoSlot");
     if(ff&&slot&&ff.parentElement!==slot) slot.appendChild(ff);
     renderFileField();
-    const lab=$("#serialLabel"); if(lab) lab.innerHTML=snPosOf(state.product)+' S/N 번호 <span class="req">*</span>';
+    const lab=$("#serialLabel"); if(lab) lab.innerHTML='제품에 부착된 S/N 번호를 입력해주세요 <span class="req">*</span>';
   }
   if(step==="info"){
     // 포토리뷰는 사진 입력칸이 원래 자리(정보 입력 단계 맨 위)에 있어야 한다.
@@ -521,16 +528,6 @@ function renderInfo(){
     renderRewardInner();
   }
 }
-/* ── S/N 라벨 위치 안내 (제품별) ───────────────────────── */
-const SN_POS={
-  "AO-16LS":"제품 하단면에 부착된",   // 에어프라이어 16L
-  "iSA7":"제품 하단면에 부착된",      // 에어프라이어 7L
-  "iEK01":"제품 하단면에 부착된",     // 분유포트
-  "iFD01-H":"제품 하단면에 부착된",   // 음식물처리기
-  "iFD01-F":"제품 하단면에 부착된",
-  "iSA6L":"제품 뒷면에 부착된"        // 에어프라이어 6L
-};
-function snPosOf(code){ return SN_POS[code]||"전원선에 부착된 택의"; }
 
 /* 사진 입력칸은 포토리뷰(정보 단계)와 정품등록(S/N 단계) 양쪽에서 쓰인다 — 문구만 바꿔 재사용 */
 function renderFileField(){
@@ -539,8 +536,36 @@ function renderFileField(){
   if(lab) lab.innerHTML = review ? '포토리뷰 캡처 이미지 <span class="req">*</span>' : '시리얼번호(S/N) 라벨 사진 <span class="req">*</span>';
   if(hint) hint.innerHTML = review
     ? '<b>본인이 작성한 리뷰 화면</b>을 캡처해 등록해 주세요. <b>별점·후기 내용·첨부하신 사진</b>이 함께 보여야 합니다.<br><span style="color:#c0392b">※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.</span>'
-    : '<b>'+snPosOf(state.product)+' 시리얼번호(S/N) 라벨</b>이 또렷하게 보이게 촬영해 등록해 주세요.<br>사진을 먼저 올리신 뒤, 사진을 보면서 아래에 번호를 입력하시면 편합니다.<br><span style="color:#c0392b">※ 라벨이 보이지 않는 사진이거나 입력하신 S/N과 다른 경우 지급 대상에서 제외됩니다.</span>';
+    : '<b>제품에 부착된 시리얼번호(S/N) 라벨</b>이 또렷하게 보이게 촬영해 등록해 주세요.<br>사진을 먼저 올리신 뒤, 사진을 보면서 아래에 번호를 입력하시면 편합니다.<br><span style="color:#c0392b">※ 라벨이 보이지 않는 사진이거나 입력하신 S/N과 다른 경우 지급 대상에서 제외됩니다.</span>';
   if(dt) dt.textContent = review ? "여기를 눌러 캡처 이미지를 등록" : "여기를 눌러 사진을 등록";
+}
+/* ── 사은품/상품권 이미지 ────────────────────────────────
+   고객이 어떤 사은품인지 헷갈리지 않도록 이름과 함께 실제 사진을 보여준다.
+   키 = GIFTS의 label 과 정확히 같은 문자열. 값 = 이미지 주소(data:...base64 또는 URL).
+   비어 있으면 이미지 없이 이름만 표시되므로, 준비되는 대로 하나씩 채우면 된다.
+   권장 원본 : 4:3, 960 × 720px, 흰 배경 */
+const GIFT_IMG={
+  "튀김용바스켓 16L,16LS":"",
+  "디바이더 7L":"",
+  "밀폐키친홀더 iFD01":"",
+  "활성탄필터 iFD01":"",
+  "워셔블필터+배기부필터 1set i50,i50T":"",
+  "미니 악세사리 거치대 i30,i50T":"",
+  "거치대 iv10,iv11":"",
+  "전용 관리 set 가습기용":"",
+  "보관백 iSC01,iSC02":"",
+  "CU 3,000원":"",
+  "배민 3,000원":"",
+  "네이버페이 20,000원":""
+};
+function giftCardHtml(item, rw){
+  const label = rw==="gift" ? "사은품" : "상품권";
+  const src = GIFT_IMG[item] || "";
+  const pic = src
+    ? '<img class="giftimg" src="'+src+'" alt="'+item+'">'
+    : '<div class="giftimg giftph">이미지 준비 중</div>';
+  return '<div class="giftbox">'+pic+
+         '<div class="giftname"><span class="giftkind">받으실 '+label+'</span>'+item+'</div></div>';
 }
 function renderRewardInner(){
   const g=giftOf(state.product); const rw=rewardType(state.type,state.product);
@@ -551,7 +576,7 @@ function renderRewardInner(){
   const title=rw==="gift"?"착불 발송 안내":"기프티콘 발송 안내";
   const notice=rw==="gift"?GIFT_NOTICE:COUPON_NOTICE;
   const ack=rw==="gift"?"네, 착불 발송에 동의합니다":"네, 확인했습니다";
-  const itemHtml= item ? '<div class="notice" style="margin:0 0 8px"><b>받으실 '+(rw==="gift"?"사은품":"상품권")+':</b> '+item+'</div>' : '';
+  const itemHtml= item ? giftCardHtml(item, rw) : '';
   $("#rewardInner").innerHTML= itemHtml+'<div class="consent"><div class="ctitle">'+title+'<span class="ctag must">필수</span></div>'+
     '<div class="notice" style="margin:6px 0 4px">'+notice+'</div>'+
     '<label class="chk"><input type="checkbox" id="rewardChk"><span>'+ack+' <span class="req">*</span></span></label>'+

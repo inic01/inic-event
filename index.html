@@ -102,6 +102,17 @@
   .qitem .qtt{font-size:13.5px;font-weight:800;margin-bottom:4px;line-height:1.45}
   .consent{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
   .consent .ctitle{font-size:13.5px;font-weight:800;margin-bottom:4px}
+  /* 송장 매칭 확인 카드 */
+  .ivcard{border:2px solid #1d3557;border-radius:14px;padding:16px;margin:0;background:#fff}
+  .ivcard .ivtitle{font-size:16px;font-weight:900;color:#1d3557;margin-bottom:12px;letter-spacing:-.2px}
+  .ivbox{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fafbfc}
+  .ivrow{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--line)}
+  .ivrow:last-child{border-bottom:none}
+  .ivk{flex:0 0 68px;font-size:13px;font-weight:700;color:var(--sub)}
+  .ivv{flex:1;font-size:16px;font-weight:800;color:#111;word-break:break-all}
+  .ivcard .hint{margin:8px 0 10px}
+  .ivcard .chk span{font-size:14.5px;font-weight:700}
+  @media(max-width:420px){ .ivv{font-size:15px} .ivcard .ivtitle{font-size:15px} }
   .ctag{font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;margin-left:6px}
   .ctag.must{background:#fdecee;color:var(--bad)}.ctag.opt{background:#f1ede7;color:var(--brand)}
   .radio{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.45;cursor:pointer;
@@ -880,16 +891,16 @@ async function lookupInvoice(){
     }
     state.invRow=row; state.invPick=(row.pick&&row.pick.length>1)?row.pick:null;
     const pname = row.code ? (prodNameOf(row.code)||row.prodRaw) : row.prodRaw;
+    const ivRow=(k,v)=>`<div class="ivrow"><div class="ivk">${k}</div><div class="ivv">${v}</div></div>`;
     box.innerHTML=
-      '<div class="consent" style="margin:0"><div class="ctitle">이 정보가 맞으신가요?</div>'
-      +'<div style="margin:10px 0;font-size:13.5px;line-height:1.9">'
-      +`<div><b style="display:inline-block;min-width:62px;color:var(--sub)">수령인</b>${maskName(row.name)}</div>`
-      +`<div><b style="display:inline-block;min-width:62px;color:var(--sub)">연락처</b>${maskPhone(row.phone)}</div>`
-      +`<div><b style="display:inline-block;min-width:62px;color:var(--sub)">제품</b>${pname||"-"}</div>`
-      +(row.source?`<div><b style="display:inline-block;min-width:62px;color:var(--sub)">판매처</b>${row.source}</div>`:"")
-      +(row.date?`<div><b style="display:inline-block;min-width:62px;color:var(--sub)">출고일</b>${row.date}</div>`:"")
+      '<div class="ivcard"><div class="ivtitle">이 정보가 맞으신가요?</div>'
+      +'<div class="ivbox">'
+      +ivRow("수령인",maskName(row.name))
+      +ivRow("연락처",maskPhone(row.phone))
+      +ivRow("제품",pname||"-")
+      +(row.date?ivRow("출고일",row.date):"")
       +'</div>'
-      +'<div class="hint" style="margin:0 0 8px">개인정보 보호를 위해 일부만 표시합니다.</div>'
+      +'<div class="hint">개인정보 보호를 위해 일부만 표시합니다.</div>'
       +'<label class="chk"><input type="checkbox" id="invAck"><span>본인이 맞습니다. 이 정보로 참여하겠습니다. <span class="req">*</span></span></label></div>';
     $("#invAck").addEventListener("change",e=>{
       state.invOk=e.target.checked;

@@ -248,9 +248,11 @@
   <section class="page" id="page-orders">
     <div class="panel" style="margin-bottom:14px">
       <h3>주문 원장 업로드</h3>
-      <div class="hint">접수폼에서 <b>주문번호 또는 송장번호</b>로 본인 확인을 하기 위한 구매 원장입니다.
-        스프레드시트(.xlsx) 또는 .csv 파일을 올리면 송장번호·주문번호로 찾을 수 있게 저장됩니다.<br>
-        필요한 열 : <b>제품군 · 이름 · 전화번호1 · 송장번호 · 주문번호</b> (판매처·일자는 있으면 함께 저장)</div>
+      <div class="hint">접수폼에서 <b>성함+연락처 / 주문번호 / 송장번호</b> 세 가지 중 하나로 본인 확인을 하기 위한 구매 원장입니다.
+        스프레드시트(.xlsx) 또는 .csv 파일을 올리면 세 가지 키로 각각 찾을 수 있게 저장됩니다.<br>
+        필요한 열 : <b>제품군 · 이름 · 전화번호1 · 수량 · 송장번호 · 주문번호</b> (전화번호2·일자는 있으면 함께 저장 / 판매처는 저장하지 않습니다)<br>
+        <b>전화번호2</b>가 있으면 함께 색인하므로 고객이 <b>안심번호</b>를 넣어도 조회됩니다. <b>수량</b>이 2 이상이면 사은품이 그 수량만큼 나갑니다.<br>
+        <span style="color:var(--bad,#c0392b)">※ 예전 구조로 올린 문서가 있으면 Firebase 콘솔에서 <b>orders 컬렉션을 먼저 삭제</b>한 뒤 올려 주세요.</span></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px">
         <input type="file" id="odFile" accept=".xlsx,.xls,.csv" style="font-size:13px">
         <button id="odUpload" class="sm primary" disabled>Firestore에 올리기</button>
@@ -1178,7 +1180,9 @@ function aggShipRows(items,feeLabel){
     grp.forEach(x=>flat.push(x));
     const e=grp[0];
     const orders=[...new Set(grp.map(x=>x.orderNo).filter(Boolean))].join(", ");
-    const row={"사이트":"사은품","제품군":e.giftItem||"","수량":grp.length,"이름":e.name||"",
+    // 수량 = 접수 건들의 사은품 수량 합계 (구매 수량 2개 이상을 한 번에 신청한 건은 giftQty 가 2 이상)
+    const qsum=grp.reduce((n,x)=>n+Math.max(1,parseInt(x.giftQty,10)||1),0);
+    const row={"사이트":"사은품","제품군":e.giftItem||"","수량":qsum,"이름":e.name||"",
       "전화번호1":e.phone||"","전화번호2":"","주소":(e.rewardType==="gift")?(e.address||""):"","배송메세지":"",
       "운송장번호":"","주문번호":orders,"사방넷":""};
     row[feeLabel]="";  // 마지막 칸 헤더 = 착불/선불
@@ -1233,12 +1237,18 @@ function renderActiveTab(){
 /* ══════════════ 주문 원장 (orders) ══════════════
    접수폼이 '주문번호/송장번호'로 본인 확인을 하기 위한 구매 원장.
    문서 구조 — 목록 조회(list)를 막고 정확히 아는 키로만 get 하도록 두 종류로 나눠 저장한다.
-     orders/I_<정규화송장번호>  : { rows:[행1] }
-     orders/O_<정규화주문번호>  : { rows:[행1..N] }   (장바구니 합배송)
-   행 = {inv, ord, name, phone, phoneKey, prodRaw, code, source, date}                       */
+     orders/I_<정규화송장번호>                        : { rows:[행1..N] }
+     orders/O_<정규화주문번호>                        : { rows:[행1..N] }   (장바구니 합배송)
+     orders/N_<sha256("v2|이름키|연락처숫자")[0..40]> : { rows:[행1..N] }   (성함+연락처, 둘 다 알아야 만들어짐)
+   행 = {ref, name, phone, prodRaw, code, pick, qty, date, inv, ord}   ※ 판매처는 저장하지 않는다     */
 const ORDERS_COL="orders";
 function normKey(v){return String(v==null?"":v).toUpperCase().replace(/[\s\-.\/]/g,"");}
 function normPhoneKey(v){return String(v==null?"":v).replace(/\D/g,"");}
+function nameKeyOf(v){return String(v==null?"":v).replace(/\s/g,"").toLowerCase();}
+async function sha40(s){
+  const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("").slice(0,40);
+}
 
 /* 시트 '제품군' → 시스템 제품코드. 색상·(중고) 등 수식어는 무시한다.
    음식물처리기는 시트에 한 종류로만 적혀 있어 코드를 확정할 수 없다(사은품이 다름) → 고객이 선택. */
@@ -1282,22 +1292,27 @@ async function odParseFile(file){
   const wb=XLSX.read(buf,{type:"array"});
   const ws=wb.Sheets[wb.SheetNames[0]];
   const json=XLSX.utils.sheet_to_json(ws,{defval:"",raw:false});
-  const out=[],warn={nomap:0,noinv:0,nophone:0,pick:0,skip:0};
-  json.forEach(r=>{
+  const out=[],warn={nomap:0,noinv:0,nophone:0,noname:0,pick:0,skip:0,multi:0};
+  json.forEach((r,i)=>{
     const inv=String(odPick(r,["송장번호","운송장번호","송장"])||"").trim();
     const ord=String(odPick(r,["주문번호","주문No","주문번호1"])||"").trim();
     const name=String(odPick(r,["이름","수령인","성명","수취인"])||"").trim();
     const phone=String(odPick(r,["전화번호1","연락처","휴대폰","전화번호"])||"").trim();
+    const phone2=String(odPick(r,["전화번호2","연락처2","휴대폰2","안심번호"])||"").trim();
+    const qty=Math.max(1,parseInt(String(odPick(r,["수량","주문수량","개수"])||"1").replace(/[^\d]/g,""),10)||1);
     const prodRaw=String(odPick(r,["제품군","제품","상품명","품목"])||"").trim();
-    const source=String(odPick(r,["판매처","구입처","사이트"])||"").trim();
     const date=String(odPick(r,["일자","주문일","날짜"])||"").trim();
     if(!inv&&!ord){warn.skip++;return;}                 // 키가 하나도 없으면 저장 불가
     const m=mapSheetProduct(prodRaw);
     if(!m.code&&!m.pick)warn.nomap++;
     if(m.pick)warn.pick++;
     if(!inv||normKey(inv).length<8)warn.noinv++;
-    if(!normPhoneKey(phone))warn.nophone++;
-    out.push({inv,ord,name,phone,phoneKey:normPhoneKey(phone),prodRaw,code:m.code,pick:m.pick||null,source,date,note:m.note});
+    if(!normPhoneKey(phone)&&!normPhoneKey(phone2))warn.nophone++;
+    if(!name)warn.noname++;
+    if(qty>1)warn.multi++;
+    // ref = 행 고유값. 여러 달치를 나눠 올려도 같은 행이 겹쳐 쌓이지 않게 하는 기준.
+    const ref=normKey(inv)||(normKey(ord)+"#"+(i+1));
+    out.push({ref,inv,ord,name,phone,phone2,prodRaw,code:m.code,pick:m.pick||null,qty,date,note:m.note});
   });
   odRows=out;
   odRenderPreview(warn);
@@ -1310,10 +1325,12 @@ function odRenderPreview(warn){
   $("#odSummary").innerHTML=
     `<div style="font-size:13px;font-weight:800;margin-bottom:8px">총 ${odRows.length.toLocaleString()}건</div>`+
     `<div style="margin-bottom:10px">`+
+      badge(warn.multi,"수량 2개 이상","#eef6ee")+
       badge(warn.pick,"고객이 제품 선택","#fdf1e3")+
       badge(warn.nomap,"제품 매칭 실패","#fdeeee")+
       badge(warn.noinv,"송장번호 이상","#fdeeee")+
       badge(warn.nophone,"연락처 없음","#fdeeee")+
+      badge(warn.noname,"이름 없음","#fdeeee")+
       badge(warn.skip,"키 없어 제외","#f0eeec")+
     `</div>`+
     `<table class="mini">`+Object.entries(cnt).sort((a,b)=>b[1]-a[1])
@@ -1321,43 +1338,58 @@ function odRenderPreview(warn){
         const to=m.code?`<b>${m.code}</b>`:(m.pick?`<span style="color:#b26a00">${m.pick.join(" 또는 ")}</span>`:`<span style="color:var(--bad,#c0392b)">${m.note||"매칭 실패"}</span>`);
         return `<tr><td>${k}</td><td style="text-align:right">${v.toLocaleString()}</td><td>→ ${to}</td></tr>`;}).join("")+
     `</table>`;
-  const cols=["송장번호","주문번호","이름","연락처","제품군","→ 코드","판매처","일자"];
+  const cols=["송장번호","주문번호","이름","전화번호1","전화번호2","제품군","→ 코드","수량","일자"];
   $("#tableOrders thead").innerHTML="<tr>"+cols.map(c=>`<th>${c}</th>`).join("")+"</tr>";
   $("#tableOrders tbody").innerHTML=odRows.slice(0,20).map(r=>
-    `<tr><td>${r.inv||"-"}</td><td>${r.ord||"-"}</td><td>${r.name||"-"}</td><td>${r.phone||"-"}</td>`+
+    `<tr><td>${r.inv||"-"}</td><td>${r.ord||"-"}</td><td>${r.name||"-"}</td><td>${r.phone||"-"}</td><td>${r.phone2||"-"}</td>`+
     `<td class="wrapcell">${r.prodRaw||"-"}</td><td>${r.code||(r.pick?r.pick.join("/"):"<span style='color:#c0392b'>?</span>")}</td>`+
-    `<td class="wrapcell">${r.source||"-"}</td><td>${r.date||"-"}</td></tr>`).join("");
+    `<td style="text-align:right${r.qty>1?";font-weight:800;color:#c0392b":""}">${r.qty}</td><td>${r.date||"-"}</td></tr>`).join("");
   $("#emptyOrders").style.display=odRows.length?"none":"block";
 }
 async function odUpload(){
   if(!odRows.length)return;
-  if(!confirm(`${odRows.length.toLocaleString()}건을 주문 원장에 올립니다.\n같은 송장번호는 덮어쓰기됩니다. 계속할까요?`))return;
+  if(!confirm(`${odRows.length.toLocaleString()}건을 주문 원장에 올립니다.\n\n※ 예전 구조로 올린 문서가 남아 있으면, 먼저 Firebase 콘솔에서 orders 컬렉션을 삭제해 주세요.\n\n계속할까요?`))return;
   const db=await initFirebase();
-  // 송장 문서 / 주문번호 문서로 정리
-  const byInv=new Map(), byOrd=new Map();
-  odRows.forEach(r=>{
-    const row={inv:r.inv,ord:r.ord,name:r.name,phone:r.phone,phoneKey:r.phoneKey,
-               prodRaw:r.prodRaw,code:r.code,pick:r.pick,source:r.source,date:r.date};
-    const ik=normKey(r.inv), ok=normKey(r.ord);
-    if(ik) byInv.set(ik,row);
-    if(ok){ if(!byOrd.has(ok))byOrd.set(ok,[]); byOrd.get(ok).push(row); }
-  });
+  // 송장 / 주문번호 / 성함+연락처(해시) 세 가지 키로 정리
+  const byInv=new Map(), byOrd=new Map(), byNP=new Map();
+  const add=(map,k,row)=>{ if(!k)return; if(!map.has(k))map.set(k,[]); map.get(k).push(row); };
+  $("#odUpload").disabled=true; odSetState("조회 키 만드는 중…");
+  let n=0;
+  for(const r of odRows){
+    const row={ref:r.ref,name:r.name,phone:r.phone,prodRaw:r.prodRaw,code:r.code,pick:r.pick,
+               qty:r.qty,date:r.date,inv:r.inv,ord:r.ord};
+    add(byInv,normKey(r.inv),row);
+    add(byOrd,normKey(r.ord),row);
+    // 안심번호 대응 — 전화번호1·전화번호2를 각각 색인해 어느 쪽을 넣어도 걸리게 한다
+    if(r.name){
+      for(const p of [r.phone,r.phone2]){
+        const d=normPhoneKey(p); if(!d) continue;
+        add(byNP, await sha40("v2|"+nameKeyOf(r.name)+"|"+d), row);
+      }
+    }
+    if(++n%500===0) odSetState(`조회 키 만드는 중… ${n.toLocaleString()} / ${odRows.length.toLocaleString()}`);
+  }
+  const dedup=rows=>{const s=new Set();return rows.filter(x=>s.has(x.ref)?false:(s.add(x.ref),true));};
   const docs=[];
-  byInv.forEach((row,k)=>docs.push(["I_"+k,{rows:[row]}]));
-  byOrd.forEach((rows,k)=>docs.push(["O_"+k,{rows}]));
+  byInv.forEach((rows,k)=>docs.push(["I_"+k,dedup(rows)]));
+  byOrd.forEach((rows,k)=>docs.push(["O_"+k,dedup(rows)]));
+  byNP.forEach((rows,k)=>docs.push(["N_"+k,dedup(rows)]));
   $("#odBar").style.display="block";
-  $("#odUpload").disabled=true;
   const CH=400; let done=0;
   try{
     for(let i=0;i<docs.length;i+=CH){
       const batch=db.batch();
-      docs.slice(i,i+CH).forEach(([id,data])=>batch.set(db.collection(ORDERS_COL).doc(id),data));
+      // arrayUnion — 여러 달치를 나눠 올려도 기존 행을 지우지 않고 덧붙인다
+      docs.slice(i,i+CH).forEach(([id,rows])=>batch.set(
+        db.collection(ORDERS_COL).doc(id),
+        {rows:firebase.firestore.FieldValue.arrayUnion(...rows)},
+        {merge:true}));
       await batch.commit();
       done=Math.min(i+CH,docs.length);
       $("#odBarFill").style.width=Math.round(done/docs.length*100)+"%";
       odSetState(`올리는 중… ${done.toLocaleString()} / ${docs.length.toLocaleString()}`);
     }
-    odSetState(`✔ 완료 — 송장 ${byInv.size.toLocaleString()}건 · 주문번호 ${byOrd.size.toLocaleString()}건`,"var(--ok)");
+    odSetState(`✔ 완료 — 송장 ${byInv.size.toLocaleString()} · 주문번호 ${byOrd.size.toLocaleString()} · 성함+연락처 ${byNP.size.toLocaleString()}`,"var(--ok)");
     alert("주문 원장 업로드가 완료되었습니다.");
   }catch(err){
     odSetState("업로드 실패: "+(err.message||err),"var(--bad,#c0392b)");

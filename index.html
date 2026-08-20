@@ -121,6 +121,18 @@
   .vpane{display:none}
   .vpane.on{display:block}
   @media(max-width:380px){ .vtab{font-size:11.5px;padding:10px 2px} }
+  /* 참여 완료 / 남은 수량 — 제품명까지 한 덩어리로 표시 */
+  .pdone{display:inline-block;margin:2px 0;padding:4px 11px;border-radius:16px;
+    background:#e8f5ea;border:1px solid #c9e6d1;color:#2c7a43;
+    font-size:14px;font-weight:800;line-height:1.5}
+  .pdone .tag{display:inline-block;margin-left:7px;font-size:11.5px;
+    background:#2c7a43;color:#fff;border-radius:99px;padding:2px 8px;
+    font-weight:800;white-space:nowrap;vertical-align:1px}
+  .pdone.pleft{background:#fff4e3;border-color:#f0dfc2;color:#9a6212}
+  .pdone.pleft .tag{background:#9a6212}
+  @media(max-width:420px){ .pdone{font-size:13px;padding:4px 9px} .pdone .tag{font-size:11px;padding:2px 7px;margin-left:5px} }
+  /* 확인 카드 항목명 폭을 조금 줄여 제품 줄에 여유를 준다 */
+  .ivk{flex-basis:56px}
   .ctag{font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;margin-left:6px}
   .ctag.must{background:#fdecee;color:var(--bad)}.ctag.opt{background:#f1ede7;color:var(--brand)}
   .radio{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.45;cursor:pointer;
@@ -407,7 +419,19 @@ const SURVEYS={
   "i90":[
     {q:"아이닉 맥스제로를 선택한 가장 큰 이유는?",opts:["강력한 흡입력(675W 고출력)","특허받은 먼지 자동비움(클린스테이션)","UV 살균 등 위생 기능","디자인이 마음에 들어서","가격 대비 성능(가성비)","국내유일 UV 살균 스팀물걸레키트","다양한 세부 기능(밴딩튜브·플렉시블·밀착 브러시·UV 스팀물걸레)","리뷰/후기가 좋아서","기존 제품 대비 업그레이드","기타"]},
     {q:"실제 사용 후 가장 만족스러운 부분은?",opts:["흡입력","먼지 자동비움으로 편한 관리","UV 살균 위생 관리","사용 편의성","디자인/외관","다양한 활용성","기타"]},
-    {q:"기존에 사용하시던 청소기는?",opts:["유선 청소기","무선 청소기(먼지비움 없음)","프리미엄 무선청소기(먼지비움 있음)","로봇청소기","없음(첫 구매)"]}]
+    {q:"기존에 사용하시던 청소기는?",opts:["유선 청소기","무선 청소기(먼지비움 없음)","프리미엄 무선청소기(먼지비움 있음)","로봇청소기","없음(첫 구매)"]}],
+  "iSC02":[
+    {q:"타사가 아닌 아이닉 무선선풍기 iSC02를 선택하신 가장 큰 이유는?",opts:["아이닉 브랜드를 알고 있어서","디자인이 마음에 들어서","가격 및 할인 혜택이 좋아서","디스플레이 리모컨이 있어서","앱으로 조작할 수 있어서","교체형 배터리를 사용할 수 있어서","접이식이라 보관이 편해서","리뷰/평가가 좋아서","기타"]},
+    {q:"구매 직전까지 가장 고민했던 브랜드는?",opts:["루메나","에어메이드","스테나","디디오랩","신일","샤오미","기타","비교한 브랜드 없음"]},
+    {q:"사용해보니 가장 만족스러운 부분은?",opts:["조용한 소음","접이식 구조","디자인","3D 상하좌우 회전","조작 방법(본체 버튼·리모컨·앱)","교체형 배터리","기타"]}],
+  "iFD01-H":[
+    {q:"타사가 아닌 아이닉 음식물처리기 iFD01을 선택하신 가장 큰 이유는?",opts:["아이닉 브랜드를 알고 있어서","디자인이 마음에 들어서","가격이 합리적이어서","미네랄스톤 내솥 때문에","180℃ 고온 처리 때문에","칼날 분리 세척이 가능해서","리뷰/구매평이 좋아서","다른 제품과 비교했을 때 전체 구성이 좋아서","기타"]},
+    {q:"구매 직전까지 가장 고민했던 브랜드의 제품은?",opts:["미닉스","쿠쿠","스마트카라","저가형","기타"]},
+    {q:"사용해보니 가장 만족스러운 부분은?",opts:["분쇄력","조용한 소음","디자인","냄새차단","간편세척(칼날분리·미네랄스톤·자동세척)"]}],
+  "iFD01-F":[
+    {q:"타사가 아닌 아이닉 음식물처리기 iFD01을 선택하신 가장 큰 이유는?",opts:["아이닉 브랜드를 알고 있어서","디자인이 마음에 들어서","가격이 합리적이어서","미네랄스톤 내솥 때문에","180℃ 고온 처리 때문에","칼날 분리 세척이 가능해서","리뷰/구매평이 좋아서","다른 제품과 비교했을 때 전체 구성이 좋아서","기타"]},
+    {q:"구매 직전까지 가장 고민했던 브랜드의 제품은?",opts:["미닉스","쿠쿠","스마트카라","저가형","기타"]},
+    {q:"사용해보니 가장 만족스러운 부분은?",opts:["분쇄력","조용한 소음","디자인","냄새차단","간편세척(칼날분리·미네랄스톤·자동세척)"]}]
 };
 
 const CONSENTS={
@@ -1065,8 +1089,8 @@ async function lookupPurchase(){
     const prodHtml=groups.map(g=>{
       const u=g.codes.reduce((m,c)=>Math.max(m,usedByCode[c]||0),0);
       const left=g.qty-u;
-      if(left<=0) return `<span style="color:#9b9b9b;text-decoration:line-through">${g.label} · ${g.qty}개</span> <span style="color:#c1121f;font-weight:800;font-size:13.5px">참여 완료</span>`;
-      if(u>0)     return `${g.label} · <b>${g.qty}개</b> <span style="color:#b26a00;font-size:13.5px">(${u}개 참여 · <b>${left}개</b> 남음)</span>`;
+      if(left<=0) return `<span class="pdone">${g.label} · <b>${g.qty}개</b><span class="tag">참여 완료</span></span>`;
+      if(u>0)     return `<span class="pdone pleft">${g.label} · <b>${g.qty}개</b><span class="tag">${left}개 남음</span></span>`;
       return `${g.label} · <b>${g.qty}개</b>`;
     }).join("<br>");
 

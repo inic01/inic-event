@@ -1292,7 +1292,7 @@ async function odParseFile(file){
   const wb=XLSX.read(buf,{type:"array"});
   const ws=wb.Sheets[wb.SheetNames[0]];
   const json=XLSX.utils.sheet_to_json(ws,{defval:"",raw:false});
-  const out=[],warn={nomap:0,noinv:0,nophone:0,noname:0,pick:0,skip:0,multi:0};
+  const out=[],warn={nomap:0,noinv:0,nophone:0,noname:0,pick:0,skip:0,multi:0},refSeen={};
   json.forEach((r,i)=>{
     const inv=String(odPick(r,["송장번호","운송장번호","송장"])||"").trim();
     const ord=String(odPick(r,["주문번호","주문No","주문번호1"])||"").trim();
@@ -1311,7 +1311,11 @@ async function odParseFile(file){
     if(!name)warn.noname++;
     if(qty>1)warn.multi++;
     // ref = 행 고유값. 여러 달치를 나눠 올려도 같은 행이 겹쳐 쌓이지 않게 하는 기준.
-    const ref=normKey(inv)||(normKey(ord)+"#"+(i+1));
+    // ⚠ 송장번호만 쓰면 한 송장에 여러 제품이 실린 합배송 행이 서로 덮어써진다 → 제품군까지 넣는다.
+    // 같은 송장·같은 제품이 여러 줄이면 뒤에 번호를 붙여 구분한다.
+    const rbase=[normKey(inv),normKey(ord),String(prodRaw).replace(/\s+/g,"")].join("|");
+    refSeen[rbase]=(refSeen[rbase]||0)+1;
+    const ref = refSeen[rbase]>1 ? rbase+"#"+refSeen[rbase] : rbase;
     out.push({ref,inv,ord,name,phone,phone2,prodRaw,code:m.code,pick:m.pick||null,qty,date,note:m.note});
   });
   odRows=out;

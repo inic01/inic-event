@@ -146,6 +146,9 @@
   .exbtn.on{background:#fff;color:#111}
   #ogChips{background:#fff;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:10px 12px}
   #ogChips::-webkit-scrollbar{height:0}
+  /* 조회 실패 시 다른 방법으로 넘어가는 버튼 */
+  .ivswitch{flex:1 1 auto;padding:10px 12px;border:1.5px solid #1d3557;background:#fff;color:#1d3557;
+    border-radius:9px;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap}
   .ctag{font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;margin-left:6px}
   .ctag.must{background:#fdecee;color:var(--bad)}.ctag.opt{background:#f1ede7;color:var(--brand)}
   .radio{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.45;cursor:pointer;
@@ -212,26 +215,14 @@
     <h2>구매 확인 <span class="req">*</span></h2>
     <p class="desc">구매 내역이 확인되어야 접수하실 수 있습니다. <b>편하신 방법 하나</b>를 골라 입력해 주세요.</p>
     <div class="vtabs" id="vtabs">
-      <button type="button" class="vtab on" data-vt="np">성함 + 연락처</button>
-      <button type="button" class="vtab" data-vt="ord">주문번호</button>
+      <button type="button" class="vtab on" data-vt="ord">주문번호</button>
       <button type="button" class="vtab" data-vt="inv">송장번호</button>
+      <button type="button" class="vtab" data-vt="np">성함 + 연락처</button>
     </div>
 
-    <div class="vpane on" id="vp-np">
-      <div class="notice" style="margin:0 0 10px">주문하실 때 넣으신 <b>성함과 연락처를 모두</b> 입력해 주세요. 둘 다 일치해야 조회됩니다.<br>
-        <b>쿠팡·네이버</b>에서 구매하셨다면 판매자에게 전달되는 번호가 <b>안심번호</b>입니다. 조회가 안 되시면 안심번호로도 넣어봐 주세요.</div>
-      <div class="field" style="margin-bottom:10px">
-        <label class="fld">성함 <span class="req">*</span></label>
-        <input type="text" id="vName" placeholder="주문하신 분 성함">
-      </div>
-      <div class="field">
-        <label class="fld">연락처 <span class="req">*</span></label>
-        <input type="tel" id="vPhone" placeholder="예) 010-1234-5678" inputmode="numeric" oninput="fmtPhone(this)" maxlength="14">
-      </div>
-    </div>
-
-    <div class="vpane" id="vp-ord">
-      <div class="notice" style="margin:0 0 10px">구매하신 쇼핑몰의 <b>주문번호</b>를 입력해 주세요. 쇼핑몰 <b>주문내역</b> 화면에서 확인하실 수 있습니다.</div>
+    <div class="vpane on" id="vp-ord">
+      <div class="notice" style="margin:0 0 10px">구매하신 쇼핑몰의 <b>주문번호</b>를 입력해 주세요. 쇼핑몰 <b>주문내역</b> 화면에서 확인하실 수 있습니다.<br>
+        <b>어느 사이트에서 구매하셨든 이 방법으로 조회됩니다.</b></div>
       <div class="field">
         <label class="fld">주문번호 <span class="req">*</span></label>
         <input type="text" id="vOrd" placeholder="구매하신 사이트의 주문번호">
@@ -244,6 +235,20 @@
       <div class="field">
         <label class="fld">송장번호 <span class="req">*</span></label>
         <input type="text" id="vInv" inputmode="numeric" placeholder="예) 522430980554">
+      </div>
+    </div>
+
+    <div class="vpane" id="vp-np">
+      <div class="notice" style="margin:0 0 10px">주문하실 때 넣으신 <b>성함과 연락처를 모두</b> 입력해 주세요. 둘 다 일치해야 조회됩니다.<br>
+        <b>쿠팡·네이버</b> 등에서 구매하셨다면 판매자에게 전달되는 번호가 <b>안심번호</b>입니다. 안심번호로도 넣어봐 주세요.<br>
+        <span style="color:#c0392b">※ 구매하신 사이트에 따라 성함이 <b>홍*동</b>처럼 가려진 채로 전달되거나 연락처를 아예 받지 못하는 경우가 있습니다. 이때는 <b>주문번호·송장번호</b>로 조회해 주세요.</span></div>
+      <div class="field" style="margin-bottom:10px">
+        <label class="fld">성함 <span class="req">*</span></label>
+        <input type="text" id="vName" placeholder="주문하신 분 성함">
+      </div>
+      <div class="field">
+        <label class="fld">연락처 <span class="req">*</span></label>
+        <input type="tel" id="vPhone" placeholder="예) 010-1234-5678" inputmode="numeric" oninput="fmtPhone(this)" maxlength="14">
       </div>
     </div>
 
@@ -523,7 +528,7 @@ const COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 �
 /* ============================================================ */
 
 const state={type:null,category:"주방가전",product:null,file:null,serialPrefix:"",
-  vTab:"np",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
+  vTab:"ord",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
   invNo:"",ordNo:"",autoName:"",autoPhone:"",
   consent:{},survey:{},surveyFor:null,giftChoice:null,source:null};
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
@@ -930,16 +935,17 @@ function exOpen(src,title,withChips,withHalf){
   const img=$("#exImg"), fail=$("#exFail");
   fail.style.display="none"; img.style.display="block";
   img.onerror=()=>{ img.style.display="none"; fail.style.display="block";
-    fail.textContent="안내 이미지를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."; };
+    fail.textContent="안내 이미지를 불러오지 못했습니다. 인터넷 연결을 확인하신 뒤 다시 시도해 주세요."; };
   img.src=src; img.alt=title;
   $("#exTitle").textContent=title;
   $("#ogChips").style.display = withChips?"flex":"none";
   $("#exHalf").style.display  = withHalf?"flex":"none";
   exApply();
   $("#exModal").style.display="flex";
+  document.body.style.overflow="hidden";                 // 뒤 화면이 같이 밀리지 않게
   const pane=$("#exPane"); pane.scrollTop=0; pane.scrollLeft=0;
 }
-function closeEx(){ $("#exModal").style.display="none"; }
+function closeEx(){ $("#exModal").style.display="none"; document.body.style.overflow=""; }
 function openEx(){ exOpen(exampleOf(state.product),(prodNameOf(state.product)||"포토리뷰")+" 캡처 예시",false,false); }
 function openSnEx(){ exOpen(snImageOf(state.product),(prodNameOf(state.product)||"제품")+" S/N 라벨 위치",false,false); }
 window.openEx=openEx; window.closeEx=closeEx; window.openSnEx=openSnEx;
@@ -1074,6 +1080,12 @@ function clearLookup(){
   state.invNo=""; state.ordNo=""; state.autoName=""; state.autoPhone="";
 }
 function ivNotice(html){ $("#invResult").innerHTML='<div class="notice" style="margin:0;line-height:1.65">'+html+'</div>'; }
+/* 조회가 안 될 때 다른 방법으로 바로 넘어가는 버튼 */
+function ivSwitch(tab){
+  const B=(t,label)=>`<button type="button" class="ivswitch" onclick="setVTab('${t}')">${label}</button>`;
+  const rest=[["ord","주문번호로 조회하기"],["inv","송장번호로 조회하기"],["np","성함+연락처로 조회하기"]].filter(x=>x[0]!==tab);
+  return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+rest.map(x=>B(x[0],x[1])).join("")+'</div>';
+}
 function ivKakao(){
   const url=KAKAO_CHANNELS["생활가전"]||"";
   return url?`<div style="margin-top:9px"><a href="${url}" target="_blank" rel="noopener" style="display:inline-block;background:#FEE500;color:#191600;font-weight:800;padding:9px 15px;border-radius:8px;text-decoration:none">💬 상담사 문의하기</a></div>`:"";
@@ -1110,7 +1122,7 @@ async function loadUsedByCode(codes,phones){
 }
 
 async function lookupPurchase(){
-  const tab=state.vTab||"np", btn=$("#invBtn");
+  const tab=state.vTab||"ord", btn=$("#invBtn");
   clearLookup();
   let docId="", typed={};
   if(tab==="np"){
@@ -1133,10 +1145,14 @@ async function lookupPurchase(){
     await initFirebase();
     const doc=await db.collection("orders").doc(docId).get();
     if(!doc.exists){
-      const how = tab==="np" ? '성함·연락처를 다시 확인해 주세요. 쿠팡·네이버 구매는 <b>안심번호</b>로 등록돼 있을 수 있습니다.'
-                : tab==="ord" ? '주문번호를 다시 확인해 주세요.' : '송장번호를 다시 확인해 주세요.';
+      const how = tab==="np"
+        ? '구매하신 사이트에 따라 연락처가 <b>안심번호</b>로 등록돼 있거나, 개인정보 보호로 성함이 <b>홍*동</b>처럼 가려진 채 전달되어 조회되지 않을 수 있습니다.<br>'
+          +'<b style="color:#c1121f">이런 경우에는 주문번호나 송장번호로 조회해 주세요.</b>'
+        : tab==="ord" ? '주문번호를 다시 확인해 주세요. 앞뒤 공백이나 빠진 숫자가 없는지 봐주세요.'
+        : '송장번호를 다시 확인해 주세요.';
       ivNotice('<b style="color:#c1121f">구매 내역을 찾지 못했습니다.</b><br>'+how
-        +'<br>최근 구매 건은 아직 등록 전일 수 있습니다. 계속 안 되시면 아래로 문의해 주세요.'+ivKakao());
+        +'<br>최근 구매 건은 아직 등록 전일 수 있습니다.'+ivSwitch(tab)
+        +'<div style="margin-top:10px">계속 안 되시면 아래로 문의해 주세요.'+ivKakao()+'</div>');
       return;
     }
     const rows=dedupRows(doc.data().rows);
@@ -1492,11 +1508,11 @@ function continueEntry(){
 window.continueEntry=continueEntry;
 function resetForm(){
   state.type=null;state.category="주방가전";state.file=null;
-  clearLookup(); state.doneCodes=[]; state.vTab="np";
+  clearLookup(); state.doneCodes=[]; state.vTab="ord";
   ["#vName","#vPhone","#vOrd","#vInv"].forEach(s=>{const el=$(s);if(el)el.value="";});
   {const b=$("#invResult");if(b)b.innerHTML="";}
-  $$("#vtabs .vtab").forEach(b=>b.classList.toggle("on",b.dataset.vt==="np"));
-  ["np","ord","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k==="np");});
+  $$("#vtabs .vtab").forEach(b=>b.classList.toggle("on",b.dataset.vt==="ord"));
+  ["np","ord","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k==="ord");});
   state.consent={};state.survey={};state.surveyFor=null;state.giftChoice=null;state.source=null;state.infoFor=null;
   ["#name","#phone","#order","#addrRoad","#addrDetail","#serial","#sourceEtc","#file"].forEach(s=>{const el=$(s);if(el)el.value="";});
   document.querySelectorAll(".type").forEach(x=>x.classList.remove("on"));
@@ -1565,8 +1581,8 @@ showStep();
 <!-- 포토리뷰 캡처 예시 -->
 <!-- 이미지 크게 보기 — 포토리뷰 예시 · S/N 라벨 · 주문번호 확인 방법 -->
 <div id="exModal" style="display:none;position:fixed;inset:0;background:#101010;z-index:300;flex-direction:column">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:#1b1b1b">
-    <span style="font-weight:800;font-size:13.5px;color:#fff;line-height:1.35" id="exTitle">포토리뷰 캡처 예시</span>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:#1b1b1b;flex:0 0 auto;max-width:100%">
+    <span style="font-weight:800;font-size:13.5px;color:#fff;line-height:1.35;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="exTitle">포토리뷰 캡처 예시</span>
     <div style="display:flex;gap:5px;flex:0 0 auto">
       <button type="button" class="exbtn" onclick="exZoom(-1)">－</button>
       <button type="button" class="exbtn" id="exZoomLabel" onclick="exZoom(0)">100%</button>

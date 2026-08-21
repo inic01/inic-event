@@ -151,6 +151,7 @@
     border-radius:9px;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap}
   /* 안내문 안에서 꼭 읽어야 할 부분 */
   .notice .hl{font-size:13.5px;font-weight:900;color:#c0392b;line-height:1.6}
+  .notice .hlk{font-size:13.5px;font-weight:900;color:#111;line-height:1.6}
   .ctag{font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;margin-left:6px}
   .ctag.must{background:#fdecee;color:var(--bad)}.ctag.opt{background:#f1ede7;color:var(--brand)}
   .radio{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.45;cursor:pointer;
@@ -243,7 +244,7 @@
     <div class="vpane" id="vp-np">
       <div class="notice" style="margin:0 0 10px">주문하실 때 넣으신 <span class="hl">수령인명과 수령 받으실 연락처</span>를 모두 입력해 주세요. 둘 다 일치해야 조회됩니다.<br>
         구매하셨을 때 안심번호가 되어 있는 경우 안심번호로 입력해 주세요.<br>
-        ※ <span class="hl">네이버 내일도착보장 · 현대몰 · M몰 · GS샵 · CJ온스타일</span> 등 개인정보를 위해 고객님 성함이 <span class="hl">홍*동</span>처럼 가려진 채로 전달되거나 연락처를 아예 받지 못하는 경우가 있어, 수령인명과 수령 받으실 때 연락처로 조회가 안 될 시 주문번호·송장번호로 조회해 주세요.</div>
+        ※ <span class="hl">네이버 내일도착보장 · 현대몰 · M몰 · GS샵 · CJ온스타일</span> 등 개인정보를 위해 고객님 성함이 <span class="hl">홍*동</span>처럼 가려진 채로 전달되거나 연락처를 아예 받지 못하는 경우가 있어, <span class="hl">수령인명과 수령 받으실 때 연락처</span>로 조회가 안 될 시 <span class="hlk">주문번호·송장번호</span>로 조회해 주세요.</div>
       <div class="field" style="margin-bottom:10px">
         <label class="fld">성함 <span class="req">*</span></label>
         <input type="text" id="vName" placeholder="주문하신 분 성함">

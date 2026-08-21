@@ -40,6 +40,32 @@
   .mini td{padding:6px 4px;border-bottom:1px solid var(--line)}
   .mini td:last-child{text-align:right;font-weight:700}
   .bar{height:8px;background:var(--brand);border-radius:4px;display:inline-block;vertical-align:middle}
+  /* ── 설문 통계 (제품별 도넛) ── */
+  .svbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 12px}
+  .svsec{font-size:13px;font-weight:900;margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+  .svsec .cnt{font-size:11.5px;font-weight:800;color:var(--sub);background:#efeae6;border-radius:99px;padding:2px 9px}
+  .svq{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+  .svq .t{font-size:14px;font-weight:800;line-height:1.45}
+  .svq .n{font-size:12px;color:var(--sub);margin:2px 0 12px}
+  .svbody{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+  .svdo{flex:0 0 200px;position:relative}
+  .svctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+  .svctr b{font-size:23px;font-weight:900;line-height:1}
+  .svctr span{font-size:11px;color:var(--sub);margin-top:3px}
+  .svlg{flex:1 1 380px;min-width:300px;border-collapse:collapse;width:100%;font-size:12.5px}
+  .svlg td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .svlg tr:last-child td{border-bottom:none}
+  .svlg .dot{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px}
+  .svlg .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:800}
+  .svlg .pc{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--sub);width:52px}
+  .svlg .sub td{color:var(--sub);font-size:11.5px}
+  .svnote{font-size:11.5px;color:var(--sub);line-height:1.6;margin-top:8px}
+  .svseg{transition:opacity .12s}
+  .svbody:hover .svseg{opacity:.45}
+  .svseg:hover{opacity:1}
+  #svTip{position:fixed;pointer-events:none;background:#2b2725;color:#fff;font-size:12px;font-weight:700;
+    padding:7px 10px;border-radius:8px;display:none;z-index:400;line-height:1.5;white-space:nowrap}
+  @media(max-width:620px){ .svdo{flex:0 0 100%;display:flex;justify-content:center} .svlg{min-width:0} }
   .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
   select,input[type=text]{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:#fff}
   .tablewrap{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:auto}
@@ -143,7 +169,13 @@
       <div class="panel"><h3>제품별 참여</h3><table class="mini" id="byProduct"></table></div>
       <div class="panel"><h3>구입처별 참여</h3><table class="mini" id="bySource"></table></div>
     </div>
-    <h3 style="font-size:15px;margin:6px 0 12px">설문 응답 정리</h3>
+    <div class="svbar">
+      <h3 style="font-size:15px;margin:0">설문 통계 — 제품별</h3>
+      <select id="svProd" onchange="svCur=this.value;renderSurvey();"></select>
+      <span style="flex:1"></span>
+      <button class="sm primary" id="svPpt" onclick="svMakePpt(false)">⬇ 이 제품 PPT</button>
+      <button class="sm" id="svPptAll" onclick="svMakePpt(true)">⬇ 전체 PPT</button>
+    </div>
     <div id="surveyBox"></div>
   </section>
 
@@ -651,16 +683,213 @@ function aggTable(el,keyFn){
   const rows=Object.entries(m).sort((a,b)=>b[1]-a[1]);const max=rows.length?rows[0][1]:1;
   $(el).innerHTML=rows.map(([k,v])=>`<tr><td>${k}</td><td><span class="bar" style="width:${Math.max(6,v/max*90)}px"></span> ${v}</td></tr>`).join("")||'<tr><td class="empty">데이터 없음</td></tr>';
 }
+/* ══════════ 설문 통계 — 제품별 ══════════
+   접수 1건에 담긴 survey 배열은 [참여 설문 3문항 → 제품 사용 설문] 순서로 들어온다.
+   포토리뷰와 쿠팡 정품등록은 같은 설문을 받으므로 제품 기준으로 합쳐서 본다.
+   여기에 구입처(source)를 한 문항처럼 붙여서, 제품별로 세 덩어리로 보여준다.
+   ※ 문항 문구가 같아도 제품마다 보기가 달라서, 제품을 섞어 합치지 않는다. */
+const SV_ENTRY_QS=["성별을 선택해주세요.","연령대를 선택해주세요.","아이닉 제품을 구매하게 된 경로를 선택해주세요."];
+const SV_SRC_Q="구매하신 곳(구입처)";
+const SV_HEX=["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7"];
+const SV_OTHER="#b9b2aa";
+const SV_MAX=7;
+let svCur=null, svStats=null;
+
+function svEsc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");}
+function svPct(a,b){return b?Math.round(a/b*1000)/10:0;}
+function svSum(rows){return rows.reduce((a,r)=>a+r[1],0);}
+
+/* 접수 데이터 → 제품별 문항별 집계.
+   '기타: 직접입력' 답변은 통계에서는 '기타' 하나로 묶고, 입력 내용은 따로 모아 아래에 보여준다. */
+function svBuild(){
+  const out={};
+  ALL.forEach(e=>{
+    // 포토리뷰·쿠팡 정품등록 모두 같은 설문을 받으므로 제품 기준으로 합쳐서 집계한다
+    const code=e.product||"(미상)";
+    const p=out[code]||(out[code]={code,name:e.productName||code,n:0,q:{},order:[]});
+    p.n++;
+    const put=(q,a)=>{
+      if(!p.q[q]){ p.q[q]={cnt:{},etc:{}}; p.order.push(q); }
+      const isEtc=/^기타/.test(a);
+      const key=isEtc?"기타":a;
+      p.q[q].cnt[key]=(p.q[q].cnt[key]||0)+1;
+      if(isEtc){ const t=a.replace(/^기타\s*:?\s*/,"").trim(); if(t) p.q[q].etc[t]=(p.q[q].etc[t]||0)+1; }
+    };
+    (e.survey||[]).forEach(s=>{ if(s&&s.q) put(s.q, s.a||"(무응답)"); });
+    put(SV_SRC_Q, e.source||"(미상)");
+  });
+  return out;
+}
+/* 문항을 참여 설문 / 제품 사용 설문 / 구입처 세 덩어리로 나눈다 */
+function svSections(p){
+  const ent=[],prod=[],src=[];
+  p.order.forEach(q=>{
+    const item={q, rows:Object.entries(p.q[q].cnt), etc:p.q[q].etc};
+    if(q===SV_SRC_Q) src.push(item);
+    else if(SV_ENTRY_QS.includes(q)) ent.push(item);
+    else prod.push(item);
+  });
+  ent.sort((a,b)=>SV_ENTRY_QS.indexOf(a.q)-SV_ENTRY_QS.indexOf(b.q));
+  const out=[];
+  if(ent.length) out.push({sec:"참여 설문",qs:ent});
+  if(prod.length) out.push({sec:"제품 사용 설문",qs:prod});
+  if(src.length) out.push({sec:"구입처",qs:src});
+  return out;
+}
+/* 보기가 많으면 많은 순서로 7개만 색을 주고 나머지는 '기타(보기 N개)'로 묶는다.
+   색을 돌려쓰면 어느 색이 어느 보기인지 알 수 없기 때문. */
+function svPrep(rows){
+  const s=rows.slice().sort((a,b)=>b[1]-a[1]);
+  return s.length<=SV_MAX+1 ? {main:s,folded:[]} : {main:s.slice(0,SV_MAX),folded:s.slice(SV_MAX)};
+}
+function svColors(rows){
+  const {main,folded}=svPrep(rows), m={};
+  main.forEach((r,i)=>m[r[0]]=SV_HEX[i]);
+  folded.forEach(r=>m[r[0]]=SV_OTHER);
+  return m;
+}
+function svSegs(rows,cmap){
+  const {main,folded}=svPrep(rows);
+  const s=main.map(r=>({label:r[0],v:r[1],c:cmap[r[0]]}));
+  const fv=folded.reduce((a,r)=>a+r[1],0);
+  if(fv) s.push({label:"기타 (보기 "+folded.length+"개)",v:fv,c:SV_OTHER});
+  return s;
+}
+function svDonut(list,tot,size){
+  const R=64,W=22,C=2*Math.PI*R,GAP=2.5;
+  let off=0,parts="";
+  list.forEach((s,i)=>{
+    const len=tot?C*s.v/tot:0, draw=Math.max(0,len-GAP);
+    if(draw>0) parts+='<circle class="svseg" r="'+R+'" cx="80" cy="80" fill="none" stroke="'+(s.c||SV_HEX[i%7])+'" stroke-width="'+W+'"'
+      +' stroke-dasharray="'+draw+' '+(C-draw)+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 80 80)"'
+      +' data-t="'+svEsc(s.label)+'|'+s.v+'|'+svPct(s.v,tot)+'"></circle>';
+    off+=len;
+  });
+  return '<svg viewBox="0 0 160 160" width="'+size+'" height="'+size+'">'+parts+'</svg>';
+}
+function svLegend(rows,tot,cmap){
+  const {main,folded}=svPrep(rows);
+  let h='<table class="svlg"><tbody>';
+  main.forEach(r=>{ h+='<tr><td style="width:16px"><span class="dot" style="background:'+cmap[r[0]]+'"></span></td><td>'
+    +svEsc(r[0])+'</td><td class="num">'+r[1]+'</td><td class="pc">'+svPct(r[1],tot)+'%</td></tr>'; });
+  if(folded.length){
+    const fv=folded.reduce((a,r)=>a+r[1],0);
+    h+='<tr><td><span class="dot" style="background:'+SV_OTHER+'"></span></td><td>기타 (보기 '+folded.length+'개)</td>'
+      +'<td class="num">'+fv+'</td><td class="pc">'+svPct(fv,tot)+'%</td></tr>';
+    folded.forEach(r=>{ h+='<tr class="sub"><td></td><td style="padding-left:22px">'+svEsc(r[0])+'</td><td class="num">'
+      +r[1]+'</td><td class="pc">'+svPct(r[1],tot)+'%</td></tr>'; });
+  }
+  return h+'</tbody></table>';
+}
+function svQCard(item,i){
+  const rows=item.rows, tot=svSum(rows), cmap=svColors(rows);
+  const {folded}=svPrep(rows);
+  let note="";
+  if(folded.length) note+='<div class="svnote">보기가 '+rows.length+'개라 많은 순서로 '+SV_MAX+'개만 색을 나누고 나머지는 <b>기타</b>로 묶었습니다.</div>';
+  const et=Object.entries(item.etc||{}).sort((a,b)=>b[1]-a[1]);
+  if(et.length) note+='<div class="svnote"><b>기타 직접입력</b> — '
+    +et.slice(0,20).map(x=>svEsc(x[0])+'('+x[1]+')').join(' · ')+(et.length>20?' 외 '+(et.length-20)+'건':'')+'</div>';
+  return '<div class="svq"><div class="t">'+(i+1)+'. '+svEsc(item.q)+'</div><div class="n">응답 '+tot+'건</div>'
+    +'<div class="svbody"><div class="svdo">'+svDonut(svSegs(rows,cmap),tot,200)
+    +'<div class="svctr"><b>'+tot+'</b><span>응답</span></div></div>'+svLegend(rows,tot,cmap)+'</div>'+note+'</div>';
+}
 function renderSurvey(){
-  const qmap={};
-  ALL.forEach(e=>{(e.survey||[]).forEach(s=>{if(!s||!s.q)return;const q=s.q,a=s.a||"(무응답)";(qmap[q]=qmap[q]||{})[a]=(qmap[q][a]||0)+1;});});
-  const keys=Object.keys(qmap);
-  if(!keys.length){$("#surveyBox").innerHTML='<div class="empty">설문 데이터가 없습니다.</div>';return;}
-  $("#surveyBox").innerHTML=keys.map(q=>{
-    const rows=Object.entries(qmap[q]).sort((a,b)=>b[1]-a[1]);const max=rows[0]?rows[0][1]:1;const tot=rows.reduce((s,r)=>s+r[1],0);
-    return `<div class="panel" style="margin-bottom:12px"><h3>${q} <span style="color:var(--sub);font-weight:600;font-size:12px">(${tot}명)</span></h3><table class="mini">`+
-      rows.map(([a,c])=>`<tr><td>${a}</td><td><span class="bar" style="width:${Math.max(6,c/max*120)}px"></span> ${c} (${Math.round(c/tot*100)}%)</td></tr>`).join("")+`</table></div>`;
-  }).join("");
+  svStats=svBuild();
+  const codes=Object.keys(svStats).sort((a,b)=>svStats[b].n-svStats[a].n);
+  const sel=$("#svProd");
+  if(!codes.length){
+    if(sel) sel.innerHTML="";
+    $("#surveyBox").innerHTML='<div class="empty">설문 데이터가 없습니다.</div>';
+    return;
+  }
+  if(!codes.includes(svCur)) svCur=codes[0];
+  sel.innerHTML=codes.map(c=>'<option value="'+c+'"'+(c===svCur?' selected':'')+'>'+svEsc(svStats[c].name)+' — 접수 '+svStats[c].n+'건</option>').join("");
+  const p=svStats[svCur], secs=svSections(p);
+  const nq=secs.reduce((a,s)=>a+s.qs.length,0);
+  $("#surveyBox").innerHTML=
+    '<div class="panel" style="margin-bottom:12px"><div style="font-size:15px;font-weight:900">'+svEsc(p.name)+'</div>'
+    +'<div style="font-size:12.5px;color:var(--sub);margin-top:4px;line-height:1.6">접수 '+p.n+'건 · 문항 '+nq+'개 · <b>포토리뷰 + 쿠팡 정품등록 합계</b><br>'
+    +'<b>참여 설문</b>(성별·연령대·구매경로)은 모든 제품 공통 문항이지만, 여기서는 <b>이 제품 응답자</b>만 집계합니다.</div></div>'
+    +secs.map(s=>'<div class="svsec">'+s.sec+'<span class="cnt">'+s.qs.length+'문항</span></div>'+s.qs.map(svQCard).join("")).join("");
+  svBindTip();
+}
+function svBindTip(){
+  const tip=$("#svTip"); if(!tip) return;
+  document.querySelectorAll(".svseg").forEach(el=>{
+    el.addEventListener("mousemove",e=>{
+      const a=el.dataset.t.split("|");
+      tip.innerHTML="<b>"+a[0]+"</b><br>"+a[1]+"건 · "+a[2]+"%";
+      tip.style.display="block"; tip.style.left=(e.clientX+14)+"px"; tip.style.top=(e.clientY+14)+"px";
+    });
+    el.addEventListener("mouseleave",()=>{tip.style.display="none";});
+  });
+}
+
+/* ── PPT 내려받기 ──
+   그림이 아니라 파워포인트 '진짜 도넛 차트'로 들어가서 PPT에서 색·글자·수치를 그대로 고칠 수 있다. */
+const SV_FONT="맑은 고딕";
+const SV_PPTX=[
+  "https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/4.0.1/pptxgen.bundle.js",
+  "https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js",
+  "https://unpkg.com/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"
+];
+function svLoadScript(src){
+  return new Promise((ok,ng)=>{const s=document.createElement("script");s.src=src;s.onload=ok;
+    s.onerror=()=>ng(new Error(src));document.head.appendChild(s);});
+}
+async function svLoadPptx(){
+  if(window.PptxGenJS) return;
+  for(const src of SV_PPTX){ try{ await svLoadScript(src); if(window.PptxGenJS) return; }catch(e){} }
+  throw new Error("PPT 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.");
+}
+function svSlide(pptx,title,sub,rows){
+  const s=pptx.addSlide(), cmap=svColors(rows), tot=svSum(rows), list=svSegs(rows,cmap);
+  s.addText(title,{x:0.45,y:0.35,w:9.1,h:0.5,fontSize:17,bold:true,fontFace:SV_FONT,color:"2B2725"});
+  s.addText(sub,{x:0.45,y:0.82,w:9.1,h:0.3,fontSize:11,fontFace:SV_FONT,color:"8A827C"});
+  s.addChart(pptx.ChartType.doughnut,[{name:title,labels:list.map(x=>x.label),values:list.map(x=>x.v)}],
+    {x:0.45,y:1.25,w:5.5,h:3.9,chartColors:list.map((x,i)=>(x.c||SV_HEX[i%7]).replace("#","")),
+     holeSize:55,showLegend:false,showValue:false,showPercent:true,dataLabelPosition:"bestFit",
+     dataLabelColor:"FFFFFF",dataLabelFontSize:9,dataLabelFontFace:SV_FONT,dataLabelFormatCode:'0.0%'});
+  const body=list.map((x,i)=>([
+    {text:"■ ",options:{color:(x.c||SV_HEX[i%7]).replace("#",""),fontFace:SV_FONT,fontSize:10}},
+    {text:x.label,options:{fontFace:SV_FONT,fontSize:10,color:"2B2725"}},
+    {text:"   "+x.v+"건 · "+svPct(x.v,tot)+"%",options:{fontFace:SV_FONT,fontSize:10,bold:true,color:"8A827C"}},
+    {text:"\n",options:{breakLine:true}}
+  ])).flat();
+  s.addText(body,{x:6.05,y:1.25,w:3.5,h:3.9,valign:"top",lineSpacingMultiple:1.25});
+  s.addText("총 "+tot+"건",{x:6.05,y:5.22,w:3.5,h:0.3,fontSize:11,bold:true,fontFace:SV_FONT,color:"2B2725"});
+}
+function svPptProduct(pptx,code,cover){
+  const p=svStats[code], secs=svSections(p);
+  if(cover){
+    const c=pptx.addSlide();
+    c.addText(p.name,{x:0.6,y:2.5,w:9,h:0.6,fontSize:22,bold:true,fontFace:SV_FONT,color:"2B2725"});
+    c.addText("접수 "+p.n+"건",{x:0.6,y:3.1,w:9,h:0.4,fontSize:12,fontFace:SV_FONT,color:"8A827C"});
+  }
+  secs.forEach(sec=>sec.qs.forEach((q,i)=>
+    svSlide(pptx,p.name+" — "+q.q,sec.sec+" · 문항 "+(i+1)+"/"+sec.qs.length+" · 응답 "+svSum(q.rows)+"건",q.rows)));
+}
+async function svMakePpt(all){
+  const btn=all?$("#svPptAll"):$("#svPpt"); const old=btn.textContent;
+  btn.disabled=true; btn.textContent="만드는 중…";
+  try{
+    if(!svStats||!svCur) throw new Error("설문 데이터가 없습니다.");
+    await svLoadPptx();
+    const pptx=new PptxGenJS(); pptx.layout="LAYOUT_16x9";
+    pptx.author="아이닉"; pptx.title="포토리뷰 설문 통계";
+    const codes=Object.keys(svStats).sort((a,b)=>svStats[b].n-svStats[a].n);
+    const nAll=codes.reduce((a,c)=>a+svStats[c].n,0);
+    const t=pptx.addSlide();
+    t.addText(all?"포토리뷰 설문 통계 리포트":(svStats[svCur].name+" — 설문 통계"),
+      {x:0.6,y:2.1,w:9,h:0.7,fontSize:28,bold:true,fontFace:SV_FONT,color:"2B2725"});
+    t.addText((all?("전체 접수 "+nAll+"건 · 제품 "+codes.length+"개"):("접수 "+svStats[svCur].n+"건"))
+      +"\n생성일 "+new Date().toLocaleDateString("ko-KR"),
+      {x:0.6,y:2.9,w:9,h:0.8,fontSize:13,fontFace:SV_FONT,color:"8A827C",lineSpacingMultiple:1.4});
+    if(all) codes.forEach(c=>svPptProduct(pptx,c,true)); else svPptProduct(pptx,svCur,false);
+    const nm=all?"설문통계_전체":("설문통계_"+svStats[svCur].name);
+    await pptx.writeFile({fileName:nm+"_"+new Date().toISOString().slice(0,10)+".pptx"});
+  }catch(err){ alert("PPT 만들기 실패: "+err.message); console.error(err); }
+  btn.disabled=false; btn.textContent=old;
 }
 
 /* 사은품/상품권 */
@@ -1477,5 +1706,6 @@ window.__render=(data,cfg)=>{ALL=data.map(x=>({...x,_date:x._date?new Date(x._da
 
 loadData();
 </script>
+<div id="svTip"></div>
 </body>
 </html>

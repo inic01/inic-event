@@ -601,7 +601,9 @@ function getFlow(){
     if(!state.invOk || state.prodCodes.length>1) f.push("product");
     if(surveyOf(state.product)) f.push("survey");
     f.push("source"); f.push("info"); return f; }
-  return ["type","consent","product","source","serial","info"];
+  const f=["type","consent","entry","product"];
+  if(surveyOf(state.product)) f.push("survey");
+  f.push("source"); f.push("serial"); f.push("info"); return f;
 }
 let current=0;
 function showStep(){
@@ -1445,7 +1447,7 @@ async function submit(){
   if(state.invNo){ entry.invoiceNo=state.invNo; entry.kInv=state.product+"|"+state.invNo; }   // 제품+송장 단위
   const addr=getAddress();
   entry.address=rw==="gift"?addr:""; entry.nameAddrKey=rw==="gift"?naKey($("#name").value,addr):null;
-  if(review) entry.survey=collectSurvey();
+  entry.survey=collectSurvey();
   if(!review) entry.serial=$("#serial").value.trim().toUpperCase();
   // 제품 단위 중복키 (같은 제품+같은 사람만 중복, 제품 다르면 허용)
   entry.kPhone=state.product+"|"+entry.phoneKey;

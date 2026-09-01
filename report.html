@@ -275,35 +275,120 @@
 
   <!-- 수기접수 -->
   <section class="page" id="page-manual">
-    <div class="hint">동일 제품을 2개 구매해 중복 참여한 경우 등 정상 접수가 막히는 건을 관리자가 직접 등록합니다. 이미지 확인 후 도와드리는 건이라 <b>바로 '적격'</b>으로 등록됩니다. 카테고리·제품을 고르면 사은품/상품권이 자동으로 채워집니다.</div>
-    <div class="form">
-      <div class="grid">
-        <div class="field"><label>유형 <span class="req">*</span></label>
-          <select id="mType"><option value="review">포토리뷰</option><option value="coupang">쿠팡 정품등록</option></select></div>
-        <div class="field"><label>구입처</label><select id="mSource"></select></div>
-        <div class="field"><label>카테고리 <span class="req">*</span></label><select id="mCategory"></select></div>
-        <div class="field"><label>제품 <span class="req">*</span></label><select id="mProduct"></select></div>
-        <div class="field full"><label>사은품/상품권 (제품 선택 시 자동)</label><select id="mGift"></select></div>
-        <div class="field"><label>수령인(성함) <span class="req">*</span></label><input type="text" id="mName" placeholder="예) 홍길동"></div>
-        <div class="field"><label>연락처 <span class="req">*</span></label><input type="text" id="mPhone" placeholder="예) 010-1234-5678" oninput="fmtPhone(this)" maxlength="13"></div>
-        <div class="field"><label>주문번호</label><input type="text" id="mOrder" placeholder="예) 123456789"></div>
-        <div class="field"><label>담당자 <span style="font-weight:600;color:var(--sub)">(로그인한 분)</span></label>
-          <input type="text" id="mAgent" readonly style="background:#faf8f6;font-weight:800"></div>
-        <div class="field full" id="mSerialField"><label>시리얼번호(S/N)</label><input type="text" id="mSerial" placeholder="쿠팡 정품등록 시 입력"></div>
-        <div class="field"><label>배송구분(사은품)</label><select id="mShipFee"><option value="착불">착불</option><option value="선불">선불</option></select></div>
-        <div class="field full"><label>주소(사은품 착불 배송 시)</label>
-          <div style="display:flex;gap:6px">
-            <input type="text" id="mAddrRoad" placeholder="주소 검색을 눌러주세요" readonly style="flex:1;background:#faf8f6;cursor:pointer" onclick="openManualPostcode()">
-            <button type="button" class="sm primary" onclick="openManualPostcode()" style="white-space:nowrap">주소 검색</button>
-          </div>
-          <input type="text" id="mAddrDetail" placeholder="상세주소 (동/호수 등)" style="margin-top:6px">
-          <input type="hidden" id="mAddress">
+    <div class="hint">
+      <b>수기접수는 되도록 쓰지 않는 것이 좋습니다.</b> 고객이 직접 접수해야 리뷰와 설문이 남기 때문입니다.<br>
+      그래서 화면 순서도 <b>「고객에게 안내」가 먼저, 「직접 등록」이 나중</b>입니다.
+      먼저 주문번호·송장번호를 알려드려 고객이 직접 하시게 하고, 그래도 어려운 경우에만 아래에서 등록해 주세요.<br>
+      여기서 등록한 건은 AI 심사를 거치지 않고 <b>바로 '적격'</b>이 되어 발송목록으로 들어갑니다.
+    </div>
+
+    <div class="subtabs" id="mTabs" style="margin-top:12px">
+      <div class="subtab active" data-msub="review">포토리뷰</div>
+      <div class="subtab" data-msub="coupang">쿠팡 정품등록</div>
+    </div>
+
+    <!-- ════════ 포토리뷰 ════════ -->
+    <div id="mPaneReview">
+      <div class="panel" style="margin-bottom:14px">
+        <h3>1단계 · 고객 찾기</h3>
+        <div class="hint">고객DB(출고 원장)에서 구매 내역을 찾습니다. 세 가지 중 <b>아는 것 하나</b>로 찾으세요.</div>
+        <div class="subtabs" id="mFindTabs" style="margin-top:11px">
+          <div class="subtab active" data-mf="np">성함 + 연락처</div>
+          <div class="subtab" data-mf="ord">주문번호</div>
+          <div class="subtab" data-mf="inv">송장번호</div>
         </div>
-        <div class="field full"><label>사유</label><input type="text" id="mReason" placeholder="예) 동일제품 2개 구매 / 상담사 확인건 등"></div>
+        <div class="filters" id="mfBoxNp">
+          <input type="text" id="mfName" placeholder="성함 (예: 홍길동)" style="min-width:150px">
+          <input type="text" id="mfPhone" placeholder="연락처 (예: 010-1234-5678)" oninput="fmtPhone(this)" maxlength="13" style="min-width:180px">
+        </div>
+        <div class="filters" id="mfBoxOrd" style="display:none">
+          <input type="text" id="mfOrder" placeholder="주문번호" style="min-width:240px"></div>
+        <div class="filters" id="mfBoxInv" style="display:none">
+          <input type="text" id="mfInv" placeholder="송장번호" style="min-width:240px"></div>
+        <div class="filters" style="margin-top:2px">
+          <button id="mFind" class="sm primary">찾기</button>
+          <button id="mFindClear" class="sm">지우기</button>
+          <span id="mFindMsg" style="font-size:12.5px;font-weight:800"></span>
+        </div>
+        <div class="hint" style="margin-top:9px">
+          쿠팡·네이버로 사신 고객은 원장에 <b>안심번호</b>가 적혀 있습니다.
+          연락처로 안 나오면 <b>주문번호나 송장번호</b>로 찾아 주세요.
+        </div>
       </div>
-      <div style="margin-top:14px;display:flex;gap:8px;align-items:center">
-        <button id="mSubmit" class="primary">적격으로 등록</button><button id="mReset">초기화</button>
-        <span class="msg" id="mMsg"></span>
+      <div id="mFindResult"></div>
+    </div>
+
+    <!-- ════════ 쿠팡 정품등록 ════════ -->
+    <div id="mPaneCoupang" style="display:none">
+      <div class="panel" style="margin-bottom:14px">
+        <h3>1단계 · 참여 이력 확인</h3>
+        <div class="hint">
+          쿠팡 로켓배송은 <b>우리 고객DB에 구매정보가 없습니다.</b>
+          그래서 구매 확인 대신 <b>이미 참여했는지</b>만 봅니다.
+        </div>
+        <div class="filters" style="margin-top:11px">
+          <input type="text" id="mcName" placeholder="수령인 성함" style="min-width:150px">
+          <input type="text" id="mcPhone" placeholder="연락처 (예: 010-1234-5678)" oninput="fmtPhone(this)" maxlength="13" style="min-width:180px">
+          <button id="mcFind" class="sm primary">확인</button>
+          <button id="mcClear" class="sm">지우기</button>
+          <span id="mcMsg" style="font-size:12.5px;font-weight:800"></span>
+        </div>
+      </div>
+      <div id="mcResult"></div>
+    </div>
+
+    <!-- ════════ 등록 폼 (버튼을 눌러야 열립니다) ════════ -->
+    <div class="panel" id="mFormPanel" style="display:none;border:2px solid var(--brand);margin-bottom:14px">
+      <h3 id="mFormTitle">등록</h3>
+      <div class="hint" id="mFormLead"></div>
+      <div class="form" style="margin-top:12px">
+        <div class="grid">
+          <div class="field"><label>유형 <span class="req">*</span></label>
+            <select id="mType"><option value="review">포토리뷰</option><option value="coupang">쿠팡 정품등록</option></select></div>
+          <div class="field"><label>구입처</label><select id="mSource"></select></div>
+          <div class="field"><label>카테고리 <span class="req">*</span></label><select id="mCategory"></select></div>
+          <div class="field"><label>제품 <span class="req">*</span></label><select id="mProduct"></select></div>
+          <div class="field full"><label>사은품/상품권 (제품 선택 시 자동)</label><select id="mGift"></select></div>
+          <div class="field"><label>수령인(성함) <span class="req">*</span></label><input type="text" id="mName" placeholder="예) 홍길동"></div>
+          <div class="field"><label>연락처 <span class="req">*</span></label><input type="text" id="mPhone" placeholder="예) 010-1234-5678" oninput="fmtPhone(this)" maxlength="13"></div>
+          <div class="field"><label>주문번호</label><input type="text" id="mOrder" placeholder="예) 123456789"></div>
+          <div class="field"><label>송장번호</label><input type="text" id="mInvoice" placeholder="원장에서 자동 기재"></div>
+          <div class="field"><label>수량 <span style="font-weight:600;color:var(--sub)">(사은품 개수)</span></label>
+            <input type="number" id="mQty" value="1" min="1" step="1"></div>
+          <div class="field"><label>담당자 <span style="font-weight:600;color:var(--sub)">(로그인한 분)</span></label>
+            <input type="text" id="mAgent" readonly style="background:#faf8f6;font-weight:800"></div>
+          <div class="field full" id="mSerialField"><label>시리얼번호(S/N) <span class="req">*</span></label>
+            <input type="text" id="mSerial" placeholder="쿠팡 정품등록 시 입력"></div>
+          <div class="field full" id="mImgField">
+            <label>증빙 이미지 <span id="mImgReq" style="font-weight:600;color:var(--sub)">(선택 · 1장)</span></label>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input type="file" id="mImgFile" accept="image/*" style="font-size:13px">
+              <button type="button" id="mImgDel" class="sm" style="display:none">이미지 빼기</button>
+              <span id="mImgState" style="font-size:12.5px;font-weight:800"></span>
+            </div>
+            <div class="hint" style="margin-top:6px">쿠팡 정품등록은 <b>구매내역 또는 시리얼번호 라벨</b> 사진을 받아 두세요.
+              큰 사진은 자동으로 줄여서 올립니다. <b>AI 심사에는 들어가지 않고 보관용으로만</b> 남습니다.</div>
+            <img id="mImgPrev" style="display:none;max-width:260px;margin-top:8px;border-radius:8px;border:1px solid var(--line)">
+          </div>
+          <div class="field"><label>배송구분(사은품)</label>
+            <select id="mShipFee"><option value="착불">착불</option><option value="선불">선불</option></select></div>
+          <div class="field full"><label>주소(사은품 착불 배송 시)</label>
+            <div style="display:flex;gap:6px">
+              <input type="text" id="mAddrRoad" placeholder="주소 검색을 눌러주세요" readonly style="flex:1;background:#faf8f6;cursor:pointer" onclick="openManualPostcode()">
+              <button type="button" class="sm primary" onclick="openManualPostcode()" style="white-space:nowrap">주소 검색</button>
+            </div>
+            <input type="text" id="mAddrDetail" placeholder="상세주소 (동/호수 등)" style="margin-top:6px">
+            <input type="hidden" id="mAddress">
+          </div>
+          <div class="field full"><label>사유</label>
+            <input type="text" id="mReason" placeholder="예) 고령 고객으로 직접 접수 어려움 / 동일제품 2대 구매 등"></div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button id="mSubmit" class="primary">적격으로 등록</button>
+          <button id="mReset">입력 지우기</button>
+          <button id="mFormClose">닫기</button>
+          <span class="msg" id="mMsg"></span>
+        </div>
       </div>
     </div>
   </section>
@@ -314,7 +399,8 @@
     <div class="panel" style="margin-bottom:14px">
       <h3>구글 시트에서 자동으로 가져오기</h3>
       <div class="hint">
-        고객DB 시트를 <b>매일 새벽 5시에 자동으로</b> 가져옵니다. 파일을 올리실 필요가 없습니다.<br>
+        고객DB 시트를 <b>5분마다 확인</b>해서, 줄이 추가되면 알아서 가져옵니다. 파일을 올리실 필요가 없습니다.<br>
+        내용이 그대로면 아무것도 하지 않으니 자주 확인해도 부담이 없습니다.<br>
         이름에 <b>출고리스트</b>가 들어간 탭을 <b>전부</b> 읽습니다 — 월이 바뀌어 새 탭이 생겨도 손댈 게 없습니다.<br>
         덮어쓰지 않고 <b>쌓기</b>라서, 시트에서 밀려난 지난 데이터도 여기 남습니다.
       </div>
@@ -1066,7 +1152,10 @@ async function svMakePpt(all){
 function isShippable(e){return shipStatus(e)==="eligible"||e.overrideEligible===true;}   // 적격 또는 수동 출고승인
 function teamElig(rw){return ALL.filter(e=>e.rewardType===rw&&isShippable(e)&&!isReserve(e)&&shipStateOf(e)!=="shipped");}
 function teamInelig(rw){return ALL.filter(e=>e.rewardType===rw&&(shipStatus(e)==="review"||shipStatus(e)==="pending")&&!e.overrideEligible&&!isReserve(e));} // 확인필요(AI 애매·오류)
-function imgBtn(e){return e.imageUrl?`<button class="imgbtn" onclick="event.stopPropagation();openImg('${e.imageUrl}')">이미지</button>`:"-";}
+/* 수기접수 증빙 이미지는 manualImageUrl 에 있습니다.
+   AI 심사 판정(재심사 버튼 등)은 imageUrl 만 보므로 그대로 둡니다. */
+function imgUrlOf(e){ return e.imageUrl || e.manualImageUrl || ""; }
+function imgBtn(e){const u=imgUrlOf(e);return u?`<button class="imgbtn" onclick="event.stopPropagation();openImg('${u}')">이미지</button>`:"-";}
 /* AI 별점·사진 판정 셀 (심사된 포토리뷰만) */
 function ratingCell(e){
   if(e.aiPersonalRating==null && e.aiRatingPass===undefined) return "-";
@@ -1397,8 +1486,9 @@ function openDetail(id){
   }
 
   const img=$("#dtImg");
-  if(e.imageUrl){img.src=e.imageUrl;img.style.display="";$("#dtNoImg").style.display="none";
-    $("#dtImgOpen").href=e.imageUrl;$("#dtImgOpen").style.display="";}
+  const _iu=imgUrlOf(e);
+  if(_iu){img.src=_iu;img.style.display="";$("#dtNoImg").style.display="none";
+    $("#dtImgOpen").href=_iu;$("#dtImgOpen").style.display="";}
   else{img.style.display="none";img.src="";$("#dtNoImg").style.display="";$("#dtImgOpen").style.display="none";}
   $("#dtAgent").value = e.agent || "";
   $("#dtStatus").innerHTML=CALL_STATES.map(o=>`<option value="${o}" ${o===(e.callStatus||"")?"selected":""}>${o||"— 응대상태 선택 —"}</option>`).join("");
@@ -1495,66 +1585,599 @@ function renderCS(){
   pager("#pagerCs",all.length,"cs");
 }
 
-/* 수기접수 */
+/* ══════════════════════════════════════════════════════════════════════
+   수기접수 — 찾기 → 확인 → 안내 → 등록
+   ──────────────────────────────────────────────────────────────────────
+   설계 근거(잊지 말 것): 수기접수는 **최소화**가 목적입니다.
+   고객이 직접 접수해야 리뷰와 설문이 남기 때문에,
+   화면이 「안내」를 먼저 보여주고 「등록」은 그 아래에 둡니다.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ⚠️ 접수폼 주소 — 고객에게 보낼 안내 문구에 들어갑니다. 실제 주소로 맞춰 주세요. */
+const FORM_URL = "https://inic01.github.io/inic-event/";
+
+const ORDERS_COL_M = "orders";
+
+const mDigits  = s => String(s == null ? "" : s).replace(/\D/g, "");
+const mNormKey = s => String(s == null ? "" : s).toUpperCase().replace(/[\s\-.\/]/g, "");
+const mNameKey = s => String(s == null ? "" : s).replace(/\s/g, "").toLowerCase();
+
+/* 접수폼·서버와 같은 계산식이어야 같은 문서를 찾습니다 */
+async function mSha40(s){
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, "0")).join("").slice(0, 40);
+}
+
+let MFIND = null;      // 지금 화면에 떠 있는 포토리뷰 조회 결과
+let MCFIND = null;     // 지금 화면에 떠 있는 쿠팡 조회 결과
+let M_IMG = null;      // 올려둔 증빙 이미지 {path,url}
+let M_CTX = {};        // 등록 폼이 무엇을 등록하는 중인지
+
+/* ── 화면 전환 ── */
+function mSubTo(v){
+  $$("#mTabs .subtab").forEach(t => t.classList.toggle("active", t.dataset.msub === v));
+  $("#mPaneReview").style.display  = v === "review"  ? "" : "none";
+  $("#mPaneCoupang").style.display = v === "coupang" ? "" : "none";
+  mFormClose();
+}
+function mFindMode(){
+  const t = document.querySelector("#mFindTabs .subtab.active");
+  return (t && t.dataset.mf) || "np";
+}
+function mFindTo(v){
+  $$("#mFindTabs .subtab").forEach(t => t.classList.toggle("active", t.dataset.mf === v));
+  $("#mfBoxNp").style.display  = v === "np"  ? "" : "none";
+  $("#mfBoxOrd").style.display = v === "ord" ? "" : "none";
+  $("#mfBoxInv").style.display = v === "inv" ? "" : "none";
+}
+
+/* ── 원장 행 다루기 (서버 eventApi 와 같은 규칙) ── */
+
+function mDedupRows(rows){
+  const seen = new Set(), out = [];
+  (rows || []).forEach((r, i) => {
+    const k = r.ref || [mNormKey(r.inv), mNormKey(r.ord), r.prodRaw, r.qty].join("|") || ("#" + i);
+    if(seen.has(k)) return;
+    seen.add(k); out.push(r);
+  });
+  return out;
+}
+
+/* 구매 행을 제품 묶음으로.
+   ⚠️ 음식물처리기처럼 원장 한 값에 우리 제품이 2종인 행은 「둘 중 하나」입니다.
+      따로 세면 1대 사고 2개를 받게 되므로 한 칸으로 묶습니다. */
+function mGroupRows(rows){
+  const map = new Map(), skipped = [];
+  rows.forEach(r => {
+    const q = Math.max(1, parseInt(r.qty, 10) || 1);
+    const codes = r.code ? [r.code] : (Array.isArray(r.pick) ? r.pick.slice() : []);
+    if(!codes.length){ if(r.prodRaw) skipped.push(r.prodRaw); return; }
+    const key = codes.join(",");
+    let g = map.get(key);
+    if(!g){ g = { codes, qty:0, raw:new Set(), ords:new Set(), invs:new Set(), dates:new Set() }; map.set(key, g); }
+    g.qty += q;
+    if(r.prodRaw) g.raw.add(r.prodRaw);
+    if(r.ord) g.ords.add(String(r.ord).trim());
+    if(r.inv) g.invs.add(String(r.inv).trim());
+    if(r.date) g.dates.add(r.date);
+  });
+  return { groups:[...map.values()], skipped:[...new Set(skipped)] };
+}
+
+const mProdLabel = g => g.codes.map(c => PNAME[c] || c).join(" 또는 ");
+function mCategoryOf(code){
+  for(const c in PRODUCTS) if(PRODUCTS[c].some(([x]) => x === code)) return c;
+  return "";
+}
+
+/* 이 제품을 이미 접수했는가 — 연락처·주문번호·송장번호 어느 것으로든 걸리면 접수로 봅니다 */
+function mUsedFor(g, keys){
+  const hits = ALL.filter(e => {
+    if(e.type !== "review") return false;
+    if(!g.codes.includes(String(e.product || ""))) return false;
+    const ph = e.phoneKey || mDigits(e.phone);
+    if(ph && keys.phones.includes(ph)) return true;
+    if(e.orderNo && keys.ords.includes(mNormKey(e.orderNo))) return true;
+    if(e.invoiceNo && keys.invs.includes(mNormKey(e.invoiceNo))) return true;
+    return false;
+  });
+  const used = hits.reduce((s, e) => s + Math.max(1, e.giftQty || 1), 0);
+  return { used, hits };
+}
+
+/* ══════════ 1단계 · 찾기 ══════════ */
+
+async function mFind(){
+  const msg = $("#mFindMsg");
+  msg.style.color = ""; msg.textContent = "찾는 중…";
+  $("#mFindResult").innerHTML = ""; MFIND = null; mFormClose();
+
+  const bad = t => { msg.textContent = t; msg.style.color = "var(--bad,#c1121f)"; };
+  const mode = mFindMode();
+  let docId = "", label = "", typedPhone = "";
+
+  try{
+    if(mode === "np"){
+      const nm = $("#mfName").value.trim(), ph = mDigits($("#mfPhone").value);
+      if(!nm || ph.length < 10) return bad("성함과 연락처를 모두 넣어 주세요.");
+      docId = "N_" + await mSha40("v2|" + mNameKey(nm) + "|" + ph);
+      label = nm + " · " + $("#mfPhone").value.trim();
+      typedPhone = ph;
+    }else if(mode === "ord"){
+      const v = mNormKey($("#mfOrder").value);
+      if(v.length < 4) return bad("주문번호를 확인해 주세요.");
+      docId = "O_" + v; label = "주문번호 " + v;
+    }else{
+      const v = mNormKey($("#mfInv").value);
+      if(v.length < 8) return bad("송장번호를 확인해 주세요.");
+      docId = "I_" + v; label = "송장번호 " + v;
+    }
+
+    const db = await initFirebase();
+    const snap = await db.collection(ORDERS_COL_M).doc(docId).get();
+
+    if(!snap.exists){
+      msg.textContent = "";
+      $("#mFindResult").innerHTML =
+        `<div class="panel" style="background:#fdecec;border:1px solid #f3c6c6">
+           <h3 style="color:#b23b3b">고객DB에 없습니다</h3>
+           <div class="hint" style="color:#8c4b4b">
+             <b>${admEsc(label)}</b> 로는 구매 내역을 찾지 못했습니다. 아래를 확인해 주세요.<br>
+             · <b>성함+연락처</b>로 찾으셨다면 — 쿠팡·네이버 구매는 원장에 <b>안심번호</b>가 적혀 있어 실제 번호로는 안 나옵니다.
+               <b>주문번호나 송장번호</b>로 다시 찾아 주세요.<br>
+             · 성함에 띄어쓰기·오타가 없는지 확인해 주세요.<br>
+             · 고객DB 탭에서 <b>가져오기</b>가 최근에 되었는지 확인해 주세요. 최근 출고 건은 아직 안 들어와 있을 수 있습니다.<br>
+             · 그래도 없으면 <b>원장에 없는 구매</b>입니다. 구매 증빙을 받아 확인한 뒤 아래에서 직접 등록하세요.
+           </div>
+           <div style="margin-top:11px"><button class="sm" onclick="mOpenForm({type:'review',free:true})">증빙 확인 후 직접 등록</button></div>
+         </div>`;
+      return;
+    }
+
+    const rows = mDedupRows((snap.data() || {}).rows);
+    if(!rows.length) return bad("이 고객의 구매 행이 비어 있습니다.");
+
+    const { groups, skipped } = mGroupRows(rows);
+
+    const phones = [...new Set(rows.map(r => mDigits(r.phone)).concat([typedPhone]).filter(p => p && p.length >= 10))];
+    const ords   = [...new Set(rows.map(r => mNormKey(r.ord)).filter(Boolean))];
+    const invs   = [...new Set(rows.map(r => mNormKey(r.inv)).filter(Boolean))];
+
+    MFIND = { label, rows, groups, skipped, keys:{ phones, ords, invs } };
+    msg.textContent = "✔ 찾았습니다";
+    msg.style.color = "var(--ok)";
+    logAccess("고객DB 조회", "수기접수 · " + label, rows.length);
+    mRenderFind();
+
+  }catch(err){
+    console.error(err);
+    bad("조회 실패: " + (err.message || err));
+  }
+}
+
+function mRenderFind(){
+  if(!MFIND){ $("#mFindResult").innerHTML = ""; return; }
+  const f = MFIND, r0 = f.rows[0] || {};
+
+  const allOrds = [...new Set(f.rows.map(r => String(r.ord || "").trim()).filter(Boolean))];
+  const allInvs = [...new Set(f.rows.map(r => String(r.inv || "").trim()).filter(Boolean))];
+  const dates   = [...new Set(f.rows.map(r => r.date).filter(Boolean))].sort();
+
+  const copyBtn = (v, what) =>
+    `<button class="sm" onclick="mCopy('${admEsc(v)}',this)" style="margin-left:6px">복사</button>`;
+
+  const numLine = (label, arr) => arr.length
+    ? `<div style="margin:4px 0"><span style="color:var(--sub);font-weight:700">${label}</span>
+         ${arr.map(v => `<b style="font-family:monospace;font-size:14px;margin-left:8px">${admEsc(v)}</b>${copyBtn(v)}`).join("<br>")}</div>`
+    : "";
+
+  /* ── 2단계 구매 카드 ── */
+  const card =
+    `<div class="panel" style="margin-bottom:14px">
+       <h3>2단계 · 구매 내역</h3>
+       <div style="line-height:1.9;font-size:13.5px;margin-top:6px">
+         <span style="color:var(--sub);font-weight:700">수령인</span> <b>${admEsc(r0.name || "-")}</b>
+         &nbsp;·&nbsp; <span style="color:var(--sub);font-weight:700">연락처</span> <b>${admEsc(r0.phone || "-")}</b>
+         ${r0.phone2 ? `&nbsp;/&nbsp;<span style="color:var(--sub)">${admEsc(r0.phone2)}</span>` : ""}
+         <br><span style="color:var(--sub);font-weight:700">출고일</span> <b>${admEsc(dates.join(", ") || "-")}</b>
+         &nbsp;·&nbsp; <span style="color:var(--sub);font-weight:700">원장 행</span> <b>${f.rows.length}</b>줄
+       </div>
+       ${f.skipped.length ? `<div class="hint" style="margin-top:9px;color:#b23b3b">
+          이벤트 대상이 아니거나 제품을 알아보지 못한 행: <b>${admEsc(f.skipped.join(", "))}</b></div>` : ""}
+     </div>`;
+
+  /* ── 3단계 안내 (가장 눈에 띄게) ── */
+  const guide =
+    `<div class="panel" style="margin-bottom:14px;background:#eef6ee;border:1px solid #cfe3cf">
+       <h3 style="color:#2c6b3c">3단계 · 먼저 고객에게 안내하세요 ★</h3>
+       <div class="hint" style="color:#3d6b48">
+         아래 번호를 알려드리면 <b>고객이 직접 접수</b>할 수 있습니다.
+         직접 접수해야 <b>리뷰와 설문</b>이 남기 때문에, 가능하면 이 방법을 먼저 권해 주세요.
+       </div>
+       <div style="margin-top:10px">
+         ${numLine("주문번호", allOrds)}
+         ${numLine("송장번호", allInvs)}
+       </div>
+       <div style="margin-top:11px">
+         <button class="sm primary" onclick="mCopyGuide()">안내 문구 통째로 복사</button>
+         <span id="mGuideMsg" style="font-size:12.5px;font-weight:800;margin-left:8px"></span>
+       </div>
+     </div>`;
+
+  /* ── 4단계 제품별 접수 현황 ── */
+  const rowsHtml = f.groups.map((g, i) => {
+    const { used, hits } = mUsedFor(g, f.keys);
+    const left = Math.max(0, g.qty - used);
+    const doneList = hits.map(e => {
+      const st = shipStatus(e), meta = STATUS_META[st] || ["", ""];
+      return `<div style="font-size:12px;color:var(--sub);margin-top:3px">
+                · ${fmtDate(e._date)} · ${admEsc(meta[0])}
+                ${e.manual ? ' <span class="pill" style="background:#f0eeec">수기</span>' : ""}
+                ${e.giftQty > 1 ? ` · 수량 ${e.giftQty}` : ""}</div>`;
+    }).join("");
+
+    const btns = left <= 0
+      ? `<span class="pill" style="background:#f0eeec;color:#6b625b">모두 접수됨</span>`
+      : g.codes.map(c =>
+          `<button class="sm primary" onclick="mOpenForm({type:'review',gi:${i},code:'${c}'})">
+             ${g.codes.length > 1 ? admEsc(PNAME[c] || c) + "로 " : ""}접수</button>`).join(" ");
+
+    return `<tr>
+      <td><b>${admEsc(mProdLabel(g))}</b>
+        <div style="font-size:12px;color:var(--sub)">${admEsc([...g.raw].join(" / "))}</div>
+        ${g.codes.length > 1 ? '<div style="font-size:12px;color:#b8860b;font-weight:700">둘 중 하나만 선택 가능</div>' : ""}
+        ${doneList}</td>
+      <td style="text-align:center"><b>${g.qty}</b></td>
+      <td style="text-align:center">${used}</td>
+      <td style="text-align:center"><b style="color:${left > 0 ? "var(--ok)" : "var(--sub)"}">${left}</b></td>
+      <td style="text-align:right;white-space:nowrap">${btns}</td>
+    </tr>`;
+  }).join("");
+
+  const table =
+    `<div class="panel">
+       <h3>4단계 · 고객이 못 하시는 경우에만 등록</h3>
+       <div class="hint">이미 접수된 제품은 버튼이 열리지 않습니다. <b>구매</b>는 원장 수량, <b>접수</b>는 이미 들어온 건수입니다.</div>
+       <div class="tablewrap" style="margin-top:11px">
+         <table class="data"><thead><tr>
+           <th>제품</th><th style="width:70px;text-align:center">구매</th>
+           <th style="width:70px;text-align:center">접수</th><th style="width:70px;text-align:center">남음</th>
+           <th style="width:210px"></th></tr></thead>
+         <tbody>${rowsHtml || '<tr><td colspan="5" class="empty">이벤트 대상 제품이 없습니다.</td></tr>'}</tbody></table>
+       </div>
+     </div>`;
+
+  $("#mFindResult").innerHTML = card + guide + table;
+}
+
+/* ── 복사 ── */
+function mCopy(text, btn){
+  const done = () => { if(btn){ const t = btn.textContent; btn.textContent = "✔ 복사됨"; setTimeout(() => btn.textContent = t, 1200); } };
+  if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done);
+  else { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+         document.execCommand("copy"); ta.remove(); done(); }
+}
+window.mCopy = mCopy;
+
+function mCopyGuide(){
+  if(!MFIND) return;
+  const ords = [...new Set(MFIND.rows.map(r => String(r.ord || "").trim()).filter(Boolean))];
+  const invs = [...new Set(MFIND.rows.map(r => String(r.inv || "").trim()).filter(Boolean))];
+  const text =
+    "안녕하세요, 아이닉입니다.\n" +
+    "포토리뷰 이벤트는 아래 주소에서 직접 접수해 주시면 됩니다.\n\n" +
+    FORM_URL + "\n\n" +
+    "구매 확인 단계에서 아래 번호 중 하나를 넣어 주세요.\n" +
+    (ords.length ? "· 주문번호 : " + ords.join(", ") + "\n" : "") +
+    (invs.length ? "· 송장번호 : " + invs.join(", ") + "\n" : "") +
+    "\n리뷰 캡처 이미지를 함께 올려 주시면 접수가 완료됩니다.\n감사합니다.";
+  mCopy(text);
+  const m = $("#mGuideMsg"); if(m){ m.textContent = "✔ 복사했습니다"; m.style.color = "var(--ok)"; setTimeout(() => m.textContent = "", 1600); }
+}
+window.mCopyGuide = mCopyGuide;
+
+/* ══════════ 쿠팡 정품등록 ══════════ */
+
+function mcFind(){
+  const msg = $("#mcMsg"); msg.style.color = ""; msg.textContent = "";
+  $("#mcResult").innerHTML = ""; MCFIND = null; mFormClose();
+
+  const nm = $("#mcName").value.trim(), ph = mDigits($("#mcPhone").value);
+  if(!nm || ph.length < 10){ msg.textContent = "성함과 연락처를 모두 넣어 주세요."; msg.style.color = "var(--bad,#c1121f)"; return; }
+
+  const hits = ALL.filter(e => e.type === "coupang"
+    && mNameKey(e.name) === mNameKey(nm)
+    && (e.phoneKey || mDigits(e.phone)) === ph);
+
+  MCFIND = { name:nm, phone:$("#mcPhone").value.trim(), phoneKey:ph, hits };
+  logAccess("고객 조회", "수기접수(쿠팡) · " + nm, hits.length);
+
+  if(!hits.length){
+    msg.textContent = "✔ 참여 이력 없음"; msg.style.color = "var(--ok)";
+    $("#mcResult").innerHTML =
+      `<div class="panel" style="background:#eef6ee;border:1px solid #cfe3cf">
+         <h3 style="color:#2c6b3c">참여 이력이 없습니다 — 등록할 수 있습니다</h3>
+         <div class="hint" style="color:#3d6b48">
+           그래도 <b>고객이 직접 접수</b>하는 것이 원칙입니다. 접수폼 주소를 먼저 안내해 주세요.<br>
+           직접 하기 어려운 경우에만 아래에서 등록하시고, <b>시리얼번호 라벨 사진</b>을 함께 받아 두세요.
+         </div>
+         <div style="margin-top:11px">
+           <button class="sm" onclick="mCopy('${FORM_URL}',this)">접수폼 주소 복사</button>
+           <button class="sm primary" onclick="mOpenForm({type:'coupang'})">정품등록 접수</button>
+         </div>
+       </div>`;
+    return;
+  }
+
+  msg.textContent = "이미 " + hits.length + "건 참여";
+  msg.style.color = "var(--bad,#c1121f)";
+  const list = hits.map(e => {
+    const st = shipStatus(e), meta = STATUS_META[st] || ["", ""];
+    return `<tr><td>${fmtDate(e._date)}</td><td><b>${admEsc(PNAME[e.product] || e.product || "-")}</b></td>
+      <td>${admEsc(e.giftItem || "-")}</td><td>${admEsc(meta[0])}</td>
+      <td>${admEsc(e.serial || "-")}</td>
+      <td>${e.manual ? '<span class="pill" style="background:#f0eeec">수기</span>' : "-"}</td></tr>`;
+  }).join("");
+
+  $("#mcResult").innerHTML =
+    `<div class="panel" style="background:#fdf6ec;border:1px solid #f0e0c0">
+       <h3 style="color:#8a6d1f">이미 참여하신 고객입니다</h3>
+       <div class="hint" style="color:#7a6431">
+         고객에게 <b>"이미 참여하셨습니다"</b>라고 안내해 주세요.<br>
+         <b>1대를 더 구매하신 경우</b>에만 추가 접수가 가능합니다. 이때는
+         <b>구매내역과 시리얼번호 라벨 사진</b>을 받아 확인한 뒤 등록하세요.
+         시리얼번호는 제품 1대당 하나이므로, 이미 등록된 번호와 같으면 추가 접수 대상이 아닙니다.
+       </div>
+       <div class="tablewrap" style="margin-top:11px">
+         <table class="data"><thead><tr><th>접수일시</th><th>제품</th><th>사은품/상품권</th><th>심사</th><th>S/N</th><th>구분</th></tr></thead>
+         <tbody>${list}</tbody></table>
+       </div>
+       <div style="margin-top:11px">
+         <button class="sm" onclick="mCopy('${FORM_URL}',this)">접수폼 주소 복사</button>
+         <button class="sm primary" onclick="mOpenForm({type:'coupang',extra:true})">1대 더 구매 — 증빙 받고 추가 등록</button>
+       </div>
+     </div>`;
+}
+
+/* ══════════ 등록 폼 ══════════ */
+
 function renderManualSelects(){
-  $("#mCategory").innerHTML='<option value="">선택</option>'+Object.keys(PRODUCTS).map(c=>`<option>${c}</option>`).join("");
-  $("#mSource").innerHTML='<option value="">선택</option>'+SOURCES.map(s=>`<option>${s}</option>`).join("");
+  $("#mCategory").innerHTML = '<option value="">선택</option>' + Object.keys(PRODUCTS).map(c => `<option>${c}</option>`).join("");
+  $("#mSource").innerHTML   = '<option value="">선택</option>' + SOURCES.map(s => `<option>${s}</option>`).join("");
   onCategoryChange();
 }
 function onCategoryChange(){
-  const c=$("#mCategory").value;const prods=(c&&PRODUCTS[c])?PRODUCTS[c]:[];
-  $("#mProduct").innerHTML='<option value="">선택</option>'+prods.map(([code,name])=>`<option value="${code}">${code} · ${name}</option>`).join("");
+  const c = $("#mCategory").value; const prods = (c && PRODUCTS[c]) ? PRODUCTS[c] : [];
+  $("#mProduct").innerHTML = '<option value="">선택</option>' + prods.map(([code, name]) => `<option value="${code}">${code} · ${name}</option>`).join("");
   onProductChange();
 }
 function onProductChange(){
-  const code=$("#mProduct").value;const list=PRODREWARD[code]||[];
-  const opts=list.map(x=>`<option value="${x.name}" data-reward="${x.rewardType}">${x.name} (${REWARD_LABEL[x.rewardType]})</option>`).join("");
+  const code = $("#mProduct").value; const list = PRODREWARD[code] || [];
+  const opts = list.map(x => `<option value="${x.name}" data-reward="${x.rewardType}">${x.name} (${REWARD_LABEL[x.rewardType]})</option>`).join("");
   let html;
-  if(!list.length)      html='<option value="">(사은품표 미등록)</option>';
-  else if(list.length===1) html=opts;                       // 단일 → 자동선택
-  else                  html='<option value="">선택</option>'+opts; // 택1 → 선택 유도
-  $("#mGift").innerHTML=html;
+  if(!list.length)         html = '<option value="">(사은품표 미등록)</option>';
+  else if(list.length === 1) html = opts;
+  else                     html = '<option value="">선택</option>' + opts;
+  $("#mGift").innerHTML = html;
 }
-function onTypeChange(){$("#mSerialField").style.display=($("#mType").value==="coupang")?"block":"none";}
-function onlyDigits(s){return (s||"").replace(/\D/g,"");}
-function fmtPhone(el){var d=el.value.replace(/\D/g,"").slice(0,11);
-  if(d.length>=8)el.value=d.slice(0,3)+"-"+d.slice(3,7)+"-"+d.slice(7);
-  else if(d.length>=4)el.value=d.slice(0,3)+"-"+d.slice(3);
-  else el.value=d;}
-window.fmtPhone=fmtPhone;
-async function submitManual(){
-  const msg=$("#mMsg");msg.textContent="";
-  const type=$("#mType").value;
-  const category=$("#mCategory").value,product=$("#mProduct").value,source=$("#mSource").value;
-  const giftItem=$("#mGift").value;const o=$("#mGift").selectedOptions[0];const rewardType=(o&&o.dataset.reward)||"gift";
-  const name=$("#mName").value.trim(),phone=$("#mPhone").value.trim(),orderNo=$("#mOrder").value.trim();
-  const agent=(ME&&ME.name)||"", agentUid=(ME&&ME.uid)||"";   // 누가 수기접수했는지 자동 기록
-  const serial=$("#mSerial").value.trim(),address=manualAddress(),reason=$("#mReason").value.trim();
-  const shipFee=$("#mShipFee").value||"착불";
-  if(!category||!product||!name||!phone){msg.className="msg bad";msg.textContent="카테고리·제품·수령인·연락처는 필수입니다.";return;}
-  if(!giftItem && $("#mGift").querySelector('option[value]:not([value=""])')){msg.className="msg bad";msg.textContent="사은품/상품권을 선택하세요.";return;}
-  const phoneKey=onlyDigits(phone);
-  const payload={type,rewardType,category,product,giftItem,source,name,phone,orderNo,agent,agentUid,serial,address,shipFee,
-    phoneKey,nameAddrKey:(name+"|"+address),kNA:(product+"|"+name+"|"+address),kOrder:(product+"|"+orderNo),kPhone:(product+"|"+phoneKey),
-    status:"eligible",manual:true,reason,shipState:"pending",
-    consent:{privacy:"agree",marketing:"",reward:rewardType,agreedAt:new Date().toISOString(),manual:true},
-    survey:[],createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+function onTypeChange(){
+  const cp = $("#mType").value === "coupang";
+  $("#mSerialField").style.display = cp ? "block" : "none";
+  $("#mImgReq").textContent = (cp && M_CTX.extra) ? "(필수 · 1장)" : "(선택 · 1장)";
+}
+function onlyDigits(s){ return (s || "").replace(/\D/g, ""); }
+function fmtPhone(el){
+  var d = el.value.replace(/\D/g, "").slice(0, 11);
+  if(d.length >= 8) el.value = d.slice(0,3) + "-" + d.slice(3,7) + "-" + d.slice(7);
+  else if(d.length >= 4) el.value = d.slice(0,3) + "-" + d.slice(3);
+  else el.value = d;
+}
+window.fmtPhone = fmtPhone;
+
+/* ctx = {type, gi, code, extra, free} */
+function mOpenForm(ctx){
+  M_CTX = ctx || {};
+  resetManual(false);
+
+  $("#mType").value = M_CTX.type === "coupang" ? "coupang" : "review";
+  $("#mAgent").value = (ME && ME.name) || "";
+
+  let lead = "", title = "등록";
+
+  if(M_CTX.type === "coupang"){
+    title = M_CTX.extra ? "쿠팡 정품등록 · 추가 등록" : "쿠팡 정품등록 · 등록";
+    if(MCFIND){ $("#mName").value = MCFIND.name; $("#mPhone").value = MCFIND.phone; }
+    lead = M_CTX.extra
+      ? "<b>1대를 더 구매하신 경우에만</b> 등록하세요. 구매내역·시리얼번호 라벨 사진을 확인하고, <b>이미지를 반드시 올려</b> 근거를 남겨 주세요. 시리얼번호는 이미 등록된 것과 달라야 합니다."
+      : "제품과 시리얼번호(S/N)를 넣어 주세요. 쿠팡 로켓배송은 고객DB에 구매정보가 없어 제품을 직접 고르셔야 합니다.";
+    $("#mSource").value = "쿠팡(일반배송)";
+  }else if(M_CTX.free){
+    title = "원장에 없는 구매 · 직접 등록";
+    lead = "고객DB에 구매 내역이 없는 건입니다. <b>구매 증빙을 확인한 뒤</b>에만 등록하시고, 사유와 증빙 이미지를 남겨 주세요.";
+  }else{
+    const f = MFIND, g = f && f.groups[M_CTX.gi];
+    if(!f || !g){ alert("조회 결과가 사라졌습니다. 다시 찾아 주세요."); return; }
+    const { used } = mUsedFor(g, f.keys);
+    const left = Math.max(0, g.qty - used);
+    const r0 = f.rows[0] || {};
+    const rowFor = f.rows.find(r => (r.code === M_CTX.code) || (Array.isArray(r.pick) && r.pick.includes(M_CTX.code))) || r0;
+
+    title = "포토리뷰 · 등록";
+    lead = `<b>${admEsc(PNAME[M_CTX.code] || M_CTX.code)}</b> — 원장 구매 <b>${g.qty}</b> · 이미 접수 <b>${used}</b> · 남은 <b>${left}</b>건.
+            성함·연락처·제품·번호는 원장에서 자동으로 채웠습니다. <b>주소만</b> 넣으시면 됩니다.`;
+
+    $("#mCategory").value = mCategoryOf(M_CTX.code); onCategoryChange();
+    $("#mProduct").value = M_CTX.code; onProductChange();
+    $("#mName").value  = rowFor.name || r0.name || "";
+    $("#mPhone").value = rowFor.phone || r0.phone || "";
+    fmtPhone($("#mPhone"));
+    $("#mOrder").value   = [...g.ords][0] || "";
+    $("#mInvoice").value = [...g.invs][0] || "";
+    $("#mQty").value = 1; $("#mQty").max = left;
+    M_CTX.left = left;
+  }
+
+  $("#mFormTitle").textContent = title;
+  $("#mFormLead").innerHTML = lead;
+  onTypeChange();
+  $("#mFormPanel").style.display = "";
+  $("#mFormPanel").scrollIntoView({ behavior:"smooth", block:"center" });
+}
+window.mOpenForm = mOpenForm;
+
+function mFormClose(){ $("#mFormPanel").style.display = "none"; $("#mMsg").textContent = ""; }
+
+/* ── 증빙 이미지 (선택) ──
+   ⚠️ AI 심사는 `imagePath` 를 보고 도는데, 수기접수 건은 이미 사람이 확인한 건이라
+      다시 심사가 돌면 안 됩니다. 그래서 일부러 `manualImagePath` 라는 다른 이름으로 저장합니다. */
+async function initFbStorage(){
+  if(window._fbStorageReady) return;
+  await initFbApp();
+  await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js");
+  window._fbStorageReady = true;
+}
+function mImgClear(){
+  M_IMG = null;
+  const f = $("#mImgFile"); if(f) f.value = "";
+  $("#mImgPrev").style.display = "none"; $("#mImgPrev").removeAttribute("src");
+  $("#mImgDel").style.display = "none"; $("#mImgState").textContent = "";
+}
+function mResizeToBlob(file, max){
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? res(b) : rej(new Error("이미지 변환 실패")), "image/jpeg", 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("이미지를 읽지 못했습니다")); };
+    img.src = url;
+  });
+}
+async function mImgPick(ev){
+  const file = ev.target.files && ev.target.files[0];
+  if(!file) return;
+  const st = $("#mImgState"); st.style.color = ""; st.textContent = "올리는 중…";
   try{
-    $("#mSubmit").disabled=true;
-    const db=await initFirebase();
-    const now=new Date(),p=n=>String(n).padStart(2,"0");
-    const id=`${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}_${name}_${product}_${(phoneKey.slice(-4)||"0000")}_${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}_manual`;
+    const blob = await mResizeToBlob(file, 1600);
+    if(blob.size > 11 * 1024 * 1024) throw new Error("이미지가 너무 큽니다");
+    await initFbStorage();
+    const path = "review_captures/manual_" + Date.now() + "_" + Math.random().toString(16).slice(2, 8) + ".jpg";
+    const ref = firebase.storage().ref().child(path);
+    await ref.put(blob, { contentType:"image/jpeg" });
+    const url = await ref.getDownloadURL();
+    M_IMG = { path, url };
+    $("#mImgPrev").src = url; $("#mImgPrev").style.display = "";
+    $("#mImgDel").style.display = "";
+    st.textContent = "✔ 올렸습니다"; st.style.color = "var(--ok)";
+  }catch(err){
+    console.error(err);
+    M_IMG = null;
+    st.textContent = "실패: " + (err.message || err); st.style.color = "var(--bad,#c1121f)";
+  }
+}
+
+/* ── 저장 ── */
+async function submitManual(){
+  const msg = $("#mMsg"); msg.textContent = "";
+  const bad = t => { msg.className = "msg bad"; msg.textContent = t; };
+
+  const type = $("#mType").value;
+  const category = $("#mCategory").value, product = $("#mProduct").value, source = $("#mSource").value;
+  const giftItem = $("#mGift").value; const o = $("#mGift").selectedOptions[0];
+  const rewardType = (o && o.dataset.reward) || "gift";
+  const name = $("#mName").value.trim(), phone = $("#mPhone").value.trim();
+  const orderNo = $("#mOrder").value.trim(), invoiceNo = mNormKey($("#mInvoice").value);
+  const agent = (ME && ME.name) || "", agentUid = (ME && ME.uid) || "";
+  const serial = $("#mSerial").value.trim().toUpperCase();
+  const address = manualAddress(), reason = $("#mReason").value.trim();
+  const shipFee = $("#mShipFee").value || "착불";
+  let giftQty = Math.max(1, parseInt($("#mQty").value, 10) || 1);
+
+  if(!category || !product || !name || !phone) return bad("카테고리·제품·수령인·연락처는 필수입니다.");
+  if(!giftItem && $("#mGift").querySelector('option[value]:not([value=""])')) return bad("사은품/상품권을 선택하세요.");
+  if(type === "coupang" && !serial) return bad("쿠팡 정품등록은 시리얼번호(S/N)가 필요합니다.");
+
+  const phoneKey = mDigits(phone);
+
+  /* 시리얼은 예외 없이 1회 — 수기접수도 같은 번호를 두 번 넣을 수 없습니다 */
+  if(serial && ALL.some(e => String(e.serial || "").trim().toUpperCase() === serial))
+    return bad("이미 등록된 시리얼번호입니다.");
+  if(type === "coupang" && M_CTX.extra && !M_IMG) return bad("추가 등록은 구매 증빙 이미지를 올려 주세요.");
+
+  /* 원장에서 온 건은 남은 수량을 넘길 수 없습니다 */
+  if(M_CTX.left != null){
+    if(giftQty > M_CTX.left) return bad("남은 수량은 " + M_CTX.left + "건입니다.");
+  }
+
+  const payload = {
+    type, rewardType, category, product, giftItem, source,
+    name, phone, orderNo, agent, agentUid, serial, address, shipFee,
+    phoneKey, giftQty,
+    nameAddrKey:(name + "|" + address),
+    kNA:(product + "|" + name + "|" + address),
+    kOrder:(product + "|" + orderNo),
+    kPhone:(product + "|" + phoneKey),
+    status:"eligible", manual:true, reason, shipState:"pending",
+    consent:{ privacy:"agree", marketing:"", reward:rewardType, agreedAt:new Date().toISOString(), manual:true },
+    survey:[],
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if(invoiceNo){ payload.invoiceNo = invoiceNo; payload.kInv = product + "|" + invoiceNo; }
+  if(M_IMG){ payload.manualImagePath = M_IMG.path; payload.manualImageUrl = M_IMG.url; }
+
+  try{
+    $("#mSubmit").disabled = true;
+    const db = await initFirebase();
+    const now = new Date(), p = n => String(n).padStart(2, "0");
+    /* 문서 이름에 성함을 넣지 않습니다 — 백업·로그·콘솔 목록 어디에나 남기 때문입니다 */
+    const id = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}_${product}_${(phoneKey.slice(-4) || "0000")}`
+             + `_${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}_manual`;
     await db.collection(COLLECTION).doc(id).set(payload);
-    msg.className="msg ok";msg.textContent="✔ 등록 완료 ("+id+")";
-    resetManual(false);await loadData();
-  }catch(err){msg.className="msg bad";msg.textContent="등록 실패: "+(err.message||err);}
-  finally{$("#mSubmit").disabled=false;}
+    logAccess("수기접수", product + " · " + (M_CTX.type === "coupang" ? "쿠팡" : "포토리뷰"), giftQty);
+
+    msg.className = "msg ok"; msg.textContent = "✔ 등록 완료";
+    mImgClear();
+    await loadData();
+    if(M_CTX.type === "coupang") mcFind(); else mRenderFind();
+    mFormClose();
+  }catch(err){
+    console.error(err);
+    bad("등록 실패: " + (err.message || err));
+  }finally{ $("#mSubmit").disabled = false; }
 }
-function resetManual(clearMsg){
-  ["#mName","#mPhone","#mOrder","#mSerial","#mAddress","#mAddrRoad","#mAddrDetail","#mReason"].forEach(s=>{const el=$(s);if(el)el.value="";});
-  if(clearMsg)$("#mMsg").textContent="";
-  $("#mCategory").value="";$("#mSource").value="";onCategoryChange();
+
+function resetManual(keepPrefill){
+  ["#mName","#mPhone","#mOrder","#mInvoice","#mSerial","#mAddress","#mAddrRoad","#mAddrDetail","#mReason"]
+    .forEach(s => { const el = $(s); if(el) el.value = ""; });
+  $("#mQty").value = 1; $("#mQty").removeAttribute("max");
+  $("#mMsg").textContent = "";
+  if(!keepPrefill){ $("#mCategory").value = ""; $("#mSource").value = ""; onCategoryChange(); mImgClear(); }
 }
+
+/* ── 이벤트 연결 ── */
+$$("#mTabs .subtab").forEach(t => t.addEventListener("click", () => mSubTo(t.dataset.msub)));
+$$("#mFindTabs .subtab").forEach(t => t.addEventListener("click", () => mFindTo(t.dataset.mf)));
+$("#mFind").addEventListener("click", mFind);
+$("#mFindClear").addEventListener("click", () => {
+  ["#mfName","#mfPhone","#mfOrder","#mfInv"].forEach(s => $(s).value = "");
+  $("#mFindMsg").textContent = ""; $("#mFindResult").innerHTML = ""; MFIND = null; mFormClose();
+});
+["#mfName","#mfPhone","#mfOrder","#mfInv"].forEach(s =>
+  $(s).addEventListener("keydown", e => { if(e.key === "Enter") mFind(); }));
+$("#mcFind").addEventListener("click", mcFind);
+$("#mcClear").addEventListener("click", () => {
+  $("#mcName").value = ""; $("#mcPhone").value = "";
+  $("#mcMsg").textContent = ""; $("#mcResult").innerHTML = ""; MCFIND = null; mFormClose();
+});
+["#mcName","#mcPhone"].forEach(s =>
+  $(s).addEventListener("keydown", e => { if(e.key === "Enter") mcFind(); }));
+$("#mImgFile").addEventListener("change", mImgPick);
+$("#mImgDel").addEventListener("click", mImgClear);
+$("#mFormClose").addEventListener("click", mFormClose);
 
 /* 다운로드 */
 function todayStr(){const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate());}
@@ -1571,7 +2194,7 @@ function exportAllRows(){
   return filteredAll().map(e=>({"접수일시":fmtDate(e._date),"유형":TYPE_LABEL[e.type]||e.type,"심사":STATUS_META[shipStatus(e)][0],"출고":SHIP_META[shipStateOf(e)][0],
     "카테고리":e.category||"","제품":e.product||"","보상종류":REWARD_LABEL[e.rewardType]||"","사은품/상품권":e.giftItem||"","구입처":e.source||"",
     "담당자":e.agent||"","주문번호":e.orderNo||"","S/N":e.serial||"","수령인":e.name||"","연락처":e.phone||"","주소":e.address||"",
-    "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"","이미지URL":e.imageUrl||"","문서ID":e._id||""}));
+    "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"","이미지URL":imgUrlOf(e),"문서ID":e._id||""}));
 }
 const DL_ORDER=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["사은품",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주소",e=>e.address||""],["주문번호",e=>e.orderNo||""],["구입처",e=>e.source||""],["문서ID",e=>e._id||""]];
 const DL_ACCT=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["상품권",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["구입처",e=>e.source||""],["문서ID",e=>e._id||""]];
@@ -1888,7 +2511,7 @@ $("#mType").addEventListener("change",onTypeChange);
 $("#mCategory").addEventListener("change",onCategoryChange);
 $("#mProduct").addEventListener("change",onProductChange);
 $("#mSubmit").addEventListener("click",submitManual);
-$("#mReset").addEventListener("click",()=>resetManual(true));
+$("#mReset").addEventListener("click",()=>resetManual(false));
 $("#xlsxBtn").addEventListener("click",()=>downloadRows(exportAllRows(),"아이닉이벤트_리포트"));
 $("#csvBtn").addEventListener("click",()=>{const rows=exportAllRows();if(!rows.length){alert("다운로드할 데이터가 없습니다.");return;}
   logAccess("다운로드","아이닉이벤트_리포트(CSV)",rows.length);
@@ -2640,35 +3263,48 @@ async function ordApi(payload){
 
 function syncRender(st){
   const box=$("#syncBox");
-  if(!st){ box.innerHTML='<div class="hint">아직 한 번도 가져오지 않았습니다.</div>'; return; }
-  const t = st.at ? new Date(st.at) : null;
-  const days = t ? Math.floor((Date.now()-t.getTime())/86400000) : 999;
-  const stale = days >= 1;
+  if(!st){ box.innerHTML='<div class="hint">아직 한 번도 가져오지 않았습니다. [⟳ 지금 가져오기]를 눌러 주세요.</div>'; return; }
+
+  const ck = st.checkedAt ? new Date(st.checkedAt) : null;   // 마지막으로 시트를 들여다본 시각
+  const at = st.at        ? new Date(st.at)        : null;   // 마지막으로 실제 반영된 시각
+  const mins = ck ? Math.floor((Date.now()-ck.getTime())/60000) : 99999;
+  const stopped = mins > 30;        // 5분마다 도는데 30분 넘게 소식이 없으면 멈춘 것
+
   const w = st.warn || {};
   const chip=(n,label,bg)=> n?'<span class="pill" style="background:'+bg+';margin-right:6px">'+label+' '+n.toLocaleString()+'</span>':"";
+  const ago = m => m<2 ? "방금" : (m<60 ? m+"분 전" : (m<1440 ? Math.floor(m/60)+"시간 전" : Math.floor(m/1440)+"일 전"));
+
   box.innerHTML =
     '<div style="padding:12px 14px;border-radius:10px;line-height:1.75;'
-    + (stale ? 'background:#fff7e6;border:1px solid #f0e0c0'
-             : 'background:#eef6ee;border:1px solid #cfe3cf') + '">'
-    + '<b>마지막 가져오기</b> ' + (t? t.toLocaleString("ko-KR") : "-")
-    + (stale? ' <span style="color:#b26a00;font-weight:800">· '+days+'일 지났습니다</span>' : ' <span style="color:#2c6b3c;font-weight:800">· 최신</span>')
+    + (stopped ? 'background:#fdecec;border:1px solid #f3c6c6' : 'background:#eef6ee;border:1px solid #cfe3cf') + '">'
+    + '<b>자동 확인</b> 5분마다 · 마지막 확인 '
+    + (ck ? ck.toLocaleString("ko-KR") + ' <span style="color:var(--sub)">('+ago(mins)+')</span>' : "-")
+    + (stopped ? ' <span style="color:#c1121f;font-weight:800">· 자동 확인이 멈춘 것 같습니다</span>'
+               : ' <span style="color:#2c6b3c;font-weight:800">· 정상</span>')
+    + '<br><b>마지막 반영</b> ' + (at ? at.toLocaleString("ko-KR") : "-")
+    + ' <span style="color:var(--sub)">— 시트가 바뀔 때만 반영됩니다</span>'
     + '<br><span style="color:var(--sub)">읽은 줄</span> <b>'+(st.rows||0).toLocaleString()+'</b>'
-    + ' · <span style="color:var(--sub)">새로 추가</span> <b>'+(st.newRows||0).toLocaleString()+'</b>'
+    + ' · <span style="color:var(--sub)">그때 새로 추가</span> <b>'+(st.newRows||0).toLocaleString()+'</b>'
     + ((st.tabs&&st.tabs.length)
         ? '<div style="margin-top:8px;font-size:12.5px;line-height:1.8">'
           + '<span style="color:var(--sub);font-weight:700">읽은 탭 '+st.tabs.length+'개</span><br>'
           + st.tabs.map(t=>'· '+admEsc(t.title)+' — <b>'+(t.rows||0).toLocaleString()+'건</b>'
               + (t.note? ' <span style="color:#c1121f;font-weight:700">'+admEsc(t.note)
-                       + (t.missing&&t.missing.length? ' ('+admEsc(t.missing.join(", "))+')':'')+'</span>':''))
+                       + (t.missing&&t.missing.length? ' ('+admEsc(t.missing.join(", "))+')':'')+'</span>':'')
+              + (t.head&&t.head.length
+                  ? '<div style="margin:2px 0 6px 12px;font-size:12px;color:var(--sub);line-height:1.6">'
+                    + '이 탭 '+(t.headRow||1)+'번째 줄에서 찾은 열 이름 : '
+                    + '<span style="font-family:monospace">'+admEsc(t.head.join(" | "))+'</span></div>'
+                  : ''))
             .join('<br>')
           + '</div>' : "")
-    + (( w.nomap||w.pick||w.nophone||w.noname||w.skip )
+    + (( w.nomap||w.pick||w.nophone||w.noname||w.skip||w.dupRow )
         ? '<div style="margin-top:8px">'
           + chip(w.multi,"수량 2개 이상","#eef6ee") + chip(w.pick,"고객이 제품 선택","#fdf1e3")
           + chip(w.nomap,"제품 매칭 실패","#fdeeee") + chip(w.nophone,"연락처 없음","#fdeeee")
           + chip(w.noname,"이름 없음","#fdeeee") + chip(w.skip,"키 없어 제외","#f0eeec")
+          + chip(w.dupRow,"탭에 겹친 줄","#f0eeec")
           + '</div>' : "")
-    + ((st.missing&&st.missing.length)? '<div style="margin-top:6px;color:#c1121f;font-weight:700">못 찾은 열 : '+admEsc(st.missing.join(", "))+'</div>':"")
     + (st.lastError? '<div style="margin-top:6px;color:#c1121f;font-weight:700">지난 오류 : '+admEsc(st.lastError)+'</div>':"")
     + '</div>';
 }

@@ -362,10 +362,18 @@
 
     <div class="panel">
       <h3>여러 명 한 번에 추가</h3>
-      <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:7px">
-        한 줄에 한 명씩 <b>이름, 이메일, 역할</b> 순으로 넣어 주세요.
-        역할을 빼면 <b>상담사</b>가 됩니다. 엑셀에서 복사해 붙여넣어도 됩니다.<br>
-        <span style="font-family:monospace;background:#f4f5f7;padding:2px 6px;border-radius:5px">강문정, answjddl@i-nic.kr, 발주담당자</span>
+      <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:8px">
+        <b>엑셀 파일로 올리시거나</b>, 아래 칸에 직접 적으셔도 됩니다.
+        칸은 <b>이름 · 이메일 · 역할</b> 세 개이고, 역할을 비우면 <b>상담사</b>가 됩니다.
+        첫 줄 제목(이름/이메일/역할)은 알아서 건너뜁니다.
+      </div>
+      <div class="filters" style="margin-bottom:10px">
+        <button id="admTpl" class="sm">⬇ 엑셀 양식 받기</button>
+        <input type="file" id="admFile" accept=".xlsx,.xls,.csv" style="max-width:280px">
+        <span id="admFileState" style="font-size:12.5px;font-weight:700;color:var(--sub)"></span>
+      </div>
+      <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:6px">
+        파일을 고르시면 아래 칸에 채워집니다. <b>내용을 확인하신 뒤</b> 「일괄 추가」를 눌러 주세요.
       </div>
       <textarea id="admBulk" rows="6" placeholder="강문정, answjddl@i-nic.kr, 발주담당자&#10;홍길동, hong@i-nic.kr, 상담사"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d6d9de;border-radius:9px;font-size:13.5px;line-height:1.7;font-family:inherit"></textarea>
@@ -2170,6 +2178,66 @@ async function admAct(d){
   admRender();
 }
 
+/* ── 엑셀 파일로 올리기 ──
+   리포트에 이미 들어 있는 엑셀 라이브러리(XLSX)를 그대로 씁니다.
+   파일을 읽어 아래 칸을 채워만 주고, 실제 추가는 담당자가 확인 후 누릅니다. */
+function admFromSheet(rows){
+  const out=[];
+  (rows||[]).forEach(r=>{
+    const cells=(r||[]).map(x=>String(x==null?"":x).trim()).filter(x=>x!=="");
+    if(!cells.length) return;
+    const email=(cells.find(x=>x.indexOf("@")>0)||"").toLowerCase();
+    if(!email) return;                       // 제목 줄·빈 줄은 자동으로 건너뜀
+    let role="agent"; const rest=[];
+    cells.forEach(x=>{
+      if(x.toLowerCase()===email) return;
+      const k=ROLE_KEYS.find(k=>ROLE_LABEL[k]===x || k===x);
+      if(k) role=k; else rest.push(x);
+    });
+    out.push({ name: rest.join(" ").trim() || email.split("@")[0], email, role });
+  });
+  return out;
+}
+
+function admTemplate(){
+  const ws=XLSX.utils.aoa_to_sheet([
+    ["이름","이메일","역할"],
+    ["강문정","answjddl@i-nic.kr","발주담당자"],
+    ["홍길동","hong@i-nic.kr","상담사"],
+    ["","",""]
+  ]);
+  ws["!cols"]=[{wch:14},{wch:30},{wch:14}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"사용자");
+  XLSX.writeFile(wb,"아이닉_리포트_사용자_양식.xlsx");
+}
+
+async function admReadFile(f){
+  const st=$("#admFileState");
+  st.textContent="읽는 중…";
+  try{
+    const buf=await f.arrayBuffer();
+    const wb=XLSX.read(buf,{type:"array"});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false});
+    const list=admFromSheet(rows);
+    if(!list.length){ st.textContent="이메일이 들어 있는 줄을 찾지 못했습니다."; return; }
+    $("#admBulk").value=list.map(x=>`${x.name}, ${x.email}, ${ROLE_LABEL[x.role]}`).join("\n");
+    st.textContent=`${list.length}명 읽었습니다 — 확인 후 「일괄 추가」`;
+    $("#admBulkOut").innerHTML="";
+    $("#admBulkState").textContent="";
+  }catch(err){
+    console.error(err);
+    st.textContent="파일을 읽지 못했습니다. 엑셀(.xlsx) 또는 CSV 파일인지 확인해 주세요.";
+  }
+}
+
+$("#admTpl").addEventListener("click", admTemplate);
+$("#admFile").addEventListener("change", e=>{
+  const f=e.target.files[0];
+  if(f) admReadFile(f);
+  e.target.value="";
+});
 $("#admAdd").addEventListener("click", admAdd);
 $("#admEmail").addEventListener("keydown", e=>{ if(e.key==="Enter") admAdd(); });
 $("#admBulkGo").addEventListener("click", admBulkGo);

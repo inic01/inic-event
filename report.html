@@ -166,7 +166,7 @@
     <div class="tab" data-tab="reserve">예약발송</div>
     <div class="tab" data-tab="cs">고객검색</div>
     <div class="tab" data-tab="manual">수기접수</div>
-    <div class="tab" data-tab="orders">주문DB</div>
+    <div class="tab" data-tab="orders">고객DB</div>
     <div class="tab" data-tab="admin" id="tabAdmin" style="display:none">관리자</div>
   </div>
 
@@ -308,11 +308,42 @@
     </div>
   </section>
 
-  <!-- 주문DB (구매 원장 업로드) -->
+  <!-- 고객DB -->
   <section class="page" id="page-orders">
+
     <div class="panel" style="margin-bottom:14px">
-      <h3>주문 원장 업로드</h3>
-      <div class="hint">접수폼에서 <b>성함+연락처 / 주문번호 / 송장번호</b> 세 가지 중 하나로 본인 확인을 하기 위한 구매 원장입니다.
+      <h3>구글 시트에서 자동으로 가져오기</h3>
+      <div class="hint">
+        고객DB 시트를 <b>매일 새벽 5시에 자동으로</b> 가져옵니다. 파일을 올리실 필요가 없습니다.<br>
+        이름에 <b>출고리스트</b>가 들어간 탭을 <b>전부</b> 읽습니다 — 월이 바뀌어 새 탭이 생겨도 손댈 게 없습니다.<br>
+        덮어쓰지 않고 <b>쌓기</b>라서, 시트에서 밀려난 지난 데이터도 여기 남습니다.
+      </div>
+      <div class="filters" style="margin-top:11px">
+        <button id="syncNow" class="sm primary">⟳ 지금 가져오기</button>
+        <span id="syncState" style="font-size:12.5px;font-weight:800"></span>
+      </div>
+      <div id="syncBox" style="margin-top:10px"></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px" id="purgePanel">
+      <h3>오래된 고객정보 지우기 <span style="color:var(--sub);font-weight:600;font-size:12px">(관리자만)</span></h3>
+      <div class="hint">
+        <b>구매일자</b>가 이 날짜보다 이른 건을 지웁니다. 개인정보는 필요한 기간만 갖고 있는 것이 안전합니다.<br>
+        <span style="color:var(--bad,#c0392b)">※ 지운 고객은 접수폼에서 <b>구매 확인이 안 되어 참여할 수 없게 됩니다.</b>
+        참여를 받아주실 기한보다 넉넉하게 잡아 주세요.</span>
+      </div>
+      <div class="filters" style="margin-top:11px">
+        <label style="font-size:12.5px;font-weight:700;color:var(--sub)">이 날짜 이전</label>
+        <input type="date" id="purgeDate" style="font-size:13px">
+        <button id="purgeGo" class="sm">지우기</button>
+        <span id="purgeState" style="font-size:12.5px;font-weight:800"></span>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px">
+      <h3>파일로 올리기 <span style="color:var(--sub);font-weight:600;font-size:12px">(과거 데이터 채울 때)</span></h3>
+      <div class="hint">평소에는 위쪽 시트 동기화로 충분합니다. <b>ERP에서 받은 과거 데이터를 한 번에 채울 때</b> 쓰세요.<br>
+        접수폼에서 <b>성함+연락처 / 주문번호 / 송장번호</b> 세 가지 중 하나로 본인 확인을 하기 위한 고객DB입니다.
         스프레드시트(.xlsx) 또는 .csv 파일을 올리면 세 가지 키로 각각 찾을 수 있게 저장됩니다.<br>
         필요한 열 : <b>제품군 · 이름 · 전화번호1 · 수량 · 송장번호 · 주문번호</b> (전화번호2·일자는 있으면 함께 저장 / 판매처는 저장하지 않습니다)<br>
         <b>전화번호2</b>가 있으면 함께 색인하므로 고객이 <b>안심번호</b>를 넣어도 조회됩니다. <b>수량</b>이 2 이상이면 사은품이 그 수량만큼 나갑니다.<br>
@@ -368,8 +399,8 @@
         본인이 처음 로그인할 때 비밀번호를 새로 정하게 됩니다.<br><br>
         <b>역할별로 보이는 탭</b><br>
         · <b>관리자</b> — 전부 (사람 추가·삭제, <b>밤에도 이용 가능</b>)<br>
-        · <b>QA담당자</b> — 주문DB·관리자만 빼고 전부<br>
-        · <b>발주담당자 / 회계담당자</b> — 전체 · 사은품 · 상품권 · 예약발송 · 주문DB<br>
+        · <b>QA담당자</b> — 고객DB·관리자만 빼고 전부<br>
+        · <b>발주담당자 / 회계담당자</b> — 전체 · 사은품 · 상품권 · 예약발송 · 고객DB<br>
         · <b>상담사</b> — 전체 · 부적합 · 고객검색 · 수기접수<br>
         관리자를 뺀 나머지는 <b>오전 9시~밤 10시</b>에만 들어올 수 있습니다.
       </div>
@@ -398,6 +429,22 @@
     <div class="panel">
       <h3>사용자 목록</h3>
       <div class="tablewrap" id="admList"></div>
+    </div>
+
+    <div class="panel">
+      <h3>접근 기록 <span style="color:var(--sub);font-weight:600;font-size:12px">(관리자만 볼 수 있습니다)</span></h3>
+      <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:8px">
+        누가 언제 <b>무엇을 몇 건 다운로드</b>했는지, 언제 <b>로그인</b>했는지 남습니다.
+        <b>기록은 만들어지기만 하고 고치거나 지울 수 없습니다.</b>
+      </div>
+      <div class="filters">
+        <select id="lgWho"><option value="">전체 사용자</option></select>
+        <select id="lgAct"><option value="">전체 항목</option></select>
+        <button id="lgLoad" class="sm primary">불러오기</button>
+        <button id="lgDl" class="sm">엑셀로 받기</button>
+        <span id="lgState" style="font-size:12.5px;font-weight:700;color:var(--sub)"></span>
+      </div>
+      <div class="tablewrap" id="lgList"></div>
     </div>
   </section>
 </div>
@@ -622,6 +669,31 @@ function isEligible(e){return shipStatus(e)==="eligible";}
 function isReserve(e){return reserveProducts.has(e.product);}
 function monthKey(d){if(!d)return "";const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1);}
 function uniq(a){return [...new Set(a.filter(Boolean))];}
+/* ══════════════════════════════════════════════════════════════════════
+   접근 기록
+   ──────────────────────────────────────────────────────────────────────
+   상담사는 업무상 고객정보를 봐야 하므로 화면에서는 가리지 않습니다.
+   대신 **밖으로 나가는 것**(다운로드)과 **로그인**만 기록으로 남깁니다.
+   기록은 만들어지기만 하고 고치거나 지울 수 없습니다(규칙). 관리자만 봅니다.
+   ══════════════════════════════════════════════════════════════════════ */
+function cell(e,kind){
+  const v = kind==="phone" ? (e.phone||"") : (e.address||"");
+  return v ? admEsc(v) : "-";
+}
+
+async function logAccess(action, detail, count){
+  if(!ME) return;
+  try{
+    const db=await initFirebase();
+    await db.collection("accessLogs").add({
+      at: firebase.firestore.FieldValue.serverTimestamp(),
+      uid: ME.uid||"", name: ME.name||"", role: ME.role||"",
+      action: String(action||""), detail: String(detail||"").slice(0,200),
+      count: Number(count)||0
+    });
+  }catch(err){ console.warn("기록 실패", err); }   // 기록이 안 돼도 업무는 막지 않는다
+}
+
 function matchSearch(e,q){if(!q)return true;const hay=[e.name,e.phone,e.orderNo,e.serial,e.agent,e.address,e.product].join(" ").toLowerCase();return hay.includes(q.trim().toLowerCase());}
 
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error(src));document.head.appendChild(s);});}
@@ -752,7 +824,7 @@ const COLS=[
   ["접수일시",e=>fmtDate(e._date)],["구입처",e=>e.source||"-","wrapcell"],["출고",e=>shipBadge(e)],["출고일자",e=>shippedDate(e)],
   TYPE_COL,["제품",e=>e.product||"-"],
   ["보상",e=>`<span class="pill ${e.rewardType}">${REWARD_LABEL[e.rewardType]||"-"}</span>`],["사은품/상품권",e=>e.giftItem||"-","wrapcell"],
-  ["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],["심사",e=>statusBadge(e)]
+  ["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],["심사",e=>statusBadge(e)]
 ];
 function headHtml(cols){return "<tr>"+cols.map(c=>`<th class="${c[2]||""}">${c[0]}</th>`).join("")+"</tr>";}
 function rowHtml(cols,e,attrs){return `<tr${attrs||""}>`+cols.map(c=>`<td class="${c[2]||""}">${c[1](e)}</td>`).join("")+"</tr>";}
@@ -970,6 +1042,8 @@ async function svMakePpt(all){
   btn.disabled=true; btn.textContent="만드는 중…";
   try{
     if(!svStats||!svCur) throw new Error("설문 데이터가 없습니다.");
+    logAccess("다운로드", all?"설문통계 PPT(전체)":("설문통계 PPT · "+((svStats[svCur]||{}).name||svCur)),
+      all?Object.keys(svStats).reduce((a,c)=>a+svStats[c].n,0):((svStats[svCur]||{}).n||0));
     await svLoadPptx();
     const pptx=new PptxGenJS(); pptx.layout="LAYOUT_16x9";
     pptx.author="아이닉"; pptx.title="포토리뷰 설문 통계";
@@ -1016,13 +1090,13 @@ function reasonCell(e){
   return det ? `${base}<div style="font-size:11px;color:var(--sub);margin-top:3px;white-space:normal">원인: ${det.replace(/</g,"&lt;")}</div>` : base;
 }
 const ELIG_ORDER=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["검수",e=>eligCheck(e)],["배송구분",e=>shipFeeBadge(e)],["사은품",e=>e.giftItem||"-","wrapcell"],
-  SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-","wrapcell"]];
+  SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
 const ELIG_ACCT=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>e.giftItem||"-","wrapcell"],
-  SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-","wrapcell"]];
+  SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
 /* 확인필요 = 재심사 담당. 재심사 누르면 결과에 따라 적합/부적합으로 자동 이동 */
 const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>e.product||"-"],SN_COL,
   ["별점",e=>ratingCell(e)],["사진",e=>photoCell(e)],["사유",e=>reasonCell(e),"wrapcell"],
-  ["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],
+  ["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],
   ["재심사",e=>reJudgeBtn(e)]];
 function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
   let all,cols;
@@ -1179,11 +1253,11 @@ function reserveElig(q){return ALL.filter(e=>isReserve(e)&&isShippable(e)&&shipS
 function reserveInelig(q){return ALL.filter(e=>isReserve(e)&&(shipStatus(e)==="review"||shipStatus(e)==="pending")&&!e.overrideEligible&&matchSearch(e,q));}
 const RESERVE_ELIG=[["검수",e=>eligCheck(e)],["출고",e=>shipBadge(e)],["처리",e=>`<button class="sm primary" onclick="setShipState('${e._id}','shipped')">출고완료</button>`],
   ["접수일시",e=>fmtDate(e._date)],["제품",e=>e.product||"-"],["보상",e=>`<span class="pill ${e.rewardType}">${REWARD_LABEL[e.rewardType]||"-"}</span>`],
-  ["사은품/상품권",e=>e.giftItem||"-"],["수령인",e=>e.name||"-"],["연락처",e=>e.phone||"-"],["주소",e=>e.address||"-"],["주문번호",e=>e.orderNo||"-"]];
+  ["사은품/상품권",e=>e.giftItem||"-"],["수령인",e=>e.name||"-"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr")],["주문번호",e=>e.orderNo||"-"]];
 const RESERVE_INELIG=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>e.product||"-"],SN_COL,
   ["별점",e=>ratingCell(e)],["사진",e=>photoCell(e)],["사유",e=>reasonCell(e),"wrapcell"],
   ["이미지",e=>imgBtn(e)],["보상",e=>`<span class="pill ${e.rewardType}">${REWARD_LABEL[e.rewardType]||"-"}</span>`],
-  ["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>e.phone||"-"],["재심사",e=>reJudgeBtn(e)]];
+  ["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],["재심사",e=>reJudgeBtn(e)]];
 function renderReserve(){
   const v=subView.reserve||"elig";
   const all=(v==="inelig"?reserveInelig:reserveElig)($("#rSearch").value),rows=slice(all,"reserve");
@@ -1240,7 +1314,7 @@ const BAD_COLS=[
     +' style="width:118px;padding:5px 7px;border:1px solid '+(e.agent?"var(--line)":"#e6c98a")+';border-radius:7px;'
     +'font-size:12.5px;font-weight:700;background:'+(e.agent?"#fff":"#fff7e6")+'">'],
   ["수령인",e=>e.name||"-"],
-  ["연락처",e=>e.phone||"-"],
+  ["연락처",e=>cell(e,"phone")],
   ["사은품/상품권",e=>e.giftItem||"-"],
   ["사유",e=>reasonOf(e)||"-"],
   ["이미지",e=>imgBtn(e)],
@@ -1266,7 +1340,7 @@ let detailId=null;
 function openDetail(id){
   const e=ALL.find(x=>x._id===id);if(!e)return;detailId=id;
   $("#dtName").textContent=e.name||"(이름없음)";
-  $("#dtMeta").textContent=`접수 ${fmtDate(e._date)} · ${e.phone||"-"}`;
+  $("#dtMeta").innerHTML="접수 "+fmtDate(e._date)+" · "+cell(e,"phone");
   $("#dtReward").textContent=(REWARD_LABEL[e.rewardType]||"사은품/상품권")+" : "+(e.giftItem||"-");
   $("#dtProduct").textContent=e.product||"-";
   $("#dtOrder").textContent=e.orderNo||"-";
@@ -1283,7 +1357,7 @@ function openDetail(id){
     }
     $("#dtSn").innerHTML=h;
   } else $("#dtSnRow").style.display="none";
-  $("#dtAddr").textContent=e.address||"-";
+  $("#dtAddr").innerHTML=cell(e,"addr");
 
   /* ── 부적합 여부에 따라 모달 구성 분기 ──
      부적합(출고승인 안 된 건)만 응대상태·결과메모·출고승인 노출.
@@ -1414,8 +1488,8 @@ function renderCS(){
         <div><b>주문번호</b>${e.orderNo||"-"}</div>
         ${e.type==="coupang"?`<div><b>S/N</b><span style="${MONO}">${e.serial||"(미입력)"}</span></div>`:""}
         <div><b>배송구분</b>${shipFeeBadge(e)}</div>
-        <div><b>연락처</b>${e.phone||"-"}</div>
-        <div><b>주소</b>${e.address||"-"}</div>
+        <div><b>연락처</b>${cell(e,"phone")}</div>
+        <div><b>주소</b>${cell(e,"addr")}</div>
       </div>
       </div><div class="stat">${sb}</div></div>`;}).join("");
   pager("#pagerCs",all.length,"cs");
@@ -1486,6 +1560,7 @@ function resetManual(clearMsg){
 function todayStr(){const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate());}
 function downloadRows(rows,baseName){
   if(!rows.length){alert("대상 데이터가 없습니다.");return false;}
+  logAccess("다운로드", baseName, rows.length);      // 누가 무엇을 몇 건 받았는지 기록
   const fname=baseName+"_"+todayStr();
   if(typeof XLSX!=="undefined"){const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"data");XLSX.writeFile(wb,fname+".xlsx");}
   else{const heads=Object.keys(rows[0]);const csv=[heads.join(",")].concat(rows.map(r=>heads.map(h=>`"${String(r[h]==null?"":r[h]).replace(/"/g,'""')}"`).join(","))).join("\n");
@@ -1546,6 +1621,7 @@ function aggShipRows(items,feeLabel){
 function downloadSheets(sheets,baseName){
   const ne=sheets.filter(s=>s.rows.length);
   if(!ne.length){alert("대상 데이터가 없습니다.");return false;}
+  logAccess("다운로드", baseName, ne.reduce((n,s)=>n+s.rows.length,0));
   const fname=baseName+"_"+todayStr();
   if(typeof XLSX!=="undefined"){
     const wb=XLSX.utils.book_new();
@@ -1587,8 +1663,8 @@ function renderActiveTab(){
   else if(curTab==="cs")renderCS();
 }
 
-/* ══════════════ 주문 원장 (orders) ══════════════
-   접수폼이 '주문번호/송장번호'로 본인 확인을 하기 위한 구매 원장.
+/* ══════════════ 고객DB (orders) ══════════════
+   접수폼이 '주문번호/송장번호'로 본인 확인을 하기 위한 고객DB.
    문서 구조 — 목록 조회(list)를 막고 정확히 아는 키로만 get 하도록 두 종류로 나눠 저장한다.
      orders/I_<정규화송장번호>                        : { rows:[행1..N] }
      orders/O_<정규화주문번호>                        : { rows:[행1..N] }   (장바구니 합배송)
@@ -1705,7 +1781,7 @@ function odRenderPreview(warn){
 }
 async function odUpload(){
   if(!odRows.length)return;
-  if(!confirm(`${odRows.length.toLocaleString()}건을 주문 원장에 올립니다.\n\n※ 예전 구조로 올린 문서가 남아 있으면, 먼저 Firebase 콘솔에서 orders 컬렉션을 삭제해 주세요.\n\n계속할까요?`))return;
+  if(!confirm(`${odRows.length.toLocaleString()}건을 고객DB에 올립니다.\n\n※ 예전 구조로 올린 문서가 남아 있으면, 먼저 Firebase 콘솔에서 orders 컬렉션을 삭제해 주세요.\n\n계속할까요?`))return;
   const db=await initFirebase();
   // 송장 / 주문번호 / 성함+연락처(해시) 세 가지 키로 정리
   const byInv=new Map(), byOrd=new Map(), byNP=new Map();
@@ -1747,7 +1823,7 @@ async function odUpload(){
       odSetState(`올리는 중… ${done.toLocaleString()} / ${docs.length.toLocaleString()}`);
     }
     odSetState(`✔ 완료 — 송장 ${byInv.size.toLocaleString()} · 주문번호 ${byOrd.size.toLocaleString()} · 성함+연락처 ${byNP.size.toLocaleString()}`,"var(--ok)");
-    alert("주문 원장 업로드가 완료되었습니다.");
+    alert("고객DB 업로드가 완료되었습니다.");
   }catch(err){
     odSetState("업로드 실패: "+(err.message||err),"var(--bad,#c0392b)");
     alert("업로드 실패: "+(err.message||err)+"\n\nFirestore 규칙에 orders 컬렉션 쓰기 권한이 있는지 확인해 주세요.");
@@ -1815,6 +1891,7 @@ $("#mSubmit").addEventListener("click",submitManual);
 $("#mReset").addEventListener("click",()=>resetManual(true));
 $("#xlsxBtn").addEventListener("click",()=>downloadRows(exportAllRows(),"아이닉이벤트_리포트"));
 $("#csvBtn").addEventListener("click",()=>{const rows=exportAllRows();if(!rows.length){alert("다운로드할 데이터가 없습니다.");return;}
+  logAccess("다운로드","아이닉이벤트_리포트(CSV)",rows.length);
   const heads=Object.keys(rows[0]);const csv=[heads.join(",")].concat(rows.map(r=>heads.map(h=>`"${String(r[h]).replace(/"/g,'""')}"`).join(","))).join("\n");
   const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="아이닉이벤트_리포트_"+todayStr()+".csv";a.click();});
 function dlPlain(list,cols,fname){if(!list.length){alert("대상 데이터가 없습니다.");return;}const rows=list.map(e=>{const o={};cols.forEach(([l,fn])=>o[l]=fn(e));return o;});downloadRows(rows,fname);}
@@ -1848,12 +1925,31 @@ const ROLE_KEYS  = ["master","qa","order","acct","agent"];
 /* 역할별로 보이는 탭.
    담당 업무가 아닌 화면을 실수로 건드리지 않게 하는 장치입니다.
    (데이터 접근 자체를 막는 것은 아닙니다 — 같은 컬렉션을 함께 씁니다) */
+/* 역할별로 받을 수 있는 것.
+   버튼 자체를 감춥니다. 화면에서 고객정보를 보는 것은 막지 않습니다 —
+   상담사는 업무상 봐야 하기 때문입니다. 대신 밖으로 나가는 것만 통제합니다. */
+const DL_BY_ROLE = {
+  master: null,                              // 전부
+  qa:     ["svPpt","svPptAll"],              // 포토리뷰 리포트 PPT
+  order:  ["dlOrder","dlAcct"],              // 사은품·상품권 일괄출고
+  acct:   ["dlOrder","dlAcct"],
+  agent:  []                                 // 없음
+};
+const DL_BUTTONS = ["csvBtn","xlsxBtn","svPpt","svPptAll","dlOrder","dlAcct","dlBad"];
+function applyDownloadsForRole(){
+  const allow = DL_BY_ROLE[(ME&&ME.role)||"agent"];
+  DL_BUTTONS.forEach(id=>{
+    const b=$("#"+id); if(!b) return;
+    b.style.display = (!allow || allow.indexOf(id)>=0) ? "" : "none";
+  });
+}
+
 const TABS_BY_ROLE = {
   master: null,                                                   // 전부
   qa:     ["all","report","order","acct","bad","reserve","cs","manual"],
   order:  ["all","order","acct","reserve","orders"],
   acct:   ["all","order","acct","reserve","orders"],
-  agent:  ["all","bad","cs","manual"]
+  agent:  ["bad","cs","manual"]              // 전체는 안 봄 — 고객검색으로 충분
 };
 function applyTabsForRole(){
   const allow = TABS_BY_ROLE[(ME&&ME.role)||"agent"];
@@ -1862,8 +1958,12 @@ function applyTabsForRole(){
     const on = k==="admin" ? (ME&&ME.role==="master") : (!allow || allow.indexOf(k)>=0);
     t.style.display = on ? "" : "none";
   });
+  /* 볼 수 없는 탭이 열려 있으면 그 역할의 첫 번째 탭으로 옮긴다 */
   const cur=$("#tabs .tab.active");
-  if(!cur || cur.style.display==="none") switchTab("all");   // 안 보이는 탭이 열려 있으면 '전체'로
+  if(!cur || cur.style.display==="none"){
+    const first=$$("#tabs .tab").find(t=>t.style.display!=="none");
+    if(first) switchTab(first.dataset.tab);
+  }
 }
 let ME = null, nightTimer = null, claimTimer = null;
 
@@ -2059,8 +2159,11 @@ function finishEnter(){
   $("#whoami").textContent = (ME.name||"") + " · " + (ROLE_LABEL[ME.role]||"상담사");
   $("#whoBox").style.display="";
   applyTabsForRole();
+  applyDownloadsForRole();
   const ma=$("#mAgent"); if(ma) ma.value = ME.name || "";     // 수기접수 담당자 = 로그인한 사람
   loadStaff();
+  $("#purgePanel").style.display = ME.role==="master" ? "" : "none";
+  syncStatus();
   scheduleNightLogout();
   loadData();
 }
@@ -2085,6 +2188,7 @@ async function doLogout(msg){
   $("#mainWrap").style.visibility="hidden";
   $("#whoBox").style.display="none";
   $$("#tabs .tab").forEach(t=>{ t.style.display = t.dataset.tab==="admin" ? "none" : ""; });
+  DL_BUTTONS.forEach(id=>{ const b=$("#"+id); if(b) b.style.display=""; });
   showLogin(msg||"");
 }
 
@@ -2126,6 +2230,7 @@ async function admRender(){
   box.querySelectorAll("select[data-a]").forEach(sel=>sel.addEventListener("change",()=>
     admAct({a:"role", u:sel.dataset.u, v:sel.value})));
   loadStaff();          // 사람이 늘거나 빠지면 담당자 명단도 같이 갱신
+  lgLoad();
 }
 
 function admNotice(html, tone){
@@ -2513,6 +2618,163 @@ $("#dtAgent").addEventListener("change", async ()=>{
   const name=String($("#dtAgent").value||"").trim();
   await saveEntryFields(detailId,{agent:name, agentUid:agentUidOf(name)});
   renderBad();
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   고객DB — 구글 시트 동기화 · 구매일자 기준 파기
+   ══════════════════════════════════════════════════════════════════════ */
+const ORDERS_API = "https://asia-northeast3-inic-event.cloudfunctions.net/ordersApi";
+
+async function ordApi(payload){
+  const u = firebase.auth().currentUser;
+  if(!u) return {ok:false, reason:"auth"};
+  let r;
+  try{
+    r = await fetch(ORDERS_API,{ method:"POST",
+      headers:{ "Content-Type":"application/json", Authorization:"Bearer "+(await u.getIdToken()) },
+      body: JSON.stringify(payload) });
+  }catch(e){ return {ok:false, reason:"network"}; }
+  let j=null; try{ j = await r.json(); }catch(_){}
+  return j || {ok:false, reason:"server"};
+}
+
+function syncRender(st){
+  const box=$("#syncBox");
+  if(!st){ box.innerHTML='<div class="hint">아직 한 번도 가져오지 않았습니다.</div>'; return; }
+  const t = st.at ? new Date(st.at) : null;
+  const days = t ? Math.floor((Date.now()-t.getTime())/86400000) : 999;
+  const stale = days >= 1;
+  const w = st.warn || {};
+  const chip=(n,label,bg)=> n?'<span class="pill" style="background:'+bg+';margin-right:6px">'+label+' '+n.toLocaleString()+'</span>':"";
+  box.innerHTML =
+    '<div style="padding:12px 14px;border-radius:10px;line-height:1.75;'
+    + (stale ? 'background:#fff7e6;border:1px solid #f0e0c0'
+             : 'background:#eef6ee;border:1px solid #cfe3cf') + '">'
+    + '<b>마지막 가져오기</b> ' + (t? t.toLocaleString("ko-KR") : "-")
+    + (stale? ' <span style="color:#b26a00;font-weight:800">· '+days+'일 지났습니다</span>' : ' <span style="color:#2c6b3c;font-weight:800">· 최신</span>')
+    + '<br><span style="color:var(--sub)">읽은 줄</span> <b>'+(st.rows||0).toLocaleString()+'</b>'
+    + ' · <span style="color:var(--sub)">새로 추가</span> <b>'+(st.newRows||0).toLocaleString()+'</b>'
+    + ((st.tabs&&st.tabs.length)
+        ? '<div style="margin-top:8px;font-size:12.5px;line-height:1.8">'
+          + '<span style="color:var(--sub);font-weight:700">읽은 탭 '+st.tabs.length+'개</span><br>'
+          + st.tabs.map(t=>'· '+admEsc(t.title)+' — <b>'+(t.rows||0).toLocaleString()+'건</b>'
+              + (t.note? ' <span style="color:#c1121f;font-weight:700">'+admEsc(t.note)
+                       + (t.missing&&t.missing.length? ' ('+admEsc(t.missing.join(", "))+')':'')+'</span>':''))
+            .join('<br>')
+          + '</div>' : "")
+    + (( w.nomap||w.pick||w.nophone||w.noname||w.skip )
+        ? '<div style="margin-top:8px">'
+          + chip(w.multi,"수량 2개 이상","#eef6ee") + chip(w.pick,"고객이 제품 선택","#fdf1e3")
+          + chip(w.nomap,"제품 매칭 실패","#fdeeee") + chip(w.nophone,"연락처 없음","#fdeeee")
+          + chip(w.noname,"이름 없음","#fdeeee") + chip(w.skip,"키 없어 제외","#f0eeec")
+          + '</div>' : "")
+    + ((st.missing&&st.missing.length)? '<div style="margin-top:6px;color:#c1121f;font-weight:700">못 찾은 열 : '+admEsc(st.missing.join(", "))+'</div>':"")
+    + (st.lastError? '<div style="margin-top:6px;color:#c1121f;font-weight:700">지난 오류 : '+admEsc(st.lastError)+'</div>':"")
+    + '</div>';
+}
+
+async function syncStatus(){
+  if(!ME || !["master","order","acct"].includes(ME.role)) return;
+  const r = await ordApi({action:"status"});
+  if(r.ok) syncRender(r.state);
+}
+
+async function syncNow(){
+  $("#syncNow").disabled=true; $("#syncState").textContent="가져오는 중… (잠시 걸립니다)";
+  const r = await ordApi({action:"sync"});
+  $("#syncNow").disabled=false;
+  if(!r.ok){
+    $("#syncState").textContent="실패";
+    $("#syncState").style.color="var(--bad,#c1121f)";
+    $("#syncBox").innerHTML='<div style="padding:12px 14px;border-radius:10px;background:#fdecec;border:1px solid #f3c6c6;color:#b23b3b;line-height:1.7">'
+      + admEsc(r.message || agMsg(r.reason)) + '</div>';
+    return;
+  }
+  $("#syncState").textContent="✔ 완료 — 새로 "+(r.newRows||0)+"건";
+  $("#syncState").style.color="var(--ok)";
+  syncRender(r);
+  loadData();
+}
+
+async function purgeGo(){
+  const d=$("#purgeDate").value;
+  if(!d){ $("#purgeState").textContent="날짜를 골라 주세요."; return; }
+  if(!confirm("구매일자가 "+d+" 보다 이른 고객정보를 지웁니다.\n\n지운 고객은 접수폼에서 구매 확인이 안 되어 참여할 수 없게 됩니다.\n되돌릴 수 없습니다. 계속할까요?")) return;
+  if(!confirm("한 번 더 확인합니다.\n정말 "+d+" 이전 구매분을 지울까요?")) return;
+  $("#purgeGo").disabled=true; $("#purgeState").textContent="지우는 중…";
+  const r = await ordApi({action:"purge", before:d});
+  $("#purgeGo").disabled=false;
+  if(!r.ok){
+    $("#purgeState").textContent = r.reason==="date" ? "날짜 형식을 확인해 주세요."
+      : (r.reason==="forbidden" ? "관리자만 할 수 있습니다." : (r.message||"실패"));
+    $("#purgeState").style.color="var(--bad,#c1121f)";
+    return;
+  }
+  $("#purgeState").textContent="✔ "+r.removed.toLocaleString()+"건 삭제 · 문서 "+r.deleted.toLocaleString()+"개 정리 · 남은 "+r.kept.toLocaleString()+"건";
+  $("#purgeState").style.color="var(--ok)";
+  syncStatus();
+}
+
+$("#syncNow").addEventListener("click", syncNow);
+$("#purgeGo").addEventListener("click", purgeGo);
+const ordTab=document.querySelector('#tabs .tab[data-tab="orders"]');
+if(ordTab) ordTab.addEventListener("click", syncStatus);
+
+/* ══════════ 접근 기록 보기 (관리자 전용) ══════════ */
+let LOGS = [];
+const LOG_ACTS = ["다운로드","로그인"];
+
+function lgFilters(){
+  const who=$("#lgWho"), act=$("#lgAct");
+  const names=[...new Set(LOGS.map(x=>x.name).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const acts =[...new Set([...LOG_ACTS, ...LOGS.map(x=>x.action).filter(Boolean)])];
+  const w=who.value, a=act.value;
+  who.innerHTML='<option value="">전체 사용자</option>'+names.map(n=>'<option value="'+admEsc(n)+'">'+admEsc(n)+'</option>').join("");
+  act.innerHTML='<option value="">전체 항목</option>'+acts.map(n=>'<option value="'+admEsc(n)+'">'+admEsc(n)+'</option>').join("");
+  who.value=w; act.value=a;
+}
+function lgRows(){
+  const w=$("#lgWho").value, a=$("#lgAct").value;
+  return LOGS.filter(x=>(!w||x.name===w)&&(!a||x.action===a));
+}
+function lgRender(){
+  const rows=lgRows(), box=$("#lgList");
+  if(!rows.length){ box.innerHTML='<div class="empty">기록이 없습니다.</div>'; return; }
+  box.innerHTML='<table class="data"><thead><tr>'
+    +'<th>일시</th><th>사용자</th><th>역할</th><th>항목</th><th>내용</th><th>건수</th>'
+    +'</tr></thead><tbody>'
+    + rows.map(x=>'<tr><td>'+admEsc(x.when)+'</td><td>'+admEsc(x.name)+'</td>'
+      +'<td>'+admEsc(ROLE_LABEL[x.role]||x.role||"")+'</td>'
+      +'<td><b>'+admEsc(x.action)+'</b></td><td class="wrapcell">'+admEsc(x.detail)+'</td>'
+      +'<td>'+(x.count||"")+'</td></tr>').join("")
+    +'</tbody></table>';
+}
+async function lgLoad(){
+  if(!ME||ME.role!=="master") return;
+  $("#lgState").textContent="불러오는 중…";
+  try{
+    const db=await initFirebase();
+    const snap=await db.collection("accessLogs").orderBy("at","desc").limit(500).get();
+    LOGS=snap.docs.map(d=>{
+      const x=d.data()||{}; const t=x.at&&x.at.toDate?x.at.toDate():null;
+      return { when: t?t.toLocaleString("ko-KR"):"-", _t:t?t.getTime():0,
+               name:x.name||"", role:x.role||"", action:x.action||"", detail:x.detail||"", count:x.count||0 };
+    });
+    lgFilters(); lgRender();
+    $("#lgState").textContent="최근 "+LOGS.length+"건";
+  }catch(err){
+    console.error(err);
+    $("#lgState").textContent="불러오지 못했습니다. (규칙에 accessLogs 가 들어갔는지 확인해 주세요)";
+  }
+}
+$("#lgLoad").addEventListener("click", lgLoad);
+$("#lgWho").addEventListener("change", lgRender);
+$("#lgAct").addEventListener("change", lgRender);
+$("#lgDl").addEventListener("click", ()=>{
+  const rows=lgRows();
+  if(!rows.length){ alert("받을 기록이 없습니다."); return; }
+  downloadRows(rows.map(x=>({ "일시":x.when, "사용자":x.name, "역할":ROLE_LABEL[x.role]||x.role||"",
+    "항목":x.action, "내용":x.detail, "건수":x.count })), "아이닉_접근기록");
 });
 
 $("#admTpl").addEventListener("click", admTemplate);

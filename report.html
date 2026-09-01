@@ -2338,6 +2338,13 @@ function refreshAgentFilter(){
 
 /* ── 담당자 칸 — 화살표로 고르는 것도, 직접 타이핑도 되는 칸 ──
    상담사 명단만 보여줍니다. 명단에 없는 이름도 그냥 적으면 저장됩니다. */
+function comboCleanup(){
+  /* 표를 다시 그리면 주인 없는 목록이 남으므로 정리 */
+  Array.from(document.querySelectorAll(".cbox")).forEach(el=>{
+    if(!el._owner || !document.contains(el._owner)) el.remove();
+  });
+}
+
 function comboAttach(inp){
   if(!inp || inp._combo) return;
   inp._combo = 1;
@@ -2353,12 +2360,29 @@ function comboAttach(inp){
   btn.type = "button"; btn.textContent = "▾"; btn.tabIndex = -1;
   btn.style.cssText = "position:absolute;right:3px;top:50%;transform:translateY(-50%);border:none;"
     + "background:transparent;font-size:13px;color:#666;cursor:pointer;padding:2px 5px;line-height:1";
+  wrap.appendChild(btn);
 
+  /* 목록은 표 안에 두면 잘리므로 화면 맨 위 레이어(body)에 띄운다 */
   const list = document.createElement("div");
-  list.style.cssText = "display:none;position:absolute;left:0;top:100%;margin-top:3px;z-index:60;min-width:100%;"
-    + "background:#fff;border:1px solid #d6d9de;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.13);"
-    + "max-height:200px;overflow:auto;white-space:nowrap";
-  wrap.appendChild(btn); wrap.appendChild(list);
+  list.className = "cbox";
+  list._owner = inp;
+  list.style.cssText = "display:none;position:fixed;z-index:500;background:#fff;border:1px solid #d6d9de;"
+    + "border-radius:8px;box-shadow:0 8px 22px rgba(0,0,0,.16);max-height:220px;overflow:auto";
+  document.body.appendChild(list);
+
+  function place(){
+    const r = inp.getBoundingClientRect();
+    list.style.minWidth = Math.max(r.width, 170) + "px";
+    list.style.left = Math.min(r.left, window.innerWidth - 190) + "px";
+    const below = window.innerHeight - r.bottom;
+    if(below < 170 && r.top > below){
+      list.style.top = "auto";
+      list.style.bottom = (window.innerHeight - r.top + 4) + "px";
+    }else{
+      list.style.bottom = "auto";
+      list.style.top = (r.bottom + 4) + "px";
+    }
+  }
 
   function draw(){
     const q = String(inp.value||"").trim().toLowerCase();
@@ -2366,11 +2390,11 @@ function comboAttach(inp){
     list.innerHTML = AGENTS.length
       ? '<div class="cbi" data-v="">— 미지정 —</div>'
         + (items.length ? items.map(n=>'<div class="cbi" data-v="'+admEsc(n)+'">'+admEsc(n)+'</div>').join("")
-                        : '<div style="padding:8px 11px;color:#8a8f96;font-size:12.5px">그 이름의 상담사는 없습니다 (직접 입력됩니다)</div>')
-      : '<div style="padding:9px 11px;color:#8a8f96;font-size:12.5px;line-height:1.6;white-space:normal">'
+                        : '<div style="padding:8px 11px;color:#8a8f96;font-size:12.5px;white-space:nowrap">그 이름의 상담사는 없습니다 (직접 입력됩니다)</div>')
+      : '<div style="padding:9px 11px;color:#8a8f96;font-size:12.5px;line-height:1.6;max-width:230px">'
         + '등록된 <b>상담사</b>가 없습니다.<br>관리자 탭에서 역할을 <b>상담사</b>로 추가하시거나,<br>이름을 직접 입력하셔도 됩니다.</div>';
     list.querySelectorAll(".cbi").forEach(d=>{
-      d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:13px";
+      d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:13px;white-space:nowrap";
       d.addEventListener("mouseenter", ()=>d.style.background="#f4f5f7");
       d.addEventListener("mouseleave", ()=>d.style.background="");
       d.addEventListener("mousedown", e=>{
@@ -2381,12 +2405,18 @@ function comboAttach(inp){
       });
     });
   }
-  const show = ()=>{ draw(); list.style.display="block"; };
+  function show(){
+    Array.from(document.querySelectorAll(".cbox")).forEach(el=>{ if(el!==list) el.style.display="none"; });
+    draw(); list.style.display="block"; place();
+  }
   const hide = ()=>{ list.style.display="none"; };
+
   btn.addEventListener("click", ()=>{ if(list.style.display==="block") hide(); else { inp.focus(); show(); } });
   inp.addEventListener("focus", show);
-  inp.addEventListener("input", draw);
+  inp.addEventListener("input", ()=>{ draw(); place(); });
   inp.addEventListener("blur", ()=>setTimeout(hide, 150));
+  window.addEventListener("scroll", hide, true);
+  window.addEventListener("resize", hide);
   document.addEventListener("click", e=>{ if(!wrap.contains(e.target)) hide(); });
 }
 
@@ -2415,6 +2445,7 @@ function badSelSync(){
 }
 
 function badBindChecks(){
+  comboCleanup();
   /* 목록에서 바로 담당자 지정 */
   $$("#tableBad .bagent").forEach(inp=>{
     comboAttach(inp);

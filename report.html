@@ -149,6 +149,7 @@
 
 <!-- 로그인 덮개 — 로그인 전에는 아무것도 보이지 않습니다 -->
 <div id="authGate"><div id="agBody"></div></div>
+<datalist id="agentNames"></datalist>
 
 <div class="wrap" id="mainWrap" style="visibility:hidden">
   <header>
@@ -239,7 +240,7 @@
     </div>
     <div class="filters" id="bAssignBar" style="display:none;background:#fff7e6;border:1px solid #f0e0c0;border-radius:9px;padding:9px 11px">
       <b id="bSelCount" style="font-size:12.5px"></b>
-      <select id="bAssignTo"><option value="">— 담당자 선택 —</option></select>
+      <input id="bAssignTo" list="agentNames" placeholder="상담사 이름 (고르거나 입력)" autocomplete="off" style="min-width:200px">
       <button id="bAssignGo" class="sm primary">선택한 건 배정</button>
       <button id="bAssignClear" class="sm">선택 해제</button>
       <span id="bAssignState" style="font-size:12.5px;font-weight:700"></span>
@@ -441,8 +442,9 @@
         <!-- 부적합(아웃콜) 전용 : 응대 기록 + 출고 승인 -->
         <div id="dtCallBox">
           <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
-          <label style="font-size:12px;font-weight:800;color:var(--sub);display:block">담당자</label>
-          <select id="dtAgent" style="padding:8px;width:100%;margin-top:4px"></select>
+          <label style="font-size:12px;font-weight:800;color:var(--sub);display:block">담당자 <span style="font-weight:600">(고르거나 직접 입력)</span></label>
+          <input id="dtAgent" list="agentNames" placeholder="상담사 이름" autocomplete="off"
+                 style="padding:8px;width:100%;margin-top:4px;box-sizing:border-box">
           <label style="font-size:12px;font-weight:800;color:var(--sub);display:block;margin-top:8px">응대상태</label>
           <select id="dtStatus" style="padding:8px;width:100%;margin-top:4px"></select>
           <label style="font-size:12px;font-weight:800;color:var(--sub);display:block;margin-top:8px">처리상태 <span style="color:#c1121f">*</span></label>
@@ -1194,11 +1196,15 @@ function renderReserve(){
 
 /* 부적합 아웃콜(응대) */
 /* badReasonType 은 REASON_RULES 기준으로 위에서 정의됨 (기준 이중화 방지) */
+/* 부적합 목록에 아직 남아 있는 건 = 아직 처리가 안 끝난 건.
+   출고 승인을 누르면 목록에서 빠지므로 담당자별 숫자가 자동으로 줄어든다. */
+function badBase(){
+  return ALL.filter(e=>shipStatus(e)==="ineligible" && !e.overrideEligible);
+}
 function badRows(){
   const rw=$("#bfReward").value, rs=$("#bfReason").value, q=$("#bfSearch").value;
   const ag=($("#bfAgent")&&$("#bfAgent").value)||"", sort=($("#bfSort")&&$("#bfSort").value)||"date";
-  const out=ALL.filter(e=>{
-    if(shipStatus(e)!=="ineligible"||e.overrideEligible)return false;
+  const out=badBase().filter(e=>{
     if(rw&&e.rewardType!==rw)return false;
     if(rs&&badReasonType(e)!==rs)return false;
     if(ag==="__none__" && e.agent)return false;
@@ -1237,6 +1243,7 @@ const BAD_COLS=[
   ["응대상태",e=>callBadge(e)],["처리상태",e=>e.callResult||"-","wrapcell"],
   ["출고승인",e=>`<button class="sm primary" onclick="event.stopPropagation();setOverride('${e._id}',true)">출고 승인</button>`]];
 function renderBad(){
+  refreshAgentFilter();
   const all=badRows(),rows=slice(all,"bad");
   $("#bCount").textContent="총 "+all.length+"건";
   $("#tableBad thead").innerHTML="<tr>"+BAD_COLS.map(c=>`<th>${c[0]}</th>`).join("")+"</tr>";
@@ -1315,7 +1322,7 @@ function openDetail(id){
   if(e.imageUrl){img.src=e.imageUrl;img.style.display="";$("#dtNoImg").style.display="none";
     $("#dtImgOpen").href=e.imageUrl;$("#dtImgOpen").style.display="";}
   else{img.style.display="none";img.src="";$("#dtNoImg").style.display="";$("#dtImgOpen").style.display="none";}
-  fillAgentSelect($("#dtAgent"), e.agentUid||"");
+  $("#dtAgent").value = e.agent || "";
   $("#dtStatus").innerHTML=CALL_STATES.map(o=>`<option value="${o}" ${o===(e.callStatus||"")?"selected":""}>${o||"— 응대상태 선택 —"}</option>`).join("");
   $("#dtResult").innerHTML=CALL_RESULTS.map(o=>`<option value="${o}" ${o===(e.callResult||"")?"selected":""}>${o||"— 처리상태 선택 —"}</option>`).join("");
   syncApproveBtn();
@@ -2294,28 +2301,41 @@ async function admReadFile(f){
    담당자 배정 — 부적합(아웃콜) · 수기접수
    상담사 명단은 로그인 창구(adminApi)에서 받아옵니다.
    ══════════════════════════════════════════════════════════════════════ */
-let STAFF = [], badSel = new Set();
+let STAFF = [], AGENTS = [], badSel = new Set();
 
+/* 담당자 배정 대상은 **상담사만** 입니다. */
 async function loadStaff(){
   const r = await admApi({action:"staff"}, true);
-  STAFF = (r && r.ok && r.list) ? r.list : [];
-  const bf=$("#bfAgent");
-  if(bf){
-    const cur=bf.value;
-    bf.innerHTML='<option value="">담당자 전체</option><option value="__none__">미지정</option>'
-      + STAFF.map(x=>'<option value="'+admEsc(x.name)+'">'+admEsc(x.name)+'</option>').join("");
-    bf.value=cur;
-  }
-  const at=$("#bAssignTo");
-  if(at) at.innerHTML='<option value="">— 담당자 선택 —</option>'
-      + STAFF.map(x=>'<option value="'+x.uid+'">'+admEsc(x.name)+' ('+admEsc(x.roleLabel)+')</option>').join("");
+  STAFF  = (r && r.ok && r.list) ? r.list : [];
+  AGENTS = STAFF.filter(x=>x.role==="agent");
+  const dl=$("#agentNames");
+  if(dl) dl.innerHTML = AGENTS.map(x=>'<option value="'+admEsc(x.name)+'">').join("");
+  refreshAgentFilter();
 }
 
-function fillAgentSelect(sel, curUid){
-  if(!sel) return;
-  sel.innerHTML='<option value="">— 미지정 —</option>'
-    + STAFF.map(x=>'<option value="'+x.uid+'"'+(x.uid===curUid?' selected':'')+'>'
-        + admEsc(x.name)+' ('+admEsc(x.roleLabel)+')</option>').join("");
+/* 담당자 필터 — 이름 옆에 아직 남아 있는 건수를 함께 보여준다 */
+function refreshAgentFilter(){
+  const sel=$("#bfAgent"); if(!sel) return;
+  const cur=sel.value;
+  const base=badBase();
+  const cnt={}; let none=0;
+  base.forEach(e=>{
+    const a=String(e.agent||"").trim();
+    if(!a) none++; else cnt[a]=(cnt[a]||0)+1;
+  });
+  const names=[...new Set([...AGENTS.map(x=>x.name), ...Object.keys(cnt)])]
+    .filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  sel.innerHTML='<option value="">담당자 전체 ('+base.length+')</option>'
+    +'<option value="__none__">미지정 ('+none+')</option>'
+    + names.map(n=>'<option value="'+admEsc(n)+'">'+admEsc(n)+' ('+(cnt[n]||0)+')</option>').join("");
+  sel.value=cur;
+  if(sel.value!==cur) sel.value="";      // 없어진 이름이면 전체로
+}
+
+/* 입력한 이름이 상담사 명단에 있으면 그 사람의 계정도 같이 기록 */
+function agentUidOf(name){
+  const hit=AGENTS.find(x=>x.name===String(name||"").trim());
+  return hit?hit.uid:"";
 }
 
 /* 응대기록(callAt)을 건드리지 않고 값만 저장 */
@@ -2362,21 +2382,20 @@ function badBindChecks(){
 }
 
 async function badAssign(){
-  const uid=$("#bAssignTo").value;
-  if(!uid){ $("#bAssignState").textContent="담당자를 골라 주세요."; badSelSync(); return; }
-  const st=STAFF.find(x=>x.uid===uid);
+  const name=String($("#bAssignTo").value||"").trim();
+  if(!name){ $("#bAssignState").textContent="담당자 이름을 고르거나 입력해 주세요."; badSelSync(); return; }
   const ids=[...badSel];
   if(!ids.length) return;
   $("#bAssignGo").disabled=true; $("#bAssignState").textContent="배정 중…"; badSelSync();
   let done=0;
   for(const id of ids){
-    const ok=await saveEntryFields(id,{agent:st?st.name:"", agentUid:uid});
+    const ok=await saveEntryFields(id,{agent:name, agentUid:agentUidOf(name)});
     if(ok) done++;
   }
   badSel.clear();
   $("#bAssignGo").disabled=false;
   renderBad();
-  $("#bAssignState").textContent="✔ "+done+"건을 "+(st?st.name:"")+" 님에게 배정했습니다.";
+  $("#bAssignState").textContent="✔ "+done+"건을 "+name+" 님에게 배정했습니다.";
   badSelSync();
 }
 
@@ -2388,8 +2407,8 @@ $("#bfAgent").addEventListener("change", reset("bad",renderBad));
 $("#bfSort").addEventListener("change", reset("bad",renderBad));
 $("#dtAgent").addEventListener("change", async ()=>{
   if(!detailId) return;
-  const uid=$("#dtAgent").value, st=STAFF.find(x=>x.uid===uid);
-  await saveEntryFields(detailId,{agent:st?st.name:"", agentUid:uid});
+  const name=String($("#dtAgent").value||"").trim();
+  await saveEntryFields(detailId,{agent:name, agentUid:agentUidOf(name)});
   renderBad();
 });
 

@@ -336,7 +336,7 @@
     </div>
   </section>
 
-  <!-- 관리자 — 리포트 사용자 관리 (관리자 등급만 보임) -->
+  <!-- 관리자 — 리포트 사용자 관리 (관리자 역할만 보임) -->
   <section class="page" id="page-admin">
     <div class="panel">
       <h3>사용자 추가</h3>
@@ -344,7 +344,9 @@
         <input id="admName" placeholder="이름" style="max-width:150px">
         <input id="admEmail" type="email" placeholder="이메일" style="max-width:260px">
         <select id="admRole">
-          <option value="staff">일반</option>
+          <option value="agent">상담사</option>
+          <option value="order">발주담당자</option>
+          <option value="acct">회계담당자</option>
           <option value="master">관리자</option>
         </select>
         <button id="admAdd" class="sm primary">추가</button>
@@ -352,10 +354,26 @@
       <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-top:4px">
         추가하면 <b>임시 비밀번호</b>가 화면에 나옵니다. 그걸 본인에게 알려주시면,
         본인이 처음 로그인할 때 비밀번호를 새로 정하게 됩니다.<br>
-        <b>관리자</b>는 사람을 추가·삭제할 수 있고 밤에도 들어올 수 있습니다.
-        <b>일반</b>은 오전 9시~밤 10시에만 들어올 수 있습니다.
+        네 역할 모두 <b>같은 화면</b>을 봅니다. <b>관리자</b>만 사람을 추가·삭제할 수 있고
+        밤에도 들어올 수 있습니다. 나머지는 오전 9시~밤 10시에만 들어올 수 있습니다.
       </div>
       <div id="admNew"></div>
+    </div>
+
+    <div class="panel">
+      <h3>여러 명 한 번에 추가</h3>
+      <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:7px">
+        한 줄에 한 명씩 <b>이름, 이메일, 역할</b> 순으로 넣어 주세요.
+        역할을 빼면 <b>상담사</b>가 됩니다. 엑셀에서 복사해 붙여넣어도 됩니다.<br>
+        <span style="font-family:monospace;background:#f4f5f7;padding:2px 6px;border-radius:5px">강문정, answjddl@i-nic.kr, 발주담당자</span>
+      </div>
+      <textarea id="admBulk" rows="6" placeholder="강문정, answjddl@i-nic.kr, 발주담당자&#10;홍길동, hong@i-nic.kr, 상담사"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d6d9de;border-radius:9px;font-size:13.5px;line-height:1.7;font-family:inherit"></textarea>
+      <div class="filters" style="margin-top:8px">
+        <button id="admBulkGo" class="sm primary">일괄 추가</button>
+        <span id="admBulkState" style="font-size:12.5px;font-weight:800"></span>
+      </div>
+      <div id="admBulkOut"></div>
     </div>
 
     <div class="panel">
@@ -1767,9 +1785,15 @@ window.__render=(data,cfg)=>{ALL=data.map(x=>({...x,_date:x._date?new Date(x._da
    창고(Firebase) 열쇠는 서버(adminApi)가 두 가지를 확인한 뒤에만 내줍니다.
      ① 비밀번호가 맞는가        ② 그 이메일의 주인이 맞는가(메일 링크 확인)
    브라우저에서 비밀번호만으로 만든 로그인에는 도장이 없어 창고가 안 열립니다.
+
+   ⚠️ 비밀번호 변경도 반드시 창구를 거칩니다.
+      브라우저에서 직접 바꾸면 그 순간 열쇠가 새로 발급되면서
+      도장(mfa)이 떨어져 나가 그 뒤 아무것도 못 하게 됩니다.
    ═══════════════════════════════════════════════════════════════════════ */
 
 const ADMIN_API = "https://asia-northeast3-inic-event.cloudfunctions.net/adminApi";
+const ROLE_LABEL = { master:"관리자", order:"발주담당자", acct:"회계담당자", agent:"상담사" };
+const ROLE_KEYS  = ["master","order","acct","agent"];
 let ME = null, nightTimer = null, claimTimer = null;
 
 async function admApi(payload, withKey){
@@ -1777,13 +1801,19 @@ async function admApi(payload, withKey){
   if(withKey){
     const u = firebase.auth().currentUser;
     if(!u) return {ok:false, reason:"auth"};
-    h.Authorization = "Bearer " + (await u.getIdToken());
+    try{ h.Authorization = "Bearer " + (await u.getIdToken()); }
+    catch(e){ return {ok:false, reason:"auth"}; }
   }
   let r;
   try{ r = await fetch(ADMIN_API,{method:"POST",headers:h,body:JSON.stringify(payload)}); }
   catch(e){ return {ok:false, reason:"network"}; }
   let j=null; try{ j = await r.json(); }catch(_){}
-  return j || {ok:false, reason:"server"};
+  j = j || {ok:false, reason:"server"};
+  /* 열쇠가 만료됐거나 도장이 없으면 조용히 실패하지 말고 다시 로그인시킨다 */
+  if(withKey && ME && j.reason === "auth"){
+    doLogout("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+  }
+  return j;
 }
 
 function deviceId(){
@@ -1806,8 +1836,13 @@ const AGMSG = {
   link     : "메일 링크가 올바르지 않습니다. 처음부터 다시 로그인해 주세요.",
   origin   : "이 주소에서는 로그인할 수 없습니다.",
   network  : "네트워크 연결을 확인해 주세요.",
-  auth     : "로그인이 필요합니다.",
+  auth     : "로그인이 만료되었습니다. 다시 로그인해 주세요.",
   forbidden: "관리자만 할 수 있습니다.",
+  weak     : "비밀번호는 8자 이상이어야 합니다.",
+  duplicate: "이미 등록된 이메일입니다.",
+  email    : "이메일 형식을 확인해 주세요.",
+  name     : "이름을 입력해 주세요.",
+  lastmaster:"관리자가 한 명은 있어야 합니다.",
   server   : "일시적인 오류입니다. 잠시 후 다시 시도해 주세요."
 };
 const agMsg = r => AGMSG[r] || AGMSG.server;
@@ -1911,12 +1946,12 @@ async function enterWithKey(key, me){
   clearInterval(claimTimer);
   try{ await firebase.auth().signInWithCustomToken(key); }
   catch(e){ showLogin("로그인 처리에 실패했습니다. 다시 시도해 주세요."); return; }
-  ME = me || {name:"", role:"staff"};
+  ME = me || {name:"", role:"agent"};
   if(ME.mustChangePassword) return showChangePw(true);
   finishEnter();
 }
 
-/* ── 첫 로그인 비밀번호 변경 (임시 비밀번호는 한 번만) ── */
+/* ── 비밀번호 변경 — 창구를 거쳐서 새 열쇠까지 받아온다 ── */
 function showChangePw(force){
   gateHtml('<div class="ac">'
     +'<h2>'+(force?"비밀번호를 새로 정해 주세요":"비밀번호 변경")+'</h2>'
@@ -1933,17 +1968,15 @@ function showChangePw(force){
     if(a.length<8){ agErr("8자 이상으로 정해 주세요."); return; }
     if(a!==b){ agErr("두 칸의 비밀번호가 서로 다릅니다."); return; }
     $("#npGo").disabled=true; agErr("변경 중…");
-    try{ await firebase.auth().currentUser.updatePassword(a); }
-    catch(e){
-      $("#npGo").disabled=false;
-      agErr(/requires-recent-login/.test(e.code||"")
-        ? "보안을 위해 다시 로그인한 뒤 변경해 주세요."
-        : "변경하지 못했습니다. " + (e.code||e.message||""));
-      return;
-    }
-    await admApi({action:"passwordChanged"}, true);
-    if(ME) ME.mustChangePassword=false;
-    if(force) finishEnter(); else $("#authGate").style.display="none";
+
+    const r = await admApi({action:"changePassword", newPassword:a}, true);
+    if(!r.ok || !r.key){ $("#npGo").disabled=false; agErr(agMsg(r.reason)); return; }
+    /* 새 열쇠로 다시 로그인해야 도장이 유지된다 */
+    try{ await firebase.auth().signInWithCustomToken(r.key); }
+    catch(e){ agErr("변경은 됐지만 다시 로그인이 필요합니다."); setTimeout(()=>doLogout(),1200); return; }
+    ME = r.me || ME; ME.mustChangePassword=false;
+    if(force) finishEnter();
+    else { $("#authGate").style.display="none"; alert("비밀번호를 변경했습니다."); }
   });
 }
 
@@ -1952,7 +1985,7 @@ function finishEnter(){
   history.replaceState(null,"",location.pathname);      // 주소창에서 메일 링크 흔적 지우기
   $("#authGate").style.display="none";
   $("#mainWrap").style.visibility="visible";
-  $("#whoami").textContent = (ME.name||"") + " · " + (ME.role==="master"?"관리자":"일반");
+  $("#whoami").textContent = (ME.name||"") + " · " + (ROLE_LABEL[ME.role]||"상담사");
   $("#whoBox").style.display="";
   if(ME.role==="master") $("#tabAdmin").style.display="";
   scheduleNightLogout();
@@ -1984,6 +2017,12 @@ async function doLogout(msg){
 
 /* ══════════ 관리자 탭 ══════════ */
 
+function roleSelectHtml(uid, cur){
+  return '<select class="sm" data-a="role" data-u="'+uid+'">'
+    + ROLE_KEYS.map(k=>'<option value="'+k+'"'+(k===cur?' selected':'')+'>'+ROLE_LABEL[k]+'</option>').join("")
+    + '</select>';
+}
+
 async function admRender(){
   if(!ME || ME.role!=="master") return;
   const box=$("#admList");
@@ -1991,7 +2030,7 @@ async function admRender(){
   const r = await admApi({action:"list"}, true);
   if(!r.ok){ box.innerHTML='<div class="empty">'+admEsc(agMsg(r.reason))+'</div>'; return; }
   box.innerHTML='<table class="data"><thead><tr>'
-    +'<th>이름</th><th>이메일</th><th>등급</th><th>상태</th><th>마지막 접속</th><th>관리</th>'
+    +'<th>이름</th><th>이메일</th><th>역할</th><th>상태</th><th>마지막 접속</th><th>관리</th>'
     +'</tr></thead><tbody>'
     + r.list.map(u=>{
         const state = !u.active ? '<span style="color:#c1121f;font-weight:700">중지</span>'
@@ -2000,18 +2039,19 @@ async function admRender(){
         const me = u.uid===ME.uid;
         return '<tr><td>'+admEsc(u.name)+(me?' <span class="dim">(나)</span>':'')+'</td>'
           +'<td>'+admEsc(u.email)+'</td>'
-          +'<td>'+(u.role==="master"?'<b>관리자</b>':'일반')+'</td>'
+          +'<td>'+(me?'<b>'+admEsc(ROLE_LABEL[u.role]||"")+'</b>':roleSelectHtml(u.uid,u.role))+'</td>'
           +'<td>'+state+'</td>'
           +'<td>'+(u.lastLoginAt?new Date(u.lastLoginAt).toLocaleString("ko-KR"):"-")+'</td>'
           +'<td style="white-space:nowrap">'
           +'<button class="sm" data-a="pw" data-u="'+u.uid+'" data-n="'+admEsc(u.name)+'">비번 재발급</button> '
-          +(me?'':'<button class="sm" data-a="role" data-u="'+u.uid+'" data-v="'+(u.role==="master"?"staff":"master")+'">'+(u.role==="master"?"일반으로":"관리자로")+'</button> ')
           +(me?'':'<button class="sm" data-a="act" data-u="'+u.uid+'" data-v="'+(u.active?"0":"1")+'">'+(u.active?"중지":"사용")+'</button> ')
           +(me?'':'<button class="sm" data-a="del" data-u="'+u.uid+'" data-n="'+admEsc(u.name)+'">삭제</button>')
           +'</td></tr>';
       }).join("")
     +'</tbody></table>';
   box.querySelectorAll("button[data-a]").forEach(b=>b.addEventListener("click",()=>admAct(b.dataset)));
+  box.querySelectorAll("select[data-a]").forEach(sel=>sel.addEventListener("change",()=>
+    admAct({a:"role", u:sel.dataset.u, v:sel.value})));
 }
 
 function admNotice(html, tone){
@@ -2042,14 +2082,65 @@ async function admAdd(){
   $("#admAdd").disabled=true;
   const r = await admApi({action:"create", name, email, role}, true);
   $("#admAdd").disabled=false;
-  if(!r.ok){
-    admNotice(r.reason==="duplicate" ? "이미 등록된 이메일입니다."
-            : r.reason==="email" ? "이메일 형식을 확인해 주세요."
-            : agMsg(r.reason), "bad");
-    return;
-  }
+  if(!r.ok){ admNotice(agMsg(r.reason),"bad"); return; }
   $("#admName").value=""; $("#admEmail").value="";
   admShowPassword(name, email, r.tempPassword);
+  admRender();
+}
+
+/* ── 여러 명 한 번에 ──
+   한 줄에 "이름, 이메일, 역할". 역할은 비워두면 상담사. */
+function parseBulk(text){
+  const out=[];
+  String(text||"").split(/\r?\n/).forEach(line=>{
+    const t=line.trim(); if(!t) return;
+    const parts=t.split(/[,\t]+|\s{2,}|\s+/).map(x=>x.trim()).filter(Boolean);
+    const email=(parts.find(x=>x.indexOf("@")>0)||"").toLowerCase();
+    if(!email) return;
+    let role="agent";
+    const rest=[];
+    parts.forEach(x=>{
+      if(x.toLowerCase()===email) return;
+      const k=ROLE_KEYS.find(k=>ROLE_LABEL[k]===x || k===x);
+      if(k) role=k; else rest.push(x);
+    });
+    const name=rest.join(" ").trim() || email.split("@")[0];
+    out.push({name,email,role});
+  });
+  return out;
+}
+
+async function admBulkGo(){
+  const rows=parseBulk($("#admBulk").value);
+  if(!rows.length){ $("#admBulkOut").innerHTML='<div class="empty">읽을 수 있는 줄이 없습니다. 이메일이 들어 있는지 확인해 주세요.</div>'; return; }
+  $("#admBulkGo").disabled=true;
+  const done=[];
+  for(let i=0;i<rows.length;i++){
+    $("#admBulkState").textContent=`처리 중… ${i+1}/${rows.length}`;
+    const r=await admApi({action:"create", ...rows[i]}, true);
+    done.push({...rows[i], ok:!!r.ok, pw:r.tempPassword||"", why:r.ok?"":agMsg(r.reason)});
+  }
+  $("#admBulkGo").disabled=false;
+  $("#admBulkState").textContent=`완료 — 성공 ${done.filter(d=>d.ok).length} · 실패 ${done.filter(d=>!d.ok).length}`;
+
+  $("#admBulkOut").innerHTML=
+    '<div style="margin:10px 0;padding:12px 14px;background:#eef6ee;border:1px solid #cfe3cf;border-radius:10px">'
+    +'<b>임시 비밀번호는 이 화면을 벗어나면 다시 볼 수 없습니다.</b> 각자에게 전달해 주세요.<br>'
+    +'<button class="sm" id="admBulkCopy" style="margin-top:8px">전체 복사</button></div>'
+    +'<table class="data"><thead><tr><th>이름</th><th>이메일</th><th>역할</th><th>임시 비밀번호</th><th>결과</th></tr></thead><tbody>'
+    +done.map(d=>'<tr><td>'+admEsc(d.name)+'</td><td>'+admEsc(d.email)+'</td>'
+      +'<td>'+admEsc(ROLE_LABEL[d.role])+'</td>'
+      +'<td style="font-family:monospace;font-weight:800">'+admEsc(d.pw||"-")+'</td>'
+      +'<td>'+(d.ok?'<span style="color:#2c6b3c;font-weight:700">추가됨</span>'
+                   :'<span style="color:#c1121f;font-weight:700">'+admEsc(d.why)+'</span>')+'</td></tr>').join("")
+    +'</tbody></table>';
+
+  const text=done.filter(d=>d.ok)
+    .map(d=>`${d.name}\t${d.email}\t${ROLE_LABEL[d.role]}\t${d.pw}`).join("\n");
+  const c=$("#admBulkCopy");
+  if(c) c.addEventListener("click",()=>{
+    navigator.clipboard.writeText(text).then(()=>{c.textContent="복사됨";},()=>{c.textContent="복사 실패";});
+  });
   admRender();
 }
 
@@ -2062,8 +2153,8 @@ async function admAct(d){
   }
   else if(d.a==="role"){
     const r=await admApi({action:"setRole", uid, role:d.v}, true);
-    if(!r.ok) admNotice(r.reason==="lastmaster"?"관리자가 한 명은 있어야 합니다.":agMsg(r.reason),"bad");
-    else admNotice("등급을 바꿨습니다. 본인은 다음 로그인부터 적용됩니다.");
+    if(!r.ok) admNotice(agMsg(r.reason),"bad");
+    else admNotice("역할을 <b>"+admEsc(ROLE_LABEL[d.v]||"")+"</b> 로 바꿨습니다. 본인은 다음 로그인부터 적용됩니다.");
   }
   else if(d.a==="act"){
     const r=await admApi({action:"setActive", uid, active:d.v==="1"}, true);
@@ -2073,7 +2164,7 @@ async function admAct(d){
   else if(d.a==="del"){
     if(!confirm((d.n||"")+" 님을 삭제합니다.\n되돌릴 수 없습니다. 계속할까요?")) return;
     const r=await admApi({action:"remove", uid}, true);
-    if(!r.ok) admNotice(r.reason==="lastmaster"?"관리자가 한 명은 있어야 합니다.":agMsg(r.reason),"bad");
+    if(!r.ok) admNotice(agMsg(r.reason),"bad");
     else admNotice("삭제했습니다.");
   }
   admRender();
@@ -2081,6 +2172,7 @@ async function admAct(d){
 
 $("#admAdd").addEventListener("click", admAdd);
 $("#admEmail").addEventListener("keydown", e=>{ if(e.key==="Enter") admAdd(); });
+$("#admBulkGo").addEventListener("click", admBulkGo);
 $("#tabAdmin").addEventListener("click", admRender);
 $("#btnLogout").addEventListener("click", ()=>{ if(confirm("로그아웃할까요?")) doLogout(); });
 $("#btnChangePw").addEventListener("click", ()=>showChangePw(false));

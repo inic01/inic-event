@@ -391,6 +391,23 @@ const DEMO_MODE=false;
 const FIREBASE_CONFIG={apiKey:"AIzaSyDEp7NfsOHEHwsqW4r0NNRtJ2x4S7yrwjE",authDomain:"inic-event.firebaseapp.com",projectId:"inic-event",
   storageBucket:"inic-event.firebasestorage.app",messagingSenderId:"873742787714",appId:"1:873742787714:web:d66ab14b9d4d8ed5e4409b"};
 const COLLECTION="reviewEntries", STORAGE_DIR="review_captures";
+
+/* ══════════ 창구(Cloud Function) ══════════
+   고객 브라우저는 이제 Firebase 창고를 직접 열지 않는다.
+   구매내역 조회 · 참여 조회 · 중복확인+접수저장을 이 창구가 대신 한다.
+   사진 업로드만 브라우저에서 직접 올린다(올리기만 가능, 읽기는 잠겨 있음). */
+const EVENT_API="https://asia-northeast3-inic-event.cloudfunctions.net/eventApi";
+async function eventApi(payload){
+  const r=await fetch(EVENT_API,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload)
+  });
+  if(r.status===429) return {ok:false,reason:"rate"};
+  let j=null; try{ j=await r.json(); }catch(_){}
+  if(!r.ok) return j||{ok:false,reason:"server"};
+  return j||{ok:false,reason:"server"};
+}
 /* 아이닉 카카오톡 채널 — 중복 접수 시 접수한 카테고리에 맞는 채널로 안내 */
 const KAKAO_CHANNELS={
   "생활가전":"http://pf.kakao.com/_PQANG",
@@ -545,7 +562,7 @@ const COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 �
 
 const state={type:null,category:"주방가전",product:null,file:null,serialPrefix:"",
   vTab:"ord",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
-  invNo:"",ordNo:"",autoName:"",autoPhone:"",
+  invNo:"",ordNo:"",autoName:"",autoPhone:"",token:"",
   consent:{},esurvey:{},esurveyInit:false,survey:{},surveyFor:null,giftChoice:null,source:null};
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 /* 오류 안내 : 빨간 문구 + 해당 입력칸에 빨간 테두리까지 표시한다.
@@ -1123,7 +1140,7 @@ function clearLookup(){
   state.invOk=false; state.rows=[]; state.qtyByCode={}; state.prodCodes=[];
   state.usedByCode={}; state.usedQty=0;
   state.buyQty=1; state.qtyMode=null; state.product=null; state.surveyFor=null; state.infoFor=null;
-  state.invNo=""; state.ordNo=""; state.autoName=""; state.autoPhone="";
+  state.invNo=""; state.ordNo=""; state.autoName=""; state.autoPhone=""; state.token="";
 }
 function ivNotice(html){ $("#invResult").innerHTML='<div class="notice" style="margin:0;line-height:1.65">'+html+'</div>'; }
 /* 조회가 안 될 때 다른 방법으로 바로 넘어가는 버튼 */
@@ -1146,51 +1163,54 @@ function dedupRows(rows){
   return out;
 }
 
-/* 이미 접수한 제품·수량을 미리 확인한다.
-   조회 단계에서 걸러줘야 고객이 중복인 줄 모르고 리뷰까지 올린 뒤 마지막에 막히는 일이 없다.
-   원장 연락처와 고객이 입력한 연락처가 다를 수 있어 둘 다 본다. */
-async function loadUsedByCode(codes,phones){
-  const keys=[...new Set(phones.map(p=>phoneDigits(p)).filter(p=>p.length>=10))];
-  const used={};
-  if(!keys.length) return used;
-  try{
-    for(const c of codes){
-      let mx=0;
-      for(const k of keys){
-        const q=await db.collection(COLLECTION).where("kPhone","==",c+"|"+k).get();
-        let sum=0; q.docs.forEach(d=>{ sum+=Math.max(1,(d.data().giftQty)||1); });
-        if(sum>mx) mx=sum;
-      }
-      if(mx) used[c]=mx;
-    }
-  }catch(err){ console.warn("참여 이력 조회 실패",err); }   // 조회 실패해도 접수는 막지 않는다
-  return used;
-}
-
+/* 구매 내역 조회 — 창구(eventApi)에 물어본다.
+   예전에는 이 자리에서 브라우저가 Firebase 창고를 직접 열었다.
+   창고는 누가 묻는지 구분을 못 해서 문을 열어둘 수밖에 없었고,
+   그래서 송장번호만 찍으면 이름·전화번호가 계속 나왔다.
+   이제는 창구가 대신 열고 가려진 정보만 돌려준다.
+   고객이 보는 화면과 절차는 하나도 바뀌지 않는다. */
 async function lookupPurchase(){
   const tab=state.vTab||"ord", btn=$("#invBtn");
   clearLookup();
-  let docId="", typed={};
+  const payload={action:"lookupOrder",tab}; let typed={};
   if(tab==="np"){
     const nm=$("#vName").value.trim(), ph=$("#vPhone").value.trim();
     if(!nm||phoneDigits(ph).length<10){ ivNotice('<b style="color:#c1121f">성함과 연락처를 모두 정확히 입력해 주세요.</b><br>두 가지가 모두 일치해야 조회됩니다.'); return; }
-    typed={name:nm,phone:ph};
-    try{ docId=await npDocIdOf(nm,ph); }
-    catch(_){ ivNotice('<b style="color:#c1121f">이 브라우저에서는 성함+연락처 조회가 되지 않습니다.</b><br>주문번호 또는 송장번호 탭으로 확인해 주세요.'); return; }
+    typed={name:nm,phone:ph}; payload.name=nm; payload.phone=ph;
   } else if(tab==="ord"){
     const v=normInv($("#vOrd").value);
     if(v.length<4){ ivNotice('<b style="color:#c1121f">주문번호를 정확히 입력해 주세요.</b>'); return; }
-    docId="O_"+v; state.ordNo=v;
+    payload.orderNo=v; state.ordNo=v;
   } else {
     const v=normInv($("#vInv").value);
     if(v.length<8){ ivNotice('<b style="color:#c1121f">송장번호를 정확히 입력해 주세요.</b>'); return; }
-    docId="I_"+v; state.invNo=v;
+    payload.invNo=v; state.invNo=v;
   }
   btn.disabled=true; $("#invResult").innerHTML='<div class="notice" style="margin:0">조회 중…</div>';
   try{
-    await initFirebase();
-    const doc=await db.collection("orders").doc(docId).get();
-    if(!doc.exists){
+    const res=await eventApi(payload);
+
+    if(!res||!res.ok){
+      const why=(res&&res.reason)||"server";
+      if(why==="rate"){
+        ivNotice('<b style="color:#c1121f">조회를 너무 여러 번 시도하셨습니다.</b><br>잠시 후 다시 시도해 주세요.'+ivKakao());
+        return;
+      }
+      if(why==="notarget"){
+        const sk=(res.skipped||[]);
+        ivNotice('<b style="color:#c1121f">이벤트 대상 제품이 아닙니다.</b><br>'
+          +(sk.length?`구매하신 제품 : ${sk.join(", ")}<br>`:"")
+          +'자세한 내용은 상담사에게 문의해 주세요.'+ivKakao());
+        return;
+      }
+      if(why==="empty"){
+        ivNotice('<b style="color:#c1121f">주문 정보를 읽지 못했습니다.</b> 상담사에게 문의해 주세요.'+ivKakao());
+        return;
+      }
+      if(why==="server"){
+        $("#invResult").innerHTML='<div class="notice" style="margin:0;color:#c1121f">조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';
+        return;
+      }
       const how = tab==="np"
         ? '구매하신 사이트에 따라 연락처가 <b>안심번호</b>로 등록돼 있거나, 개인정보 보호로 성함이 <b>홍*동</b>처럼 가려진 채 전달되어 조회되지 않을 수 있습니다.<br>'
           +'<b style="color:#c1121f">이런 경우에는 주문번호나 송장번호로 조회해 주세요.</b>'
@@ -1201,33 +1221,15 @@ async function lookupPurchase(){
         +'<div style="margin-top:10px">계속 안 되시면 아래로 문의해 주세요.'+ivKakao()+'</div>');
       return;
     }
-    const rows=dedupRows(doc.data().rows);
-    if(!rows.length){ ivNotice('<b style="color:#c1121f">주문 정보를 읽지 못했습니다.</b> 상담사에게 문의해 주세요.'+ivKakao()); return; }
 
-    // 제품·수량 집계 — 코드가 확정된 행은 그 코드로, 후보가 둘인 행(음식물처리기)은 후보 모두에 얹는다
-    const qtyByCode={}, groups=[], gidx={}; let skipped=[];
-    rows.forEach(r=>{
-      const q=Math.max(1,parseInt(r.qty,10)||1);
-      const cds = r.code ? [r.code] : (Array.isArray(r.pick)?r.pick:[]);
-      if(!cds.length){ if(r.prodRaw) skipped.push(r.prodRaw); return; }
-      cds.forEach(c=>{ qtyByCode[c]=(qtyByCode[c]||0)+q; });
-      const label=(r.code?(prodNameOf(r.code)||r.prodRaw):r.prodRaw)||"-";
-      if(gidx[label]==null){ gidx[label]=groups.length; groups.push({label,qty:0,codes:[]}); }
-      const g=groups[gidx[label]]; g.qty+=q;
-      cds.forEach(c=>{ if(!g.codes.includes(c)) g.codes.push(c); });
-    });
+    /* 창구가 돌려준 값 — 제품·수량과 가려진 이름·연락처뿐이다 */
+    const qtyByCode=res.qtyByCode||{}, usedByCode=res.usedByCode||{};
     const codes=Object.keys(qtyByCode);
-    if(!codes.length){
-      ivNotice('<b style="color:#c1121f">이벤트 대상 제품이 아닙니다.</b><br>'
-        +(skipped.length?`구매하신 제품 : ${[...new Set(skipped)].join(", ")}<br>`:"")
-        +'자세한 내용은 상담사에게 문의해 주세요.'+ivKakao());
-      return;
-    }
-
-    const r0=rows[0];
-    // 이미 접수한 제품·수량은 빼고 보여준다
-    const usedByCode=await loadUsedByCode(codes,[r0.phone,typed.phone||""]);
     const remainCodes=codes.filter(c=>((qtyByCode[c]||1)-(usedByCode[c]||0))>0);
+    const groups=(res.groups||[]).map(g=>({
+      label:(g.code?(prodNameOf(g.code)||g.prodRaw):g.prodRaw)||"-",
+      qty:g.qty, codes:g.codes||[]
+    }));
 
     const prodHtml=groups.map(g=>{
       const u=g.codes.reduce((m,c)=>Math.max(m,usedByCode[c]||0),0);
@@ -1244,7 +1246,8 @@ async function lookupPurchase(){
       return;
     }
 
-    state.rows=rows; state.qtyByCode=qtyByCode; state.usedByCode=usedByCode; state.prodCodes=remainCodes;
+    state.token=res.token||"";          // 접수할 때 이 도장을 함께 보낸다
+    state.qtyByCode=qtyByCode; state.usedByCode=usedByCode; state.prodCodes=remainCodes;
     if(remainCodes.length===1){
       const c0=remainCodes[0];
       state.product=c0;
@@ -1252,16 +1255,19 @@ async function lookupPurchase(){
       state.buyQty=qtyByCode[c0];
       state.usedQty=usedByCode[c0]||0;
     }
-    state.autoName = typed.name || r0.name || "";
-    state.autoPhone= typed.phone || r0.phone || "";
+    /* 자동 채움은 고객이 직접 입력한 값에만 쓴다.
+       원장의 실제 이름·전화번호는 창구가 내보내지 않는다(가려진 값만 온다). */
+    state.autoName = typed.name || "";
+    state.autoPhone= typed.phone || "";
+    const m=res.masked||{};
     const ivRow=(k,v)=>`<div class="ivrow"><div class="ivk">${k}</div><div class="ivv">${v}</div></div>`;
     $("#invResult").innerHTML=
       '<div class="ivcard"><div class="ivtitle">이 정보가 맞으신가요?</div>'
       +'<div class="ivbox">'
-      +ivRow("수령인",maskName(r0.name))
-      +ivRow("연락처",maskPhone(r0.phone))
+      +ivRow("수령인",m.name||"-")
+      +ivRow("연락처",m.phone||"-")
       +ivRow("제품",prodHtml||"-")
-      +(r0.date?ivRow("출고일",r0.date):"")
+      +(res.date?ivRow("출고일",res.date):"")
       +'</div>'
       +'<div class="hint">개인정보 보호를 위해 일부만 표시합니다.'
       +(remainCodes.length>1?' 여러 제품을 구매하셨습니다 — 다음 단계에서 이번에 리뷰를 남기신 제품을 골라 주세요.':'')
@@ -1276,7 +1282,6 @@ async function lookupPurchase(){
     $("#invResult").innerHTML='<div class="notice" style="margin:0;color:#c1121f">조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';
   }finally{ btn.disabled=false; }
 }
-async function npDocIdOf(name,phone){ return "N_"+await sha40("v2|"+nameKeyOf(name)+"|"+phoneDigits(phone)); }
 window.lookupPurchase=lookupPurchase;
 
 /* 주문번호 확인 방법 — 사이트를 고르면 큰 이미지 뷰어로 보여준다 */
@@ -1400,8 +1405,15 @@ async function lookupParticipation(){
   try{
     let list=[];
     if(DEMO_MODE){list=demoStore.filter(e=>e.phoneKey===pk);}
-    else{await initFirebase();const q=await db.collection(COLLECTION).where("phoneKey","==",pk).get();q.forEach(d=>list.push(d.data()));}
-    list=list.filter(e=>(e.name||"").replace(/\s/g,"")===nm);   // 성함+연락처 모두 일치해야 노출
+    else{
+      /* 창구가 성함+연락처를 모두 확인한 뒤, 발송 여부만 돌려준다.
+         이름·연락처·주소·주문번호는 브라우저로 나오지 않는다. */
+      const res=await eventApi({action:"checkParticipation",name:name,phone:phone});
+      if(res&&res.reason==="rate"){box.innerHTML='<div class="cpempty">조회를 너무 여러 번 시도하셨습니다. 잠시 후 다시 시도해 주세요.</div>';return;}
+      if(!res||!res.ok){box.innerHTML='<div class="cpempty">조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';return;}
+      list=res.list||[];
+    }
+    if(DEMO_MODE) list=list.filter(e=>(e.name||"").replace(/\s/g,"")===nm);
     if(!list.length){box.innerHTML=`<div class="cpempty"><b>${name}</b> 님으로 참여하신 내역이 없습니다.<br>포토리뷰 이벤트 또는 쿠팡 로켓배송 정품등록 여부 선택 후 다음을 눌러 접수 부탁드립니다.</div>`;return;}
     const MSG='margin-top:9px;font-size:12.5px;color:var(--sub);line-height:1.55';
     box.innerHTML=`<div class="cpempty" style="border-style:solid;color:var(--ink)"><b>${name}</b> 님 · 참여 ${list.length}건</div>`+
@@ -1465,8 +1477,15 @@ async function submit(){
       if(used+want>cap){ showDup({...(hit||{type:"phone"}),used,cap},review); resetBtn(); return; }
       demoStore.push(entry); showDone(entry,true);
     } else {
-      const dup=await checkDuplicate(entry); if(dup){showDup(dup,review);resetBtn();return;}
-      await saveEntry(entry,state.file); showDone(entry,false);
+      const res=await submitViaApi(entry,state.file);
+      if(res&&res.dup){ showDup(res.dup,review); resetBtn(); return; }
+      if(!res||!res.ok){ alert(apiErrMsg(res&&res.reason)); resetBtn(); return; }
+      /* 수량은 창구가 원장 기준으로 다시 계산한 값을 쓴다 */
+      entry.giftQty=res.giftQty||entry.giftQty;
+      entry.buyQty=res.buyQty||entry.buyQty;
+      entry.usedBefore=res.usedBefore||0;
+      if(state.product) state.usedByCode[state.product]=(res.usedBefore||0)+(res.giftQty||1);
+      showDone(entry,false);
     }
   }catch(err){console.error(err);alert(uploadErrMsg(err));resetBtn();}
 }
@@ -1581,52 +1600,42 @@ $("#mClose").addEventListener("click",()=>{$("#modal").classList.remove("on"); i
 $$("#vtabs .vtab").forEach(b=>b.addEventListener("click",()=>setVTab(b.dataset.vt)));
 
 /* Firebase (DEMO_MODE=false) */
-let db=null,storage=null;
-window.__setDb=x=>{db=x;};   // 테스트용 주입
-async function initFirebase(){if(db)return;
+let storage=null;
+window.__setDb=()=>{};   // (더 이상 쓰지 않음 — Firestore 직접 접근을 없앴습니다)
+async function initFirebase(){if(storage)return;
   await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js");
-  await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js");
   await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js");
-  firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();storage=firebase.storage();}
+  if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+  storage=firebase.storage();}
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error("스크립트 로드 실패: "+src));document.head.appendChild(s);});}
-const DUP_FIELD_TYPE={kInv:"invoice",kPhone:"phone",kOrder:"order",kNA:"nameAddr",serial:"serial"};
-/* 중복 검사 — 같은 제품·같은 사람의 기존 접수가 가져간 수량 합계가 구매 수량을 넘으면 차단.
-   (수량 1개면 예전과 똑같이 1회만 허용된다.) 시리얼은 예외 없이 1회. */
-async function checkDuplicate(e){await initFirebase();const col=db.collection(COLLECTION);
-  if(e.serial){ const q=await col.where("serial","==",e.serial).limit(1).get();
-    if(!q.empty) return {data:q.docs[0].data(),type:"serial",cap:1,used:1}; }
-  const cap=Math.max(1,e.buyQty||1), want=Math.max(1,e.giftQty||1);
-  const checks=[]; if(e.kInv) checks.push(["kInv",e.kInv]);
-  checks.push(["kPhone",e.kPhone]);
-  if(e.orderNo) checks.push(["kOrder",e.kOrder]);
-  if(e.kNA) checks.push(["kNA",e.kNA]);
-  let used=0,hit=null;
-  for(const [f,v] of checks){
-    if(!v) continue;
-    const q=await col.where(f,"==",v).get();
-    if(q.empty) continue;
-    let sum=0; q.docs.forEach(d=>{ sum+=Math.max(1,(d.data().giftQty)||1); });
-    if(sum>used){ used=sum; hit={data:q.docs[0].data(),type:DUP_FIELD_TYPE[f]}; }
-  }
-  if(used+want>cap) return {...(hit||{type:"phone",data:{}}),used,cap};
-  return null;}
-function makeDocId(e){
-  const d=new Date(),p=n=>String(n).padStart(2,"0");
-  const date=d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
-  const time=p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());
-  const nm=(e.name||"고객").replace(/[\/.#$\[\]\s]/g,"").slice(0,12);
-  const last4=(e.phoneKey||"").slice(-4);
-  return `${date}_${nm}_${e.product||""}_${last4}_${time}`;
-}
-async function saveEntry(e,file){await initFirebase();
-  if(file){const ts=Date.now();const path=`${STORAGE_DIR}/${ts}_${(file.name||"capture").replace(/[^\w.\-]/g,"_")}`;
+/* 접수 — 사진을 먼저 올리고, 중복 확인과 저장은 창구가 대신 한다.
+   ─ 수량(buyQty)·제품·상태는 창구가 원장 값으로 다시 계산하므로
+     브라우저에서 값을 고쳐 보내도 소용이 없다.
+   ─ 사진은 올리기만 하고 주소는 읽지 않는다(Storage 읽기 잠금).
+     주소는 창구가 만들어 접수 데이터에 붙인다. */
+async function submitViaApi(e,file){
+  if(file){
+    await initFirebase();
+    const ts=Date.now(), rnd=Math.random().toString(36).slice(2,10);
+    const path=`${STORAGE_DIR}/${ts}_${rnd}_${(file.name||"capture").replace(/[^\w.\-]/g,"_")}`;
     const task=storage.ref().child(path).put(file);
     const btn=$("#submitBtn");
     task.on("state_changed",s=>{const pct=s.totalBytes?Math.round(s.bytesTransferred/s.totalBytes*100):0;
       btn.textContent=`사진 전송 중… ${pct}%`;});
-    const snap=await task; btn.textContent="접수 처리 중…";
-    e.imagePath=path;e.imageUrl=await snap.ref.getDownloadURL();}
-  await db.collection(COLLECTION).doc(makeDocId(e)).set({...e,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
+    await task; btn.textContent="접수 처리 중…";
+    e.imagePath=path;
+  }
+  return await eventApi({action:"submitEntry",token:state.token||"",entry:e});
+}
+/* 창구가 돌려준 사유별 한국어 안내 (영어 원문·개발자 메모 노출 방지) */
+function apiErrMsg(reason){
+  if(reason==="rate")    return "접수 시도가 너무 잦습니다.\n\n잠시 후 다시 시도해 주세요.";
+  if(reason==="token")   return "구매 확인이 만료되었습니다.\n\n처음 화면에서 구매 내역을 다시 조회한 뒤 접수해 주세요.";
+  if(reason==="product") return "조회하신 구매 내역에 없는 제품입니다.\n\n구매 내역을 다시 조회해 주세요.";
+  if(reason==="input")   return "입력하신 정보를 다시 확인해 주세요.";
+  if(reason==="origin")  return "접수는 아이닉 공식 접수폼에서만 가능합니다.";
+  return "접수 중 오류가 발생했습니다.\n\n잠시 후 다시 시도해 주세요. 계속 실패하면 고객센터로 문의해 주세요.";
+}
 
 if(!DEMO_MODE)$("#demoBadge").style.display="none";
 showStep();

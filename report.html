@@ -127,13 +127,33 @@
   .chkgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
   @media(max-width:820px){.chkgrid{grid-template-columns:repeat(2,1fr)}}
   .chk{display:flex;gap:6px;align-items:center;font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+
+/* ══════════ 로그인 화면 ══════════ */
+#authGate{position:fixed;inset:0;background:#f4f5f7;z-index:400;display:flex;align-items:center;justify-content:center;padding:20px}
+#authGate .ac{width:100%;max-width:390px;background:#fff;border:1px solid #e3e5e9;border-radius:14px;padding:28px 26px;box-shadow:0 8px 30px rgba(0,0,0,.07);text-align:center}
+#authGate h2{margin:0 0 6px;font-size:18px;letter-spacing:-.2px}
+#authGate p{margin:7px 0;font-size:13.5px;line-height:1.65;color:#333}
+#authGate .dim{color:#8a8f96;font-size:12.5px}
+#authGate .big{font-size:42px;line-height:1;margin-bottom:10px}
+#authGate input{width:100%;box-sizing:border-box;margin:6px 0;padding:11px 12px;border:1px solid #d6d9de;border-radius:9px;font-size:14px}
+#authGate input:focus{outline:none;border-color:#2a78d6}
+#authGate button{width:100%;margin-top:8px;padding:11px;border-radius:9px;border:1px solid #d6d9de;background:#fff;font-size:14px;font-weight:700;cursor:pointer}
+#authGate button.prim{background:#2a78d6;border-color:#2a78d6;color:#fff}
+#authGate button:disabled{opacity:.55;cursor:default}
+#authGate .agerr{margin-top:10px;font-size:12.8px;color:#c1121f;white-space:pre-line;line-height:1.55;min-height:18px}
+#whoBox{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#555}
+#whoBox b{font-weight:800}
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<!-- 로그인 덮개 — 로그인 전에는 아무것도 보이지 않습니다 -->
+<div id="authGate"><div id="agBody"></div></div>
+
+<div class="wrap" id="mainWrap" style="visibility:hidden">
   <header>
     <h1>아이닉 이벤트 관리 리포트 <span class="sub" id="asof">불러오는 중…</span></h1>
-    <div class="btns"><button id="reload">↻ 새로고침</button></div>
+    <div class="btns" style="align-items:center"><span id="whoBox" style="display:none"><b id="whoami"></b><button id="btnChangePw" class="sm">비밀번호 변경</button><button id="btnLogout" class="sm">로그아웃</button></span><button id="reload">↻ 새로고침</button></div>
   </header>
 
   <div class="tabs" id="tabs">
@@ -146,6 +166,7 @@
     <div class="tab" data-tab="cs">고객검색</div>
     <div class="tab" data-tab="manual">수기접수</div>
     <div class="tab" data-tab="orders">주문DB</div>
+    <div class="tab" data-tab="admin" id="tabAdmin" style="display:none">관리자</div>
   </div>
 
   <!-- 전체 -->
@@ -312,6 +333,34 @@
       <h3>미리보기 <span style="color:var(--sub);font-weight:600;font-size:12px">(앞 20건)</span></h3>
       <div class="tablewrap"><table class="data" id="tableOrders"><thead></thead><tbody></tbody></table></div>
       <div class="empty" id="emptyOrders">파일을 먼저 선택해 주세요.</div>
+    </div>
+  </section>
+
+  <!-- 관리자 — 리포트 사용자 관리 (관리자 등급만 보임) -->
+  <section class="page" id="page-admin">
+    <div class="panel">
+      <h3>사용자 추가</h3>
+      <div class="filters">
+        <input id="admName" placeholder="이름" style="max-width:150px">
+        <input id="admEmail" type="email" placeholder="이메일" style="max-width:260px">
+        <select id="admRole">
+          <option value="staff">일반</option>
+          <option value="master">관리자</option>
+        </select>
+        <button id="admAdd" class="sm primary">추가</button>
+      </div>
+      <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-top:4px">
+        추가하면 <b>임시 비밀번호</b>가 화면에 나옵니다. 그걸 본인에게 알려주시면,
+        본인이 처음 로그인할 때 비밀번호를 새로 정하게 됩니다.<br>
+        <b>관리자</b>는 사람을 추가·삭제할 수 있고 밤에도 들어올 수 있습니다.
+        <b>일반</b>은 오전 9시~밤 10시에만 들어올 수 있습니다.
+      </div>
+      <div id="admNew"></div>
+    </div>
+
+    <div class="panel">
+      <h3>사용자 목록</h3>
+      <div class="tablewrap" id="admList"></div>
     </div>
   </section>
 </div>
@@ -536,11 +585,18 @@ function uniq(a){return [...new Set(a.filter(Boolean))];}
 function matchSearch(e,q){if(!q)return true;const hay=[e.name,e.phone,e.orderNo,e.serial,e.custId,e.address,e.product].join(" ").toLowerCase();return hay.includes(q.trim().toLowerCase());}
 
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error(src));document.head.appendChild(s);});}
+async function initFbApp(){
+  if(window._fbReady)return;
+  await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js");
+  await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js");
+  await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js");
+  if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+  window._fbReady=true;
+}
 async function initFirebase(){
   if(window._db)return window._db;
-  await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js");
-  await loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js");
-  firebase.initializeApp(FIREBASE_CONFIG);window._db=firebase.firestore();return window._db;
+  await initFbApp();
+  window._db=firebase.firestore();return window._db;
 }
 async function loadData(){
   $("#asof").textContent="불러오는 중…";
@@ -1704,7 +1760,333 @@ onTypeChange();
 window.__render=(data,cfg)=>{ALL=data.map(x=>({...x,_date:x._date?new Date(x._date):null}));reserveProducts=new Set((cfg&&cfg.reserveProducts)||[]);
   $("#asof").textContent="목데이터 "+ALL.length+"건";buildCatalog();renderManualSelects();renderReserveConfig();renderActiveTab();};
 
-loadData();
+
+/* ═══════════════════════════════════════════════════════════════════════
+   로그인 · 사용자 관리
+   ───────────────────────────────────────────────────────────────────────
+   창고(Firebase) 열쇠는 서버(adminApi)가 두 가지를 확인한 뒤에만 내줍니다.
+     ① 비밀번호가 맞는가        ② 그 이메일의 주인이 맞는가(메일 링크 확인)
+   브라우저에서 비밀번호만으로 만든 로그인에는 도장이 없어 창고가 안 열립니다.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const ADMIN_API = "https://asia-northeast3-inic-event.cloudfunctions.net/adminApi";
+let ME = null, nightTimer = null, claimTimer = null;
+
+async function admApi(payload, withKey){
+  const h = {"Content-Type":"application/json"};
+  if(withKey){
+    const u = firebase.auth().currentUser;
+    if(!u) return {ok:false, reason:"auth"};
+    h.Authorization = "Bearer " + (await u.getIdToken());
+  }
+  let r;
+  try{ r = await fetch(ADMIN_API,{method:"POST",headers:h,body:JSON.stringify(payload)}); }
+  catch(e){ return {ok:false, reason:"network"}; }
+  let j=null; try{ j = await r.json(); }catch(_){}
+  return j || {ok:false, reason:"server"};
+}
+
+function deviceId(){
+  let d = localStorage.getItem("inicDev");
+  if(!d){
+    d = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+      : (Date.now().toString(36)+Math.random().toString(36).slice(2));
+    localStorage.setItem("inicDev", d);
+  }
+  return d;
+}
+
+const AGMSG = {
+  badlogin : "이메일 또는 비밀번호가 맞지 않습니다.",
+  inactive : "사용이 중지된 계정입니다. 관리자에게 문의해 주세요.",
+  night    : "지금은 이용 시간이 아닙니다.\n오전 9시부터 밤 10시까지 이용하실 수 있습니다.",
+  rate     : "로그인 시도가 너무 많습니다. 10분 뒤에 다시 시도해 주세요.",
+  ticket   : "확인 정보가 만료되었습니다. 처음부터 다시 로그인해 주세요.",
+  expired  : "확인 시간이 지났습니다. 처음부터 다시 로그인해 주세요.",
+  link     : "메일 링크가 올바르지 않습니다. 처음부터 다시 로그인해 주세요.",
+  origin   : "이 주소에서는 로그인할 수 없습니다.",
+  network  : "네트워크 연결을 확인해 주세요.",
+  auth     : "로그인이 필요합니다.",
+  forbidden: "관리자만 할 수 있습니다.",
+  server   : "일시적인 오류입니다. 잠시 후 다시 시도해 주세요."
+};
+const agMsg = r => AGMSG[r] || AGMSG.server;
+function agErr(t){ const e=$("#agErr"); if(e) e.textContent = t||""; }
+function gateHtml(h){ $("#authGate").style.display="flex"; $("#agBody").innerHTML=h; }
+const admEsc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ── 시작 ── */
+async function bootAuth(){
+  try{ await initFbApp(); }
+  catch(e){ gateHtml('<div class="ac"><h2>연결 실패</h2><p>네트워크를 확인하고 새로고침해 주세요.</p></div>'); return; }
+
+  const p = new URLSearchParams(location.search);
+  if(p.get("t") && firebase.auth().isSignInWithEmailLink(location.href))
+    return linkWindow(p.get("t"), p.get("oobCode"));
+
+  try{ await firebase.auth().signOut(); }catch(_){}
+  showLogin();
+}
+
+/* ── 메일 링크를 눌러서 열린 창 ──
+   여기서는 로그인하지 않습니다. 이메일 주인임을 확인만 하고 끝냅니다.
+   실제 입장은 처음 로그인하던 창에서 이루어집니다. */
+async function linkWindow(ticket, oobCode){
+  gateHtml('<div class="ac"><div class="big">📧</div><h2>이메일 확인 중…</h2></div>');
+  const r = await admApi({action:"finishEmail", ticket, oobCode});
+  if(r.ok){
+    gateHtml('<div class="ac"><div class="big">✅</div><h2>이메일 확인 완료</h2>'
+      +'<p>처음 로그인하시던 창으로 돌아가 주세요.<br>잠시 뒤 자동으로 들어갑니다.</p>'
+      +'<p class="dim">이 창은 닫으셔도 됩니다.</p></div>');
+  }else{
+    gateHtml('<div class="ac"><div class="big">⚠️</div><h2>확인하지 못했습니다</h2>'
+      +'<p>'+admEsc(agMsg(r.reason))+'</p>'
+      +'<button class="prim" onclick="location.href=location.pathname">처음으로</button></div>');
+  }
+}
+
+/* ── 로그인 화면 ── */
+function showLogin(msg){
+  clearInterval(claimTimer);
+  gateHtml('<div class="ac">'
+    +'<h2>아이닉 이벤트 관리 리포트</h2>'
+    +'<p class="dim">등록된 담당자만 들어올 수 있습니다.</p>'
+    +'<input id="agEmail" type="email" placeholder="이메일" autocomplete="username">'
+    +'<input id="agPw" type="password" placeholder="비밀번호" autocomplete="current-password">'
+    +'<button id="agGo" class="prim">로그인</button>'
+    +'<div class="agerr" id="agErr"></div></div>');
+  $("#agEmail").value = localStorage.getItem("inicLastEmail") || "";
+  agErr(msg||"");
+  $("#agGo").addEventListener("click", doLogin);
+  $("#agPw").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
+  ($("#agEmail").value ? $("#agPw") : $("#agEmail")).focus();
+}
+
+async function doLogin(){
+  const email = $("#agEmail").value.trim().toLowerCase();
+  const pw    = $("#agPw").value;
+  if(!email || !pw){ agErr("이메일과 비밀번호를 입력해 주세요."); return; }
+  $("#agGo").disabled = true; agErr("확인 중…");
+
+  const r = await admApi({action:"login", email, password:pw, deviceId:deviceId()});
+  if(!r.ok){ $("#agGo").disabled=false; agErr(agMsg(r.reason)); return; }
+  localStorage.setItem("inicLastEmail", email);
+
+  if(r.key) return enterWithKey(r.key, r.me);
+
+  /* 이메일 확인 단계 — 메일은 Firebase 가 직접 보냅니다(별도 발송 계정 불필요) */
+  try{
+    await firebase.auth().sendSignInLinkToEmail(email, {
+      url: location.origin + location.pathname + "?t=" + r.ticket,
+      handleCodeInApp: true
+    });
+  }catch(e){
+    $("#agGo").disabled=false;
+    agErr("확인 메일을 보내지 못했습니다.\n" + (e.code||e.message||""));
+    return;
+  }
+  waitEmail(r.ticket, email);
+}
+
+function waitEmail(ticket, email){
+  gateHtml('<div class="ac"><div class="big">📧</div>'
+    +'<h2>메일을 확인해 주세요</h2>'
+    +'<p><b>'+admEsc(email)+'</b> 으로 확인 링크를 보냈습니다.<br>'
+    +'메일의 링크를 누르시면 <b>이 창에서 자동으로</b> 들어갑니다.</p>'
+    +'<p class="dim">메일이 안 보이면 스팸함도 확인해 주세요. 15분 안에 눌러 주세요.<br>'
+    +'휴대폰에서 링크를 누르셔도 이 창으로 들어옵니다.</p>'
+    +'<button id="agCancel">처음으로</button>'
+    +'<div class="agerr" id="agErr"></div></div>');
+  $("#agCancel").addEventListener("click", ()=>{ clearInterval(claimTimer); showLogin(); });
+
+  clearInterval(claimTimer);
+  claimTimer = setInterval(async ()=>{
+    const r = await admApi({action:"claim", ticket});
+    if(r.ok && r.key){ clearInterval(claimTimer); enterWithKey(r.key, r.me); }
+    else if(!r.ok && r.reason!=="network"){ clearInterval(claimTimer); showLogin(agMsg(r.reason)); }
+  }, 3000);
+}
+
+async function enterWithKey(key, me){
+  clearInterval(claimTimer);
+  try{ await firebase.auth().signInWithCustomToken(key); }
+  catch(e){ showLogin("로그인 처리에 실패했습니다. 다시 시도해 주세요."); return; }
+  ME = me || {name:"", role:"staff"};
+  if(ME.mustChangePassword) return showChangePw(true);
+  finishEnter();
+}
+
+/* ── 첫 로그인 비밀번호 변경 (임시 비밀번호는 한 번만) ── */
+function showChangePw(force){
+  gateHtml('<div class="ac">'
+    +'<h2>'+(force?"비밀번호를 새로 정해 주세요":"비밀번호 변경")+'</h2>'
+    +'<p class="dim">'+(force?"임시 비밀번호는 이번 한 번만 사용할 수 있습니다.":"")+'</p>'
+    +'<input id="np1" type="password" placeholder="새 비밀번호 (8자 이상)" autocomplete="new-password">'
+    +'<input id="np2" type="password" placeholder="새 비밀번호 다시 입력" autocomplete="new-password">'
+    +'<button id="npGo" class="prim">'+(force?"변경하고 들어가기":"변경하기")+'</button>'
+    +(force?"":'<button id="npCancel">취소</button>')
+    +'<div class="agerr" id="agErr"></div></div>');
+  if(!force) $("#npCancel").addEventListener("click", ()=>{ $("#authGate").style.display="none"; });
+  $("#np1").focus();
+  $("#npGo").addEventListener("click", async ()=>{
+    const a=$("#np1").value, b=$("#np2").value;
+    if(a.length<8){ agErr("8자 이상으로 정해 주세요."); return; }
+    if(a!==b){ agErr("두 칸의 비밀번호가 서로 다릅니다."); return; }
+    $("#npGo").disabled=true; agErr("변경 중…");
+    try{ await firebase.auth().currentUser.updatePassword(a); }
+    catch(e){
+      $("#npGo").disabled=false;
+      agErr(/requires-recent-login/.test(e.code||"")
+        ? "보안을 위해 다시 로그인한 뒤 변경해 주세요."
+        : "변경하지 못했습니다. " + (e.code||e.message||""));
+      return;
+    }
+    await admApi({action:"passwordChanged"}, true);
+    if(ME) ME.mustChangePassword=false;
+    if(force) finishEnter(); else $("#authGate").style.display="none";
+  });
+}
+
+function finishEnter(){
+  clearInterval(claimTimer);
+  history.replaceState(null,"",location.pathname);      // 주소창에서 메일 링크 흔적 지우기
+  $("#authGate").style.display="none";
+  $("#mainWrap").style.visibility="visible";
+  $("#whoami").textContent = (ME.name||"") + " · " + (ME.role==="master"?"관리자":"일반");
+  $("#whoBox").style.display="";
+  if(ME.role==="master") $("#tabAdmin").style.display="";
+  scheduleNightLogout();
+  loadData();
+}
+
+/* ── 밤 10시 자동 로그아웃 (관리자는 예외) ── */
+function scheduleNightLogout(){
+  clearTimeout(nightTimer);
+  if(!ME || ME.role==="master") return;
+  const kstNow = new Date(Date.now() + 9*3600*1000);
+  const kstEnd = new Date(kstNow); kstEnd.setUTCHours(22,0,0,0);
+  let ms = kstEnd.getTime() - kstNow.getTime();
+  if(ms <= 0) ms = 1000;
+  nightTimer = setTimeout(()=>{
+    doLogout("밤 10시가 되어 자동으로 로그아웃되었습니다.\n다음날 오전 9시부터 다시 이용하실 수 있습니다.");
+  }, ms);
+}
+
+async function doLogout(msg){
+  clearTimeout(nightTimer); clearInterval(claimTimer);
+  try{ await firebase.auth().signOut(); }catch(_){}
+  ME=null; window._db=null; ALL=[];
+  $("#mainWrap").style.visibility="hidden";
+  $("#whoBox").style.display="none";
+  $("#tabAdmin").style.display="none";
+  showLogin(msg||"");
+}
+
+/* ══════════ 관리자 탭 ══════════ */
+
+async function admRender(){
+  if(!ME || ME.role!=="master") return;
+  const box=$("#admList");
+  box.innerHTML='<div class="empty">불러오는 중…</div>';
+  const r = await admApi({action:"list"}, true);
+  if(!r.ok){ box.innerHTML='<div class="empty">'+admEsc(agMsg(r.reason))+'</div>'; return; }
+  box.innerHTML='<table class="data"><thead><tr>'
+    +'<th>이름</th><th>이메일</th><th>등급</th><th>상태</th><th>마지막 접속</th><th>관리</th>'
+    +'</tr></thead><tbody>'
+    + r.list.map(u=>{
+        const state = !u.active ? '<span style="color:#c1121f;font-weight:700">중지</span>'
+          : u.mustChangePassword ? '<span style="color:#b26a00;font-weight:700">첫 로그인 대기</span>'
+          : '사용 중';
+        const me = u.uid===ME.uid;
+        return '<tr><td>'+admEsc(u.name)+(me?' <span class="dim">(나)</span>':'')+'</td>'
+          +'<td>'+admEsc(u.email)+'</td>'
+          +'<td>'+(u.role==="master"?'<b>관리자</b>':'일반')+'</td>'
+          +'<td>'+state+'</td>'
+          +'<td>'+(u.lastLoginAt?new Date(u.lastLoginAt).toLocaleString("ko-KR"):"-")+'</td>'
+          +'<td style="white-space:nowrap">'
+          +'<button class="sm" data-a="pw" data-u="'+u.uid+'" data-n="'+admEsc(u.name)+'">비번 재발급</button> '
+          +(me?'':'<button class="sm" data-a="role" data-u="'+u.uid+'" data-v="'+(u.role==="master"?"staff":"master")+'">'+(u.role==="master"?"일반으로":"관리자로")+'</button> ')
+          +(me?'':'<button class="sm" data-a="act" data-u="'+u.uid+'" data-v="'+(u.active?"0":"1")+'">'+(u.active?"중지":"사용")+'</button> ')
+          +(me?'':'<button class="sm" data-a="del" data-u="'+u.uid+'" data-n="'+admEsc(u.name)+'">삭제</button>')
+          +'</td></tr>';
+      }).join("")
+    +'</tbody></table>';
+  box.querySelectorAll("button[data-a]").forEach(b=>b.addEventListener("click",()=>admAct(b.dataset)));
+}
+
+function admNotice(html, tone){
+  $("#admNew").innerHTML = html
+    ? '<div style="margin:10px 0;padding:12px 14px;border-radius:10px;line-height:1.7;'
+      + (tone==="bad" ? 'background:#fdecec;border:1px solid #f3c6c6;color:#b23b3b'
+                      : 'background:#eef6ee;border:1px solid #cfe3cf;color:#2c6b3c')
+      + '">'+html+'</div>'
+    : "";
+}
+
+function admShowPassword(name, email, pw){
+  admNotice('<b>'+admEsc(name||email)+'</b> 님의 임시 비밀번호입니다.<br>'
+    +'<span style="display:inline-block;margin:8px 0;padding:8px 14px;background:#fff;border:1px solid #cfe3cf;'
+    +'border-radius:8px;font-size:19px;font-weight:800;letter-spacing:1px;font-family:monospace">'+admEsc(pw)+'</span>'
+    +'<button class="sm" id="admCopy" style="margin-left:8px">복사</button><br>'
+    +'이 화면을 벗어나면 다시 볼 수 없습니다. 본인에게 전달해 주세요.<br>'
+    +'<span class="dim">본인이 처음 로그인할 때 비밀번호를 새로 정하게 됩니다.</span>');
+  const c=$("#admCopy");
+  if(c) c.addEventListener("click",()=>{
+    navigator.clipboard.writeText(pw).then(()=>{c.textContent="복사됨";},()=>{c.textContent="복사 실패";});
+  });
+}
+
+async function admAdd(){
+  const name=$("#admName").value.trim(), email=$("#admEmail").value.trim().toLowerCase(), role=$("#admRole").value;
+  if(!name || !email){ admNotice("이름과 이메일을 모두 입력해 주세요.","bad"); return; }
+  $("#admAdd").disabled=true;
+  const r = await admApi({action:"create", name, email, role}, true);
+  $("#admAdd").disabled=false;
+  if(!r.ok){
+    admNotice(r.reason==="duplicate" ? "이미 등록된 이메일입니다."
+            : r.reason==="email" ? "이메일 형식을 확인해 주세요."
+            : agMsg(r.reason), "bad");
+    return;
+  }
+  $("#admName").value=""; $("#admEmail").value="";
+  admShowPassword(name, email, r.tempPassword);
+  admRender();
+}
+
+async function admAct(d){
+  const uid=d.u;
+  if(d.a==="pw"){
+    if(!confirm((d.n||"")+" 님의 비밀번호를 새 임시 비밀번호로 바꿉니다.\n지금 쓰던 비밀번호는 사용할 수 없게 됩니다. 계속할까요?")) return;
+    const r=await admApi({action:"resetPassword", uid}, true);
+    if(r.ok) admShowPassword(d.n, r.email, r.tempPassword); else admNotice(agMsg(r.reason),"bad");
+  }
+  else if(d.a==="role"){
+    const r=await admApi({action:"setRole", uid, role:d.v}, true);
+    if(!r.ok) admNotice(r.reason==="lastmaster"?"관리자가 한 명은 있어야 합니다.":agMsg(r.reason),"bad");
+    else admNotice("등급을 바꿨습니다. 본인은 다음 로그인부터 적용됩니다.");
+  }
+  else if(d.a==="act"){
+    const r=await admApi({action:"setActive", uid, active:d.v==="1"}, true);
+    if(!r.ok) admNotice(agMsg(r.reason),"bad");
+    else admNotice(d.v==="1" ? "다시 사용할 수 있게 했습니다." : "사용을 중지했습니다. 바로 로그아웃됩니다.");
+  }
+  else if(d.a==="del"){
+    if(!confirm((d.n||"")+" 님을 삭제합니다.\n되돌릴 수 없습니다. 계속할까요?")) return;
+    const r=await admApi({action:"remove", uid}, true);
+    if(!r.ok) admNotice(r.reason==="lastmaster"?"관리자가 한 명은 있어야 합니다.":agMsg(r.reason),"bad");
+    else admNotice("삭제했습니다.");
+  }
+  admRender();
+}
+
+$("#admAdd").addEventListener("click", admAdd);
+$("#admEmail").addEventListener("keydown", e=>{ if(e.key==="Enter") admAdd(); });
+$("#tabAdmin").addEventListener("click", admRender);
+$("#btnLogout").addEventListener("click", ()=>{ if(confirm("로그아웃할까요?")) doLogout(); });
+$("#btnChangePw").addEventListener("click", ()=>showChangePw(false));
+
+bootAuth();
+
 </script>
 <div id="svTip"></div>
 </body>

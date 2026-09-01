@@ -230,10 +230,19 @@
     <div class="filters">
       <select id="bfReward"><option value="">보상 전체</option><option value="gift">사은품</option><option value="coupon">상품권</option></select>
       <select id="bfReason"><option value="">사유 전체</option><option value="notcap">리뷰 캡처·S/N 사진 아님</option><option value="ratingunread">별점 미확인</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="snmismatch">S/N 불일치</option><option value="snunread">S/N 미확인</option><option value="dup">중복 참여</option></select>
+      <select id="bfAgent"><option value="">담당자 전체</option><option value="__none__">미지정</option></select>
+      <select id="bfSort"><option value="date">접수일 순</option><option value="agent">담당자 순</option></select>
       <input type="text" id="bfSearch" placeholder="이름·연락처·제품 검색">
       <span id="bCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span>
       <span style="flex:1"></span>
       <button id="dlBad" class="sm">부적합 목록 다운로드</button>
+    </div>
+    <div class="filters" id="bAssignBar" style="display:none;background:#fff7e6;border:1px solid #f0e0c0;border-radius:9px;padding:9px 11px">
+      <b id="bSelCount" style="font-size:12.5px"></b>
+      <select id="bAssignTo"><option value="">— 담당자 선택 —</option></select>
+      <button id="bAssignGo" class="sm primary">선택한 건 배정</button>
+      <button id="bAssignClear" class="sm">선택 해제</button>
+      <span id="bAssignState" style="font-size:12.5px;font-weight:700"></span>
     </div>
     <div class="tablewrap"><table class="data" id="tableBad"><thead></thead><tbody></tbody></table>
       <div class="empty" id="emptyBad" style="display:none">부적합 대상이 없습니다.</div></div>
@@ -277,7 +286,8 @@
         <div class="field"><label>수령인(성함) <span class="req">*</span></label><input type="text" id="mName" placeholder="예) 홍길동"></div>
         <div class="field"><label>연락처 <span class="req">*</span></label><input type="text" id="mPhone" placeholder="예) 010-1234-5678" oninput="fmtPhone(this)" maxlength="13"></div>
         <div class="field"><label>주문번호</label><input type="text" id="mOrder" placeholder="예) 123456789"></div>
-        <div class="field"><label>고객ID</label><input type="text" id="mCust" placeholder="예) 네이버 아이디"></div>
+        <div class="field"><label>담당자 <span style="font-weight:600;color:var(--sub)">(로그인한 분)</span></label>
+          <input type="text" id="mAgent" readonly style="background:#faf8f6;font-weight:800"></div>
         <div class="field full" id="mSerialField"><label>시리얼번호(S/N)</label><input type="text" id="mSerial" placeholder="쿠팡 정품등록 시 입력"></div>
         <div class="field"><label>배송구분(사은품)</label><select id="mShipFee"><option value="착불">착불</option><option value="선불">선불</option></select></div>
         <div class="field full"><label>주소(사은품 착불 배송 시)</label>
@@ -431,7 +441,9 @@
         <!-- 부적합(아웃콜) 전용 : 응대 기록 + 출고 승인 -->
         <div id="dtCallBox">
           <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
-          <label style="font-size:12px;font-weight:800;color:var(--sub);display:block">응대상태</label>
+          <label style="font-size:12px;font-weight:800;color:var(--sub);display:block">담당자</label>
+          <select id="dtAgent" style="padding:8px;width:100%;margin-top:4px"></select>
+          <label style="font-size:12px;font-weight:800;color:var(--sub);display:block;margin-top:8px">응대상태</label>
           <select id="dtStatus" style="padding:8px;width:100%;margin-top:4px"></select>
           <label style="font-size:12px;font-weight:800;color:var(--sub);display:block;margin-top:8px">처리상태 <span style="color:#c1121f">*</span></label>
           <select id="dtResult" style="padding:8px;width:100%;margin-top:4px"></select>
@@ -608,7 +620,7 @@ function isEligible(e){return shipStatus(e)==="eligible";}
 function isReserve(e){return reserveProducts.has(e.product);}
 function monthKey(d){if(!d)return "";const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1);}
 function uniq(a){return [...new Set(a.filter(Boolean))];}
-function matchSearch(e,q){if(!q)return true;const hay=[e.name,e.phone,e.orderNo,e.serial,e.custId,e.address,e.product].join(" ").toLowerCase();return hay.includes(q.trim().toLowerCase());}
+function matchSearch(e,q){if(!q)return true;const hay=[e.name,e.phone,e.orderNo,e.serial,e.agent,e.address,e.product].join(" ").toLowerCase();return hay.includes(q.trim().toLowerCase());}
 
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error(src));document.head.appendChild(s);});}
 async function initFbApp(){
@@ -1184,13 +1196,27 @@ function renderReserve(){
 /* badReasonType 은 REASON_RULES 기준으로 위에서 정의됨 (기준 이중화 방지) */
 function badRows(){
   const rw=$("#bfReward").value, rs=$("#bfReason").value, q=$("#bfSearch").value;
-  return ALL.filter(e=>{
+  const ag=($("#bfAgent")&&$("#bfAgent").value)||"", sort=($("#bfSort")&&$("#bfSort").value)||"date";
+  const out=ALL.filter(e=>{
     if(shipStatus(e)!=="ineligible"||e.overrideEligible)return false;
     if(rw&&e.rewardType!==rw)return false;
     if(rs&&badReasonType(e)!==rs)return false;
+    if(ag==="__none__" && e.agent)return false;
+    if(ag && ag!=="__none__" && e.agent!==ag)return false;
     if(!matchSearch(e,q))return false;
     return true;
   });
+  if(sort==="agent"){
+    /* 미지정이 먼저 오게 — 배정해야 할 것이 위로 */
+    out.sort((a,b)=>{
+      const x=a.agent||"", y=b.agent||"";
+      if(x===y) return (b._date?.getTime()||0)-(a._date?.getTime()||0);
+      if(!x) return -1;
+      if(!y) return 1;
+      return x.localeCompare(y);
+    });
+  }
+  return out;
 }
 const CALL_STATES=["","부재중","통화완료(미수긍)","통화완료(수긍)","문자발송(통화X)","진행중(발송X)"];
 /* 처리상태 — 출고 승인을 누르려면 반드시 선택해야 한다 */
@@ -1200,7 +1226,9 @@ function callBadge(e){const s=e.callStatus||"";
   if(!s)return '<span class="pill wait">미응대</span>';
   return `<span class="pill ${CALL_COLOR[s]||"wait"}">${s}</span>`;}
 const BAD_COLS=[
+  ["<input type='checkbox' id='bChkAll'>",e=>`<input type="checkbox" class="bchk" data-id="${e._id}" onclick="event.stopPropagation()">`],
   ["접수일자",e=>fmtDate(e._date)],
+  ["담당자",e=>e.agent?admEsc(e.agent):'<span style="color:#b26a00;font-weight:700">미지정</span>'],
   ["수령인",e=>e.name||"-"],
   ["연락처",e=>e.phone||"-"],
   ["사은품/상품권",e=>e.giftItem||"-"],
@@ -1214,6 +1242,7 @@ function renderBad(){
   $("#tableBad thead").innerHTML="<tr>"+BAD_COLS.map(c=>`<th>${c[0]}</th>`).join("")+"</tr>";
   $("#tableBad tbody").innerHTML=rows.map(e=>`<tr class="clickrow" onclick="openDetail('${e._id}')">`+BAD_COLS.map(c=>`<td>${c[1](e)}</td>`).join("")+"</tr>").join("");
   $("#emptyBad").style.display=all.length?"none":"block";pager("#pagerBad",all.length,"bad");
+  badBindChecks();
 }
 async function saveCall(id,obj){
   try{const db=await initFirebase();obj.callAt=firebase.firestore.FieldValue.serverTimestamp();
@@ -1286,6 +1315,7 @@ function openDetail(id){
   if(e.imageUrl){img.src=e.imageUrl;img.style.display="";$("#dtNoImg").style.display="none";
     $("#dtImgOpen").href=e.imageUrl;$("#dtImgOpen").style.display="";}
   else{img.style.display="none";img.src="";$("#dtNoImg").style.display="";$("#dtImgOpen").style.display="none";}
+  fillAgentSelect($("#dtAgent"), e.agentUid||"");
   $("#dtStatus").innerHTML=CALL_STATES.map(o=>`<option value="${o}" ${o===(e.callStatus||"")?"selected":""}>${o||"— 응대상태 선택 —"}</option>`).join("");
   $("#dtResult").innerHTML=CALL_RESULTS.map(o=>`<option value="${o}" ${o===(e.callResult||"")?"selected":""}>${o||"— 처리상태 선택 —"}</option>`).join("");
   syncApproveBtn();
@@ -1412,13 +1442,14 @@ async function submitManual(){
   const type=$("#mType").value;
   const category=$("#mCategory").value,product=$("#mProduct").value,source=$("#mSource").value;
   const giftItem=$("#mGift").value;const o=$("#mGift").selectedOptions[0];const rewardType=(o&&o.dataset.reward)||"gift";
-  const name=$("#mName").value.trim(),phone=$("#mPhone").value.trim(),orderNo=$("#mOrder").value.trim(),custId=$("#mCust").value.trim();
+  const name=$("#mName").value.trim(),phone=$("#mPhone").value.trim(),orderNo=$("#mOrder").value.trim();
+  const agent=(ME&&ME.name)||"", agentUid=(ME&&ME.uid)||"";   // 누가 수기접수했는지 자동 기록
   const serial=$("#mSerial").value.trim(),address=manualAddress(),reason=$("#mReason").value.trim();
   const shipFee=$("#mShipFee").value||"착불";
   if(!category||!product||!name||!phone){msg.className="msg bad";msg.textContent="카테고리·제품·수령인·연락처는 필수입니다.";return;}
   if(!giftItem && $("#mGift").querySelector('option[value]:not([value=""])')){msg.className="msg bad";msg.textContent="사은품/상품권을 선택하세요.";return;}
   const phoneKey=onlyDigits(phone);
-  const payload={type,rewardType,category,product,giftItem,source,name,phone,orderNo,custId,serial,address,shipFee,
+  const payload={type,rewardType,category,product,giftItem,source,name,phone,orderNo,agent,agentUid,serial,address,shipFee,
     phoneKey,nameAddrKey:(name+"|"+address),kNA:(product+"|"+name+"|"+address),kOrder:(product+"|"+orderNo),kPhone:(product+"|"+phoneKey),
     status:"eligible",manual:true,reason,shipState:"pending",
     consent:{privacy:"agree",marketing:"",reward:rewardType,agreedAt:new Date().toISOString(),manual:true},
@@ -1435,7 +1466,7 @@ async function submitManual(){
   finally{$("#mSubmit").disabled=false;}
 }
 function resetManual(clearMsg){
-  ["#mName","#mPhone","#mOrder","#mCust","#mSerial","#mAddress","#mAddrRoad","#mAddrDetail","#mReason"].forEach(s=>{const el=$(s);if(el)el.value="";});
+  ["#mName","#mPhone","#mOrder","#mSerial","#mAddress","#mAddrRoad","#mAddrDetail","#mReason"].forEach(s=>{const el=$(s);if(el)el.value="";});
   if(clearMsg)$("#mMsg").textContent="";
   $("#mCategory").value="";$("#mSource").value="";onCategoryChange();
 }
@@ -1453,7 +1484,7 @@ function downloadRows(rows,baseName){
 function exportAllRows(){
   return filteredAll().map(e=>({"접수일시":fmtDate(e._date),"유형":TYPE_LABEL[e.type]||e.type,"심사":STATUS_META[shipStatus(e)][0],"출고":SHIP_META[shipStateOf(e)][0],
     "카테고리":e.category||"","제품":e.product||"","보상종류":REWARD_LABEL[e.rewardType]||"","사은품/상품권":e.giftItem||"","구입처":e.source||"",
-    "고객ID":e.custId||"","주문번호":e.orderNo||"","S/N":e.serial||"","수령인":e.name||"","연락처":e.phone||"","주소":e.address||"",
+    "담당자":e.agent||"","주문번호":e.orderNo||"","S/N":e.serial||"","수령인":e.name||"","연락처":e.phone||"","주소":e.address||"",
     "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"","이미지URL":e.imageUrl||"","문서ID":e._id||""}));
 }
 const DL_ORDER=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["사은품",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주소",e=>e.address||""],["주문번호",e=>e.orderNo||""],["구입처",e=>e.source||""],["문서ID",e=>e._id||""]];
@@ -1760,7 +1791,7 @@ $$(".subtab").forEach(t=>t.addEventListener("click",()=>{const sub=t.dataset.sub
 $("#rSearch").addEventListener("input",reset("reserve",renderReserve));
 ["#bfReward","#bfReason"].forEach(s=>$(s).addEventListener("change",reset("bad",renderBad)));
 $("#bfSearch").addEventListener("input",reset("bad",renderBad));
-const DL_BAD=[["접수일시",e=>fmtDate(e._date)],["보상",e=>REWARD_LABEL[e.rewardType]||""],["제품",e=>e.product||""],["사은품/상품권",e=>e.giftItem||""],["사유",e=>reasonOf(e)],["응대상태",e=>e.callStatus||""],["처리상태",e=>e.callResult||""],["결과메모",e=>e.callMemo||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["주소",e=>e.address||""],["문서ID",e=>e._id||""]];
+const DL_BAD=[["접수일시",e=>fmtDate(e._date)],["담당자",e=>e.agent||""],["보상",e=>REWARD_LABEL[e.rewardType]||""],["제품",e=>e.product||""],["사은품/상품권",e=>e.giftItem||""],["사유",e=>reasonOf(e)],["응대상태",e=>e.callStatus||""],["처리상태",e=>e.callResult||""],["결과메모",e=>e.callMemo||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["주소",e=>e.address||""],["문서ID",e=>e._id||""]];
 $("#dlBad").addEventListener("click",()=>dlPlain(badRows(),DL_BAD,"아이닉_부적합_아웃콜목록"));
 $("#csBtn").addEventListener("click",reset("cs",renderCS));
 $("#csSearch").addEventListener("input",reset("cs",renderCS));
@@ -2017,6 +2048,8 @@ function finishEnter(){
   $("#whoami").textContent = (ME.name||"") + " · " + (ROLE_LABEL[ME.role]||"상담사");
   $("#whoBox").style.display="";
   applyTabsForRole();
+  const ma=$("#mAgent"); if(ma) ma.value = ME.name || "";     // 수기접수 담당자 = 로그인한 사람
+  loadStaff();
   scheduleNightLogout();
   loadData();
 }
@@ -2081,6 +2114,7 @@ async function admRender(){
   box.querySelectorAll("button[data-a]").forEach(b=>b.addEventListener("click",()=>admAct(b.dataset)));
   box.querySelectorAll("select[data-a]").forEach(sel=>sel.addEventListener("change",()=>
     admAct({a:"role", u:sel.dataset.u, v:sel.value})));
+  loadStaff();          // 사람이 늘거나 빠지면 담당자 명단도 같이 갱신
 }
 
 function admNotice(html, tone){
@@ -2255,6 +2289,109 @@ async function admReadFile(f){
     st.textContent="파일을 읽지 못했습니다. 엑셀(.xlsx) 또는 CSV 파일인지 확인해 주세요.";
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   담당자 배정 — 부적합(아웃콜) · 수기접수
+   상담사 명단은 로그인 창구(adminApi)에서 받아옵니다.
+   ══════════════════════════════════════════════════════════════════════ */
+let STAFF = [], badSel = new Set();
+
+async function loadStaff(){
+  const r = await admApi({action:"staff"}, true);
+  STAFF = (r && r.ok && r.list) ? r.list : [];
+  const bf=$("#bfAgent");
+  if(bf){
+    const cur=bf.value;
+    bf.innerHTML='<option value="">담당자 전체</option><option value="__none__">미지정</option>'
+      + STAFF.map(x=>'<option value="'+admEsc(x.name)+'">'+admEsc(x.name)+'</option>').join("");
+    bf.value=cur;
+  }
+  const at=$("#bAssignTo");
+  if(at) at.innerHTML='<option value="">— 담당자 선택 —</option>'
+      + STAFF.map(x=>'<option value="'+x.uid+'">'+admEsc(x.name)+' ('+admEsc(x.roleLabel)+')</option>').join("");
+}
+
+function fillAgentSelect(sel, curUid){
+  if(!sel) return;
+  sel.innerHTML='<option value="">— 미지정 —</option>'
+    + STAFF.map(x=>'<option value="'+x.uid+'"'+(x.uid===curUid?' selected':'')+'>'
+        + admEsc(x.name)+' ('+admEsc(x.roleLabel)+')</option>').join("");
+}
+
+/* 응대기록(callAt)을 건드리지 않고 값만 저장 */
+async function saveEntryFields(id, obj){
+  try{
+    const db=await initFirebase();
+    await db.collection(COLLECTION).doc(id).update(obj);
+    const e=ALL.find(x=>x._id===id); if(e) Object.assign(e,obj);
+    return true;
+  }catch(err){ alert("저장 실패: "+(err.message||err)); return false; }
+}
+
+function badSelSync(){
+  const n=badSel.size, bar=$("#bAssignBar");
+  if(!bar) return;
+  const msg=$("#bAssignState").textContent;
+  bar.style.display=(n||msg)?"":"none";
+  $("#bSelCount").textContent = n ? (n+"건 선택됨") : "";
+}
+
+function badBindChecks(){
+  $$("#tableBad .bchk").forEach(c=>{
+    c.checked = badSel.has(c.dataset.id);
+    c.addEventListener("change",()=>{
+      if(c.checked) badSel.add(c.dataset.id); else badSel.delete(c.dataset.id);
+      $("#bAssignState").textContent="";
+      badSelSync();
+    });
+  });
+  const all=$("#bChkAll");
+  if(all){
+    all.checked=false;
+    all.addEventListener("click",e=>e.stopPropagation());
+    all.addEventListener("change",()=>{
+      $$("#tableBad .bchk").forEach(c=>{
+        c.checked=all.checked;
+        if(all.checked) badSel.add(c.dataset.id); else badSel.delete(c.dataset.id);
+      });
+      $("#bAssignState").textContent="";
+      badSelSync();
+    });
+  }
+  badSelSync();
+}
+
+async function badAssign(){
+  const uid=$("#bAssignTo").value;
+  if(!uid){ $("#bAssignState").textContent="담당자를 골라 주세요."; badSelSync(); return; }
+  const st=STAFF.find(x=>x.uid===uid);
+  const ids=[...badSel];
+  if(!ids.length) return;
+  $("#bAssignGo").disabled=true; $("#bAssignState").textContent="배정 중…"; badSelSync();
+  let done=0;
+  for(const id of ids){
+    const ok=await saveEntryFields(id,{agent:st?st.name:"", agentUid:uid});
+    if(ok) done++;
+  }
+  badSel.clear();
+  $("#bAssignGo").disabled=false;
+  renderBad();
+  $("#bAssignState").textContent="✔ "+done+"건을 "+(st?st.name:"")+" 님에게 배정했습니다.";
+  badSelSync();
+}
+
+const badTab=document.querySelector('#tabs .tab[data-tab="bad"]');
+if(badTab) badTab.addEventListener("click", loadStaff);
+$("#bAssignGo").addEventListener("click", badAssign);
+$("#bAssignClear").addEventListener("click", ()=>{ badSel.clear(); $("#bAssignState").textContent=""; renderBad(); });
+$("#bfAgent").addEventListener("change", reset("bad",renderBad));
+$("#bfSort").addEventListener("change", reset("bad",renderBad));
+$("#dtAgent").addEventListener("change", async ()=>{
+  if(!detailId) return;
+  const uid=$("#dtAgent").value, st=STAFF.find(x=>x.uid===uid);
+  await saveEntryFields(detailId,{agent:st?st.name:"", agentUid:uid});
+  renderBad();
+});
 
 $("#admTpl").addEventListener("click", admTemplate);
 $("#admFile").addEventListener("change", e=>{

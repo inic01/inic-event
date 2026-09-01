@@ -347,15 +347,20 @@
           <option value="agent">상담사</option>
           <option value="order">발주담당자</option>
           <option value="acct">회계담당자</option>
+          <option value="qa">QA담당자</option>
           <option value="master">관리자</option>
         </select>
         <button id="admAdd" class="sm primary">추가</button>
       </div>
       <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-top:4px">
         추가하면 <b>임시 비밀번호</b>가 화면에 나옵니다. 그걸 본인에게 알려주시면,
-        본인이 처음 로그인할 때 비밀번호를 새로 정하게 됩니다.<br>
-        네 역할 모두 <b>같은 화면</b>을 봅니다. <b>관리자</b>만 사람을 추가·삭제할 수 있고
-        밤에도 들어올 수 있습니다. 나머지는 오전 9시~밤 10시에만 들어올 수 있습니다.
+        본인이 처음 로그인할 때 비밀번호를 새로 정하게 됩니다.<br><br>
+        <b>역할별로 보이는 탭</b><br>
+        · <b>관리자</b> — 전부 (사람 추가·삭제, <b>밤에도 이용 가능</b>)<br>
+        · <b>QA담당자</b> — 주문DB·관리자만 빼고 전부<br>
+        · <b>발주담당자 / 회계담당자</b> — 전체 · 사은품 · 상품권 · 예약발송 · 주문DB<br>
+        · <b>상담사</b> — 전체 · 부적합 · 고객검색 · 수기접수<br>
+        관리자를 뺀 나머지는 <b>오전 9시~밤 10시</b>에만 들어올 수 있습니다.
       </div>
       <div id="admNew"></div>
     </div>
@@ -363,22 +368,17 @@
     <div class="panel">
       <h3>여러 명 한 번에 추가</h3>
       <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:8px">
-        <b>엑셀 파일로 올리시거나</b>, 아래 칸에 직접 적으셔도 됩니다.
-        칸은 <b>이름 · 이메일 · 역할</b> 세 개이고, 역할을 비우면 <b>상담사</b>가 됩니다.
-        첫 줄 제목(이름/이메일/역할)은 알아서 건너뜁니다.
+        엑셀 파일로 올려 주세요. 칸은 <b>이름 · 이메일 · 역할</b> 세 개이고,
+        역할을 비우면 <b>상담사</b>가 됩니다. 첫 줄 제목과 빈 줄은 알아서 건너뜁니다.
       </div>
-      <div class="filters" style="margin-bottom:10px">
+      <div class="filters">
         <button id="admTpl" class="sm">⬇ 엑셀 양식 받기</button>
-        <input type="file" id="admFile" accept=".xlsx,.xls,.csv" style="max-width:280px">
+        <input type="file" id="admFile" accept=".xlsx,.xls,.csv" style="max-width:300px">
         <span id="admFileState" style="font-size:12.5px;font-weight:700;color:var(--sub)"></span>
       </div>
-      <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:6px">
-        파일을 고르시면 아래 칸에 채워집니다. <b>내용을 확인하신 뒤</b> 「일괄 추가」를 눌러 주세요.
-      </div>
-      <textarea id="admBulk" rows="6" placeholder="강문정, answjddl@i-nic.kr, 발주담당자&#10;홍길동, hong@i-nic.kr, 상담사"
-        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d6d9de;border-radius:9px;font-size:13.5px;line-height:1.7;font-family:inherit"></textarea>
+      <div id="admPreview" style="margin-top:10px"></div>
       <div class="filters" style="margin-top:8px">
-        <button id="admBulkGo" class="sm primary">일괄 추가</button>
+        <button id="admBulkGo" class="sm primary" disabled>일괄 추가</button>
         <span id="admBulkState" style="font-size:12.5px;font-weight:800"></span>
       </div>
       <div id="admBulkOut"></div>
@@ -1800,8 +1800,29 @@ window.__render=(data,cfg)=>{ALL=data.map(x=>({...x,_date:x._date?new Date(x._da
    ═══════════════════════════════════════════════════════════════════════ */
 
 const ADMIN_API = "https://asia-northeast3-inic-event.cloudfunctions.net/adminApi";
-const ROLE_LABEL = { master:"관리자", order:"발주담당자", acct:"회계담당자", agent:"상담사" };
-const ROLE_KEYS  = ["master","order","acct","agent"];
+const ROLE_LABEL = { master:"관리자", qa:"QA담당자", order:"발주담당자", acct:"회계담당자", agent:"상담사" };
+const ROLE_KEYS  = ["master","qa","order","acct","agent"];
+
+/* 역할별로 보이는 탭.
+   담당 업무가 아닌 화면을 실수로 건드리지 않게 하는 장치입니다.
+   (데이터 접근 자체를 막는 것은 아닙니다 — 같은 컬렉션을 함께 씁니다) */
+const TABS_BY_ROLE = {
+  master: null,                                                   // 전부
+  qa:     ["all","report","order","acct","bad","reserve","cs","manual"],
+  order:  ["all","order","acct","reserve","orders"],
+  acct:   ["all","order","acct","reserve","orders"],
+  agent:  ["all","bad","cs","manual"]
+};
+function applyTabsForRole(){
+  const allow = TABS_BY_ROLE[(ME&&ME.role)||"agent"];
+  $$("#tabs .tab").forEach(t=>{
+    const k=t.dataset.tab;
+    const on = k==="admin" ? (ME&&ME.role==="master") : (!allow || allow.indexOf(k)>=0);
+    t.style.display = on ? "" : "none";
+  });
+  const cur=$("#tabs .tab.active");
+  if(!cur || cur.style.display==="none") switchTab("all");   // 안 보이는 탭이 열려 있으면 '전체'로
+}
 let ME = null, nightTimer = null, claimTimer = null;
 
 async function admApi(payload, withKey){
@@ -1995,7 +2016,7 @@ function finishEnter(){
   $("#mainWrap").style.visibility="visible";
   $("#whoami").textContent = (ME.name||"") + " · " + (ROLE_LABEL[ME.role]||"상담사");
   $("#whoBox").style.display="";
-  if(ME.role==="master") $("#tabAdmin").style.display="";
+  applyTabsForRole();
   scheduleNightLogout();
   loadData();
 }
@@ -2019,7 +2040,7 @@ async function doLogout(msg){
   ME=null; window._db=null; ALL=[];
   $("#mainWrap").style.visibility="hidden";
   $("#whoBox").style.display="none";
-  $("#tabAdmin").style.display="none";
+  $$("#tabs .tab").forEach(t=>{ t.style.display = t.dataset.tab==="admin" ? "none" : ""; });
   showLogin(msg||"");
 }
 
@@ -2045,7 +2066,7 @@ async function admRender(){
           : u.mustChangePassword ? '<span style="color:#b26a00;font-weight:700">첫 로그인 대기</span>'
           : '사용 중';
         const me = u.uid===ME.uid;
-        return '<tr><td>'+admEsc(u.name)+(me?' <span class="dim">(나)</span>':'')+'</td>'
+        return '<tr><td>'+(me?'<b>마스터 계정</b>':admEsc(u.name))+'</td>'
           +'<td>'+admEsc(u.email)+'</td>'
           +'<td>'+(me?'<b>'+admEsc(ROLE_LABEL[u.role]||"")+'</b>':roleSelectHtml(u.uid,u.role))+'</td>'
           +'<td>'+state+'</td>'
@@ -2096,40 +2117,43 @@ async function admAdd(){
   admRender();
 }
 
-/* ── 여러 명 한 번에 ──
-   한 줄에 "이름, 이메일, 역할". 역할은 비워두면 상담사. */
-function parseBulk(text){
-  const out=[];
-  String(text||"").split(/\r?\n/).forEach(line=>{
-    const t=line.trim(); if(!t) return;
-    const parts=t.split(/[,\t]+|\s{2,}|\s+/).map(x=>x.trim()).filter(Boolean);
-    const email=(parts.find(x=>x.indexOf("@")>0)||"").toLowerCase();
-    if(!email) return;
-    let role="agent";
-    const rest=[];
-    parts.forEach(x=>{
-      if(x.toLowerCase()===email) return;
-      const k=ROLE_KEYS.find(k=>ROLE_LABEL[k]===x || k===x);
-      if(k) role=k; else rest.push(x);
-    });
-    const name=rest.join(" ").trim() || email.split("@")[0];
-    out.push({name,email,role});
-  });
-  return out;
+/* ── 여러 명 한 번에 (엑셀 파일) ──
+   파일을 읽어 아래에 표로 보여주기만 합니다.
+   확인하고 「일괄 추가」를 눌러야 실제로 만들어집니다. */
+let admPending = [];
+
+function admRenderPreview(){
+  const box=$("#admPreview");
+  if(!admPending.length){ box.innerHTML=""; $("#admBulkGo").disabled=true; return; }
+  box.innerHTML='<table class="data"><thead><tr>'
+    +'<th>이름</th><th>이메일</th><th>역할</th><th></th></tr></thead><tbody>'
+    + admPending.map((x,i)=>'<tr><td>'+admEsc(x.name)+'</td><td>'+admEsc(x.email)+'</td>'
+        +'<td><select class="sm" data-ri="'+i+'">'
+        + ROLE_KEYS.map(k=>'<option value="'+k+'"'+(k===x.role?' selected':'')+'>'+ROLE_LABEL[k]+'</option>').join("")
+        +'</select></td>'
+        +'<td><button class="sm" data-rm="'+i+'">빼기</button></td></tr>').join("")
+    +'</tbody></table>';
+  box.querySelectorAll("select[data-ri]").forEach(sel=>sel.addEventListener("change",()=>{
+    admPending[+sel.dataset.ri].role = sel.value;
+  }));
+  box.querySelectorAll("button[data-rm]").forEach(b=>b.addEventListener("click",()=>{
+    admPending.splice(+b.dataset.rm,1); admRenderPreview();
+    $("#admFileState").textContent = admPending.length ? (admPending.length+"명") : "모두 뺐습니다.";
+  }));
+  $("#admBulkGo").disabled=false;
 }
 
 async function admBulkGo(){
-  const rows=parseBulk($("#admBulk").value);
-  if(!rows.length){ $("#admBulkOut").innerHTML='<div class="empty">읽을 수 있는 줄이 없습니다. 이메일이 들어 있는지 확인해 주세요.</div>'; return; }
+  if(!admPending.length) return;
   $("#admBulkGo").disabled=true;
-  const done=[];
+  const rows=admPending.slice(), done=[];
   for(let i=0;i<rows.length;i++){
-    $("#admBulkState").textContent=`처리 중… ${i+1}/${rows.length}`;
+    $("#admBulkState").textContent="처리 중… "+(i+1)+"/"+rows.length;
     const r=await admApi({action:"create", ...rows[i]}, true);
     done.push({...rows[i], ok:!!r.ok, pw:r.tempPassword||"", why:r.ok?"":agMsg(r.reason)});
   }
-  $("#admBulkGo").disabled=false;
-  $("#admBulkState").textContent=`완료 — 성공 ${done.filter(d=>d.ok).length} · 실패 ${done.filter(d=>!d.ok).length}`;
+  $("#admBulkState").textContent="완료 — 성공 "+done.filter(d=>d.ok).length+" · 실패 "+done.filter(d=>!d.ok).length;
+  admPending=[]; admRenderPreview(); $("#admFileState").textContent="";
 
   $("#admBulkOut").innerHTML=
     '<div style="margin:10px 0;padding:12px 14px;background:#eef6ee;border:1px solid #cfe3cf;border-radius:10px">'
@@ -2144,7 +2168,7 @@ async function admBulkGo(){
     +'</tbody></table>';
 
   const text=done.filter(d=>d.ok)
-    .map(d=>`${d.name}\t${d.email}\t${ROLE_LABEL[d.role]}\t${d.pw}`).join("\n");
+    .map(d=>d.name+"\t"+d.email+"\t"+ROLE_LABEL[d.role]+"\t"+d.pw).join("\n");
   const c=$("#admBulkCopy");
   if(c) c.addEventListener("click",()=>{
     navigator.clipboard.writeText(text).then(()=>{c.textContent="복사됨";},()=>{c.textContent="복사 실패";});
@@ -2222,8 +2246,8 @@ async function admReadFile(f){
     const rows=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false});
     const list=admFromSheet(rows);
     if(!list.length){ st.textContent="이메일이 들어 있는 줄을 찾지 못했습니다."; return; }
-    $("#admBulk").value=list.map(x=>`${x.name}, ${x.email}, ${ROLE_LABEL[x.role]}`).join("\n");
-    st.textContent=`${list.length}명 읽었습니다 — 확인 후 「일괄 추가」`;
+    admPending=list; admRenderPreview();
+    st.textContent=list.length+"명 읽었습니다 — 확인 후 「일괄 추가」";
     $("#admBulkOut").innerHTML="";
     $("#admBulkState").textContent="";
   }catch(err){

@@ -1234,7 +1234,11 @@ function callBadge(e){const s=e.callStatus||"";
 const BAD_COLS=[
   ["<input type='checkbox' id='bChkAll'>",e=>`<input type="checkbox" class="bchk" data-id="${e._id}" onclick="event.stopPropagation()">`],
   ["접수일자",e=>fmtDate(e._date)],
-  ["담당자",e=>e.agent?admEsc(e.agent):'<span style="color:#b26a00;font-weight:700">미지정</span>'],
+  ["담당자",e=>'<input class="bagent" data-id="'+e._id+'" list="agentNames" value="'+admEsc(e.agent||"")+'"'
+    +' placeholder="미지정" autocomplete="off" onclick="event.stopPropagation()"'
+    +' title="상담사를 고르거나 직접 입력하세요"'
+    +' style="width:118px;padding:5px 7px;border:1px solid '+(e.agent?"var(--line)":"#e6c98a")+';border-radius:7px;'
+    +'font-size:12.5px;font-weight:700;background:'+(e.agent?"#fff":"#fff7e6")+'">'],
   ["수령인",e=>e.name||"-"],
   ["연락처",e=>e.phone||"-"],
   ["사은품/상품권",e=>e.giftItem||"-"],
@@ -2332,6 +2336,60 @@ function refreshAgentFilter(){
   if(sel.value!==cur) sel.value="";      // 없어진 이름이면 전체로
 }
 
+/* ── 담당자 칸 — 화살표로 고르는 것도, 직접 타이핑도 되는 칸 ──
+   상담사 명단만 보여줍니다. 명단에 없는 이름도 그냥 적으면 저장됩니다. */
+function comboAttach(inp){
+  if(!inp || inp._combo) return;
+  inp._combo = 1;
+  inp.removeAttribute("list");                 // 브라우저 기본 목록은 끄고 우리 목록만
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "position:relative;display:block";
+  inp.parentNode.insertBefore(wrap, inp);
+  wrap.appendChild(inp);
+  inp.style.paddingRight = "26px";
+  inp.style.boxSizing = "border-box";
+
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.textContent = "▾"; btn.tabIndex = -1;
+  btn.style.cssText = "position:absolute;right:3px;top:50%;transform:translateY(-50%);border:none;"
+    + "background:transparent;font-size:13px;color:#666;cursor:pointer;padding:2px 5px;line-height:1";
+
+  const list = document.createElement("div");
+  list.style.cssText = "display:none;position:absolute;left:0;top:100%;margin-top:3px;z-index:60;min-width:100%;"
+    + "background:#fff;border:1px solid #d6d9de;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.13);"
+    + "max-height:200px;overflow:auto;white-space:nowrap";
+  wrap.appendChild(btn); wrap.appendChild(list);
+
+  function draw(){
+    const q = String(inp.value||"").trim().toLowerCase();
+    const items = AGENTS.map(x=>x.name).filter(n => !q || n.toLowerCase().includes(q));
+    list.innerHTML = AGENTS.length
+      ? '<div class="cbi" data-v="">— 미지정 —</div>'
+        + (items.length ? items.map(n=>'<div class="cbi" data-v="'+admEsc(n)+'">'+admEsc(n)+'</div>').join("")
+                        : '<div style="padding:8px 11px;color:#8a8f96;font-size:12.5px">그 이름의 상담사는 없습니다 (직접 입력됩니다)</div>')
+      : '<div style="padding:9px 11px;color:#8a8f96;font-size:12.5px;line-height:1.6;white-space:normal">'
+        + '등록된 <b>상담사</b>가 없습니다.<br>관리자 탭에서 역할을 <b>상담사</b>로 추가하시거나,<br>이름을 직접 입력하셔도 됩니다.</div>';
+    list.querySelectorAll(".cbi").forEach(d=>{
+      d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:13px";
+      d.addEventListener("mouseenter", ()=>d.style.background="#f4f5f7");
+      d.addEventListener("mouseleave", ()=>d.style.background="");
+      d.addEventListener("mousedown", e=>{
+        e.preventDefault();
+        inp.value = d.dataset.v;
+        hide();
+        inp.dispatchEvent(new Event("change"));
+      });
+    });
+  }
+  const show = ()=>{ draw(); list.style.display="block"; };
+  const hide = ()=>{ list.style.display="none"; };
+  btn.addEventListener("click", ()=>{ if(list.style.display==="block") hide(); else { inp.focus(); show(); } });
+  inp.addEventListener("focus", show);
+  inp.addEventListener("input", draw);
+  inp.addEventListener("blur", ()=>setTimeout(hide, 150));
+  document.addEventListener("click", e=>{ if(!wrap.contains(e.target)) hide(); });
+}
+
 /* 입력한 이름이 상담사 명단에 있으면 그 사람의 계정도 같이 기록 */
 function agentUidOf(name){
   const hit=AGENTS.find(x=>x.name===String(name||"").trim());
@@ -2357,6 +2415,18 @@ function badSelSync(){
 }
 
 function badBindChecks(){
+  /* 목록에서 바로 담당자 지정 */
+  $$("#tableBad .bagent").forEach(inp=>{
+    comboAttach(inp);
+    inp.addEventListener("click", e=>e.stopPropagation());
+    inp.addEventListener("change", async ()=>{
+      const name=String(inp.value||"").trim();
+      inp.disabled=true;
+      const ok=await saveEntryFields(inp.dataset.id,{agent:name, agentUid:agentUidOf(name)});
+      inp.disabled=false;
+      if(ok) renderBad();
+    });
+  });
   $$("#tableBad .bchk").forEach(c=>{
     c.checked = badSel.has(c.dataset.id);
     c.addEventListener("change",()=>{
@@ -2399,6 +2469,8 @@ async function badAssign(){
   badSelSync();
 }
 
+comboAttach($("#dtAgent"));
+comboAttach($("#bAssignTo"));
 const badTab=document.querySelector('#tabs .tab[data-tab="bad"]');
 if(badTab) badTab.addEventListener("click", loadStaff);
 $("#bAssignGo").addEventListener("click", badAssign);

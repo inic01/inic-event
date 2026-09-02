@@ -406,7 +406,13 @@
       </div>
       <div class="filters" style="margin-top:11px">
         <button id="syncNow" class="sm primary">⟳ 지금 가져오기</button>
+        <button id="resyncBtn" class="sm" style="display:none">♻ 비우고 다시 가져오기</button>
         <span id="syncState" style="font-size:12.5px;font-weight:800"></span>
+      </div>
+      <div class="hint" id="resyncHint" style="display:none;margin-top:8px">
+        <b>비우고 다시 가져오기</b>는 걸러내는 규칙(교환·반품 등)을 바꿨을 때만 쓰세요.
+        지금 들어와 있는 고객DB를 <b>전부 지우고 시트에서 처음부터 다시</b> 채웁니다.
+        시트 내용은 그대로 다시 들어오므로 잃는 자료는 없지만, 몇 분 걸릴 수 있습니다.
       </div>
       <div id="syncBox" style="margin-top:10px"></div>
     </div>
@@ -2850,6 +2856,9 @@ function finishEnter(){
   const ma=$("#mAgent"); if(ma) ma.value = ME.name || "";     // 수기접수 담당자 = 로그인한 사람
   loadStaff();
   $("#purgePanel").style.display = ME.role==="master" ? "" : "none";
+  const _mst = ME.role==="master" ? "" : "none";
+  if($("#resyncBtn"))  $("#resyncBtn").style.display  = _mst;
+  if($("#resyncHint")) $("#resyncHint").style.display = _mst;
   syncStatus();
   scheduleNightLogout();
   loadData();
@@ -3378,6 +3387,18 @@ function syncRender(st){
           + chip(w.nomap,"제품 매칭 실패","#fdeeee") + chip(w.nophone,"연락처 없음","#fdeeee")
           + chip(w.noname,"이름 없음","#fdeeee") + chip(w.skip,"키 없어 제외","#f0eeec")
           + chip(w.dupRow,"탭에 겹친 줄","#f0eeec")
+          + chip(w.notbuy,"교환·반품 등 제외","#eef2fb")
+          + '</div>' : "")
+    + ((st.srcs && st.srcs.length)
+        ? '<div style="margin-top:10px;font-size:12.5px;line-height:1.85">'
+          + '<span style="color:var(--sub);font-weight:700">판매처별 줄 수</span>'
+          + ' <span style="color:var(--sub);font-size:12px">— 회색 취소선은 구매로 세지 않고 걸러낸 것입니다</span><br>'
+          + st.srcs.map(x => '<span class="pill" style="background:'
+              + (x.skip ? '#f0eeec;color:#8a827c;text-decoration:line-through' : '#eef6ee;color:#2c6b3c')
+              + ';margin:0 5px 4px 0;display:inline-block">'
+              + admEsc(x.name) + ' ' + (x.n||0).toLocaleString() + '</span>').join("")
+          + '<div style="color:var(--sub);font-size:12px;margin-top:4px">'
+          + '걸러야 할 판매처가 더 보이면 알려 주세요. 규칙에 넣은 뒤 「비우고 다시 가져오기」를 하시면 반영됩니다.</div>'
           + '</div>' : "")
     + (st.lastError? '<div style="margin-top:6px;color:#c1121f;font-weight:700">지난 오류 : '+admEsc(st.lastError)+'</div>':"")
     + '</div>';
@@ -3425,6 +3446,27 @@ async function purgeGo(){
   syncStatus();
 }
 
+async function resyncGo(){
+  if(!confirm("지금 들어와 있는 고객DB를 전부 지우고, 구글 시트에서 처음부터 다시 가져옵니다.\n\n걸러내는 규칙(교환·반품 등)을 바꾼 뒤에만 쓰세요.\n몇 분 걸릴 수 있습니다. 계속할까요?")) return;
+  if(!confirm("한 번 더 확인합니다.\n지우는 동안에는 접수폼에서 구매 확인이 잠시 되지 않습니다.\n계속할까요?")) return;
+  $("#resyncBtn").disabled=true; $("#syncNow").disabled=true;
+  $("#syncState").textContent="비우고 다시 가져오는 중… (몇 분 걸립니다)";
+  $("#syncState").style.color="";
+  const r = await ordApi({action:"resync"});
+  $("#resyncBtn").disabled=false; $("#syncNow").disabled=false;
+  if(!r.ok){
+    $("#syncState").textContent="실패";
+    $("#syncState").style.color="var(--bad,#c1121f)";
+    $("#syncBox").innerHTML='<div style="padding:12px 14px;border-radius:10px;background:#fdecec;border:1px solid #f3c6c6;color:#b23b3b;line-height:1.7">'
+      + admEsc(r.message || agMsg(r.reason)) + '</div>';
+    return;
+  }
+  $("#syncState").textContent="✔ 완료 — 기존 "+(r.wiped||0)+"개 지우고 "+(r.rows||0).toLocaleString()+"줄 다시 채움";
+  $("#syncState").style.color="var(--ok)";
+  syncRender(r);
+  loadData();
+}
+$("#resyncBtn").addEventListener("click", resyncGo);
 $("#syncNow").addEventListener("click", syncNow);
 $("#purgeGo").addEventListener("click", purgeGo);
 const ordTab=document.querySelector('#tabs .tab[data-tab="orders"]');

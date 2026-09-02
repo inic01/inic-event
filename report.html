@@ -1647,11 +1647,17 @@ function mDedupRows(rows){
    ⚠️ 음식물처리기처럼 원장 한 값에 우리 제품이 2종인 행은 「둘 중 하나」입니다.
       따로 세면 1대 사고 2개를 받게 되므로 한 칸으로 묶습니다. */
 function mGroupRows(rows){
-  const map = new Map(), skipped = [];
+  const map = new Map(), skip = new Map();
   rows.forEach(r => {
     const q = Math.max(1, parseInt(r.qty, 10) || 1);
     const codes = r.code ? [r.code] : (Array.isArray(r.pick) ? r.pick.slice() : []);
-    if(!codes.length){ if(r.prodRaw) skipped.push(r.prodRaw); return; }
+    /* 이벤트 대상이 아닌 제품도 「구매 내역」에는 나와야 합니다.
+       고객이 "이건 왜 안 되냐"고 물으실 때 상담사가 바로 답할 수 있어야 하니까요. */
+    if(!codes.length){
+      const nm = r.prodRaw || "(제품명 없음)";
+      skip.set(nm, (skip.get(nm) || 0) + q);
+      return;
+    }
     const key = codes.join(",");
     let g = map.get(key);
     if(!g){ g = { codes, qty:0, raw:new Set(), ords:new Set(), invs:new Set(), dates:new Set() }; map.set(key, g); }
@@ -1661,7 +1667,8 @@ function mGroupRows(rows){
     if(r.inv) g.invs.add(String(r.inv).trim());
     if(r.date) g.dates.add(r.date);
   });
-  return { groups:[...map.values()], skipped:[...new Set(skipped)] };
+  return { groups:[...map.values()],
+           skipped:[...skip.entries()].map(([raw, qty]) => ({ raw, qty })) };
 }
 
 const mProdLabel = g => g.codes.map(c => PNAME[c] || c).join(" 또는 ");
@@ -1757,23 +1764,44 @@ async function mFind(){
   }
 }
 
+/* 고객에게 그대로 보낼 안내 문구.
+   ⚠️ 송장번호는 「어느 제품의 송장인지」가 같이 있어야 고객이 쓸 수 있습니다.
+      합배송이면 한 송장에 여러 제품이 실리므로 제품별로 묶어서 적습니다. */
+function mGuideText(){
+  if(!MFIND) return "";
+  const lines = MFIND.groups.map(g => {
+    const o = [...g.ords], i = [...g.invs], parts = [];
+    if(o.length) parts.push("주문번호 " + o.join(", "));
+    if(i.length) parts.push("송장번호 " + i.join(", "));
+    /* 고객이 보는 문구이므로 이름은 짧게.
+       후보가 2종인 행(음식물처리기)은 우리 코드명을 나열하면 길고 헷갈리므로
+       고객이 실제로 산 이름(원장 제품군)을 그대로 씁니다. */
+    const label = g.codes.length > 1 ? ([...g.raw][0] || mProdLabel(g)) : mProdLabel(g);
+    return "· " + label + " — " + (parts.join(" / ") || "번호 없음");
+  });
+  return "안녕하세요, 아이닉입니다.\n"
+    + "포토리뷰 이벤트는 아래 주소에서 직접 접수해 주시면 됩니다.\n\n"
+    + FORM_URL + "\n\n"
+    + "구매 확인 단계에서 아래 번호를 넣어 주세요.\n"
+    + lines.join("\n") + "\n\n"
+    + "리뷰 캡처 이미지를 함께 올려 주시면 접수가 완료됩니다.\n"
+    + "감사합니다.";
+}
+
 function mRenderFind(){
   if(!MFIND){ $("#mFindResult").innerHTML = ""; return; }
   const f = MFIND, r0 = f.rows[0] || {};
+  const dates = [...new Set(f.rows.map(r => r.date).filter(Boolean))].sort();
 
-  const allOrds = [...new Set(f.rows.map(r => String(r.ord || "").trim()).filter(Boolean))];
-  const allInvs = [...new Set(f.rows.map(r => String(r.inv || "").trim()).filter(Boolean))];
-  const dates   = [...new Set(f.rows.map(r => r.date).filter(Boolean))].sort();
+  /* ── 2단계 · 구매 내역 ── */
+  const okList = f.groups.map(g => `<div style="margin-top:3px">· <b>${admEsc(mProdLabel(g))}</b>
+         <span style="color:var(--sub)">${g.qty}개</span></div>`).join("");
+  const noList = f.skipped.map(s => `<div style="margin-top:3px;color:var(--sub)">· ${admEsc(s.raw)}
+         <span>${s.qty}개</span>
+         <span class="pill" style="background:#f0eeec;color:#6b625b;margin-left:4px">이벤트 대상 아님</span></div>`).join("");
+  const prodList = (okList + noList)
+    || '<div style="margin-top:3px;color:var(--sub)">구매 제품을 찾지 못했습니다.</div>';
 
-  const copyBtn = (v, what) =>
-    `<button class="sm" onclick="mCopy('${admEsc(v)}',this)" style="margin-left:6px">복사</button>`;
-
-  const numLine = (label, arr) => arr.length
-    ? `<div style="margin:4px 0"><span style="color:var(--sub);font-weight:700">${label}</span>
-         ${arr.map(v => `<b style="font-family:monospace;font-size:14px;margin-left:8px">${admEsc(v)}</b>${copyBtn(v)}`).join("<br>")}</div>`
-    : "";
-
-  /* ── 2단계 구매 카드 ── */
   const card =
     `<div class="panel" style="margin-bottom:14px">
        <h3>2단계 · 구매 내역</h3>
@@ -1782,31 +1810,27 @@ function mRenderFind(){
          &nbsp;·&nbsp; <span style="color:var(--sub);font-weight:700">연락처</span> <b>${admEsc(r0.phone || "-")}</b>
          ${r0.phone2 ? `&nbsp;/&nbsp;<span style="color:var(--sub)">${admEsc(r0.phone2)}</span>` : ""}
          <br><span style="color:var(--sub);font-weight:700">출고일</span> <b>${admEsc(dates.join(", ") || "-")}</b>
-         &nbsp;·&nbsp; <span style="color:var(--sub);font-weight:700">원장 행</span> <b>${f.rows.length}</b>줄
+         <div style="margin-top:8px"><span style="color:var(--sub);font-weight:700">구매 제품</span>${prodList}</div>
        </div>
-       ${f.skipped.length ? `<div class="hint" style="margin-top:9px;color:#b23b3b">
-          이벤트 대상이 아니거나 제품을 알아보지 못한 행: <b>${admEsc(f.skipped.join(", "))}</b></div>` : ""}
      </div>`;
 
-  /* ── 3단계 안내 (가장 눈에 띄게) ── */
+  /* ── 3단계 · 안내 (문구를 그대로 보여 준다) ── */
   const guide =
     `<div class="panel" style="margin-bottom:14px;background:#eef6ee;border:1px solid #cfe3cf">
        <h3 style="color:#2c6b3c">3단계 · 먼저 고객에게 안내하세요 ★</h3>
        <div class="hint" style="color:#3d6b48">
-         아래 번호를 알려드리면 <b>고객이 직접 접수</b>할 수 있습니다.
+         아래 문구를 그대로 보내 드리면 <b>고객이 직접 접수</b>할 수 있습니다.
          직접 접수해야 <b>리뷰와 설문</b>이 남기 때문에, 가능하면 이 방법을 먼저 권해 주세요.
        </div>
-       <div style="margin-top:10px">
-         ${numLine("주문번호", allOrds)}
-         ${numLine("송장번호", allInvs)}
-       </div>
+       <div style="margin-top:11px;padding:14px 16px;background:#fff;border:1px solid #cfe3cf;border-radius:9px;
+                   white-space:pre-wrap;line-height:1.85;font-size:13.5px">${admEsc(mGuideText())}</div>
        <div style="margin-top:11px">
-         <button class="sm primary" onclick="mCopyGuide()">안내 문구 통째로 복사</button>
+         <button class="sm primary" onclick="mCopyGuide()">이 문구 복사</button>
          <span id="mGuideMsg" style="font-size:12.5px;font-weight:800;margin-left:8px"></span>
        </div>
      </div>`;
 
-  /* ── 4단계 제품별 접수 현황 ── */
+  /* ── 4단계 · 제품별 접수 현황 ── */
   const rowsHtml = f.groups.map((g, i) => {
     const { used, hits } = mUsedFor(g, f.keys);
     const left = Math.max(0, g.qty - used);
@@ -1826,7 +1850,6 @@ function mRenderFind(){
 
     return `<tr>
       <td><b>${admEsc(mProdLabel(g))}</b>
-        <div style="font-size:12px;color:var(--sub)">${admEsc([...g.raw].join(" / "))}</div>
         ${g.codes.length > 1 ? '<div style="font-size:12px;color:#b8860b;font-weight:700">둘 중 하나만 선택 가능</div>' : ""}
         ${doneList}</td>
       <td style="text-align:center"><b>${g.qty}</b></td>
@@ -1839,7 +1862,7 @@ function mRenderFind(){
   const table =
     `<div class="panel">
        <h3>4단계 · 고객이 못 하시는 경우에만 등록</h3>
-       <div class="hint">이미 접수된 제품은 버튼이 열리지 않습니다. <b>구매</b>는 원장 수량, <b>접수</b>는 이미 들어온 건수입니다.</div>
+       <div class="hint">이미 접수된 제품은 버튼이 열리지 않습니다. <b>구매</b>는 구매하신 수량, <b>접수</b>는 이미 들어온 건수입니다.</div>
        <div class="tablewrap" style="margin-top:11px">
          <table class="data"><thead><tr>
            <th>제품</th><th style="width:70px;text-align:center">구매</th>
@@ -1863,18 +1886,9 @@ window.mCopy = mCopy;
 
 function mCopyGuide(){
   if(!MFIND) return;
-  const ords = [...new Set(MFIND.rows.map(r => String(r.ord || "").trim()).filter(Boolean))];
-  const invs = [...new Set(MFIND.rows.map(r => String(r.inv || "").trim()).filter(Boolean))];
-  const text =
-    "안녕하세요, 아이닉입니다.\n" +
-    "포토리뷰 이벤트는 아래 주소에서 직접 접수해 주시면 됩니다.\n\n" +
-    FORM_URL + "\n\n" +
-    "구매 확인 단계에서 아래 번호 중 하나를 넣어 주세요.\n" +
-    (ords.length ? "· 주문번호 : " + ords.join(", ") + "\n" : "") +
-    (invs.length ? "· 송장번호 : " + invs.join(", ") + "\n" : "") +
-    "\n리뷰 캡처 이미지를 함께 올려 주시면 접수가 완료됩니다.\n감사합니다.";
-  mCopy(text);
-  const m = $("#mGuideMsg"); if(m){ m.textContent = "✔ 복사했습니다"; m.style.color = "var(--ok)"; setTimeout(() => m.textContent = "", 1600); }
+  mCopy(mGuideText());
+  const m = $("#mGuideMsg");
+  if(m){ m.textContent = "✔ 복사했습니다"; m.style.color = "var(--ok)"; setTimeout(() => m.textContent = "", 1600); }
 }
 window.mCopyGuide = mCopyGuide;
 
@@ -3193,8 +3207,18 @@ function comboAttach(inp){
   inp.addEventListener("focus", show);
   inp.addEventListener("input", ()=>{ draw(); place(); });
   inp.addEventListener("blur", ()=>setTimeout(hide, 150));
-  window.addEventListener("scroll", hide, true);
-  window.addEventListener("resize", hide);
+  /* 🐛 예전에는 스크롤만 하면 목록을 닫았습니다.
+     목록 자체가 스크롤되는 상자(max-height 220px)라서, **목록 안에서 굴려도 닫혔습니다.**
+     이제는 목록 안에서 굴린 것은 무시하고, 바깥에서 굴리면 입력칸을 따라다닙니다.
+     입력칸이 화면 밖으로 나갔을 때만 닫습니다. */
+  window.addEventListener("scroll", e => {
+    if(list.style.display !== "block") return;
+    if(e.target && list.contains(e.target)) return;
+    const r = inp.getBoundingClientRect();
+    if(r.bottom < 0 || r.top > window.innerHeight){ hide(); return; }
+    place();
+  }, true);
+  window.addEventListener("resize", () => { if(list.style.display === "block") place(); });
   document.addEventListener("click", e=>{ if(!wrap.contains(e.target)) hide(); });
 }
 

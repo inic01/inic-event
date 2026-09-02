@@ -555,6 +555,11 @@ const ORDER_GUIDE={
   "CJ온스타일":"guide/cjonstyle.webp",
   "하이마트":"guide/himart.webp"
 };
+
+/* PC와 핸드폰 설명이 **좌우로 나뉜** 안내 이미지.
+   나머지 9개는 「PC버전 + 핸드폰 버전 동일」이라 나눌 게 없으므로
+   한쪽만 크게 보는 버튼을 아예 띄우지 않습니다. */
+const GUIDE_SPLIT = new Set(["쿠팡 (로켓·일반배송)", "11번가", "옥션"]);
 const SOURCES=["아이닉 공식홈페이지","아이닉샵 스토어팜(네이버)","지마켓","옥션","오늘의집","현대몰","11번가","카카오톡쇼핑","쿠팡(일반배송)","신세계몰","CJ온스타일","하이마트","기타"];
 const GIFT_NOTICE="사은품은 <b>착불 발송</b>(택배비 3,200원, 배송 기사님 안내)됩니다. 제주·도서산간은 추가 배송비가 발생할 수 있습니다. 접수 후 1~2영업일 출고, 1인 1회 참여. (쿠팡 로켓배송 구매 고객은 '쿠팡·로켓배송 정품 등록'으로 참여해 주세요 — 이중 접수 시 배송비·회수비 고객 부담)";
 const COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 발송</b>(기프티쇼비즈)됩니다. 발송일: 매주 월요일(월요일 신청 건은 익주 월요일). 사용 기한: 수령 후 30일, 경과 후 재발송이 어렵습니다.";
@@ -979,7 +984,9 @@ function exZoom(d){
   setTimeout(()=>{ pane.scrollLeft=rx*pane.scrollWidth-pane.clientWidth/2;
                    pane.scrollTop =ry*pane.scrollHeight-pane.clientHeight/2; },0);
 }
-/* 안내 이미지는 왼쪽이 모바일, 오른쪽이 PC 설명이라 한쪽만 크게 볼 수 있게 한다 */
+/* 안내 이미지는 **왼쪽이 PC, 오른쪽이 핸드폰** 설명이라 한쪽만 크게 볼 수 있게 한다.
+   ⚠️ 예전 안내 이미지는 반대(왼쪽 모바일)였습니다. 2026-09 새 이미지로 바뀌면서
+      방향이 뒤집혔으니, 안내 이미지를 다시 만들 때 좌우 배치를 꼭 확인할 것. */
 function exHalfView(right){
   const pane=$("#exPane"); if(!pane) return;
   exZoomLv=2.2; exApply();
@@ -1292,7 +1299,7 @@ function openOrdGuide(site){
   const box=$("#ogChips");
   box.innerHTML=names.map(n=>`<button type="button" class="ogchip${n===cur?" on":""}" data-og="${n}">${n}</button>`).join("");
   box.querySelectorAll(".ogchip").forEach(b=>b.addEventListener("click",()=>openOrdGuide(b.dataset.og)));
-  exOpen(ORDER_GUIDE[cur], cur+" 주문번호 확인 방법", true, true);
+  exOpen(ORDER_GUIDE[cur], cur+" 주문번호 확인 방법", true, GUIDE_SPLIT.has(cur));
   const on=box.querySelector(".ogchip.on"); if(on&&on.scrollIntoView) on.scrollIntoView({block:"nearest",inline:"center"});
 }
 window.openOrdGuide=openOrdGuide;
@@ -1655,8 +1662,8 @@ showStep();
   </div>
   <div class="ogchips" id="ogChips" style="display:none"></div>
   <div id="exHalf" style="display:none;gap:6px;padding:8px 12px;background:#1b1b1b">
-    <button type="button" class="exbtn" onclick="exHalfView(0)">📱 모바일 부분 크게</button>
-    <button type="button" class="exbtn" onclick="exHalfView(1)">💻 PC 부분 크게</button>
+    <button type="button" class="exbtn" onclick="exHalfView(0)">💻 PC 부분 크게</button>
+    <button type="button" class="exbtn" onclick="exHalfView(1)">📱 핸드폰 부분 크게</button>
   </div>
   <div id="exPane" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch">
     <img id="exImg" alt="" style="display:block;width:100%;max-width:none">

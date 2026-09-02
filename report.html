@@ -1673,7 +1673,9 @@ function mCategoryOf(code){
 /* 이 제품을 이미 접수했는가 — 연락처·주문번호·송장번호 어느 것으로든 걸리면 접수로 봅니다 */
 function mUsedFor(g, keys){
   const hits = ALL.filter(e => {
-    if(e.type !== "review") return false;
+    /* ⚠️ 유형(포토리뷰/쿠팡 정품등록)으로 거르지 않습니다.
+       서버(eventApi)의 중복 검사가 「제품 + 연락처」만 보고 유형을 구분하지 않기 때문에,
+       여기서 유형을 거르면 화면은 「접수 가능」인데 서버는 막는 어긋남이 생깁니다. */
     if(!g.codes.includes(String(e.product || ""))) return false;
     const ph = e.phoneKey || mDigits(e.phone);
     if(ph && keys.phones.includes(ph)) return true;
@@ -1811,7 +1813,7 @@ function mRenderFind(){
     const doneList = hits.map(e => {
       const st = shipStatus(e), meta = STATUS_META[st] || ["", ""];
       return `<div style="font-size:12px;color:var(--sub);margin-top:3px">
-                · ${fmtDate(e._date)} · ${admEsc(meta[0])}
+                · ${fmtDate(e._date)} · ${admEsc(TYPE_LABEL[e.type] || e.type || "")} · ${admEsc(meta[0])}
                 ${e.manual ? ' <span class="pill" style="background:#f0eeec">수기</span>' : ""}
                 ${e.giftQty > 1 ? ` · 수량 ${e.giftQty}` : ""}</div>`;
     }).join("");
@@ -1882,19 +1884,68 @@ function mcFind(){
   const msg = $("#mcMsg"); msg.style.color = ""; msg.textContent = "";
   $("#mcResult").innerHTML = ""; MCFIND = null; mFormClose();
 
-  const nm = $("#mcName").value.trim(), ph = mDigits($("#mcPhone").value);
-  if(!nm || ph.length < 10){ msg.textContent = "성함과 연락처를 모두 넣어 주세요."; msg.style.color = "var(--bad,#c1121f)"; return; }
+  const nm = $("#mcName").value.trim();
+  const phRaw = $("#mcPhone").value.trim();
+  const ph = mDigits(phRaw);
+  if(!nm || ph.length < 10){
+    msg.textContent = "성함과 연락처를 모두 넣어 주세요.";
+    msg.style.color = "var(--bad,#c1121f)"; return;
+  }
 
-  const hits = ALL.filter(e => e.type === "coupang"
-    && mNameKey(e.name) === mNameKey(nm)
-    && (e.phoneKey || mDigits(e.phone)) === ph);
+  const nk = mNameKey(nm);
+  const phOf = e => e.phoneKey || mDigits(e.phone);
 
-  MCFIND = { name:nm, phone:$("#mcPhone").value.trim(), phoneKey:ph, hits };
-  logAccess("고객 조회", "수기접수(쿠팡) · " + nm, hits.length);
+  /* 성함·연락처가 **둘 다** 맞는 건 = 같은 사람 */
+  const exact = ALL.filter(e => mNameKey(e.name) === nk && phOf(e) === ph);
+  /* 한쪽만 맞는 건 = 오타이거나 동명이인. 「없음」으로 넘기지 않고 보여 줍니다. */
+  const near  = ALL.filter(e => exact.indexOf(e) < 0 && (mNameKey(e.name) === nk || phOf(e) === ph));
 
-  if(!hits.length){
-    msg.textContent = "✔ 참여 이력 없음"; msg.style.color = "var(--ok)";
-    $("#mcResult").innerHTML =
+  MCFIND = { name:nm, phone:phRaw, phoneKey:ph, hits:exact };
+  logAccess("고객 조회", "수기접수(쿠팡) · " + nm, exact.length + near.length);
+
+  /* 010 인데 11자리가 아니면 십중팔구 오타입니다 */
+  const phWarn = (ph.length !== 11 && ph.indexOf("010") === 0)
+    ? `<div style="padding:10px 12px;border-radius:9px;background:#fdf6ec;border:1px solid #f0e0c0;color:#8a6d1f;font-weight:700;margin-bottom:12px">
+         입력하신 연락처가 <b>${ph.length}자리</b>입니다(010-0000-0000 은 11자리).
+         한 자리 빠지면 다른 사람으로 취급되어 <b>이력이 없다고 나옵니다.</b> 번호를 다시 확인해 주세요.
+       </div>` : "";
+
+  const table = list => `
+    <div class="tablewrap" style="margin-top:11px">
+      <table class="data"><thead><tr>
+        <th>접수일시</th><th>유형</th><th>제품</th><th>사은품/상품권</th>
+        <th>심사</th><th>S/N</th><th>수령인</th><th>연락처</th><th>구분</th></tr></thead>
+      <tbody>${list.map(e => {
+        const st = shipStatus(e), meta = STATUS_META[st] || ["", ""];
+        return `<tr>
+          <td>${fmtDate(e._date)}</td>
+          <td><span class="pill">${admEsc(TYPE_LABEL[e.type] || e.type || "-")}</span></td>
+          <td><b>${admEsc(PNAME[e.product] || e.product || "-")}</b></td>
+          <td>${admEsc(e.giftItem || "-")}</td>
+          <td>${admEsc(meta[0])}</td>
+          <td>${admEsc(e.serial || "-")}</td>
+          <td>${admEsc(e.name || "-")}</td>
+          <td>${admEsc(e.phone || "-")}</td>
+          <td>${e.manual ? '<span class="pill" style="background:#f0eeec">수기</span>' : "-"}</td>
+        </tr>`;
+      }).join("")}</tbody></table>
+    </div>`;
+
+  const nearBox = near.length ? `
+    <div class="panel" style="background:#fdf6ec;border:1px solid #f0e0c0;margin-top:14px">
+      <h3 style="color:#8a6d1f">성함 또는 연락처 <b>한쪽만</b> 같은 건 ${near.length}건</h3>
+      <div class="hint" style="color:#7a6431">
+        오타이거나 동명이인일 수 있습니다. 아래 <b>수령인·연락처를 눈으로 대조</b>해 주세요.
+        같은 분이면 이미 참여하신 것이므로 등록하시면 안 됩니다.
+      </div>
+      ${table(near)}
+    </div>` : "";
+
+  /* ── 이력 없음 ── */
+  if(!exact.length){
+    msg.textContent = near.length ? "정확히 일치하는 건 없음 (비슷한 건 " + near.length + "건)" : "✔ 참여 이력 없음";
+    msg.style.color = near.length ? "#8a6d1f" : "var(--ok)";
+    $("#mcResult").innerHTML = phWarn +
       `<div class="panel" style="background:#eef6ee;border:1px solid #cfe3cf">
          <h3 style="color:#2c6b3c">참여 이력이 없습니다 — 등록할 수 있습니다</h3>
          <div class="hint" style="color:#3d6b48">
@@ -1905,38 +1956,37 @@ function mcFind(){
            <button class="sm" onclick="mCopy('${FORM_URL}',this)">접수폼 주소 복사</button>
            <button class="sm primary" onclick="mOpenForm({type:'coupang'})">정품등록 접수</button>
          </div>
-       </div>`;
+       </div>` + nearBox;
     return;
   }
 
-  msg.textContent = "이미 " + hits.length + "건 참여";
-  msg.style.color = "var(--bad,#c1121f)";
-  const list = hits.map(e => {
-    const st = shipStatus(e), meta = STATUS_META[st] || ["", ""];
-    return `<tr><td>${fmtDate(e._date)}</td><td><b>${admEsc(PNAME[e.product] || e.product || "-")}</b></td>
-      <td>${admEsc(e.giftItem || "-")}</td><td>${admEsc(meta[0])}</td>
-      <td>${admEsc(e.serial || "-")}</td>
-      <td>${e.manual ? '<span class="pill" style="background:#f0eeec">수기</span>' : "-"}</td></tr>`;
-  }).join("");
+  /* ── 이력 있음 ── */
+  const cp = exact.filter(e => e.type === "coupang");
+  const rv = exact.filter(e => e.type !== "coupang");
 
-  $("#mcResult").innerHTML =
+  msg.textContent = "이미 " + exact.length + "건 참여";
+  msg.style.color = "var(--bad,#c1121f)";
+
+  const lead = cp.length
+    ? `<b>쿠팡 정품등록으로 이미 ${cp.length}건</b> 참여하셨습니다. 고객에게 그대로 안내해 주세요.`
+    : `쿠팡 정품등록 이력은 없지만 <b>포토리뷰로 ${rv.length}건</b> 참여하신 분입니다.
+       <b>같은 제품</b>이면 중복이라 등록하시면 안 됩니다. 아래 제품을 확인해 주세요.`;
+
+  $("#mcResult").innerHTML = phWarn +
     `<div class="panel" style="background:#fdf6ec;border:1px solid #f0e0c0">
-       <h3 style="color:#8a6d1f">이미 참여하신 고객입니다</h3>
+       <h3 style="color:#8a6d1f">참여 이력이 있습니다</h3>
        <div class="hint" style="color:#7a6431">
-         고객에게 <b>"이미 참여하셨습니다"</b>라고 안내해 주세요.<br>
+         ${lead}<br><br>
          <b>1대를 더 구매하신 경우</b>에만 추가 접수가 가능합니다. 이때는
          <b>구매내역과 시리얼번호 라벨 사진</b>을 받아 확인한 뒤 등록하세요.
          시리얼번호는 제품 1대당 하나이므로, 이미 등록된 번호와 같으면 추가 접수 대상이 아닙니다.
        </div>
-       <div class="tablewrap" style="margin-top:11px">
-         <table class="data"><thead><tr><th>접수일시</th><th>제품</th><th>사은품/상품권</th><th>심사</th><th>S/N</th><th>구분</th></tr></thead>
-         <tbody>${list}</tbody></table>
-       </div>
+       ${table(exact)}
        <div style="margin-top:11px">
          <button class="sm" onclick="mCopy('${FORM_URL}',this)">접수폼 주소 복사</button>
          <button class="sm primary" onclick="mOpenForm({type:'coupang',extra:true})">1대 더 구매 — 증빙 받고 추가 등록</button>
        </div>
-     </div>`;
+     </div>` + nearBox;
 }
 
 /* ══════════ 등록 폼 ══════════ */

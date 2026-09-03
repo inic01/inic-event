@@ -84,6 +84,13 @@
   .giftph{display:flex;align-items:center;justify-content:center;color:#b3aaa2;font-size:12px;border:1px dashed var(--line)}
   .giftname{margin-top:10px;font-size:14px;font-weight:800;line-height:1.35}
   .giftkind{display:block;font-size:11.5px;font-weight:800;color:var(--sub);margin-bottom:3px}
+  /* 제품을 2개 이상 산 고객이 「이어서 접수」로 넘어오면 이 상품권·사은품이 어느 제품 것인지
+     알 수 없어서, 사은품 상자 맨 윗줄에 제품 이름을 함께 붙인다. 1개 산 고객에게도 똑같이 보인다. */
+  .giftfor{margin:-12px -12px 12px;padding:10px 13px;background:#f4f1ec;
+    border-bottom:1px solid var(--line);border-radius:10px 10px 0 0;text-align:left;
+    display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .giftfor .pn{font-size:14px;font-weight:900;color:var(--ink);letter-spacing:-.2px}
+  .giftfor .of{font-size:11.5px;color:var(--sub);font-weight:700}
   .prod .pname{font-size:12.5px;font-weight:700;line-height:1.3}
   .prod .check{position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;
     background:var(--brand);color:#fff;font-size:12px;line-height:18px;display:none}
@@ -870,7 +877,15 @@ function giftCardHtml(item, rw){
   const pic = src
     ? '<img class="giftimg" src="'+src+'" alt="'+item+'">'
     : '<div class="giftimg giftph">이미지 준비 중</div>';
-  return '<div class="giftbox">'+pic+
+  /* ⚠️ 어느 제품의 사은품인지 맨 윗줄에 함께 적는다.
+     제품을 2개 이상 산 고객이 「이어서 접수」로 넘어오면 앞 화면과 사은품이 달라지는데,
+     제품 이름이 없으면 어느 제품 것인지 알 수 없어 착불 동의를 잘못 눌렀다고 느낀다.
+     이름은 고객이 제품 선택 단계에서 직접 고른 이름을 그대로 쓴다(바꾸지 말 것). */
+  const pname = prodNameOf(state.product);
+  const forRow = pname
+    ? '<div class="giftfor"><span class="pn">'+pname+'</span><span class="of">의 '+label+'</span></div>'
+    : '';
+  return '<div class="giftbox">'+forRow+pic+
          '<div class="giftname"><span class="giftkind">받으실 '+label+'</span>'+item+'</div></div>';
 }
 /* ── 제품별 S/N 모델명 (제품별 시리얼 표 기준) ──────────────

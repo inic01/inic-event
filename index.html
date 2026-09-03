@@ -225,18 +225,8 @@
     <h2>구매 확인 <span class="req">*</span></h2>
     <p class="desc">구매 내역이 확인되어야 접수하실 수 있습니다. <b>편하신 방법 하나</b>를 골라 입력해 주세요.</p>
     <div class="vtabs" id="vtabs">
-      <button type="button" class="vtab on" data-vt="ord">주문번호</button>
+      <button type="button" class="vtab on" data-vt="np">성함 + 연락처</button>
       <button type="button" class="vtab" data-vt="inv">송장번호</button>
-      <button type="button" class="vtab" data-vt="np">성함 + 연락처</button>
-    </div>
-
-    <div class="vpane on" id="vp-ord">
-      <div class="notice" style="margin:0 0 10px">구매하신 쇼핑몰의 주문번호를 입력해 주세요. 구매하신 쇼핑몰의 주문내역은 쇼핑몰에 로그인하셔서 확인하실 수 있습니다. 주문번호를 찾기가 어려우시다면 아래의 <span class="hlk">주문번호 확인 방법</span>을 클릭해 주세요.</div>
-      <div class="field">
-        <label class="fld">주문번호 <span class="req">*</span></label>
-        <input type="text" id="vOrd" placeholder="구매하신 사이트의 주문번호">
-      </div>
-      <button type="button" class="ogbtn" onclick="openOrdGuide()">🔍 사이트별 주문번호 확인 방법</button>
     </div>
 
     <div class="vpane" id="vp-inv">
@@ -247,10 +237,10 @@
       </div>
     </div>
 
-    <div class="vpane" id="vp-np">
+    <div class="vpane on" id="vp-np">
       <div class="notice" style="margin:0 0 10px">주문하실 때 넣으신 <span class="hl">수령인명과 수령 받으실 연락처</span>를 모두 입력해 주세요. 둘 다 일치해야 조회됩니다.<br>
         구매하셨을 때 안심번호가 되어 있는 경우 안심번호로 입력해 주세요.<br>
-        ※ <span class="hl">네이버 내일도착보장 · 현대몰 · M몰 · GS샵 · CJ온스타일</span> 등 개인정보를 위해 고객님 성함이 <span class="hl">홍*동</span>처럼 가려진 채로 전달되거나 연락처를 아예 받지 못하는 경우가 있어, <span class="hl">수령인명과 수령 받으실 때 연락처</span>로 조회가 안 될 시 <span class="hlk">주문번호·송장번호</span>로 조회해 주세요.</div>
+        ※ <span class="hl">네이버 내일도착보장 · 현대몰 · M몰 · GS샵 · CJ온스타일</span> 등 개인정보를 위해 고객님 성함이 <span class="hl">홍*동</span>처럼 가려진 채로 전달되거나 연락처를 아예 받지 못하는 경우가 있어, <span class="hl">수령인명과 수령 받으실 때 연락처</span>로 조회가 안 될 시 <span class="hlk">송장번호</span>로 조회해 주세요.</div>
       <div class="field" style="margin-bottom:10px">
         <label class="fld">성함 <span class="req">*</span></label>
         <input type="text" id="vName" placeholder="주문하신 분 성함">
@@ -315,20 +305,6 @@
     </div>
     <label class="chk"><input type="checkbox" id="serialAck"><span>동일한 S/N은 최초 등록 1명에게만 사은품/기프티콘이 발송됨을 확인했습니다. <span class="req">*</span></span></label>
     <div class="err" id="err-serialack">확인에 체크해 주세요.</div>
-  </div>
-
-  <div class="card step hide" id="step-source">
-    <h2>구입처 등록 <span class="req">*</span></h2>
-    <p class="desc" id="srcDesc"></p>
-    <div id="sourceBox"></div>
-    <input type="text" id="sourceEtc" class="hide" placeholder="구입처를 직접 입력" style="margin-top:8px">
-    <div class="err" id="err-source">구입처를 선택해 주세요. (기타는 직접 입력)</div>
-    <div class="field" style="margin-top:18px">
-      <label class="fld">구매 사이트 주문번호 <span class="req">*</span></label>
-      <input type="text" id="order" placeholder="구매하신 사이트의 주문번호">
-      <div class="hint">주문번호 1건당 1회 참여 가능합니다.</div>
-      <div class="err" id="err-order">주문번호를 입력해 주세요.</div>
-    </div>
   </div>
 
   <div class="card step hide" id="step-info">
@@ -567,15 +543,14 @@ const ORDER_GUIDE={
    나머지 9개는 「PC버전 + 핸드폰 버전 동일」이라 나눌 게 없으므로
    한쪽만 크게 보는 버튼을 아예 띄우지 않습니다. */
 const GUIDE_SPLIT = new Set(["쿠팡 (로켓·일반배송)", "11번가", "옥션"]);
-const SOURCES=["아이닉 공식홈페이지","아이닉샵 스토어팜(네이버)","지마켓","옥션","오늘의집","현대몰","11번가","카카오톡쇼핑","쿠팡(일반배송)","신세계몰","CJ온스타일","하이마트","기타"];
 const GIFT_NOTICE="사은품은 <b>착불 발송</b>(택배비 3,200원, 배송 기사님 안내)됩니다. 제주·도서산간은 추가 배송비가 발생할 수 있습니다. 접수 후 1~2영업일 출고, 1인 1회 참여. (쿠팡 로켓배송 구매 고객은 '쿠팡·로켓배송 정품 등록'으로 참여해 주세요 — 이중 접수 시 배송비·회수비 고객 부담)";
 const COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 발송</b>(기프티쇼비즈)됩니다. 발송일: 매주 월요일(월요일 신청 건은 익주 월요일). 사용 기한: 수령 후 30일, 경과 후 재발송이 어렵습니다.";
 /* ============================================================ */
 
 const state={type:null,category:"주방가전",product:null,file:null,serialPrefix:"",
-  vTab:"ord",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
+  vTab:"np",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
   invNo:"",ordNo:"",autoName:"",autoPhone:"",token:"",
-  consent:{},esurvey:{},esurveyInit:false,survey:{},surveyFor:null,giftChoice:null,source:null};
+  consent:{},esurvey:{},esurveyInit:false,survey:{},surveyFor:null,giftChoice:null};
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 /* 오류 안내 : 빨간 문구 + 해당 입력칸에 빨간 테두리까지 표시한다.
    글씨만으로는 어디가 문제인지 못 알아채는 경우가 많아서. */
@@ -585,8 +560,6 @@ const ERR_TARGET={
   "err-prod":["#prodBox",".prods"],
   "err-entry":[],     // 문항별로 따로 표시
   "err-survey":[],    // 문항별로 따로 표시
-  "err-source":["#sourceBox"],
-  "err-order":["#order"],
   "err-file":["#drop"],
   "err-serial":["#serial"],
   "err-serialack":["#serialAck"],
@@ -620,19 +593,19 @@ function focusFirstError(){
 const surveyOf=code=>SURVEYS[code]||null;
 
 const STEP_EL={type:"#step-type",invoice:"#step-invoice",consent:"#step-consent",entry:"#step-entry",product:"#step-product",
-  survey:"#step-survey",source:"#step-source",serial:"#step-serial",info:"#step-info"};
+  survey:"#step-survey",serial:"#step-serial",info:"#step-info"};
 function getFlow(){
   if(!state.type) return ["type"];
   if(state.type==="review"){
     // 구매 확인으로 제품이 자동 확정되므로, 여러 제품을 사신 경우에만 제품 선택 단계를 넣는다
-    // 참여 안내 및 동의 → 참여 설문 → (제품 선택) → 제품 사용 설문 → 구입처
+    // 참여 안내 및 동의 → 참여 설문 → (제품 선택) → 제품 사용 설문 → 받으실 정보
     const f=["type","invoice","consent","entry"];
     if(!state.invOk || state.prodCodes.length>1) f.push("product");
     if(surveyOf(state.product)) f.push("survey");
-    f.push("source"); f.push("info"); return f; }
+    f.push("info"); return f; }
   const f=["type","consent","entry","product"];
   if(surveyOf(state.product)) f.push("survey");
-  f.push("source"); f.push("serial"); f.push("info"); return f;
+  f.push("serial"); f.push("info"); return f;
 }
 let current=0;
 function showStep(){
@@ -654,7 +627,6 @@ function showStep(){
   if(step==="product"){ renderCats(); renderProds(); }   // 송장 확인 결과에 따라 목록이 달라질 수 있어 매번 다시 그림
   if(step==="entry") renderEntrySurvey();
   if(step==="survey") renderSurvey();
-  if(step==="source") renderSource();
   if(step==="serial"){
     applySerialPrefix();
     // 정품등록은 '사진 먼저 촬영 → 보면서 S/N 입력' 순서. 사진 입력칸을 S/N 단계 위로 옮긴다.
@@ -797,22 +769,6 @@ function renderSurvey(){
   }));
 }
 
-function renderSource(){
-  const box=$("#sourceBox");
-  const coupang=state.type==="coupang";
-  $("#srcDesc").innerHTML = coupang
-    ? "정식 판매처가 아닌 다른 곳에서 구매하신 경우 정상적인 정품등록 참여가 어려울 수 있습니다.<br>※ '쿠팡 로켓배송'이 아닌 다른 사이트를 통해 구매하셨다면 '포토리뷰 이벤트'로 참여해 주세요."
-    : "정식 판매처가 아닌 다른 곳에서 구매하신 경우 정상적인 이벤트 참여가 어려울 수 있습니다.<br>※ '쿠팡 로켓배송'으로 구매하셨다면 '쿠팡·로켓배송 정품 등록'으로 참여해 주세요.";
-  if(box.dataset.for===state.type) return; box.dataset.for=state.type; state.source=null;
-  const list = coupang ? ["쿠팡 로켓배송"] : SOURCES;
-  box.innerHTML=list.map(s=>'<label class="radio"><input type="radio" name="src" value="'+s+'"><span>'+s+'</span></label>').join('');
-  $("#sourceEtc").classList.add("hide");
-  box.querySelectorAll('input[name=src]').forEach(r=>r.addEventListener('change',e=>{
-    state.source=e.target.value;
-    box.querySelectorAll('.radio').forEach(x=>x.classList.remove('sel')); e.target.closest('.radio').classList.add('sel');
-    $("#sourceEtc").classList.toggle('hide', e.target.value!=="기타"); hideErr("err-source");
-  }));
-}
 function renderInfo(){
   const g=giftOf(state.product); const key=state.type+"|"+state.product;
   if(state.infoFor!==key){
@@ -1153,7 +1109,7 @@ function maskPhone(p){const d=String(p||"").replace(/\D/g,"");
 function setVTab(t){
   state.vTab=t;
   $$("#vtabs .vtab").forEach(b=>b.classList.toggle("on",b.dataset.vt===t));
-  ["np","ord","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k===t);});
+  ["np","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k===t);});
   clearLookup();
   $("#invResult").innerHTML=""; hideErr("err-inv");
 }
@@ -1168,7 +1124,7 @@ function ivNotice(html){ $("#invResult").innerHTML='<div class="notice" style="m
 /* 조회가 안 될 때 다른 방법으로 바로 넘어가는 버튼 */
 function ivSwitch(tab){
   const B=(t,label)=>`<button type="button" class="ivswitch" onclick="setVTab('${t}')">${label}</button>`;
-  const rest=[["ord","주문번호로 조회하기"],["inv","송장번호로 조회하기"],["np","성함+연락처로 조회하기"]].filter(x=>x[0]!==tab);
+  const rest=[["inv","송장번호로 조회하기"],["np","성함+연락처로 조회하기"]].filter(x=>x[0]!==tab);
   return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+rest.map(x=>B(x[0],x[1])).join("")+'</div>';
 }
 function ivKakao(){
@@ -1192,17 +1148,13 @@ function dedupRows(rows){
    이제는 창구가 대신 열고 가려진 정보만 돌려준다.
    고객이 보는 화면과 절차는 하나도 바뀌지 않는다. */
 async function lookupPurchase(){
-  const tab=state.vTab||"ord", btn=$("#invBtn");
+  const tab=state.vTab||"np", btn=$("#invBtn");
   clearLookup();
   const payload={action:"lookupOrder",tab}; let typed={};
   if(tab==="np"){
     const nm=$("#vName").value.trim(), ph=$("#vPhone").value.trim();
     if(!nm||phoneDigits(ph).length<10){ ivNotice('<b style="color:#c1121f">성함과 연락처를 모두 정확히 입력해 주세요.</b><br>두 가지가 모두 일치해야 조회됩니다.'); return; }
     typed={name:nm,phone:ph}; payload.name=nm; payload.phone=ph;
-  } else if(tab==="ord"){
-    const v=normInv($("#vOrd").value);
-    if(v.length<4){ ivNotice('<b style="color:#c1121f">주문번호를 정확히 입력해 주세요.</b>'); return; }
-    payload.orderNo=v; state.ordNo=v;
   } else {
     const v=normInv($("#vInv").value);
     if(v.length<8){ ivNotice('<b style="color:#c1121f">송장번호를 정확히 입력해 주세요.</b>'); return; }
@@ -1235,8 +1187,7 @@ async function lookupPurchase(){
       }
       const how = tab==="np"
         ? '구매하신 사이트에 따라 연락처가 <b>안심번호</b>로 등록돼 있거나, 개인정보 보호로 성함이 <b>홍*동</b>처럼 가려진 채 전달되어 조회되지 않을 수 있습니다.<br>'
-          +'<b style="color:#c1121f">이런 경우에는 주문번호나 송장번호로 조회해 주세요.</b>'
-        : tab==="ord" ? '주문번호를 다시 확인해 주세요. 앞뒤 공백이나 빠진 숫자가 없는지 봐주세요.'
+          +'<b style="color:#c1121f">이런 경우에는 송장번호로 조회해 주세요.</b>'
         : '송장번호를 다시 확인해 주세요.';
       ivNotice('<b style="color:#c1121f">구매 내역을 찾지 못했습니다.</b><br>'+how
         +'<br>최근 구매 건은 아직 등록 전일 수 있습니다.'+ivSwitch(tab)
@@ -1351,11 +1302,6 @@ function validateStep(step){
       if(miss){ const el=document.querySelector(`#surveyBox .qitem[data-qi="${qi}"]`); if(el)el.classList.add("invalid"); if(bad<0)bad=qi; } }
     if(bad>=0){ showErr("err-survey"); return false; }
     hideErr("err-survey"); return true; }
-  if(step==="source"){ let ok=true;
-    if(!state.source){showErr("err-source");ok=false;}
-    else if(state.source==="기타" && !$("#sourceEtc").value.trim()){showErr("err-source");ok=false;}else hideErr("err-source");
-    if(!$("#order").value.trim()){showErr("err-order");ok=false;}else hideErr("err-order");
-    return ok; }
   if(step==="serial"){ let ok=true;
     if(!state.file){showErr("err-file");ok=false;}else hideErr("err-file");   // 사진이 이 단계로 옮겨옴
     if(!$("#serial").value.trim()){showErr("err-serial");ok=false;}else hideErr("err-serial");
@@ -1471,8 +1417,6 @@ async function submit(){
   const g=giftOf(state.product);
   entry.category=state.category; entry.product=state.product; entry.productName=prodNameOf(state.product);
   entry.giftItem = g ? (g.choice ? (state.giftChoice!=null?g.options[state.giftChoice].label:"") : g.label) : "";
-  entry.source = state.source==="기타" ? ("기타: "+$("#sourceEtc").value.trim()) : state.source;
-  entry.orderNo=$("#order").value.trim();
   /* 구매 수량(buyQty) = 원장의 수량, 이번 접수가 가져가는 수량(giftQty) = 한 번에 받기면 전량, 나눠 받기면 1 */
   entry.buyQty = review ? Math.max(1,state.buyQty||1) : 1;
   entry.usedBefore = review ? Math.max(0,state.usedQty||0) : 0;      // 이 제품으로 이미 접수한 개수
@@ -1602,16 +1546,15 @@ function continueEntry(){
 window.continueEntry=continueEntry;
 function resetForm(){
   state.type=null;state.category="주방가전";state.file=null;
-  clearLookup(); state.doneCodes=[]; state.vTab="ord";
-  ["#vName","#vPhone","#vOrd","#vInv"].forEach(s=>{const el=$(s);if(el)el.value="";});
+  clearLookup(); state.doneCodes=[]; state.vTab="np";
+  ["#vName","#vPhone","#vInv"].forEach(s=>{const el=$(s);if(el)el.value="";});
   {const b=$("#invResult");if(b)b.innerHTML="";}
   $$("#vtabs .vtab").forEach(b=>b.classList.toggle("on",b.dataset.vt==="ord"));
   ["np","ord","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k==="ord");});
-  state.consent={};state.survey={};state.surveyFor=null;state.giftChoice=null;state.source=null;state.infoFor=null;
+  state.consent={};state.survey={};state.surveyFor=null;state.giftChoice=null;state.infoFor=null;
   state.esurvey={};state.esurveyInit=false;{const eb=$("#entryBox");if(eb)eb.innerHTML="";}
-  ["#name","#phone","#order","#addrRoad","#addrDetail","#serial","#sourceEtc","#file"].forEach(s=>{const el=$(s);if(el)el.value="";});
+  ["#name","#phone","#addrRoad","#addrDetail","#serial","#file"].forEach(s=>{const el=$(s);if(el)el.value="";});
   document.querySelectorAll(".type").forEach(x=>x.classList.remove("on"));
-  const sb=$("#sourceBox"); if(sb) sb.dataset.for="";
   const di=$("#dropInner"); if(di) di.innerHTML='<div style="font-size:30px">📷</div><div style="margin-top:6px" id="dropText">여기를 눌러 이미지를 등록</div><span class="upbtn">파일 선택</span>';
   const fn=$("#filename"); if(fn) fn.textContent="";
   const more=$("#mMore"); if(more) more.classList.add("hide");

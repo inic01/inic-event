@@ -189,7 +189,7 @@
     <div class="tiles" id="tiles"></div>
     <div class="row2">
       <div class="panel"><h3>제품별 참여</h3><table class="mini" id="byProduct"></table></div>
-      <div class="panel"><h3>구입처별 참여</h3><table class="mini" id="bySource"></table></div>
+      <div class="panel"><h3>판매처별 참여</h3><table class="mini" id="bySource"></table></div>
     </div>
     <div class="svbar">
       <h3 style="font-size:15px;margin:0">설문 통계 — 제품별</h3>
@@ -278,7 +278,7 @@
     <div class="hint">
       <b>수기접수는 되도록 쓰지 않는 것이 좋습니다.</b> 고객이 직접 접수해야 리뷰와 설문이 남기 때문입니다.<br>
       그래서 화면 순서도 <b>「고객에게 안내」가 먼저, 「직접 등록」이 나중</b>입니다.
-      먼저 주문번호·송장번호를 알려드려 고객이 직접 하시게 하고, 그래도 어려운 경우에만 아래에서 등록해 주세요.<br>
+      먼저 성함+연락처·송장번호로 직접 하시게 안내하고, 그래도 어려운 경우에만 아래에서 등록해 주세요.<br>
       여기서 등록한 건은 AI 심사를 거치지 않고 <b>바로 '적격'</b>이 되어 발송목록으로 들어갑니다.
     </div>
 
@@ -345,7 +345,7 @@
         <div class="grid">
           <div class="field"><label>유형 <span class="req">*</span></label>
             <select id="mType"><option value="review">포토리뷰</option><option value="coupang">쿠팡 정품등록</option></select></div>
-          <div class="field"><label>구입처</label><select id="mSource"></select></div>
+          <div class="field"><label>판매처 <span style="font-weight:600;color:var(--sub)">(원장에서 자동)</span></label><select id="mSource"></select></div>
           <div class="field"><label>카테고리 <span class="req">*</span></label><select id="mCategory"></select></div>
           <div class="field"><label>제품 <span class="req">*</span></label><select id="mProduct"></select></div>
           <div class="field full"><label>사은품/상품권 (제품 선택 시 자동)</label><select id="mGift"></select></div>
@@ -435,9 +435,9 @@
     <div class="panel" style="margin-bottom:14px">
       <h3>파일로 올리기 <span style="color:var(--sub);font-weight:600;font-size:12px">(과거 데이터 채울 때)</span></h3>
       <div class="hint">평소에는 위쪽 시트 동기화로 충분합니다. <b>ERP에서 받은 과거 데이터를 한 번에 채울 때</b> 쓰세요.<br>
-        접수폼에서 <b>성함+연락처 / 주문번호 / 송장번호</b> 세 가지 중 하나로 본인 확인을 하기 위한 고객DB입니다.
+        접수폼에서 <b>성함+연락처 / 송장번호</b> 두 가지 중 하나로 본인 확인을 하기 위한 고객DB입니다. (주문번호는 이 화면의 수기접수 검색에서만 씁니다)
         스프레드시트(.xlsx) 또는 .csv 파일을 올리면 세 가지 키로 각각 찾을 수 있게 저장됩니다.<br>
-        필요한 열 : <b>제품군 · 이름 · 전화번호1 · 수량 · 송장번호 · 주문번호</b> (전화번호2·일자는 있으면 함께 저장 / 판매처는 저장하지 않습니다)<br>
+        필요한 열 : <b>제품군 · 이름 · 전화번호1 · 수량 · 송장번호 · 주문번호</b> (전화번호2·일자·판매처는 있으면 함께 저장 — 판매처는 리포트에 「판매처별 참여」로 보여 주기 위해 저장합니다)<br>
         <b>전화번호2</b>가 있으면 함께 색인하므로 고객이 <b>안심번호</b>를 넣어도 조회됩니다. <b>수량</b>이 2 이상이면 사은품이 그 수량만큼 나갑니다.<br>
         <span style="color:var(--bad,#c0392b)">※ 예전 구조로 올린 문서가 있으면 Firebase 콘솔에서 <b>orders 컬렉션을 먼저 삭제</b>한 뒤 올려 주세요.</span></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px">
@@ -913,7 +913,7 @@ const SN_COL=["S/N (입력 / AI판독)",e=>{
   return `<span style="${MONO}">${inp}</span><div style="${MONO};margin-top:2px;color:${same?"var(--ok,#12a150)":"var(--bad,#c0392b)"}">${ai?("AI "+ai):"AI 판독불가"}</div>`;
 },"wrapcell"];
 const COLS=[
-  ["접수일시",e=>fmtDate(e._date)],["구입처",e=>e.source||"-","wrapcell"],["출고",e=>shipBadge(e)],["출고일자",e=>shippedDate(e)],
+  ["접수일시",e=>fmtDate(e._date)],["판매처",e=>e.source||"-","wrapcell"],["출고",e=>shipBadge(e)],["출고일자",e=>shippedDate(e)],
   TYPE_COL,["제품",e=>e.product||"-"],
   ["보상",e=>`<span class="pill ${e.rewardType}">${REWARD_LABEL[e.rewardType]||"-"}</span>`],["사은품/상품권",e=>e.giftItem||"-","wrapcell"],
   ["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],["심사",e=>statusBadge(e)]
@@ -946,10 +946,12 @@ function aggTable(el,keyFn){
 /* ══════════ 설문 통계 — 제품별 ══════════
    접수 1건에 담긴 survey 배열은 [참여 설문 3문항 → 제품 사용 설문] 순서로 들어온다.
    포토리뷰와 쿠팡 정품등록은 같은 설문을 받으므로 제품 기준으로 합쳐서 본다.
-   여기에 구입처(source)를 한 문항처럼 붙여서, 제품별로 세 덩어리로 보여준다.
+   여기에 판매처(source)를 한 문항처럼 붙여서, 제품별로 세 덩어리로 보여준다.
+   ⚠️ 판매처는 고객에게 묻지 않고 **원장(출고리스트)에 적힌 값**을 그대로 씁니다.
+      고객 기억보다 원장이 정확하고, 설문 문항 하나를 줄일 수 있기 때문입니다.
    ※ 문항 문구가 같아도 제품마다 보기가 달라서, 제품을 섞어 합치지 않는다. */
 const SV_ENTRY_QS=["성별을 선택해주세요.","연령대를 선택해주세요.","아이닉 제품을 구매하게 된 경로를 선택해주세요."];
-const SV_SRC_Q="구매하신 곳(구입처)";
+const SV_SRC_Q="구매하신 곳(판매처)";
 const SV_HEX=["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7"];
 const SV_OTHER="#b9b2aa";
 const SV_MAX=7;
@@ -993,7 +995,7 @@ function svSections(p){
   const out=[];
   if(ent.length) out.push({sec:"참여 설문",qs:ent});
   if(prod.length) out.push({sec:"제품 사용 설문",qs:prod});
-  if(src.length) out.push({sec:"구입처",qs:src});
+  if(src.length) out.push({sec:"판매처",qs:src});
   return out;
 }
 /* 보기가 많으면 많은 순서로 7개만 색을 주고 나머지는 '기타(보기 N개)'로 묶는다.
@@ -1580,7 +1582,7 @@ function renderCS(){
       <div class="csdetail">
         <div><b>제품</b>${e.product||"-"}</div>
         <div><b>${REWARD_LABEL[e.rewardType]||"사은품/상품권"}</b>${e.giftItem||"-"}</div>
-        <div><b>구입처</b>${e.source||"-"}</div>
+        <div><b>판매처</b>${e.source||"-"}</div>
         <div><b>주문번호</b>${e.orderNo||"-"}</div>
         ${e.type==="coupang"?`<div><b>S/N</b><span style="${MONO}">${e.serial||"(미입력)"}</span></div>`:""}
         <div><b>배송구분</b>${shipFeeBadge(e)}</div>
@@ -1771,13 +1773,14 @@ async function mFind(){
 }
 
 /* 고객에게 그대로 보낼 안내 문구.
+   ⚠️ 접수폼은 「성함+연락처」와 「송장번호」로만 조회합니다(주문번호 입력칸을 없앴습니다).
+      그래서 고객에게 주문번호를 알려 드리면 안 됩니다 — 넣을 칸이 없습니다.
    ⚠️ 송장번호는 「어느 제품의 송장인지」가 같이 있어야 고객이 쓸 수 있습니다.
       합배송이면 한 송장에 여러 제품이 실리므로 제품별로 묶어서 적습니다. */
 function mGuideText(){
   if(!MFIND) return "";
   const lines = MFIND.groups.map(g => {
-    const o = [...g.ords], i = [...g.invs], parts = [];
-    if(o.length) parts.push("주문번호 " + o.join(", "));
+    const i = [...g.invs], parts = [];
     if(i.length) parts.push("송장번호 " + i.join(", "));
     /* 고객이 보는 문구이므로 이름은 짧게.
        후보가 2종인 행(음식물처리기)은 우리 코드명을 나열하면 길고 헷갈리므로
@@ -1788,7 +1791,8 @@ function mGuideText(){
   return "안녕하세요, 아이닉입니다.\n"
     + "포토리뷰 이벤트는 아래 주소에서 직접 접수해 주시면 됩니다.\n\n"
     + FORM_URL + "\n\n"
-    + "구매 확인 단계에서 아래 번호를 넣어 주세요.\n"
+    + "구매 확인 단계에서 「성함 + 연락처」를 넣으시면 조회됩니다.\n"
+    + "조회가 안 되시면 아래 송장번호로 조회해 주세요.\n"
     + lines.join("\n") + "\n\n"
     + "리뷰 캡처 이미지를 함께 올려 주시면 접수가 완료됩니다.\n"
     + "감사합니다.";
@@ -2083,6 +2087,10 @@ function mOpenForm(ctx){
     fmtPhone($("#mPhone"));
     $("#mOrder").value   = [...g.ords][0] || "";
     $("#mInvoice").value = [...g.invs][0] || "";
+    /* 판매처도 원장 값으로 채웁니다. 원장에 없거나 목록에 없는 이름이면 빈 칸으로 둡니다. */
+    const srcRaw = String(rowFor.src || r0.src || "").trim();
+    const srcOpt = srcRaw && [...$("#mSource").options].find(o => o.value === srcRaw);
+    $("#mSource").value = srcOpt ? srcRaw : "";
     $("#mQty").value = 1; $("#mQty").max = left;
     M_CTX.left = left;
   }
@@ -2262,12 +2270,12 @@ function downloadRows(rows,baseName){
 }
 function exportAllRows(){
   return filteredAll().map(e=>({"접수일시":fmtDate(e._date),"유형":TYPE_LABEL[e.type]||e.type,"심사":STATUS_META[shipStatus(e)][0],"출고":SHIP_META[shipStateOf(e)][0],
-    "카테고리":e.category||"","제품":e.product||"","보상종류":REWARD_LABEL[e.rewardType]||"","사은품/상품권":e.giftItem||"","구입처":e.source||"",
+    "카테고리":e.category||"","제품":e.product||"","보상종류":REWARD_LABEL[e.rewardType]||"","사은품/상품권":e.giftItem||"","판매처":e.source||"",
     "담당자":e.agent||"","주문번호":e.orderNo||"","S/N":e.serial||"","수령인":e.name||"","연락처":e.phone||"","주소":e.address||"",
     "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"","이미지URL":imgUrlOf(e),"문서ID":e._id||""}));
 }
-const DL_ORDER=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["사은품",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주소",e=>e.address||""],["주문번호",e=>e.orderNo||""],["구입처",e=>e.source||""],["문서ID",e=>e._id||""]];
-const DL_ACCT=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["상품권",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["구입처",e=>e.source||""],["문서ID",e=>e._id||""]];
+const DL_ORDER=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["사은품",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주소",e=>e.address||""],["주문번호",e=>e.orderNo||""],["판매처",e=>e.source||""],["문서ID",e=>e._id||""]];
+const DL_ACCT=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["상품권",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["판매처",e=>e.source||""],["문서ID",e=>e._id||""]];
 async function dlAndShip(list,cols,fname){
   if(!list.length){alert("대상 데이터가 없습니다.");return;}
   if(!confirm(list.length+"건을 다운로드하고 '출고완료' 처리합니다.\n출고완료된 건은 이 목록에서 사라집니다. 계속할까요?"))return;

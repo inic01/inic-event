@@ -245,6 +245,25 @@
   #evtCfg .btn.reqbtn.on:hover{background:var(--bad); filter:brightness(1.06)}
   /* 「수정」 전에는 잠김 — 회색으로 흐리게 */
   #evtCfg .btn.reqbtn.lock{opacity:.42; cursor:default}
+
+  /* 접수폼 유형 전환 */
+  #evtCfg .ttoggle{display:flex; gap:6px; flex-wrap:wrap}
+
+
+  /* 안내 문구 미리보기 */
+  #evtCfg .npvmodal{display:none; position:fixed; inset:0; background:rgba(20,16,14,.5);
+    z-index:500; align-items:center; justify-content:center; padding:20px}
+  #evtCfg .npvcard{background:var(--card); border-radius:14px; padding:18px; width:100%; max-width:420px;
+    box-shadow:0 18px 50px rgba(0,0,0,.28)}
+  #evtCfg .npvhead{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:11px}
+  #evtCfg .npvtag{font-size:11px; font-weight:900; background:var(--sunk); color:var(--sub);
+    border-radius:6px; padding:3px 9px}
+  #evtCfg .npvphone{border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff}
+  #evtCfg .npvtop{background:#fff; border-bottom:1px solid #ece8e4; padding:9px;
+    text-align:center; font-size:11px; font-weight:800; color:#2b2725}
+  #evtCfg .npvbody{padding:13px; background:#fff}
+  #evtCfg .npvnote{margin:11px 0 0; font-size:11.5px; color:var(--sub); line-height:1.65}
+
   #evtCfg .btn.reqbtn.lock:hover{background:var(--card)}
   #evtCfg .btn.reqbtn.on.lock{opacity:.42}
   #evtCfg .btn.reqbtn.on.lock:hover{background:var(--bad)}
@@ -4031,6 +4050,14 @@ const DEFAULTS = {
       ackCoupon:"네, 확인했습니다",
       ackReq:true
     },
+    /* 쿠팡 정품등록에서만 나오는 화면 */
+    serial: {
+      desc:"제품에 붙은 시리얼번호(S/N)를 정확히 입력해 주세요.",
+      warn:"※ 같은 시리얼번호가 이미 등록된 경우, 사은품/기프티콘은 최초 1명에게만 발송됩니다.",
+      exampleName:"i90_시리얼_확인방법.webp",
+      ack:"S/N 위치와 번호를 확인했습니다",
+      req:true, ackReq:true
+    },
     capture: {
       title:"포토리뷰 캡처 이미지",
       desc:"본인이 작성한 리뷰 화면을 캡처해 등록해 주세요. 별점·후기 내용·첨부하신 사진이 함께 보여야 합니다.",
@@ -4127,6 +4154,8 @@ const DEFAULTS = {
     checkConsult: { t:"리뷰 검수가 진행 중입니다. 첨부 이미지를 확인하기 어렵거나 중복 참여, 구매 정보 확인이 어려운 경우 이벤트 참여 검수가 지연될 수 있습니다. 처리가 지연되는 경우 아래 채널을 통해 문의해 주세요.", k:true },
     checkWait:    { t:"○○에 정상 참여되었습니다.\n사은품은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.", k:true }
   },
+  /* 제품을 아직 모를 때(구매 확인 단계 등) 보낼 채널 */
+  kakaoDefault: "생활가전",
   kakao: {
     "생활가전":"http://pf.kakao.com/_PQANG",
     "주방가전":"http://pf.kakao.com/_xeQANG",
@@ -4466,10 +4495,123 @@ function reqBtn(on, toggle, editing, ownerId){
     } }, "필수");
 }
 
-function grpBar(t, d){
-  return el("div", { class:"qcard grp" }, el("strong", {}, t),
-    el("span", { style:"color:var(--sub);font-size:12.5px;margin-left:8px" }, d));
+function grpBar(t, d, add){
+  /* 추가 버튼을 묶음 제목 옆에도 둡니다.
+     목록 맨 아래에만 있으면 문항이 많을 때 스크롤을 한참 내려야 보입니다. */
+  return el("div", { class:"qcard grp", style:"display:flex;align-items:center;gap:10px;flex-wrap:wrap" },
+    el("strong", {}, t),
+    el("span", { style:"color:var(--sub);font-size:12.5px;flex:1 1 200px" }, d),
+    add ? el("button", { class:"btn sm primary", type:"button",
+      onclick:e => { e.stopPropagation(); add(); } }, "+ 문항 추가") : "");
 }
+
+/* 접수폼 탭에서 지금 어느 유형을 보고 있는지.
+   포토리뷰와 쿠팡 정품등록은 거치는 화면이 다릅니다.
+     포토리뷰  — 구매 확인 → … → 리뷰 캡처 이미지 → 받으실 정보
+     쿠팡 정품등록 — 구매 확인 없음 → … → 시리얼번호(S/N) → 받으실 정보          */
+let formType = "review";
+const TYPE_LABEL2 = { review:"포토리뷰 이벤트", coupang:"쿠팡·로켓배송 정품 등록" };
+
+/* ══════════ 접수폼 미리보기 — 고객이 보는 화면 그대로 ══════════
+   ⚠️ 실제 접수폼(index.html)의 디자인·글씨크기·화면 순서를 그대로 옮겨 왔습니다.
+      리포트 화면의 디자인과 섞이지 않도록 iframe 안에서 따로 그립니다.
+      지금 설정 화면에 들어 있는 값이 그대로 들어갑니다(아직 저장 안 한 값도 보입니다).
+      보기만 하는 화면이라 여기서 무엇을 눌러도 실제로 접수되지 않습니다. */
+const PV_CSS  = "\n  :root{--brand:#3f3939;--brand-dark:#2b2725;--ok:#12a150;--bad:#e5484d;\n    --ink:#2b2725;--sub:#8a827c;--line:#ece8e4;--bg:#f6f4f2;--card:#fff;}\n  *{box-sizing:border-box}\n  body{margin:0;font-family:\"Apple SD Gothic Neo\",\"Malgun Gothic\",\"Noto Sans KR\",sans-serif;\n    background:var(--bg);color:var(--ink);-webkit-text-size-adjust:100%}\n  .wrap{max-width:560px;margin:0 auto;padding:0 0 96px}\n  header.hero{background:#fff;color:var(--ink);padding:22px 22px 18px;border-bottom:1px solid var(--line);text-align:center}\n  header.hero .logo{height:30px;margin-bottom:12px}\n  header.hero h1{margin:0 0 5px;font-size:18px;font-weight:800;letter-spacing:-.3px}\n  header.hero p{margin:0;font-size:12.5px;color:var(--sub);line-height:1.5}\n  .demo-badge{display:inline-block;margin-top:10px;background:#f4f1ec;color:var(--sub);\n    border:1px solid var(--line);padding:3px 10px;border-radius:999px;font-size:11px}\n  .bar{height:4px;background:#ece7e1}\n  .bar > i{display:block;height:100%;width:0;background:var(--brand);transition:width .25s}\n  .card{background:var(--card);margin:0;border-radius:0;padding:20px 22px;\n    box-shadow:none;border:0;border-top:1px solid var(--line)}\n  .card:first-of-type{border-top:0}\n  .card h2{margin:0 0 4px;font-size:16px;font-weight:800}\n  .card .desc{margin:0 0 14px;font-size:12.5px;color:var(--sub);line-height:1.55}\n  .req{color:var(--bad);font-weight:800}\n  label.fld{display:block;font-size:13.5px;font-weight:700;margin:0 0 7px}\n  input[type=text],input[type=tel],textarea{width:100%;border:1px solid var(--line);\n    border-radius:10px;padding:12px 13px;font-size:14.5px;font-family:inherit;background:#fbfcfe;color:var(--ink)}\n  input:focus,textarea:focus{outline:none;border-color:var(--brand);background:#fff}\n  textarea{resize:vertical;min-height:74px}\n  .hint{font-size:11.5px;color:var(--sub);margin:6px 2px 0;line-height:1.5}\n  .field{margin-bottom:16px}.field:last-child{margin-bottom:0}\n  .hide{display:none !important}\n  .types{display:grid;grid-template-columns:1fr 1fr;gap:12px}\n  .type{border:1.5px solid var(--line);border-radius:14px;padding:22px 14px;text-align:center;\n    cursor:pointer;background:#fff;transition:.12s;min-height:120px;display:flex;flex-direction:column;justify-content:center}\n  .type:hover{border-color:#dcd3c8}\n  .type.on{border-color:var(--brand);background:#f4f1ec;box-shadow:0 0 0 2px #e4ddd3 inset}\n  .type .emo{font-size:28px}.type .tt{font-weight:800;font-size:14.5px;margin-top:10px;line-height:1.35}\n  .checkpart{margin-top:20px}\n  #chkOpen{width:100%;padding:14px;border:1.5px dashed var(--brand,#3d7bfd);border-radius:12px;background:#f4f7ff;color:var(--brand,#3d7bfd);font-weight:800;font-size:14px;cursor:pointer}\n  #chkBody{margin-top:12px;padding:16px;border:1px solid var(--line);border-radius:14px;background:#faf8f6}\n  .cprow{display:flex;gap:6px;flex-wrap:wrap}\n  .cprow input{flex:1;min-width:120px;padding:10px;border:1px solid var(--line);border-radius:9px;font-size:14px}\n  .cprow #chkBtn{padding:0 18px;border:none;border-radius:9px;background:var(--brand,#3d7bfd);color:#fff;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap}\n  .cpresult{margin-top:10px}\n  .cpresult:empty{display:none}\n  .cpcard{padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-top:8px;font-size:13px;line-height:1.5}\n  .cpcard .st{font-weight:800}\n  .cpempty{padding:11px 13px;border:1px dashed var(--line);border-radius:10px;background:#fff;font-size:13px;color:var(--sub)}\n  .cpbadge{display:inline-block;font-size:11.5px;font-weight:800;border-radius:6px;padding:2px 8px;margin-left:4px}\n  .cpbadge.ok{background:#eaf3ee;color:#1f7a45}.cpbadge.wait{background:#fdf0e3;color:#b26a00}.cpbadge.no{background:#fdecec;color:#b23b3b}.cpbadge.ship{background:#eaf3ee;color:#1f7a45}\n  .cpkakao{display:inline-block;background:#FEE500;color:#191600;font-weight:800;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:13px}\n  .cats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}\n  .cat{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;\n    font-size:13px;font-weight:700;cursor:pointer;color:var(--sub)}\n  .cat.on{background:var(--brand);color:#fff;border-color:var(--brand)}\n  .cat[disabled]{opacity:.45;cursor:not-allowed}\n  /* 제품 선택 : 2열 — 이미지를 크게 보여주는 쪽 우선 (스크롤 소폭 발생) */\n  .prods{display:grid;grid-template-columns:1fr 1fr;gap:8px}\n  #step-product h2{margin-bottom:4px}\n  #step-product .desc{margin-bottom:8px}\n  .prod{border:1.5px solid var(--line);border-radius:12px;padding:9px;cursor:pointer;\n    text-align:center;background:#fff;transition:.12s;position:relative}\n  .prod:hover{border-color:#dcd3c8}\n  .prod.on{border-color:var(--brand);background:#f4f1ec;box-shadow:0 0 0 2px #e4ddd3 inset}\n  /* 제품 이미지 = 4:3 (카드 폭에 맞춰 커짐). 원본은 4:3(권장 1000×750)으로 준비 */\n  .prod .pimg{width:100%;aspect-ratio:4/3;height:auto;object-fit:cover;display:block;margin-bottom:6px;border-radius:8px;background:#f7f9fc}\n  .prod .pph{width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;\n    background:#f2f4f8;border-radius:8px;margin-bottom:4px;color:#9aa4b2;font-size:11px}\n  .prod .badge{display:inline-block;font-size:10.5px;font-weight:800;color:var(--brand);\n    background:#f1ede7;border-radius:6px;padding:2px 7px;margin-bottom:6px}\n  /* 사은품/상품권 미리보기 */\n  /* 미입력·오류 강조 */\n  .invalid{border-color:#c1121f !important;box-shadow:0 0 0 3px rgba(193,18,31,.20) !important}\n  .drop.invalid{border-style:dashed}\n  .consent.invalid,.qitem.invalid{border:1.5px solid #c1121f !important;border-radius:12px;padding:10px}\n  .err{color:#c1121f}\n  .giftbox{border:1.5px solid var(--line);border-radius:12px;padding:12px;margin:0 0 10px;background:#fff;text-align:center}\n  .giftimg{display:block;width:100%;max-width:320px;aspect-ratio:4/3;object-fit:contain;margin:0 auto;\n    border-radius:9px;background:#f7f5f3}\n  .giftph{display:flex;align-items:center;justify-content:center;color:#b3aaa2;font-size:12px;border:1px dashed var(--line)}\n  .giftname{margin-top:10px;font-size:14px;font-weight:800;line-height:1.35}\n  .giftkind{display:block;font-size:11.5px;font-weight:800;color:var(--sub);margin-bottom:3px}\n  /* 제품을 2개 이상 산 고객이 「이어서 접수」로 넘어오면 이 상품권·사은품이 어느 제품 것인지\n     알 수 없어서, 사은품 상자 맨 윗줄에 제품 이름을 함께 붙인다. 1개 산 고객에게도 똑같이 보인다. */\n  .giftfor{margin:-12px -12px 12px;padding:10px 13px;background:#f4f1ec;\n    border-bottom:1px solid var(--line);border-radius:10px 10px 0 0;text-align:left;\n    display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}\n  .giftfor .pn{font-size:14px;font-weight:900;color:var(--ink);letter-spacing:-.2px}\n  .giftfor .of{font-size:11.5px;color:var(--sub);font-weight:700}\n  .prod .pname{font-size:12.5px;font-weight:700;line-height:1.3}\n  .prod .check{position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;\n    background:var(--brand);color:#fff;font-size:12px;line-height:18px;display:none}\n  .prod.on .check{display:block}\n  .drop{border:1.5px dashed #c2ccda;border-radius:12px;padding:22px;text-align:center;\n    cursor:pointer;background:#fbfcfe;color:var(--sub);font-size:13px;display:block}\n  .drop input{display:none}\n  .preview{max-width:100%;max-height:300px;border-radius:9px;display:block;margin:0 auto}\n  .upbtn{display:inline-block;margin-top:2px;background:#f1ede7;color:var(--brand);\n    font-weight:800;padding:9px 16px;border-radius:9px;font-size:13px}\n  .filename{font-size:11.5px;color:var(--sub);margin-top:8px;word-break:break-all}\n  .notice{font-size:11.5px;color:var(--sub);line-height:1.65;background:#f7f9fc;\n    border-radius:10px;padding:12px 13px;margin-bottom:10px}\n  .notice b{color:var(--ink)}\n  .qitem{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}\n  .qitem .qtt{font-size:13.5px;font-weight:800;margin-bottom:4px;line-height:1.45}\n  .consent{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}\n  .consent .ctitle{font-size:13.5px;font-weight:800;margin-bottom:4px}\n  /* 송장 매칭 확인 카드 */\n  .ivcard{border:2px solid #1d3557;border-radius:14px;padding:16px;margin:0;background:#fff}\n  .ivcard .ivtitle{font-size:16px;font-weight:900;color:#1d3557;margin-bottom:12px;letter-spacing:-.2px}\n  .ivbox{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fafbfc}\n  .ivrow{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--line)}\n  .ivrow:last-child{border-bottom:none}\n  .ivk{flex:0 0 68px;font-size:13px;font-weight:700;color:var(--sub)}\n  .ivv{flex:1;font-size:16px;font-weight:800;color:#111;word-break:break-all}\n  .ivcard .hint{margin:8px 0 10px}\n  .ivcard .chk span{font-size:14.5px;font-weight:700}\n  @media(max-width:420px){ .ivv{font-size:15px} .ivcard .ivtitle{font-size:15px} }\n  /* 구매 확인 — 조회 탭 */\n  .vtabs{display:flex;gap:6px;margin:0 0 12px}\n  .vtab{flex:1;padding:11px 4px;border:1.5px solid var(--line);background:#fff;border-radius:10px;\n    font-size:12.5px;font-weight:800;color:var(--sub);cursor:pointer;line-height:1.3}\n  .vtab.on{border-color:#1d3557;background:#1d3557;color:#fff}\n  .vpane{display:none}\n  .vpane.on{display:block}\n  @media(max-width:380px){ .vtab{font-size:11.5px;padding:10px 2px} }\n  /* 참여 완료 / 남은 수량 — 제품명까지 한 덩어리로 표시 */\n  .pdone{display:inline-block;margin:2px 0;padding:4px 11px;border-radius:16px;\n    background:#e8f5ea;border:1px solid #c9e6d1;color:#2c7a43;\n    font-size:14px;font-weight:800;line-height:1.5}\n  .pdone .tag{display:inline-block;margin-left:7px;font-size:11.5px;\n    background:#2c7a43;color:#fff;border-radius:99px;padding:2px 8px;\n    font-weight:800;white-space:nowrap;vertical-align:1px}\n  .pdone.pleft{background:#fff4e3;border-color:#f0dfc2;color:#9a6212}\n  .pdone.pleft .tag{background:#9a6212}\n  @media(max-width:420px){ .pdone{font-size:13px;padding:4px 9px} .pdone .tag{font-size:11px;padding:2px 7px;margin-left:5px} }\n  /* 확인 카드 항목명 폭을 조금 줄여 제품 줄에 여유를 준다 */\n  .ivk{flex-basis:56px}\n  /* 주문번호 확인 방법 안내 */\n  .ogbtn{width:100%;margin-top:10px;padding:11px 0;border:1.5px dashed #1d3557;background:#f7f9fc;\n    color:#1d3557;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer}\n  .ogchips{display:flex;flex-wrap:wrap;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line)}\n  .ogchip{padding:7px 11px;border:1.5px solid var(--line);background:#fff;border-radius:99px;\n    font-size:12px;font-weight:800;color:var(--sub);cursor:pointer;white-space:nowrap}\n  .ogchip.on{border-color:#1d3557;background:#1d3557;color:#fff}\n  /* 이미지 크게 보기 뷰어 */\n  .exbtn{border:none;background:#3a3a3a;color:#fff;border-radius:8px;padding:8px 11px;\n    font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap}\n  .exbtn.on{background:#fff;color:#111}\n  #ogChips{background:#fff;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:10px 12px}\n  #ogChips::-webkit-scrollbar{height:0}\n  /* 조회 실패 시 다른 방법으로 넘어가는 버튼 */\n  .ivswitch{flex:1 1 auto;padding:10px 12px;border:1.5px solid #1d3557;background:#fff;color:#1d3557;\n    border-radius:9px;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap}\n  /* 안내문 안에서 꼭 읽어야 할 부분 */\n  .notice .hl{font-size:13.5px;font-weight:900;color:#c0392b;line-height:1.6}\n  .notice .hlk{font-size:13.5px;font-weight:900;color:#111;line-height:1.6}\n  .ctag{font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;margin-left:6px}\n  .ctag.must{background:#fdecee;color:var(--bad)}.ctag.opt{background:#f1ede7;color:var(--brand)}\n  .radio{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.45;cursor:pointer;\n    padding:9px 10px;border:1px solid var(--line);border-radius:9px;margin-top:8px;background:#fff}\n  .radio.sel{border-color:var(--brand);background:#f5f2ee}\n  .radio input{margin-top:1px;width:17px;height:17px;flex:0 0 auto;accent-color:var(--brand)}\n  .radio .cons{display:block;font-size:11px;color:var(--sub);margin-top:1px}\n  .chk{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5;cursor:pointer;margin-top:8px}\n  .chk input{margin-top:2px;width:17px;height:17px;flex:0 0 auto;accent-color:var(--brand)}\n  .err{color:var(--bad);font-size:12px;margin-top:8px;display:none}\n  .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;\n    background:#fff;border-top:1px solid var(--line);padding:12px 14px;display:flex;align-items:center;gap:10px}\n  .nav .prog{font-size:12px;color:var(--sub);font-weight:700;text-align:center;white-space:nowrap}\n  .nbtn{flex:1;border:none;border-radius:11px;padding:14px;font-size:15px;font-weight:800;cursor:pointer}\n  .nbtn.back{flex:0 0 88px;background:#eef1f5;color:var(--sub)}\n  .nbtn.next,.nbtn.submit{background:var(--brand);color:#fff}\n  .nbtn:disabled{opacity:.5;cursor:not-allowed}\n  .modal{position:fixed;inset:0;background:rgba(15,20,35,.5);display:none;align-items:center;justify-content:center;padding:24px;z-index:50}\n  .modal.on{display:flex}\n  .box{background:#fff;border-radius:16px;max-width:400px;width:100%;padding:26px 22px;text-align:center}\n  .box .icon{font-size:40px;margin-bottom:8px}.box h3{margin:0 0 8px;font-size:18px}\n  .box p{margin:0 0 6px;font-size:13.5px;color:var(--sub);line-height:1.6}\n  .box .kv{text-align:left;background:#f7f9fc;border-radius:10px;padding:12px 14px;margin:14px 0 4px;font-size:12.5px;line-height:1.9}\n  .box .kv b{display:inline-block;min-width:74px;color:var(--sub);font-weight:600}\n  .box button{margin-top:16px;border:none;background:var(--brand);color:#fff;font-weight:800;padding:12px 22px;border-radius:10px;font-size:14px;cursor:pointer;width:100%}\n  .box.dup .icon{color:var(--bad)}\n";
+const PV_LOGO = "data:image/png;base64,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";
+
+function pvE(s){ return String(s == null ? "" : s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function pvT(s){ return pvE(s).replace(/\n/g, "<br>"); }
+/* 「구매 확인」·「접수 완료」 화면 미리보기 —
+   이 두 화면의 문구는 항목 밑 빨간 글씨도, 팝업도 아니라서
+   글만 봐서는 어디에 어떻게 붙는지 알 수 없습니다.
+   그래서 실제 접수폼 화면을 폰 모양 그대로 띄워 그 자리에 넣어 보여 줍니다. */
+function pvScreenDoc(kind, spot){
+  /* spot — 지금 고치고 있는 문구가 들어가는 자리. 노란 테두리로 짚어 줍니다. */
+  const hl = k => (spot === k ? ' pvhl' : '');
+  const tag = k => (spot === k ? '<span class="pvtag">\u25B2 지금 고치는 문구</span>' : '');
+  let body;
+  if(kind === "done"){
+    /* 접수 완료 — 실제로는 화면을 덮는 팝업입니다. */
+    body = '<div class="wrap"><div class="card">'
+      + '<h2>캡처 및 받으실 정보 <span class="req">*</span></h2>'
+      + '<p class="desc">정확히 입력해 주세요.</p>'
+      + '<div class="field"><label class="fld">수령인 성함 <span class="req">*</span></label>'
+      +   '<input type="text" value="홍길동" readonly></div>'
+      + '</div></div>'
+      + '<div class="modal on"><div class="box">'
+      +   '<div class="icon">\u2705</div><h3>참여가 접수되었습니다</h3>'
+      +   '<p class="' + hl("desc").trim() + '">' + pvT(cfg.form.done.desc || "(완료 문구가 비어 있습니다)") + '</p>'
+      +   tag("desc")
+      +   '<div class="kv"><b>제품</b> ' + pvE(surveyProduct) + '<br><b>수령인</b> 홍길동<br><b>연락처</b> 010-1234-5678</div>'
+      +   '<button type="button">확인</button>'
+      + '</div></div>';
+  } else {
+    /* 구매 확인 — 글이 들어가는 자리가 두 군데입니다.
+         desc  제목 바로 밑 작은 회색 글씨
+         tip   조회 칸 위 회색 안내 상자                    */
+    body = '<div class="wrap"><div class="card">'
+      + '<h2>구매 확인 <span class="req">*</span></h2>'
+      + '<p class="desc' + hl("desc") + '">' + pvT(cfg.form.lookup.desc || "(화면 설명이 비어 있습니다)") + '</p>'
+      + tag("desc")
+      + '<div class="vtabs"><button type="button" class="vtab on">성함 + 연락처</button>'
+      +   '<button type="button" class="vtab">송장번호</button></div>'
+      + '<div class="notice' + hl("tip") + '" style="margin:0 0 4px">'
+      +   pvT(cfg.form.lookup.tip || "(주의 문구가 비어 있습니다)") + '</div>'
+      + tag("tip")
+      + '<div class="field" style="margin:10px 0"><label class="fld">성함 <span class="req">*</span></label>'
+      +   '<input type="text" placeholder="주문하신 분 성함"></div>'
+      + '<div class="field"><label class="fld">연락처 <span class="req">*</span></label>'
+      +   '<input type="tel" placeholder="예) 010-1234-5678"></div>'
+      + '<button type="button" style="width:100%;margin-top:14px;padding:13px 0;border-radius:10px;'
+      +   'border:1.5px solid var(--brand);background:var(--brand);color:#fff;font-weight:800;font-size:14px">'
+      +   '구매 내역 확인</button>'
+      + '</div></div>';
+  }
+  return '<!doctype html><html lang="ko"><head><meta charset="utf-8">'
+  + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+  + '<style>' + PV_CSS
+  + '\n.wrap{max-width:none;padding-bottom:20px}\n.modal{padding:16px}'
+  + '\n.pvhl{outline:2px dashed #b26a00;outline-offset:5px;border-radius:8px;background:#fffaf0}'
+  + '\n.pvtag{display:block;margin:12px 0 8px;font-size:11px;font-weight:800;color:#b26a00}'
+  + '\n</style></head><body>'
+  + '<header class="hero"><img class="logo" src="' + PV_LOGO + '" alt="inic">'
+  +   '<h1>' + pvE(cfg.survey.title) + '</h1>'
+  +   '<span class="demo-badge">\uD83D\uDC41 미리보기 — 실제로 접수되지 않습니다</span></header>'
+  + '<div class="bar"><i style="width:' + (kind === "done" ? "100" : "22") + '%"></i></div>'
+  + body + '</body></html>';
+}
+
+/* 폰 모양 창을 띄우고 그 안에 위 화면을 넣습니다. */
+function openScreenPreview(kind, spot, cap){
+  let m = document.getElementById("pvModal");
+  if(!m){
+    m = document.createElement("div");
+    m.id = "pvModal";
+    m.style.cssText = "position:fixed;inset:0;background:rgba(24,20,18,.66);z-index:90;"
+      + "display:flex;align-items:center;justify-content:center;padding:18px";
+    m.addEventListener("click", e => { if(e.target === m) m.style.display = "none"; });
+    m.innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:10px">'
+    +   '<div id="pvCap" style="color:#fff;font-size:13px;font-weight:700;text-align:center"></div>'
+    +   '<div style="border:11px solid #201c1a;border-radius:38px;background:#201c1a;'
+    +     'box-shadow:0 18px 50px rgba(0,0,0,.45)">'
+    +     '<iframe id="pvFrame" title="화면 미리보기" style="display:block;width:390px;'
+    +       'height:min(720px,74vh);border:0;border-radius:27px;background:#f6f4f2"></iframe>'
+    +   '</div>'
+    +   '<button type="button" id="pvClose" style="border:0;border-radius:10px;padding:10px 20px;'
+    +     'background:#fff;color:#2b2725;font-weight:800;font-size:13.5px;cursor:pointer">닫기</button>'
+    + '</div>';
+    document.body.appendChild(m);
+    m.querySelector("#pvClose").onclick = () => { m.style.display = "none"; };
+  }
+  m.querySelector("#pvCap").textContent = "\uD83D\uDC41 고객이 보는 화면 — " + cap;
+  m.style.display = "flex";
+  m.querySelector("#pvFrame").srcdoc = pvScreenDoc(kind, spot);
+}
+
+
 
 function paneForm(){
   const F = cfg.form, entry = cfg.entrySurvey, prod = groupList("prod");
@@ -4486,8 +4628,13 @@ function paneForm(){
         oninput:e => { cfg.survey.desc = e.target.value; } }),
       el("div", { class:"fmeta" }, "접수 기간", el("b", { style:"color:var(--ink)" }, "이벤트 기간과 동일")))));
 
-  /* ⚠️ 구매 확인 화면은 여기 없습니다 — 고객이 채우는 항목이 고정(성함·연락처·송장번호)이라
-     담당자가 고칠 것은 「조회가 안 될 때」 같은 문구뿐이고, 그건 전부 「안내 문구」 탭에 있습니다. */
+  /* 유형에 따라 앞 화면이 다릅니다. 담당자가 헷갈리지 않게 한 줄로 알려 줍니다. */
+  form.append(el("div", { class:"qcard grp", style:"background:var(--sunk)" },
+    el("strong", {}, formType === "review" ? "① 구매 확인" : "① 구매 확인 없음"),
+    el("span", { style:"color:var(--sub);font-size:12.5px;margin-left:8px" },
+      formType === "review"
+        ? "성함+연락처 또는 송장번호로 원장을 조회합니다. 고칠 것은 문구뿐이라 「안내 문구」 탭에 있습니다."
+        : "쿠팡 로켓배송은 원장에 구매 정보가 없어 조회 화면이 없습니다. 대신 시리얼번호(S/N)로 확인합니다.")));
 
   /* 1 참여 안내 및 동의 */
   /* ⚠️ 「필수」로 두면 고객 화면에서 항목 이름 뒤에 빨간 * 가 붙고, 안 고르면 다음으로 못 넘어갑니다.
@@ -4526,27 +4673,31 @@ function paneForm(){
         } }, "+ 동의 항목 추가")))]));
 
   /* 2 공통 설문 */
-  form.append(grpBar("참여 설문 · 공통 문항", "제품과 상관없이 모든 참여 고객에게 한 번만 묻습니다"));
+  const addEntryQ = () => {
+    entry.push({ q:"새 질문", opts:["항목 1", "항목 2"], req:true });
+    sel = "q:entry:" + (entry.length - 1); render();
+  };
+  form.append(grpBar("참여 설문 · 공통 문항", "제품과 상관없이 모든 참여 고객에게 한 번만 묻습니다", addEntryQ));
   entry.forEach((_, i) => form.append(qCard("entry", i, i + 1)));
   form.append(el("div", { class:"addline" },
-    el("button", { class:"btn sm", type:"button", onclick:() => {
-      entry.push({ q:"새 질문", opts:["항목 1", "항목 2"], req:true });
-      sel = "q:entry:" + (entry.length - 1); render();
-    } }, "+ 공통 문항 추가")));
+    el("button", { class:"btn sm primary", type:"button",
+      onclick:addEntryQ }, "+ 공통 문항 추가")));
   n++;
 
   /* ⚠️ 제품 선택 화면은 여기 없습니다.
      고객이 산 제품은 원장 조회로 이미 정해지므로 담당자가 고칠 것이 없습니다. */
 
   /* 3 제품 문항 */
+  const addProdQ = () => {
+    prod.push({ q:"새 질문", opts:["항목 1", "항목 2", "기타"], req:true });
+    sel = "q:prod:" + (prod.length - 1); render();
+  };
   form.append(grpBar("제품 사용 설문 · " + surveyProduct,
-    prod.length ? "이 제품을 산 고객에게만 나옵니다" : "문항이 없어 이 단계를 건너뜁니다"));
+    prod.length ? "이 제품을 산 고객에게만 나옵니다" : "문항이 없어 이 단계를 건너뜁니다", addProdQ));
   prod.forEach((_, i) => form.append(qCard("prod", i, entry.length + i + 1)));
   form.append(el("div", { class:"addline" },
-    el("button", { class:"btn sm", type:"button", onclick:() => {
-      prod.push({ q:"새 질문", opts:["항목 1", "항목 2", "기타"], req:true });
-      sel = "q:prod:" + (prod.length - 1); render();
-    } }, "+ 제품 문항 추가")));
+    el("button", { class:"btn sm primary", type:"button",
+      onclick:addProdQ }, "+ 제품 문항 추가")));
   n++;
 
   /* 4 받으실 사은품 */
@@ -4573,7 +4724,27 @@ function paneForm(){
       el("p", { class:"note" }, "제품이 사은품이냐 상품권이냐에 따라 위 문구가 자동으로 바뀝니다. ",
         "위쪽 제품을 바꿔 보시면 다른 쪽 문구를 고칠 수 있습니다."))]));
 
-  /* 5 캡처 이미지 */
+  /* 5 캡처 이미지 (포토리뷰) / 시리얼번호 (쿠팡 정품등록) */
+  if(formType === "coupang"){
+    form.append(card("serial", ++n, "시리얼번호(S/N) 등록", "쿠팡 정품등록만", [
+      el("div", { class:"fbody" },
+        el("div", { class:"ctitle", style:"margin-bottom:8px" },
+          F.serial.req ? el("span", { class:"req" }, "*") : "",
+          el("span", {}, "시리얼번호(S/N)"),
+          reqBtn(F.serial.req, () => { F.serial.req = !F.serial.req; }, isOpen("serial"), "serial")),
+        tv(F.serial, "desc", "serial", { cls:"sdesc", multi:true }),
+        tv(F.serial, "warn", "serial", { cls:"warnline", multi:true }),
+        el("div", { class:"exbox" },
+          el("div", { style:"font-weight:700;color:var(--ink)" }, "S/N 위치 안내 이미지"),
+          el("div", { style:"margin-top:4px" }, F.serial.exampleName)),
+        el("div", { class:"cblock" },
+          el("div", { class:"ctitle" },
+            F.serial.ackReq ? el("span", { class:"req" }, "*") : "",
+            el("span", {}, "확인 체크"),
+            reqBtn(F.serial.ackReq, () => { F.serial.ackReq = !F.serial.ackReq; }, isOpen("serial"), "serial")),
+          el("div", { class:"copt", style:"align-items:center" },
+            el("span", { class:"cchk" }), tv(F.serial, "ack", "serial", { cls:"cmain" }))))]));
+  } else {
   form.append(card("capture", ++n, F.capture.title, "포토리뷰만", [
     el("div", { class:"fbody" },
       el("div", { class:"ctitle", style:"margin-bottom:8px" },
@@ -4591,6 +4762,7 @@ function paneForm(){
               el("button", { class:"btn sm", type:"button",
                 onclick:e => { e.stopPropagation(); alert("프로토타입이라 실제 업로드는 되지 않습니다."); } }, "이미지 바꾸기"))
           : ""))]));
+  }
 
   /* 6 정보 입력 */
   const TYPES = ["단답", "장문", "연락처", "주소 검색", "객관식", "체크"];
@@ -4630,6 +4802,7 @@ function paneForm(){
   const toc = el("div", { class:"toc", id:"toc" });
   buildToc(toc);
 
+
   return [
     el("div", { class:"svtop" },
       el("div", {},
@@ -4645,12 +4818,20 @@ function paneForm(){
           "맨 아래 ", el("b", {}, "「저장」"), " 으로 서버에 남기세요.")),
       el("div", { class:"row" },
         el("div", { class:"field" },
+          el("label", {}, "어느 유형으로 볼지"),
+          el("div", { class:"ttoggle" },
+            ["review", "coupang"].map(t =>
+              el("button", { class:"btn sm" + (formType === t ? " primary" : ""), type:"button",
+                onclick:e => { e.stopPropagation(); formType = t; sel = null; render(); } },
+                TYPE_LABEL2[t])))),
+        el("div", { class:"field" },
           el("label", { for:"svP" }, "제품 문항·사은품을 볼 제품"),
-          el("select", { id:"svP", style:"min-width:250px",
+          el("select", { id:"svP", style:"min-width:280px",
             onchange:e => { surveyProduct = e.target.value; sel = null; render(); } },
             cfg.products.filter(x => x.ledger.trim()).map(p =>
               el("option", { value:p.ledger, ...(surveyProduct === p.ledger ? { selected:"" } : {}) },
-                p.ledger + ((cfg.surveys[p.ledger] || []).length ? " · " + cfg.surveys[p.ledger].length + "문항" : " · 설문 없음"))))),
+                p.ledger + " (" + (formType === "review" ? "포토리뷰" : "쿠팡 정품등록") + ")"
+                + ((cfg.surveys[p.ledger] || []).length ? " · " + cfg.surveys[p.ledger].length + "문항" : " · 설문 없음"))))),
         el("label", { class:"switch" },
           el("input", { type:"checkbox", ...(editAll ? { checked:"" } : {}),
             onchange:e => { editAll = e.target.checked; render(); } }),
@@ -4771,19 +4952,93 @@ const NOTICE_GROUPS = [
 /* ══ 항상 화면에 적혀 있는 글 ══
    표지 · 구매 확인 · 접수 완료 세 화면은 담당자가 고칠 것이 **문구뿐**이라
    접수폼 탭에서 빼고 여기로 옮겼습니다. (항목을 넣고 빼는 화면이 아닙니다) */
+/* ⚠️ 「구매 확인」 화면에는 글이 들어가는 자리가 두 군데입니다.
+     desc — 제목 「구매 확인」 바로 밑 작은 회색 글씨 (짧게 한 줄)
+     tip  — 조회 칸 위 회색 상자 (안심번호·마스킹 같은 긴 주의사항)
+   자리가 다르므로 칸도 따로 둡니다. 미리보기를 누르면 그 자리에 노란 테두리가 쳐집니다.
+   [이름, 값을 담은 곳, 열쇠, 여러 줄, 어디에 나오는지, 어느 화면, 어느 자리] */
 const ALWAYS_GROUPS = [
-  ["구매 확인", "성함+연락처 또는 송장번호로 구매 내역을 찾는 화면입니다", [
-    ["화면 설명", () => cfg.form.lookup, "desc",  true ],
-    ["주의 문구", () => cfg.form.lookup, "tip",   true ]
+  ["구매 확인", [
+    ["화면 설명", () => cfg.form.lookup, "desc", true,
+      "제목 「구매 확인」 바로 밑 · 작은 회색 글씨 한 줄", "lookup", "desc"],
+    ["주의 문구", () => cfg.form.lookup, "tip",  true,
+      "조회 칸 위 · 회색 안내 상자 (긴 주의사항)",        "lookup", "tip"]
   ]],
-  ["접수 완료", "「참여 신청하기」를 누른 뒤 보이는 화면입니다", [
-    ["완료 문구", () => cfg.form.done,   "desc",  true ]
+  ["접수 완료", [
+    ["완료 문구", () => cfg.form.done, "desc", true,
+      "「참여 신청하기」를 누른 뒤 뜨는 완료 팝업 안",      "done",   "desc"]
   ]]
 ];
 
+
+/* ══════ 안내 문구 미리보기 ══════
+   같은 문구라도 화면에 뜨는 모양이 세 가지라, 글만 봐서는 알 수 없습니다.
+     box   회색 안내 상자 — 조회 버튼 아래에 그 자리에서 나타남
+     err   빨간 작은 글씨 — 못 채운 항목 바로 아래에 붙음
+     popup 폰 팝업       — 화면을 덮음. 문구만 고칠 수 있고 모양·버튼은 못 바꿈
+   묶음 제목 앞의 번호로 모양을 정합니다.                                   */
+const NOTICE_SHAPE = { "①":"err", "②":"box", "③":"box", "④":"popup",
+                       "⑤":"popup", "⑥":"popup", "⑦":"popup", "⑧":"popup", "⑨":"box" };
+const SHAPE_LABEL = { box:"회색 안내 상자", err:"항목 아래 빨간 글씨", popup:"폰 팝업" };
+
+function noticePreview(title, name, text, kakao){
+  const shape = NOTICE_SHAPE[title.slice(0, 1)] || "box";
+  const kbtn = kakao ? '<div style="margin-top:9px"><span style="display:inline-block;background:#FEE500;'
+    + 'color:#191600;font-weight:800;padding:8px 13px;border-radius:8px;font-size:12px">💬 상담사 문의하기</span></div>' : "";
+  const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const lines = esc(text).replace(/\n/g, "<br>");
+
+  let inner, note;
+  if(shape === "err"){
+    inner = '<div style="border:1px solid #ece8e4;border-radius:9px;background:#fbfcfe;padding:10px 12px;'
+      + 'font-size:12px;color:#b3aaa2">입력칸</div>'
+      + '<div style="color:#e5484d;font-size:12px;font-weight:700;margin-top:7px">' + lines + '</div>' + kbtn;
+    note = "못 채운 항목 바로 아래에 붙습니다. 항목에 빨간 테두리도 함께 생깁니다.";
+  } else if(shape === "popup"){
+    inner = '<div style="background:rgba(20,16,14,.42);border-radius:10px;padding:22px 16px">'
+      + '<div style="background:#fff;border-radius:12px;max-width:250px;margin:0 auto;overflow:hidden;'
+      + 'box-shadow:0 10px 30px rgba(0,0,0,.3)">'
+      + '<div style="padding:16px 15px 14px;font-size:12.5px;line-height:1.7;color:#1c1a19;text-align:center">'
+      + lines + '</div>'
+      + '<div style="border-top:1px solid #e6e2de;padding:10px;text-align:center;font-size:12.5px;'
+      + 'font-weight:800;color:#2f6df6">확인</div></div></div>';
+    note = "폰이 그리는 팝업입니다. 문구만 고칠 수 있고 색·모양·버튼은 바꿀 수 없습니다. 상담 버튼도 넣을 수 없습니다.";
+  } else {
+    inner = '<div style="font-size:12px;color:#8a827c;line-height:1.65;background:#f7f9fc;border-radius:9px;'
+      + 'padding:11px 12px"><b style="color:#c1121f">' + lines + '</b>' + kbtn + '</div>';
+    note = "조회 버튼 아래에 그 자리에서 나타납니다. 화면이 넘어가지 않습니다.";
+  }
+
+  const box = el("div", { class:"npv" });
+  box.innerHTML =
+    '<div class="npvhead"><b>' + esc(name) + '</b>'
+    + '<span class="npvtag">' + SHAPE_LABEL[shape] + '</span></div>'
+    + '<div class="npvphone"><div class="npvtop">inic · 포토리뷰 이벤트 참여</div>'
+    + '<div class="npvbody">' + inner + '</div></div>'
+    + '<p class="npvnote">' + note + '</p>';
+  return box;
+}
+
+function openNoticePreview(title, name, text, kakao){
+  let m = document.getElementById("npvModal");
+  if(!m){
+    m = el("div", { id:"npvModal", class:"npvmodal",
+      onclick:e => { if(e.target === m) m.style.display = "none"; } },
+      el("div", { class:"npvcard" },
+        el("div", { id:"npvSlot" }),
+        el("div", { style:"text-align:right;margin-top:12px" },
+          el("button", { class:"btn sm primary", type:"button",
+            onclick:() => { m.style.display = "none"; } }, "닫기"))));
+    (document.getElementById("evtCfg") || document.body).appendChild(m);
+  }
+  const slot = m.querySelector("#npvSlot");
+  slot.replaceChildren(noticePreview(title, name, text, kakao));
+  m.style.display = "flex";
+}
+
 function paneNotice(){
   const total = NOTICE_GROUPS.reduce((n, g) => n + g[1].length, 0);
-  const always = ALWAYS_GROUPS.reduce((n, g) => n + g[2].length, 0);
+  const always = ALWAYS_GROUPS.reduce((n, g) => n + g[1].length, 0);
   const out = [
     el("h2", {}, "안내 문구"),
     el("p", { class:"hint" },
@@ -4797,14 +5052,21 @@ function paneNotice(){
 
   /* ── ① 항상 적혀 있는 글 ── */
   out.push(el("h3", { class:"gtitle" }, "◎ 구매 확인 · 접수 완료 화면에 늘 적혀 있는 글"));
-  ALWAYS_GROUPS.forEach(([scr, when, rows]) => {
-    out.push(el("div", { class:"stack" }, rows.map(([lab, get, key, multi]) => {
+  ALWAYS_GROUPS.forEach(([scr, rows]) => {
+    out.push(el("div", { class:"stack" }, rows.map(([lab, get, key, multi, where, kind, spot]) => {
       const o = get();
+      /* 이 문구들은 화면 어디에 붙는지 글만 봐서는 알 수 없어
+         다른 문구들과 똑같이 「미리보기」를 붙입니다.
+         누르면 실제 화면이 뜨고 이 문구가 들어가는 자리에 노란 테두리가 쳐집니다. */
       return el("div", { class:"ncard" },
         el("div", { class:"nhead" },
           el("div", {},
             el("div", { style:"font-weight:800;font-size:13.5px" }, scr + " · " + lab),
-            el("div", { style:"font-size:12px;color:var(--sub);margin-top:2px" }, when))),
+            el("div", { style:"font-size:12px;color:var(--sub);margin-top:2px" }, scr + " 화면 · " + where)),
+          el("button", { class:"btn sm", type:"button",
+            onclick:e => { e.stopPropagation();
+              openScreenPreview(kind, spot, scr + " 화면 · " + lab); } },
+            "미리보기")),
         el("textarea", { "aria-label":scr + " " + lab,
           style: multi ? "" : "min-height:44px",
           oninput:e => { o[key] = e.target.value; softRefresh(); } }, o[key] || ""));
@@ -4821,19 +5083,40 @@ function paneNotice(){
           el("div", {},
             el("div", { style:"font-weight:800;font-size:13.5px" }, t),
             el("div", { style:"font-size:12px;color:var(--sub);margin-top:2px" }, when)),
-          el("label", { class:"switch", style:"font-size:12px" },
-            el("input", { type:"checkbox", ...(n.k ? { checked:"" } : {}),
-              onchange:e => { n.k = e.target.checked; render(); } }),
-            "상담 버튼")),
+          el("div", { style:"display:flex;align-items:center;gap:10px;flex-wrap:wrap" },
+            el("label", { class:"switch", style:"font-size:12px" },
+              el("input", { type:"checkbox", ...(n.k ? { checked:"" } : {}),
+                onchange:e => { n.k = e.target.checked; render(); } }),
+              "상담 버튼"),
+            el("button", { class:"btn sm", type:"button",
+              onclick:e => { e.stopPropagation(); openNoticePreview(title, t, n.t, n.k); } },
+              "미리보기"))),
         el("textarea", { "aria-label":t, oninput:e => { n.t = e.target.value; softRefresh(); } }, n.t),
         n.k ? el("div", { class:"kbtn" }, "💬 상담사 문의하기") : "");
     })));
   });
 
-  out.push(el("h3", { class:"gtitle" }, "카카오 채널 주소"));
+  out.push(el("h3", { class:"gtitle" }, "카카오 채널 주소 — 어느 채널로 보낼지"));
   out.push(el("p", { class:"hint" },
-    el("b", {}, "상담 버튼"), "을 켠 문구 아래에 노란 「💬 상담사 문의하기」 버튼이 붙고, ",
-    "고객이 접수한 카테고리에 맞는 채널로 연결됩니다."));
+    el("b", {}, "상담 버튼"), "을 켠 문구 아래에 노란 「💬 상담사 문의하기」 버튼이 붙습니다. ",
+    "누르면 아래 규칙대로 채널이 정해집니다."));
+  out.push(el("div", { class:"stack", style:"margin-bottom:12px" },
+    el("div", { class:"ncard" },
+      el("div", { style:"font-weight:800;font-size:13.5px;margin-bottom:6px" }, "채널이 정해지는 규칙"),
+      el("p", { class:"hint", style:"margin:0 0 10px" },
+        "① 고객이 ", el("b", {}, "제품을 고른 뒤"), " 나오는 문구 → 그 제품의 ", el("b", {}, "카테고리 채널"), "로 갑니다.",
+        el("br"),
+        "② ", el("b", {}, "구매 확인 단계"), "처럼 아직 제품을 모를 때 나오는 문구 → 아래 ",
+        el("b", {}, "기본 채널"), "로 갑니다. (조회가 안 되는 고객이 여기 걸립니다)"),
+      el("div", { class:"field" },
+        el("label", { for:"kkDef" }, "기본 채널 — 제품을 아직 모를 때"),
+        el("select", { id:"kkDef",
+          onchange:e => { cfg.kakaoDefault = e.target.value; softRefresh(); } },
+          CATS.map(c => el("option", { value:c,
+            ...((cfg.kakaoDefault || "생활가전") === c ? { selected:"" } : {}) }, c)))),
+      el("p", { class:"hint", style:"margin:8px 0 0" },
+        "⚠️ 지금 접수폼은 ", el("b", {}, "제품과 상관없이 늘 「생활가전」"), " 채널만 씁니다. ",
+        "이 설정을 접수폼이 읽어 쓰게 하는 작업은 아직입니다."))));
   out.push(el("div", { class:"tablewrap" }, el("table", {},
     el("thead", {}, el("tr", {}, el("th", {}, "카테고리"), el("th", {}, "채널 주소"))),
     el("tbody", {}, CATS.map(c => el("tr", {},

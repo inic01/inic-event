@@ -205,7 +205,9 @@
   #evtCfg .hint{color:var(--sub); font-size:12.5px; margin:0 0 14px; max-width:74ch}
   #evtCfg .hint b{color:var(--ink)}
 
-  #evtCfg .tabs{display:flex; gap:4px; padding:6px 6px 0; border-bottom:1px solid var(--line);
+  /* 탭 줄 — 카드가 아니라 밑줄 하나로 둡니다. 어느 하위 탭에서도 똑같이 보입니다. */
+  #evtCfg #evtTabBar{margin:0 0 16px}
+  #evtCfg .tabs{display:flex; gap:4px; padding:0 2px; border-bottom:1px solid var(--line);
     flex-wrap:wrap; align-items:center}
   #evtCfg .tab{appearance:none; border:0; background:transparent; cursor:pointer; color:var(--sub);
     font:inherit; font-weight:700; font-size:13px; padding:10px 14px; border-radius:8px 8px 0 0;
@@ -744,8 +746,7 @@
   <div class="protobar" id="evtWarn" hidden>
     <span>◇</span><span></span>
   </div>
-<div class="cols" id="cols">
-    <main class="panel">
+  <div id="evtTabBar">
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" aria-selected="true"  data-t="gift">사은품</button>
         <button class="tab" role="tab" aria-selected="false" data-t="rule">프로모션</button>
@@ -753,6 +754,9 @@
         <button class="tab" role="tab" aria-selected="false" data-t="notice">안내 문구</button>
         <button class="tab" role="tab" aria-selected="false" data-t="users">사용자</button>
       </div>
+  </div>
+<div class="cols" id="cols">
+    <main class="panel">
       <div class="body" id="pane"></div>
     </main>
 
@@ -778,11 +782,6 @@
     </aside>
   </div>
 
-  <div class="save">
-    <button class="btn primary" id="saveBtn">저장</button>
-    <button class="btn" id="resetBtn">되돌리기</button>
-    <span class="msg" id="saveMsg"></span>
-  </div>
   <div class="save">
     <button class="btn primary" id="saveBtn">저장</button>
     <button class="btn" id="resetBtn">되돌리기</button>
@@ -4890,9 +4889,18 @@ function softRefresh(){ drawSim(); $("#dump").textContent = JSON.stringify(cfg, 
 let SAVED = null;                    // 서버에서 마지막으로 읽어온 값
 
 function showUsers(on){
-  const c = document.getElementById("evtCfg");
+  /* ⚠️ 탭 줄(.tabs)은 #evtCfg 안에 있습니다.
+     #evtCfg 를 숨기면 탭까지 같이 사라지므로, 내용만 껐다 켭니다.
+     .cols 는 display:grid 라서 hidden 속성이 안 먹습니다 — style.display 로 끕니다. */
+  const box  = document.getElementById("evtCfg");
+  if(box) box.hidden = false;
+  const show = (el, on2) => { if(el) el.style.display = on2 ? "" : "none"; };
+  show(document.getElementById("cols"), !on);   /* 탭 줄은 #cols 밖에 있어 항상 남습니다 */
+  show(document.querySelector("#evtCfg .save"), !on);
+  show(document.querySelector("#evtCfg details"), !on);
+  const w = document.getElementById("evtWarn");
+  if(w) w.style.display = (!on && w.dataset.show === "1") ? "" : "none";
   const u = document.getElementById("admUsers");
-  if(c) c.hidden = on;
   if(u) u.hidden = !on;
 }
 
@@ -4937,7 +4945,7 @@ window.EVTCFG = {
     }
     const w = document.getElementById("evtWarn");
     if(w && !loaded){
-      w.hidden = false;
+      w.hidden = false; w.dataset.show = "1";
       w.lastElementChild.innerHTML =
         "<b>아직 저장된 설정이 없습니다.</b> 지금 보이는 값은 기본값이고, " +
         "<b>저장</b>을 눌러야 서버에 남습니다.";

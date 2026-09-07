@@ -911,6 +911,12 @@
         <img id="dtImg" alt="리뷰 이미지" style="width:100%;max-height:360px;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#f4f2f0;cursor:zoom-in" onclick="openImg(this.src)">
         <div id="dtNoImg" style="display:none;padding:26px;text-align:center;color:var(--sub);border:1px dashed var(--line);border-radius:10px">첨부 이미지 없음</div>
         <a id="dtImgOpen" href="#" target="_blank" class="img" style="display:block;font-size:12px;text-align:right;margin-top:6px">새 탭에서 원본 열기 ↗</a>
+        <!-- 쿠팡 정품등록은 사진이 둘입니다 — 위는 S/N 라벨 사진, 아래가 구매내역 캡처. -->
+        <div id="dtBuyWrap" style="display:none;margin-top:12px">
+          <div style="font-weight:800;font-size:12.5px;color:var(--sub);margin-bottom:6px">🧾 구매내역 캡처 (쿠팡 정품등록)</div>
+          <img id="dtBuyImg" alt="구매내역 캡처" style="width:100%;max-height:360px;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#f4f2f0;cursor:zoom-in" onclick="openImg(this.src)">
+          <a id="dtBuyOpen" href="#" target="_blank" class="img" style="display:block;font-size:12px;text-align:right;margin-top:6px">새 탭에서 원본 열기 ↗</a>
+        </div>
       </div>
       <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:9px">
         <div class="dtrow"><b>사은품/상품권</b><span id="dtReward">-</span></div>
@@ -1842,6 +1848,13 @@ function openDetail(id){
   if(_iu){img.src=_iu;img.style.display="";$("#dtNoImg").style.display="none";
     $("#dtImgOpen").href=_iu;$("#dtImgOpen").style.display="";}
   else{img.style.display="none";img.src="";$("#dtNoImg").style.display="";$("#dtImgOpen").style.display="none";}
+  /* 쿠팡 정품등록의 구매내역 캡처 — 있는 건에만 보입니다. */
+  const _bu=e.buyImageUrl||"";
+  const bw=$("#dtBuyWrap");
+  if(bw){
+    if(_bu){ bw.style.display=""; $("#dtBuyImg").src=_bu; $("#dtBuyOpen").href=_bu; }
+    else   { bw.style.display="none"; $("#dtBuyImg").src=""; }
+  }
   $("#dtAgent").value = e.agent || "";
   $("#dtStatus").innerHTML=CALL_STATES.map(o=>`<option value="${o}" ${o===(e.callStatus||"")?"selected":""}>${o||"— 응대상태 선택 —"}</option>`).join("");
   $("#dtResult").innerHTML=CALL_RESULTS.map(o=>`<option value="${o}" ${o===(e.callResult||"")?"selected":""}>${o||"— 처리상태 선택 —"}</option>`).join("");
@@ -2616,7 +2629,7 @@ function exportAllRows(){
   return filteredAll().map(e=>({"접수일시":fmtDate(e._date),"유형":TYPE_LABEL[e.type]||e.type,"심사":STATUS_META[shipStatus(e)][0],"출고":SHIP_META[shipStateOf(e)][0],
     "카테고리":e.category||"","제품":e.product||"","보상종류":REWARD_LABEL[e.rewardType]||"","사은품/상품권":e.giftItem||"","판매처":e.source||"",
     "담당자":e.agent||"","주문번호":e.orderNo||"","S/N":e.serial||"","수령인":e.name||"","연락처":e.phone||"","주소":e.address||"",
-    "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"","이미지URL":imgUrlOf(e),"문서ID":e._id||""}));
+    "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"","이미지URL":imgUrlOf(e),"구매내역이미지URL":e.buyImageUrl||"","문서ID":e._id||""}));
 }
 const DL_ORDER=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["사은품",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주소",e=>e.address||""],["주문번호",e=>e.orderNo||""],["판매처",e=>e.source||""],["문서ID",e=>e._id||""]];
 const DL_ACCT=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["상품권",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["판매처",e=>e.source||""],["문서ID",e=>e._id||""]];
@@ -3964,22 +3977,27 @@ const LP_COUNT = Object.fromEntries(LEDGER_PRODUCTS);
 
 const DEFAULTS = {
   /* 제품 = 원장 제품군 이름. 사은품이 지정된 것만 이벤트 대상이 됩니다. */
+  /* ⚠️ codes 는 접수폼(고객 화면)이 쓰는 제품 코드입니다. 설정에서 고친 사은품·설문이
+     어느 제품에 붙는지 이 코드로 이어집니다. 건드리지 마세요.
+     음식물처리기만 코드가 둘입니다 — 고객이 사은품(밀폐키친홀더/활성탄필터)을 고르기 때문입니다.
+     이 제품은 사은품 이름이 코드마다 달라 giftEach 에 따로 적습니다. */
   products: [
-    { ledger:"에어프라이어 16L",        cat:"주방가전",  gift:"튀김용바스켓 16L,16LS",        type:"gift" },
-    { ledger:"에어프라이어 7L",         cat:"주방가전",  gift:"디바이더 7L",                  type:"gift" },
-    { ledger:"에어프라이어 6L",         cat:"주방가전",  gift:"CU 3,000원",                   type:"coupon" },
-    { ledger:"음식물처리기",            cat:"주방가전",  gift:"밀폐키친홀더 / 활성탄필터",     type:"gift" },
-    { ledger:"분유포트 iEK01",          cat:"주방가전",  gift:"배민 3,000원",                 type:"coupon" },
-    { ledger:"아이타워 i50",            cat:"생활가전",  gift:"미니 악세사리 거치대",          type:"gift" },
-    { ledger:"AI 디텍트 i50",           cat:"생활가전",  gift:"워셔블필터+배기부필터 1set",    type:"gift" },
-    { ledger:"무선청소기 맥스제로 i90", cat:"생활가전",  gift:"네이버페이 10,000원",           type:"coupon" },
-    { ledger:"무선청소기 iV10",         cat:"생활가전",  gift:"거치대 iv10,iv11",             type:"gift" },
-    { ledger:"무선청소기 iv11",         cat:"생활가전",  gift:"거치대 iv10,iv11",             type:"gift" },
-    { ledger:"복합식가습기 iH05UV",     cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
-    { ledger:"복합식가습기 iH12",       cat:"계절가전",  gift:"전용 관리 set 가습기용",        type:"gift" },
-    { ledger:"공기청정기 iAP22",        cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
-    { ledger:"유선 서큘레이터 iC01",    cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
-    { ledger:"서큘레이터 iSC02",        cat:"계절가전",  gift:"보관백 iSC01,iSC02",           type:"gift" }
+    { ledger:"에어프라이어 16L",        codes:["AO-16LS"], cat:"주방가전",  gift:"튀김용바스켓 16L,16LS",        type:"gift" },
+    { ledger:"에어프라이어 7L",         codes:["iSA7"],    cat:"주방가전",  gift:"디바이더 7L",                  type:"gift" },
+    { ledger:"에어프라이어 6L",         codes:["iSA6L"],   cat:"주방가전",  gift:"CU 3,000원",                   type:"coupon" },
+    { ledger:"음식물처리기",            codes:["iFD01-H","iFD01-F"], cat:"주방가전", gift:"밀폐키친홀더 / 활성탄필터", type:"gift",
+      giftEach:{ "iFD01-H":"밀폐키친홀더 iFD01", "iFD01-F":"활성탄필터 iFD01" } },
+    { ledger:"분유포트 iEK01",          codes:["iEK01"],   cat:"주방가전",  gift:"배민 3,000원",                 type:"coupon" },
+    { ledger:"아이타워 i50",            codes:["i50T"],    cat:"생활가전",  gift:"미니 악세사리 거치대 i30,i50T", type:"gift" },
+    { ledger:"AI 디텍트 i50",           codes:["i50D"],    cat:"생활가전",  gift:"워셔블필터+배기부필터 1set i50,i50T", type:"gift" },
+    { ledger:"무선청소기 맥스제로 i90", codes:["i90"],     cat:"생활가전",  gift:"네이버페이 10,000원",           type:"coupon" },
+    { ledger:"무선청소기 iV10",         codes:["iV10"],    cat:"생활가전",  gift:"거치대 iv10,iv11",             type:"gift" },
+    { ledger:"무선청소기 iv11",         codes:["iv11"],    cat:"생활가전",  gift:"거치대 iv10,iv11",             type:"gift" },
+    { ledger:"복합식가습기 iH05UV",     codes:["iH05"],    cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
+    { ledger:"복합식가습기 iH12",       codes:["iH12"],    cat:"계절가전",  gift:"전용 관리 set 가습기용",        type:"gift" },
+    { ledger:"공기청정기 iAP22",        codes:["iAP22"],   cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
+    { ledger:"유선 서큘레이터 iC01",    codes:["iC01"],    cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
+    { ledger:"서큘레이터 iSC02",        codes:["iSC02"],   cat:"계절가전",  gift:"보관백 iSC01,iSC02",           type:"gift" }
   ],
   giftRules: [
     { product:"무선청소기 맥스제로 i90", srcs:["스마트스토어"], label:"스팀물걸레키트", type:"gift",
@@ -3995,23 +4013,104 @@ const DEFAULTS = {
     { q:"연령대를 선택해주세요.", opts:["10대","20대","30대","40대","50대 이상"], req:true },
     { q:"아이닉 제품을 구매하게 된 경로를 선택해주세요.", opts:["광고","블로그","카페","지인추천","행사","기타"], req:true }
   ],
+  /* 제품 사용 설문 — 지금 접수폼에 실제로 들어 있는 문항을 그대로 옮겨 왔습니다.
+     ⚠️ 여기 없는 제품(무선청소기 iV10·iv11, 공기청정기 iAP22, 유선 서큘레이터 iC01)은
+        접수폼에도 문항이 없어서 그 화면을 건너뜁니다.
+     ⚠️ 음식물처리기는 밀폐키친홀더·활성탄필터 두 코드의 문항이 같아 하나로 둡니다. */
   surveys: {
-    "무선청소기 맥스제로 i90":[
-      { q:"아이닉 맥스제로 i90을 선택한 가장 큰 이유는 무엇인가요?",
-        opts:["흡입력이 강해서","먼지비움이 자동이라서","아이닉 브랜드를 알고 있어서","디자인이 예뻐서","가격이 가성비 있게 느껴져서","기타"], req:true },
-      { q:"사용하면서 가장 만족하는 점은 무엇인가요?",
-        opts:["먼지통을 비울 일이 없다","흡입력","소음이 작다","가볍다","거치대가 편하다","기타"], req:true }
-    ],
-    "에어프라이어 16L":[
+    "에어프라이어 16L": [
       { q:"아이닉 AO-16L을 선택한 가장 큰 이유는 무엇인가요?",
-        opts:["아이닉 브랜드를 알고 있어서","올스텐 소재로 안심돼서","16L 대용량으로 크기가 커서","로티세리 기능이 필요해서","디자인이 예뻐서","기타"], req:true },
-      { q:"구매 전 가장 고민했던 브랜드는 무엇인가요?", opts:["쿠쿠","닌자","풀무원","필립스","자일렉","기타"], req:false },
+        opts:["아이닉 브랜드를 알고 있어서", "올스텐 소재로 안심돼서", "16L 대용량으로 크기가 커서", "로티세리 기능이 필요해서", "투명창으로 내부 조리 상태 확인이 가능해서", "디자인이 예뻐서", "리뷰가 많아 신뢰가 가서", "가격이 가성비 있게 느껴져서", "세척이 간편할 것 같아서", "기타"], req:true },
+      { q:"구매 전 가장 고민했던 브랜드는 무엇인가요?",
+        opts:["쿠쿠", "닌자", "풀무원", "필립스", "자일렉", "기타"], req:true },
       { q:"사용하면서 가장 만족하는 점은 무엇인가요?",
-        opts:["음식이 골고루 잘 익는다","올스텐이라 안심하고 사용","세척이 간편하다","조리 공간이 넓다","기타"], req:true }
+        opts:["음식이 골고루 잘 익는다", "올스텐이라 안심하고 사용", "세척이 간편하다", "조리 공간이 넓다", "조리 상태를 볼 수 있다", "한 번에 다양한 요리가 가능", "조작이 간편하다", "소음이 작다", "기타"], req:true },
+      { q:"기존 제품과 비교해 가장 만족스러운 점은?",
+        opts:["조리 성능", "세척 편의성", "소재(올스텐)", "디자인", "용량", "사용 편의성", "기타"], req:true }
     ],
-    "서큘레이터 iSC02":[
-      { q:"서큘레이터 iSC02를 선택한 가장 큰 이유는 무엇인가요?",
-        opts:["바람이 멀리 간다고 해서","소음이 작다고 해서","디자인이 예뻐서","가격이 가성비 있게 느껴져서","기타"], req:true }
+    "에어프라이어 7L": [
+      { q:"아이닉 iSA7L을 선택한 가장 큰 이유는 무엇인가요?",
+        opts:["아이닉 브랜드를 알고 있어서", "올스텐 소재로 안심돼서", "7L 용량이 필요해서", "세척이 간편할 것 같아서", "디자인이 예뻐서", "리뷰가 많아 신뢰가 가서", "가격이 가성비 있게 느껴져서", "기타"], req:true },
+      { q:"구매 전 가장 고민했던 브랜드는 무엇인가요?",
+        opts:["쿠쿠", "닌자", "풀무원", "필립스", "자일렉", "기타"], req:true },
+      { q:"사용하면서 가장 만족하는 점은 무엇인가요?",
+        opts:["음식이 골고루 잘 익는다", "올스텐이라 안심하고 사용", "세척이 간편하다", "동일 용량 대비 조리 공간이 넓다", "디자인이 예쁘다", "조리 상태를 볼 수 있다", "조작이 간편하다", "소음이 적다", "기타"], req:true },
+      { q:"기존 제품과 비교해 가장 만족스러운 점은?",
+        opts:["조리 성능", "세척 편의성", "소재(올스텐)", "디자인", "용량", "사용 편의성", "기타"], req:true }
+    ],
+    "에어프라이어 6L": [
+      { q:"아이닉 iSA6L을 선택한 가장 큰 이유는 무엇인가요?",
+        opts:["아이닉 브랜드를 알고 있어서", "올스텐 소재로 안심돼서", "6L 용량이 필요해서", "좁은 공간에 두려고", "세척이 간편할 것 같아서", "디자인이 예뻐서", "리뷰가 많아 신뢰가 가서", "가격이 가성비 있게 느껴져서", "기타"], req:true },
+      { q:"구매 전 가장 고민했던 브랜드는 무엇인가요?",
+        opts:["쿠쿠", "닌자", "풀무원", "필립스", "자일렉", "기타"], req:true },
+      { q:"사용하면서 가장 만족하는 점은 무엇인가요?",
+        opts:["음식이 골고루 잘 익는다", "올스텐이라 안심하고 사용", "세척이 간편하다", "동일 용량 대비 조리 공간이 넓다", "디자인이 예쁘다", "조리 상태를 볼 수 있다", "조작이 간편하다", "소음이 적다", "기타"], req:true },
+      { q:"기존 제품과 비교해 가장 만족스러운 점은?",
+        opts:["조리 성능", "세척 편의성", "소재(올스텐)", "디자인", "용량", "사용 편의성", "기타"], req:true }
+    ],
+    "음식물처리기": [
+      { q:"타사가 아닌 아이닉 음식물처리기 iFD01을 선택하신 가장 큰 이유는?",
+        opts:["아이닉 브랜드를 알고 있어서", "디자인이 마음에 들어서", "가격이 합리적이어서", "미네랄스톤 내솥 때문에", "180℃ 고온 처리 때문에", "칼날 분리 세척이 가능해서", "리뷰/구매평이 좋아서", "다른 제품과 비교했을 때 전체 구성이 좋아서", "기타"], req:true },
+      { q:"구매 직전까지 가장 고민했던 브랜드의 제품은?",
+        opts:["미닉스", "쿠쿠", "스마트카라", "저가형", "기타"], req:true },
+      { q:"사용해보니 가장 만족스러운 부분은?",
+        opts:["분쇄력", "조용한 소음", "디자인", "냄새차단", "간편세척(칼날분리·미네랄스톤·자동세척)"], req:true }
+    ],
+    "분유포트 iEK01": [
+      { q:"올케어 분유포트 iEK01을 선택한 가장 큰 이유는?",
+        opts:["아이닉 브랜드에 대한 신뢰", "자동 출수포트+주전자 2in1 구조", "합리적인 가격", "심플하고 예쁜 디자인", "중탕기 기본 구성(증정)", "입소문(가족/지인/산후조리원 추천)", "상품 리뷰/구매평점이 좋아서", "앱 연동·쾌속 모드(쿨링) 등 유일한 기능", "위생: 고인 물 자동배수·안심 소재"], req:true },
+      { q:"구매 직전까지 가장 고민했던 제품은?",
+        opts:["릴리브 듀얼저울 분유포트 PRO 2026년형", "보르르 출수형 분유포트", "라비킷 4세대 분유포트", "소베맘 2in1 출수형 분유포트", "베이비부스트 올인원 이지 5세대", "기타"], req:true },
+      { q:"사용하면서 가장 만족스러운 기능은?",
+        opts:["이지 다이얼&원터치 자동 출수", "쾌속 모드(쿨링)", "앱 연동", "고인 물 자동배수 시스템", "세척 편의성", "기타"], req:true }
+    ],
+    "아이타워 i50": [
+      { q:"타사가 아닌 아이닉 아이타워를 선택하신 가장 큰 이유는?",
+        opts:["아이닉 브랜드를 믿고 구매", "흡입력이 좋아 보여서", "가격 및 할인 혜택이 좋아서", "그린 LED 라이트가 좋아서", "긴 사용시간(배터리)이 마음에 들어서", "다양한 노즐과 플렉서블 튜브", "다양한 모드(AI오토·부스트)", "리뷰 및 후기가 좋아서", "기타"], req:true },
+      { q:"구매 직전까지 가장 고민했던 브랜드는?",
+        opts:["다이슨", "LG 코드제로", "삼성 비스포크 제트", "샤크", "캐치웰", "홈리아", "디베아", "기타", "비교한 브랜드 없음"], req:true },
+      { q:"사용해보니 가장 만족스러운 부분은?",
+        opts:["흡입력", "먼지 자동 비움(클린스테이션)", "배터리 사용시간", "머리카락 엉킴 방지·관리 편의성", "다양한 노즐·플렉서블 튜브", "그린 LED 라이트", "스팀물걸레 호환", "가성비", "기타"], req:true }
+    ],
+    "AI 디텍트 i50": [
+      { q:"타사가 아닌 아이닉 i50 AI 디텍트를 선택하신 가장 큰 이유는?",
+        opts:["아이닉 브랜드를 믿고 구매", "흡입력이 좋아 보여서", "가격 및 할인 혜택이 좋아서", "그린 LED 라이트가 좋아서", "긴 사용시간(배터리)이 마음에 들어서", "다양한 노즐과 플렉서블 튜브", "다양한 모드(AI오토·부스트)", "리뷰 및 후기가 좋아서", "기타"], req:true },
+      { q:"구매 직전까지 가장 고민했던 브랜드는?",
+        opts:["다이슨", "LG 코드제로", "삼성 비스포크 제트", "샤크", "캐치웰", "홈리아", "디베아", "기타", "비교한 브랜드 없음"], req:true },
+      { q:"사용해보니 가장 만족스러운 부분은?",
+        opts:["흡입력", "밴딩 튜브", "배터리 사용시간", "머리카락 엉킴 방지·관리 편의성", "다양한 노즐·플렉서블 튜브", "그린 LED 라이트", "스팀물걸레 호환", "가성비", "기타"], req:true }
+    ],
+    "무선청소기 맥스제로 i90": [
+      { q:"아이닉 맥스제로를 선택한 가장 큰 이유는?",
+        opts:["강력한 흡입력(675W 고출력)", "특허받은 먼지 자동비움(클린스테이션)", "UV 살균 등 위생 기능", "디자인이 마음에 들어서", "가격 대비 성능(가성비)", "국내유일 UV 살균 스팀물걸레키트", "다양한 세부 기능(밴딩튜브·플렉시블·밀착 브러시·UV 스팀물걸레)", "리뷰/후기가 좋아서", "기존 제품 대비 업그레이드", "기타"], req:true },
+      { q:"실제 사용 후 가장 만족스러운 부분은?",
+        opts:["흡입력", "먼지 자동비움으로 편한 관리", "UV 살균 위생 관리", "사용 편의성", "디자인/외관", "다양한 활용성", "기타"], req:true },
+      { q:"기존에 사용하시던 청소기는?",
+        opts:["유선 청소기", "무선 청소기(먼지비움 없음)", "프리미엄 무선청소기(먼지비움 있음)", "로봇청소기", "없음(첫 구매)"], req:true }
+    ],
+    "복합식가습기 iH05UV": [
+      { q:"타사가 아닌 아이닉 가습기 iH05UV를 선택하신 가장 큰 이유는?",
+        opts:["아이닉 브랜드를 알고 있어서", "디자인이 마음에 들어서", "가격 및 할인 혜택이 좋아서", "트리플 살균(100℃ PTC 가열판+UV-C LED+자동 건조)", "가습량이 풍부해서", "자동 습도 조절이 되어서", "리모컨·앱으로 조작할 수 있어서", "리뷰/평가가 좋아서", "기타"], req:true },
+      { q:"구매 직전까지 가장 고민했던 브랜드는?",
+        opts:["에어메이드", "케어팟", "미로", "위도어", "위닉스", "기타", "비교한 브랜드 없음"], req:true },
+      { q:"사용해보니 가장 만족스러운 부분은?",
+        opts:["안심 살균(100℃ PTC 가열판+UV-C LED)", "자동 건조 시스템", "디자인", "자동 습도 조절", "간편한 구조", "조용한 소음", "풍부한 가습량", "조작 방법(본체 버튼·리모컨·앱)", "기타"], req:true }
+    ],
+    "복합식가습기 iH12": [
+      { q:"타사가 아닌 아이닉 가습기 iH12 pro를 선택하신 가장 큰 이유는?",
+        opts:["아이닉 브랜드를 알고 있어서", "디자인이 마음에 들어서", "가격 및 할인 혜택이 좋아서", "11L 대용량이라서", "트리플 살균(100℃ PTC 가열판+UV-C LED+자동 건조)", "가습량이 풍부해서", "무선 습도 센서가 있어서", "리모컨·앱으로 조작할 수 있어서", "리뷰/평가가 좋아서", "기타"], req:true },
+      { q:"구매 직전까지 가장 고민했던 브랜드는?",
+        opts:["에어메이드", "에디르", "루메나", "미로", "위닉스", "듀플렉스", "기타", "비교한 브랜드 없음"], req:true },
+      { q:"사용해보니 가장 만족스러운 부분은?",
+        opts:["안심 살균(100℃ PTC 가열판+UV-C LED)", "자동 건조 시스템", "디자인", "무선 습도 센서", "11L 대용량", "풍부한 가습량", "간편한 통세척", "조작 방법(본체 버튼·리모컨·앱)", "기타"], req:true }
+    ],
+    "서큘레이터 iSC02": [
+      { q:"타사가 아닌 아이닉 무선선풍기 iSC02를 선택하신 가장 큰 이유는?",
+        opts:["아이닉 브랜드를 알고 있어서", "디자인이 마음에 들어서", "가격 및 할인 혜택이 좋아서", "디스플레이 리모컨이 있어서", "앱으로 조작할 수 있어서", "교체형 배터리를 사용할 수 있어서", "접이식이라 보관이 편해서", "리뷰/평가가 좋아서", "기타"], req:true },
+      { q:"구매 직전까지 가장 고민했던 브랜드는?",
+        opts:["루메나", "에어메이드", "스테나", "디디오랩", "신일", "샤오미", "기타", "비교한 브랜드 없음"], req:true },
+      { q:"사용해보니 가장 만족스러운 부분은?",
+        opts:["조용한 소음", "접이식 구조", "디자인", "3D 상하좌우 회전", "조작 방법(본체 버튼·리모컨·앱)", "교체형 배터리", "기타"], req:true }
     ]
   },
   form: {
@@ -4053,7 +4152,16 @@ const DEFAULTS = {
       ackCoupon:"네, 확인했습니다",
       ackReq:true
     },
-    /* 쿠팡 정품등록에서만 나오는 화면 */
+    /* 쿠팡 정품등록에서만 나오는 화면 ① — 구매 내역 확인
+       원장에 쿠팡 로켓배송 구매 정보가 없어서, 고객이 주문목록 캡처를 올려 구매를 증명합니다.
+       [[…]] 는 빨간 굵은 글씨, {{…}} 는 검은 굵은 글씨로 나갑니다. */
+    buy: {
+      title:"구매 내역 확인",
+      desc:"쿠팡 앱·홈페이지의 {{주문목록}} 화면을 캡처해 올려 주세요.\n{{구매일자}}(굵은 날짜)와 {{제품명}}(제품 사진 옆 글)이 함께 보여야 합니다.\n[[※ 구매일자나 제품명이 가려진 캡처, 다른 화면 캡처는 지급 대상에서 제외됩니다.]]",
+      exampleName:"coupang_buy_guide.webp",
+      req:true
+    },
+    /* 쿠팡 정품등록에서만 나오는 화면 ② */
     serial: {
       desc:"제품에 붙은 시리얼번호(S/N)를 정확히 입력해 주세요.",
       warn:"※ 같은 시리얼번호가 이미 등록된 경우, 사은품/기프티콘은 최초 1명에게만 발송됩니다.",
@@ -4732,6 +4840,20 @@ function paneForm(){
 
   /* 5 캡처 이미지 (포토리뷰) / 시리얼번호 (쿠팡 정품등록) */
   if(formType === "coupang"){
+    /* 구매 내역 확인 — 제품 사용 설문 다음, S/N 등록 앞에 나옵니다. */
+    form.append(card("buy", ++n, F.buy.title, "쿠팡 정품등록만", [
+      el("div", { class:"fbody" },
+        el("div", { class:"ctitle", style:"margin-bottom:8px" },
+          F.buy.req ? el("span", { class:"req" }, "*") : "",
+          el("span", {}, "구매내역 캡처 이미지"),
+          reqBtn(F.buy.req, () => { F.buy.req = !F.buy.req; }, isOpen("buy"), "buy")),
+        tv(F.buy, "desc", "buy", { cls:"sdesc", multi:true }),
+        el("div", { class:"exbox" },
+          el("div", { style:"font-weight:700;color:var(--ink)" }, "구매내역 캡처 예시 이미지"),
+          el("div", { style:"margin-top:4px" }, F.buy.exampleName),
+          el("div", { class:"note", style:"margin-top:6px" },
+            "저장소 examples/ 폴더에 이 이름으로 올리면 고객 화면에 자동으로 나옵니다. ",
+            "권장 : 가로 1560px · .webp · 200KB 이하")))]));
     form.append(card("serial", ++n, "시리얼번호(S/N) 등록", "쿠팡 정품등록만", [
       el("div", { class:"fbody" },
         el("div", { class:"ctitle", style:"margin-bottom:8px" },

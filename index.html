@@ -289,6 +289,27 @@
     <div class="err" id="err-survey">모든 문항에 답해 주세요. (기타 선택 시 내용 입력)</div>
   </div>
 
+  <!-- 구매 내역 확인 — 쿠팡 정품등록 전용. 제품 사용 설문 다음, S/N 등록 앞. -->
+  <div class="card step hide" id="step-buy">
+    <h2>구매 내역 확인 <span class="req">*</span></h2>
+    <div class="notice" id="buyNotice"></div>
+    <div id="buyExample" style="display:none;margin:0 0 12px">
+      <div class="hint" style="margin:0 0 6px"><b>이렇게 캡처해 주세요</b></div>
+      <div style="position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:zoom-in" onclick="openBuyEx()">
+        <img id="buyExImg" alt="구매내역 캡처 예시" loading="lazy"
+          onerror="document.getElementById('buyExample').style.display='none'" style="width:100%;display:block">
+        <span style="position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.62);color:#fff;font-size:11.5px;font-weight:800;padding:5px 9px;border-radius:99px">🔍 눌러서 크게 보기</span>
+      </div>
+    </div>
+    <label class="drop" id="buyDrop">
+      <input type="file" id="buyFile" accept="image/*">
+      <div id="buyDropInner"><div style="font-size:30px">🧾</div>
+        <div style="margin-top:6px">여기를 눌러 구매내역 캡처를 등록</div><span class="upbtn">파일 선택</span></div>
+    </label>
+    <div class="filename" id="buyFilename"></div>
+    <div class="err" id="err-buy">구매내역 캡처를 등록해 주세요.</div>
+  </div>
+
   <div class="card step hide" id="step-serial">
     <h2>시리얼번호(S/N) 등록 <span class="req">*</span></h2>
     <div class="notice">시리얼번호를 정확히 기재해 주셔야 기프티콘 발송이 가능합니다.
@@ -464,7 +485,72 @@ function applyConfig(){
   if(d && CFG.lookup && CFG.lookup.desc) d.innerHTML=richPlain(CFG.lookup.desc);
   const tip=document.querySelector("#vp-np .notice");
   if(tip && CFG.lookup && CFG.lookup.tip) tip.innerHTML=rich(CFG.lookup.tip);
+
+  /* ②단계 — 설문 문항 (공통 · 제품별) */
+  if(Array.isArray(CFG.entrySurvey) && CFG.entrySurvey.length){
+    ENTRY_SURVEY.length=0;
+    CFG.entrySurvey.forEach(q=>ENTRY_SURVEY.push(q));
+    /* 이미 그려 놓았으면 다시 그리게 한다 */
+    state.esurveyInit=false;
+    const eb=$("#entryBox"); if(eb) eb.innerHTML="";
+  }
+  if(CFG.surveys) Object.keys(CFG.surveys).forEach(c=>{
+    const list=CFG.surveys[c];
+    if(Array.isArray(list) && list.length) SURVEYS[c]=list;
+    else delete SURVEYS[c];          // 문항을 다 지웠으면 그 화면을 건너뛴다
+  });
+  state.surveyFor=null;              // 제품 설문도 다시 그리게 한다
+
+  /* ②단계 — 참여 안내 및 동의 (문구·필수 여부·담당자가 추가한 항목) */
+  if(CFG.consent){
+    const cc=CFG.consent;
+    const conv=(o,id)=>({ id, title:o.label||"", tag:(o.badge==="필수"?"must":"opt"),
+      notice:o.desc||"", agree:o.yes||"", agreeCons:strip(o.yesSub),
+      deny:o.no||"", denyCons:strip(o.noSub) });
+    const list=[];
+    if(cc.privacy)   list.push(conv(cc.privacy,"privacy"));
+    if(cc.marketing) list.push(conv(cc.marketing,"marketing"));
+    (cc.extra||[]).forEach((o,i)=>list.push(conv(o,"extra"+i)));
+    if(list.length){ CONSENTS.common=list; state.consentFor=null; }
+    const h=document.querySelector("#step-consent .desc");
+    if(h && cc.desc) h.innerHTML=richPlain(cc.desc);
+  }
+
+  /* ②단계 — 캡처·S/N 화면의 필수 여부 */
+  if(CFG.capture && CFG.capture.req!=null) REQ.capture=!!CFG.capture.req;
+  if(CFG.buy && CFG.buy.req!=null) REQ.buy=!!CFG.buy.req;
+  if(CFG.serial){
+    if(CFG.serial.req!=null)    REQ.serial=!!CFG.serial.req;
+    if(CFG.serial.ackReq!=null) REQ.serialAck=!!CFG.serial.ackReq;
+  }
+  if(CFG.reward && CFG.reward.ackReq!=null) REQ.rewardAck=!!CFG.reward.ackReq;
+  /* 받으실 정보 — 성함·연락처·주소를 선택으로 바꿀 수 있게 */
+  if(CFG.info && Array.isArray(CFG.info.fields)){
+    const f=CFG.info.fields;
+    const byLabel=t=>f.find(x=>String(x.label||"").includes(t));
+    const nm=byLabel("성함"), ph=byLabel("연락처"), ad=byLabel("주소");
+    if(nm) REQ.name=!!nm.req;
+    if(ph) REQ.phone=!!ph.req;
+    if(ad) REQ.addr=!!ad.req;
+  }
+
+  /* ③단계 — 사은품 이름·종류 */
+  if(CFG.gifts) Object.keys(CFG.gifts).forEach(c=>{
+    const g=CFG.gifts[c]||{}, cur=GIFTS[c]||{};
+    GIFTS[c]=Object.assign({},cur,
+      g.label?{label:g.label}:{},
+      g.type ?{type:g.type} :{});
+  });
+  state.infoFor=null;                // 사은품 상자를 다시 그리게 한다
 }
+
+/* (*…*) 처럼 감싼 괄호를 벗겨 낸다 — 설정 화면은 괄호까지 적어 두기 때문 */
+function strip(v){ return String(v||"").replace(/^\s*\(?\*?|\*?\)?\s*$/g,""); }
+
+/* 항목별 「필수인가」 — 설정에서 바꿀 수 있고, 못 받아오면 아래 기본값을 씁니다.
+   ⚠️ 성함·연락처·주소를 선택으로 바꾸면 발송을 못 하게 되니 주의하세요. */
+const REQ={ capture:true, serial:true, serialAck:true, rewardAck:true,
+            name:true, phone:true, addr:true, buy:true };
 
 async function loadConfig(){
   try{
@@ -480,6 +566,17 @@ async function loadConfig(){
   }catch(e){ /* 설정을 못 받아도 접수는 그대로 진행됩니다 */ }
   try{ applyConfig(); }catch(e){ console.warn("설정을 적용하지 못했습니다",e); }
 }
+
+/* 쿠팡 구매내역 캡처 예시 이미지 —
+   저장소의 examples/ 폴더에 이 이름으로 올려두면 「구매 내역 확인」 화면에 자동으로 나옵니다.
+   파일이 없으면 예시 칸은 그냥 안 보입니다(오류 아님).
+   권장 규격 : 가로 1560px · .webp · 200KB 이하 */
+const BUY_EXAMPLE="examples/coupang_buy_guide.webp";
+
+/* 음식물처리기처럼 사은품 때문에 코드가 둘로 갈라지는 제품.
+   한 번 접수하면 형제 코드도 「썼다」로 봐야 사은품이 두 번 나가지 않습니다. */
+const PICK_GROUPS=[["iFD01-H","iFD01-F"]];
+function siblingsOf(code){ const g=PICK_GROUPS.find(x=>x.includes(code)); return g?g.slice():[code]; }
 
 /* 아이닉 카카오톡 채널 — 중복 접수 시 접수한 카테고리에 맞는 채널로 안내 */
 const KAKAO_CHANNELS={
@@ -683,7 +780,7 @@ function focusFirstError(){
 const surveyOf=code=>SURVEYS[code]||null;
 
 const STEP_EL={type:"#step-type",invoice:"#step-invoice",consent:"#step-consent",entry:"#step-entry",product:"#step-product",
-  survey:"#step-survey",serial:"#step-serial",info:"#step-info"};
+  survey:"#step-survey",buy:"#step-buy",serial:"#step-serial",info:"#step-info"};
 function getFlow(){
   if(!state.type) return ["type"];
   if(state.type==="review"){
@@ -693,9 +790,11 @@ function getFlow(){
     if(!state.invOk || state.prodCodes.length>1) f.push("product");
     if(surveyOf(state.product)) f.push("survey");
     f.push("info"); return f; }
+  /* 쿠팡 정품등록 — 원장에 구매 정보가 없어 조회 화면이 없는 대신,
+     제품 사용 설문 다음에 「구매 내역 확인」(주문목록 캡처)을 받고 S/N을 등록합니다. */
   const f=["type","consent","entry","product"];
   if(surveyOf(state.product)) f.push("survey");
-  f.push("serial"); f.push("info"); return f;
+  f.push("buy"); f.push("serial"); f.push("info"); return f;
 }
 let current=0;
 function showStep(){
@@ -722,6 +821,14 @@ function showStep(){
   if(step==="product"){ renderCats(); renderProds(); }   // 송장 확인 결과에 따라 목록이 달라질 수 있어 매번 다시 그림
   if(step==="entry") renderEntrySurvey();
   if(step==="survey") renderSurvey();
+  if(step==="buy"){
+    const n=$("#buyNotice");
+    const bd=(CFG&&CFG.buy&&CFG.buy.desc)||
+      "쿠팡 앱·홈페이지의 {{주문목록}} 화면을 캡처해 올려 주세요.\n{{구매일자}}(굵은 날짜)와 {{제품명}}(제품 사진 옆 글)이 함께 보여야 합니다.\n[[※ 구매일자나 제품명이 가려진 캡처, 다른 화면 캡처는 지급 대상에서 제외됩니다.]]";
+    if(n) n.innerHTML = rich(bd);
+    const be=$("#buyExample"), bi=$("#buyExImg");
+    if(be && bi && BUY_EXAMPLE){ be.style.display="block"; if(bi.getAttribute("src")!==BUY_EXAMPLE) bi.src=BUY_EXAMPLE; }
+  }
   if(step==="serial"){
     applySerialPrefix();
     // 정품등록은 '사진 먼저 촬영 → 보면서 S/N 입력' 순서. 사진 입력칸을 S/N 단계 위로 옮긴다.
@@ -974,6 +1081,16 @@ function applySerialPrefix(){
     ? `모델명 <b>${pre}</b> 은 미리 입력해 두었습니다. <b>뒤에 이어지는 번호</b>를 그대로 입력해 주세요.`
     : "중복 참여 확인에 사용됩니다.";
 }
+/* 고객이 모델명 뒤에 실제로 번호를 적었는지 본다.
+   미리 채워 둔 모델명과 공백·하이픈은 빼고 남는 글자가 있어야 입력한 것이다. */
+function serialTyped(){
+  const el=$("#serial"); if(!el) return false;
+  const v=(el.value||"").trim();
+  const pre=(state.serialPrefix||"").trim();
+  const rest = (pre && v.toUpperCase().startsWith(pre.toUpperCase())) ? v.slice(pre.length) : v;
+  return rest.replace(/[\s\-_.]/g,"").length > 0;
+}
+
 /* ── 제품별 포토리뷰 캡처 예시 ─────────────────────────────
    이미지 파일은 저장소의 examples/ 폴더에 함께 올려두고 필요할 때만 불러온다
    (파일에 심으면 접수폼이 무거워져 모바일에서 느려짐). */
@@ -1177,6 +1294,34 @@ $("#file").addEventListener("change",async e=>{
   $("#dropInner").innerHTML=`<img class="preview" src="${lastPreviewUrl}"><div style="margin-top:8px"><span class="upbtn">다른 이미지로 변경</span></div>`;
   $("#filename").textContent="📎 "+(f.name||"이미지")+" · "+fmtBytes(out.size)+(out!==f?` (원본 ${fmtBytes(f.size)}에서 줄임)`:"");
 });
+
+/* 구매내역 캡처 — 리뷰 캡처와 완전히 다른 사진이라 칸도 따로 씁니다.
+   ⚠️ 쿠팡 정품등록 고객은 사진을 두 장 올립니다(구매내역 캡처 + S/N 라벨 사진). */
+let buyPreviewUrl=null;
+function resetBuyDrop(){
+  $("#buyDropInner").innerHTML='<div style="font-size:30px">🧾</div>'
+    +'<div style="margin-top:6px">여기를 눌러 구매내역 캡처를 등록</div><span class="upbtn">파일 선택</span>';
+}
+$("#buyFile").addEventListener("change",async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  hideErr("err-buy");
+  $("#buyDropInner").innerHTML='<div style="font-size:26px">⏳</div><div style="margin-top:6px">이미지 준비 중…</div>';
+  const lim=IMG_LIMIT[state.type==="coupang"?"coupang":"review"];
+  let out=f;
+  try{ out=await shrinkImage(f,lim.max,lim.q); }
+  catch(err){ console.warn("리사이즈 실패 → 원본 사용",err); out=f; }
+  if(out.size>HARD_MAX_BYTES){
+    state.buyFile=null; e.target.value=""; resetBuyDrop(); $("#buyFilename").textContent="";
+    alert(fill(MSGT("fileTooBig","사진 용량이 너무 큽니다 (○○).\n다른 사진으로 시도하시거나, 화면을 캡처해서 올려주세요."),[fmtBytes(out.size)]));
+    return;
+  }
+  state.buyFile=out;
+  if(buyPreviewUrl)URL.revokeObjectURL(buyPreviewUrl);
+  buyPreviewUrl=URL.createObjectURL(out);
+  $("#buyDropInner").innerHTML=`<img class="preview" src="${buyPreviewUrl}"><div style="margin-top:8px"><span class="upbtn">다른 이미지로 변경</span></div>`;
+  $("#buyFilename").textContent="📎 "+(f.name||"이미지")+" · "+fmtBytes(out.size)+(out!==f?` (원본 ${fmtBytes(f.size)}에서 줄임)`:"");
+});
+function openBuyEx(){ exOpen(BUY_EXAMPLE,"쿠팡 구매내역 캡처 예시",false,false); }
 
 /* ══════════ 구매 확인 게이트 ══════════
    리포트 '주문DB'에 올려둔 구매 원장에서 본인 구매 건을 찾는다.
@@ -1405,24 +1550,30 @@ function validateStep(step){
       if(miss){ const el=document.querySelector(`#surveyBox .qitem[data-qi="${qi}"]`); if(el)el.classList.add("invalid"); if(bad<0)bad=qi; } }
     if(bad>=0){ showErr("err-survey"); return false; }
     hideErr("err-survey"); return true; }
+  if(step==="buy"){
+    if(REQ.buy && !state.buyFile){showErr("err-buy");return false;}
+    hideErr("err-buy"); return true; }
   if(step==="serial"){ let ok=true;
-    if(!state.file){showErr("err-file");ok=false;}else hideErr("err-file");   // 사진이 이 단계로 옮겨옴
-    if(!$("#serial").value.trim()){showErr("err-serial");ok=false;}else hideErr("err-serial");
-    if(!$("#serialAck").checked){showErr("err-serialack");ok=false;}else hideErr("err-serialack");
+    if(REQ.capture && !state.file){showErr("err-file");ok=false;}else hideErr("err-file");   // 사진이 이 단계로 옮겨옴
+    /* ⚠️ 모델명(예: i90)은 우리가 미리 채워 둔 글자입니다.
+       그것만 남아 있으면 고객이 아무것도 안 적은 것이므로 「미입력」으로 봅니다.
+       이 검사가 없으면 고객이 그냥 「다음」을 눌러 빈 S/N으로 접수돼 버립니다. */
+    if(REQ.serial && !serialTyped()){showErr("err-serial");ok=false;}else hideErr("err-serial");
+    if(REQ.serialAck && !$("#serialAck").checked){showErr("err-serialack");ok=false;}else hideErr("err-serialack");
     return ok; }
   if(step==="info"){
     let ok=true; const g=giftOf(state.product), rw=rewardType(state.type,state.product);
-    if(state.type!=="coupang"){ if(!state.file){showErr("err-file");ok=false;}else hideErr("err-file"); }
-    if(!$("#name").value.trim()){showErr("err-name");ok=false;}else hideErr("err-name");
-    if($("#phone").value.replace(/[^0-9]/g,"").length<10){showErr("err-phone");ok=false;}else hideErr("err-phone");
+    if(state.type!=="coupang"){ if(REQ.capture && !state.file){showErr("err-file");ok=false;}else hideErr("err-file"); }
+    if(REQ.name && !$("#name").value.trim()){showErr("err-name");ok=false;}else hideErr("err-name");
+    if(REQ.phone && $("#phone").value.replace(/[^0-9]/g,"").length<10){showErr("err-phone");ok=false;}else hideErr("err-phone");
     if(state.type!=="coupang" && g && g.choice && state.giftChoice==null){showErr("err-gift");ok=false;}
     // 기본주소(주소검색 결과)가 없으면 상세주소만 입력해도 통과시키지 않는다 — 오기재·발송누락 방지
-    if(rw==="gift"){
+    if(rw==="gift" && REQ.addr){
       const road=($("#addrRoad").value||"").trim(), det=($("#addrDetail").value||"").trim();
       if(!road||!det){showErr("err-addr");ok=false;}else hideErr("err-addr");
     } else hideErr("err-addr");
     if(state.type==="review" && leftQty()>1 && !state.qtyMode){showErr("err-qty");ok=false;}else hideErr("err-qty");
-    if(state.consent.reward!==rw){showErr("err-reward");ok=false;}else hideErr("err-reward");
+    if(REQ.rewardAck && state.consent.reward!==rw){showErr("err-reward");ok=false;}else hideErr("err-reward");
     return ok;
   } return true;
 }
@@ -1611,7 +1762,11 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
     +`<div><b>주문번호</b> ${e.orderNo}</div><div><b>수령인</b> ${e.name}</div><div><b>연락처</b> ${e.phone}</div>`;
   $("#mKv").innerHTML=kv;
   /* 접수한 만큼 참여 이력에 반영 — 이어서 신청 화면에서 남은 수량이 정확해진다 */
-  if(review && e.product) state.usedByCode[e.product]=(state.usedByCode[e.product]||0)+q;
+  /* ⚠️ 형제 코드도 같이 올립니다. 안 그러면 「이어서 신청」에서 밀폐키친홀더 → 활성탄필터로
+     한 번 더 받아 갈 수 있습니다(1개 구매인데 사은품 2개). */
+  if(review && e.product) siblingsOf(e.product).forEach(c=>{
+    state.usedByCode[c]=(state.usedByCode[c]||0)+q;
+  });
   /* 이어서 신청 — 다른 제품이 남았거나(A→B), 나눠 받기로 수량이 남은 경우 */
   const remainList = review ? state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-(state.usedByCode[c]||0))>0) : [];
   const otherProd  = remainList.some(c=>c!==e.product);
@@ -1651,7 +1806,7 @@ function showDup(dup,review){$("#box").className="box dup";$("#mIcon").textConte
 function continueEntry(){
   $("#modal").classList.remove("on");
   if(state.product && !state.doneCodes.includes(state.product)) state.doneCodes.push(state.product);
-  state.file=null; state.survey={}; state.surveyFor=null; state.infoFor=null;
+  state.file=null; state.buyFile=null; state.survey={}; state.surveyFor=null; state.infoFor=null;
   state.giftChoice=null; state.qtyMode=null;
   const fi=$("#file"); if(fi) fi.value="";
   resetDropInner(); const fn=$("#filename"); if(fn) fn.textContent="";
@@ -1671,7 +1826,7 @@ function continueEntry(){
 }
 window.continueEntry=continueEntry;
 function resetForm(){
-  state.type=null;state.category="주방가전";state.file=null;
+  state.type=null;state.category="주방가전";state.file=null;state.buyFile=null;
   clearLookup(); state.doneCodes=[]; state.vTab="np";
   ["#vName","#vPhone","#vInv"].forEach(s=>{const el=$(s);if(el)el.value="";});
   {const b=$("#invResult");if(b)b.innerHTML="";}
@@ -1705,16 +1860,22 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
    ─ 사진은 올리기만 하고 주소는 읽지 않는다(Storage 읽기 잠금).
      주소는 창구가 만들어 접수 데이터에 붙인다. */
 async function submitViaApi(e,file){
-  if(file){
-    await initFirebase();
+  const btn=$("#submitBtn");
+  /* 사진 한 장을 올리고 저장 위치를 돌려준다. 쿠팡 정품등록은 두 장이라 두 번 부른다. */
+  const upload=async (f,label)=>{
     const ts=Date.now(), rnd=Math.random().toString(36).slice(2,10);
-    const path=`${STORAGE_DIR}/${ts}_${rnd}_${(file.name||"capture").replace(/[^\w.\-]/g,"_")}`;
-    const task=storage.ref().child(path).put(file);
-    const btn=$("#submitBtn");
+    const path=`${STORAGE_DIR}/${ts}_${rnd}_${(f.name||"capture").replace(/[^\w.\-]/g,"_")}`;
+    const task=storage.ref().child(path).put(f);
     task.on("state_changed",s=>{const pct=s.totalBytes?Math.round(s.bytesTransferred/s.totalBytes*100):0;
-      btn.textContent=`사진 전송 중… ${pct}%`;});
-    await task; btn.textContent="접수 처리 중…";
-    e.imagePath=path;
+      btn.textContent=`${label} 전송 중… ${pct}%`;});
+    await task;
+    return path;
+  };
+  if(file || state.buyFile){
+    await initFirebase();
+    if(state.buyFile) e.buyImagePath=await upload(state.buyFile,"구매내역 캡처");
+    if(file)          e.imagePath   =await upload(file, state.type==="coupang"?"S/N 사진":"리뷰 캡처");
+    btn.textContent="접수 처리 중…";
   }
   return await eventApi({action:"submitEntry",token:state.token||"",entry:e});
 }

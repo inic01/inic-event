@@ -243,6 +243,11 @@
   .btn.reqbtn{color:var(--ink); border-color:var(--line); background:var(--card)}
   #evtCfg .btn.reqbtn.on{background:var(--bad); border-color:var(--bad); color:#fff}
   #evtCfg .btn.reqbtn.on:hover{background:var(--bad); filter:brightness(1.06)}
+  /* 「수정」 전에는 잠김 — 회색으로 흐리게 */
+  #evtCfg .btn.reqbtn.lock{opacity:.42; cursor:default}
+  #evtCfg .btn.reqbtn.lock:hover{background:var(--card)}
+  #evtCfg .btn.reqbtn.on.lock{opacity:.42}
+  #evtCfg .btn.reqbtn.on.lock:hover{background:var(--bad)}
   #evtCfg .btn.primary:hover{filter:brightness(1.12)}
   #evtCfg .btn.ghost{border-color:transparent; color:var(--sub); padding:5px 8px}
   #evtCfg .btn.ghost:hover{color:var(--bad); background:var(--badbg)}
@@ -743,9 +748,6 @@
   <section class="page" id="page-admin">
 
 <div id="evtCfg" hidden>
-  <div class="protobar" id="evtWarn" hidden>
-    <span>◇</span><span></span>
-  </div>
   <div id="evtTabBar">
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" aria-selected="true"  data-t="gift">사은품</button>
@@ -4420,7 +4422,7 @@ function qCard(g, i, no){
           oninput:e => { item.q = e.target.value; syncToc(); } })
       : el("span", { class:"qtext" }, item.q || "(질문 없음)"),
     el("div", { class:"qacts" },
-      reqBtn(item.req, () => { item.req = !item.req; }),
+      reqBtn(item.req, () => { item.req = !item.req; }, open, id),
       el("button", { class:"btn sm", type:"button", title:"위로", disabled:i === 0 ? "" : null,
         onclick:e => { e.stopPropagation(); [list[i-1], list[i]] = [list[i], list[i-1]]; sel = "q:" + g + ":" + (i-1); render(); } }, "↑"),
       el("button", { class:"btn sm", type:"button", title:"아래로", disabled:i === list.length - 1 ? "" : null,
@@ -4446,11 +4448,22 @@ function qCard(g, i, no){
 
 /* 「필수」 버튼 하나로 켜고 끕니다.
    켜져 있으면 빨간 버튼 + 항목 이름 앞에 빨간 * , 끄면 검은 버튼 + * 없음. */
-function reqBtn(on, toggle){
-  return el("button", { class:"btn sm reqbtn" + (on ? " on" : ""), type:"button",
-    title:on ? "누르면 필수가 해제됩니다" : "누르면 필수가 됩니다",
+function reqBtn(on, toggle, editing, ownerId){
+  /* ⚠️ 「수정」을 누르기 전에는 바꿀 수 없습니다.
+     실수로 눌러서 필수가 풀리는 것을 막기 위해서입니다.
+     잠긴 상태에서 누르면 그 카드의 수정 모드가 열립니다(= 「수정」을 누른 것과 같음). */
+  const can = editing !== false;
+  return el("button", {
+    class:"btn sm reqbtn" + (on ? " on" : "") + (can ? "" : " lock"),
+    type:"button",
+    title: can ? (on ? "누르면 필수가 해제됩니다" : "누르면 필수가 됩니다")
+               : "「수정」을 누른 뒤에 바꿀 수 있습니다",
     "aria-pressed":String(on),
-    onclick:e => { e.stopPropagation(); toggle(); render(); } }, "필수");
+    onclick:e => {
+      e.stopPropagation();
+      if(!can){ if(ownerId){ sel = ownerId; render(); } return; }
+      toggle(); render();
+    } }, "필수");
 }
 
 function grpBar(t, d){
@@ -4484,7 +4497,8 @@ function paneForm(){
       o.badge === "필수" ? el("span", { class:"req" }, "*") : "",
       isOpen("consent") ? el("input", { type:"text", value:o.label, style:"max-width:220px",
           oninput:e => { o.label = e.target.value; } }) : el("span", {}, o.label),
-      reqBtn(o.badge === "필수", () => { o.badge = o.badge === "필수" ? "선택" : "필수"; })),
+      reqBtn(o.badge === "필수", () => { o.badge = o.badge === "필수" ? "선택" : "필수"; },
+        isOpen("consent"), "consent")),
     tv(o, "desc", "consent", { cls:"cdesc", multi:true }),
     el("div", { class:"copt on" }, el("span", { class:"cradio" }),
       el("div", {}, tv(o, "yes", "consent", { cls:"cmain" }), tv(o, "yesSub", "consent", { cls:"csub" }))),
@@ -4550,7 +4564,8 @@ function paneForm(){
         el("div", { class:"ctitle" },
           F.reward.ackReq ? el("span", { class:"req" }, "*") : "",
           tv(F.reward, isCoupon ? "noticeCouponLabel" : "noticeGiftLabel", "reward", {}),
-          reqBtn(F.reward.ackReq, () => { F.reward.ackReq = !F.reward.ackReq; })),
+          reqBtn(F.reward.ackReq, () => { F.reward.ackReq = !F.reward.ackReq; },
+            isOpen("reward"), "reward")),
         tv(F.reward, isCoupon ? "noticeCoupon" : "noticeGift", "reward", { cls:"cdesc", multi:true }),
         el("div", { class:"copt", style:"align-items:center" },
           el("span", { class:"cchk" }),
@@ -4564,7 +4579,8 @@ function paneForm(){
       el("div", { class:"ctitle", style:"margin-bottom:8px" },
         F.capture.req ? el("span", { class:"req" }, "*") : "",
         el("span", {}, "리뷰 캡처 이미지"),
-        reqBtn(F.capture.req, () => { F.capture.req = !F.capture.req; })),
+        reqBtn(F.capture.req, () => { F.capture.req = !F.capture.req; },
+          isOpen("capture"), "capture")),
       tv(F.capture, "desc", "capture", { cls:"sdesc", multi:true }),
       tv(F.capture, "warn", "capture", { cls:"warnline", multi:true }),
       el("div", { class:"exbox" },
@@ -4588,7 +4604,7 @@ function paneForm(){
             ? el("input", { type:"text", value:f.label, style:"max-width:200px",
                 oninput:e => { f.label = e.target.value; } })
             : el("span", {}, f.label),
-          reqBtn(f.req, () => { f.req = !f.req; })),
+          reqBtn(f.req, () => { f.req = !f.req; }, isOpen("info"), "info")),
         f.note ? el("div", { class:"cdesc" }, f.note) : "",
         el("div", { class:"fi", style:"margin-top:6px;color:#b3aaa2;font-size:12px" }, f.type + " 입력칸"),
         isOpen("info") ? el("div", { class:"addline", style:"margin-top:8px" },
@@ -4623,8 +4639,10 @@ function paneForm(){
           el("b", {}, "구매 확인 · 접수 완료"), " 는 고칠 것이 문구뿐이라 ",
           el("b", {}, "「안내 문구」 탭"), " 에 있습니다. ",
           el("span", { class:"req" }, "*"), " 가 붙은 항목이 ", el("b", {}, "필수"), " 입니다 — ",
-          el("b", {}, "「필수」 버튼"), " 을 누르면 ", el("b", {}, "빨간색"), " 으로 켜지고, 다시 누르면 꺼집니다. ",
-          "고객 화면에도 그대로 반영됩니다.")),
+          el("b", {}, "「수정」"), " 을 먼저 누르셔야 ", el("b", {}, "「필수」"), " 를 바꿀 수 있습니다. ",
+          "필수를 켜면 ", el("b", {}, "빨간색"), " 이 되고 항목 이름 앞에 ", el("span", { class:"req" }, "*"), " 가 붙습니다. ",
+          "다 고치셨으면 같은 자리의 ", el("b", {}, "「저장」"), " 을 누르고, ",
+          "맨 아래 ", el("b", {}, "「저장」"), " 으로 서버에 남기세요.")),
       el("div", { class:"row" },
         el("div", { class:"field" },
           el("label", { for:"svP" }, "제품 문항·사은품을 볼 제품"),
@@ -4898,8 +4916,6 @@ function showUsers(on){
   show(document.getElementById("cols"), !on);   /* 탭 줄은 #cols 밖에 있어 항상 남습니다 */
   show(document.querySelector("#evtCfg .save"), !on);
   show(document.querySelector("#evtCfg details"), !on);
-  const w = document.getElementById("evtWarn");
-  if(w) w.style.display = (!on && w.dataset.show === "1") ? "" : "none";
   const u = document.getElementById("admUsers");
   if(u) u.hidden = !on;
 }
@@ -4943,12 +4959,11 @@ window.EVTCFG = {
       cfg = clone(loaded); SAVED = clone(loaded);
       surveyProduct = (cfg.products[0] || {}).ledger || "";
     }
-    const w = document.getElementById("evtWarn");
-    if(w && !loaded){
-      w.hidden = false; w.dataset.show = "1";
-      w.lastElementChild.innerHTML =
-        "<b>아직 저장된 설정이 없습니다.</b> 지금 보이는 값은 기본값이고, " +
-        "<b>저장</b>을 눌러야 서버에 남습니다.";
+    /* 저장된 설정이 없을 때의 안내는 저장 줄 옆에 한 번만 적습니다.
+       띠로 띄우면 탭을 옮길 때마다 나타났다 사라져 화면이 밀립니다. */
+    if(!loaded){
+      const m = document.getElementById("saveMsg");
+      if(m) m.textContent = "아직 저장된 설정이 없습니다. 지금 값은 기본값이고, 저장을 눌러야 서버에 남습니다.";
     }
     showUsers(false);
     render();

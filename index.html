@@ -206,6 +206,10 @@
     </div>
     <div class="err" id="err-type">참여 유형을 선택해 주세요.</div>
 
+    <!-- 첫 화면에서는 「다음」이 참여 조회보다 위에 있어야 합니다.
+         아래 고정 바의 「다음」은 이 화면에서만 숨기고 이 버튼을 씁니다. -->
+    <button type="button" class="nbtn next" id="nextTop" style="width:100%;margin-top:14px">다음</button>
+
     <div class="checkpart" id="checkPart">
       <button type="button" id="chkOpen" onclick="toggleCheck()">🔍 포토리뷰 이벤트 참여 조회</button>
       <div id="chkBody" class="hide">
@@ -391,6 +395,92 @@ async function eventApi(payload){
   if(!r.ok) return j||{ok:false,reason:"server"};
   return j||{ok:false,reason:"server"};
 }
+/* ══════════ 관리자 화면에서 정한 안내 문구·카카오 채널 가져오기 ══════════
+   리포트 「관리자 → 이벤트 설정」에서 저장한 값을 창구에서 받아 씁니다.
+   ⚠️ 못 받아도 접수는 그대로 됩니다. 아래 코드에 적힌 기본 문구가 쓰입니다.
+      (설정 서버가 죽어도 고객은 아무 일 없이 접수할 수 있어야 합니다.)
+   ⚠️ 설정에는 글자만 들어 있습니다. 굵게·빨간 글씨 같은 모양은 여기 코드가 정합니다.
+      담당자가 강조를 넣고 싶으면 글 안에 괄호 기호를 씁니다.
+        [[이 부분]]  → 빨간 굵은 글씨
+        {{이 부분}}  → 검은 굵은 글씨
+      ⚠️ 별표(*)를 안 쓰는 이유 — 「홍*동」처럼 글 안에 별표가 들어가는 문구가 있어서입니다. */
+let CFG = null;
+
+function esc(s){ return String(s==null?"":s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+/* 별표 강조를 실제 글씨 모양으로 바꿉니다. 안내 상자(.notice) 안에서 쓰는 모양. */
+function rich(t){ return esc(t).replace(/\n/g,"<br>")
+  .replace(/\[\[([^\]]+)\]\]/g,'<span class="hl">$1</span>')
+  .replace(/\{\{([^}]+)\}\}/g,'<span class="hlk">$1</span>'); }
+/* 같은 별표를 작은 설명 줄(.desc)에서 쓰는 모양으로. */
+function richPlain(t){ return esc(t).replace(/\n/g,"<br>")
+  .replace(/\[\[([^\]]+)\]\]/g,'<b style="color:#c0392b">$1</b>')
+  .replace(/\{\{([^}]+)\}\}/g,'<b>$1</b>'); }
+
+/* 설정에 그 문구가 있으면 그 글을, 없으면 코드에 적힌 기본 글을 씁니다. */
+function MSGT(key, fallback){
+  const n = CFG && CFG.notices && CFG.notices[key];
+  const t = n && typeof n.t === "string" ? n.t.trim() : "";
+  return t || fallback;
+}
+/* 조회 결과 안내 상자용 — 첫 줄은 굵은 빨간 글씨, 나머지 줄은 보통 글씨. */
+function MSGH(key, fallback, vals){
+  const lines = fill(MSGT(key, fallback), vals || []).split("\n");
+  return '<b style="color:#c1121f">'+rich(lines[0])+'</b>'
+       + (lines.length>1 ? '<br>'+lines.slice(1).map(rich).join("<br>") : "");
+}
+/* 문구 안의 ○○ 를 앞에서부터 순서대로 실제 값(이름·제품명·개수)으로 바꿉니다.
+   ⚠️ 담당자가 ○○ 를 지우면 그 자리에 값이 안 들어갑니다. 지우지 말라고 안내되어 있습니다. */
+function fill(t, vals){
+  let i=0;
+  /* ○○ 든 ○ 든 모두 자리로 봅니다(담당자가 한 글자만 적어도 되도록). */
+  return String(t).replace(/○○|○/g, m => (i < vals.length ? String(vals[i++]) : m));
+}
+
+/* 그 문구 아래에 카카오 상담 버튼을 붙일지 — 설정에서 켜고 끕니다. */
+function MSGK(key, dflt){
+  const n = CFG && CFG.notices && CFG.notices[key];
+  return n && typeof n.k === "boolean" ? n.k : !!dflt;
+}
+
+/* 화면에 이미 적혀 있는 빨간 오류 글씨 — 설정값으로 갈아 끼웁니다. */
+const ERR_KEY={ "err-name":"errName", "err-phone":"errPhone", "err-inv":"errInv",
+  "err-consent":"errConsent", "err-entry":"errEntry", "err-type":"errType",
+  "err-prod":"errProd", "err-survey":"errSurvey", "err-gift":"errGift",
+  "err-qty":"errQty", "err-reward":"errReward", "err-serial":"errSerial",
+  "err-serialack":"errSerialack", "err-file":"errFile", "err-addr":"errAddr" };
+
+function applyConfig(){
+  if(!CFG) return;
+  Object.keys(ERR_KEY).forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    const t=MSGT(ERR_KEY[id],""); if(t) el.textContent=t;
+  });
+  /* 카카오 채널 주소 */
+  if(CFG.kakao) Object.keys(CFG.kakao).forEach(c=>{ if(CFG.kakao[c]) KAKAO_CHANNELS[c]=CFG.kakao[c]; });
+  /* 구매 확인 화면에 늘 적혀 있는 두 글 */
+  const d=document.querySelector("#step-invoice > .desc");
+  if(d && CFG.lookup && CFG.lookup.desc) d.innerHTML=richPlain(CFG.lookup.desc);
+  const tip=document.querySelector("#vp-np .notice");
+  if(tip && CFG.lookup && CFG.lookup.tip) tip.innerHTML=rich(CFG.lookup.tip);
+}
+
+async function loadConfig(){
+  try{
+    /* 4초 안에 답이 없으면 포기하고 기본 문구로 진행합니다.
+       설정 때문에 고객이 접수폼 앞에서 기다리는 일이 없어야 합니다. */
+    const ctl=new AbortController();
+    const timer=setTimeout(()=>ctl.abort(),4000);
+    const r=await fetch(EVENT_API,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"getConfig"}),signal:ctl.signal});
+    clearTimeout(timer);
+    const j=await r.json();
+    if(j&&j.ok&&j.cfg) CFG=j.cfg;
+  }catch(e){ /* 설정을 못 받아도 접수는 그대로 진행됩니다 */ }
+  try{ applyConfig(); }catch(e){ console.warn("설정을 적용하지 못했습니다",e); }
+}
+
 /* 아이닉 카카오톡 채널 — 중복 접수 시 접수한 카테고리에 맞는 채널로 안내 */
 const KAKAO_CHANNELS={
   "생활가전":"http://pf.kakao.com/_PQANG",
@@ -547,18 +637,6 @@ const GIFT_NOTICE="사은품은 <b>착불 발송</b>(택배비 3,200원, 배송 
 const COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 발송</b>(기프티쇼비즈)됩니다. 발송일: 매주 월요일(월요일 신청 건은 익주 월요일). 사용 기한: 수령 후 30일, 경과 후 재발송이 어렵습니다.";
 /* ============================================================ */
 
-/* ── 형제 제품코드 — 「한 대를 사면 둘 중 하나만」 ──────────────────────
-   음식물처리기(iFD01)는 원장에 한 줄인데 사은품은 두 가지입니다.
-     iFD01-H 밀폐키친홀더 / iFD01-F 활성탄필터  → 둘 중 하나만 받으실 수 있습니다.
-   따로 세면 밀폐키친홀더를 받은 분께 활성탄필터가 「아직 남았다」고 뜹니다.
-   서버(eventApi.js)에도 똑같은 묶음이 들어 있습니다. **한쪽만 고치지 마세요.** */
-const PICK_GROUPS=[["iFD01-H","iFD01-F"]];
-const SIBLINGS={}; PICK_GROUPS.forEach(g=>g.forEach(c=>{SIBLINGS[c]=g;}));
-const siblingsOf=c=>SIBLINGS[c]||[c];
-/* 이미 가져간 개수 — 형제코드 중 가장 큰 값을 씁니다.
-   창구가 돌려주는 값은 이미 형제를 합친 값이라 여기서 또 더하면 두 번 세게 됩니다. */
-const usedOf=(map,c)=>siblingsOf(c).reduce((n,s)=>Math.max(n,(map&&map[s])||0),0);
-
 const state={type:null,category:"주방가전",product:null,file:null,serialPrefix:"",
   vTab:"np",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
   invNo:"",ordNo:"",autoName:"",autoPhone:"",token:"",
@@ -631,6 +709,11 @@ function showStep(){
   const first=current===0;
   $("#back").style.display=first?"none":"block";
   $("#prog").style.display=first?"none":"block";
+  /* 첫 화면은 카드 안의 「다음」을 쓰고, 아래 고정 바는 통째로 숨깁니다.
+     그래야 「다음」이 「참여 조회」보다 위에 옵니다. */
+  const navBar=document.querySelector(".nav");
+  if(navBar) navBar.style.display = first ? "none" : "";
+  $("#nextTop").style.display = first ? "block" : "none";
   const last=!!state.type && current===flow.length-1;
   $("#next").classList.toggle("hide",last);
   $("#submitBtn").classList.toggle("hide",!last);
@@ -712,14 +795,14 @@ function renderProds(){
     for(const c in PRODUCTS) PRODUCTS[c].forEach(p=>{ if(state.prodCodes.includes(p.code)) all.push(p); });
     box.innerHTML="";
     all.forEach(p=>{const el=document.createElement("div");el.className="prod"+(state.product===p.code?" on":"");
-      const q=Math.max(1,(state.qtyByCode[p.code]||1)-usedOf(state.usedByCode,p.code));
+      const q=Math.max(1,(state.qtyByCode[p.code]||1)-(state.usedByCode[p.code]||0));
       el.innerHTML=(p.img?`<img class="pimg" src="${p.img}" alt="${p.name}">`:`<div class="pph">이미지</div>`)
         +`<span class="badge">${p.code}</span><div class="pname">${p.name}${q>1?` <span style="color:#c1121f">${q}개</span>`:""}</div><div class="check">✓</div>`;
       el.onclick=()=>{
         if(state.product!==p.code){ state.surveyFor=null; state.infoFor=null; state.qtyMode=null; }
         state.product=p.code; state.category=categoryOf(p.code)||state.category;
         state.buyQty=state.qtyByCode[p.code]||1;
-        state.usedQty=usedOf(state.usedByCode,p.code);
+        state.usedQty=state.usedByCode[p.code]||0;
         hideErr("err-prod"); renderProds();};
       box.appendChild(el);});
     const cats=$("#cats"); if(cats) cats.style.display="none";
@@ -1085,7 +1168,7 @@ $("#file").addEventListener("change",async e=>{
   catch(err){ console.warn("리사이즈 실패 → 원본 사용",err); out=f; }   // 절대 막지 않음
   if(out.size>HARD_MAX_BYTES){
     state.file=null; e.target.value=""; resetDropInner(); $("#filename").textContent="";
-    alert(`사진 용량이 너무 큽니다 (${fmtBytes(out.size)}).\n\n다른 사진으로 시도하시거나, 화면을 캡처해서 올려주세요.`);
+    alert(fill(MSGT("fileTooBig","사진 용량이 너무 큽니다 (○○).\n다른 사진으로 시도하시거나, 화면을 캡처해서 올려주세요."),[fmtBytes(out.size)]));
     return;
   }
   state.file=out;
@@ -1140,7 +1223,9 @@ function ivSwitch(tab){
   return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+rest.map(x=>B(x[0],x[1])).join("")+'</div>';
 }
 function ivKakao(){
-  const url=KAKAO_CHANNELS["생활가전"]||"";
+  /* 구매 확인 단계라 아직 어떤 제품인지 모릅니다.
+     그래서 관리자 화면에서 정한 「기본 채널」로 보냅니다(안 정했으면 생활가전). */
+  const url=KAKAO_CHANNELS[(CFG&&CFG.kakaoDefault)||"생활가전"]||KAKAO_CHANNELS["생활가전"]||"";
   return url?`<div style="margin-top:9px"><a href="${url}" target="_blank" rel="noopener" style="display:inline-block;background:#FEE500;color:#191600;font-weight:800;padding:9px 15px;border-radius:8px;text-decoration:none">💬 상담사 문의하기</a></div>`:"";
 }
 /* 여러 달치 원장을 나눠 올리면 같은 행이 쌓일 수 있어 ref 로 중복 제거 */
@@ -1165,11 +1250,11 @@ async function lookupPurchase(){
   const payload={action:"lookupOrder",tab}; let typed={};
   if(tab==="np"){
     const nm=$("#vName").value.trim(), ph=$("#vPhone").value.trim();
-    if(!nm||phoneDigits(ph).length<10){ ivNotice('<b style="color:#c1121f">성함과 연락처를 모두 정확히 입력해 주세요.</b><br>두 가지가 모두 일치해야 조회됩니다.'); return; }
+    if(!nm||phoneDigits(ph).length<10){ ivNotice(MSGH("needNamePhone","성함과 연락처를 모두 정확히 입력해 주세요.\n두 가지가 모두 일치해야 조회됩니다.")); return; }
     typed={name:nm,phone:ph}; payload.name=nm; payload.phone=ph;
   } else {
     const v=normInv($("#vInv").value);
-    if(v.length<8){ ivNotice('<b style="color:#c1121f">송장번호를 정확히 입력해 주세요.</b>'); return; }
+    if(v.length<8){ ivNotice(MSGH("needInv","송장번호를 정확히 입력해 주세요.")); return; }
     payload.invNo=v; state.invNo=v;
   }
   btn.disabled=true; $("#invResult").innerHTML='<div class="notice" style="margin:0">조회 중…</div>';
@@ -1179,39 +1264,41 @@ async function lookupPurchase(){
     if(!res||!res.ok){
       const why=(res&&res.reason)||"server";
       if(why==="rate"){
-        ivNotice('<b style="color:#c1121f">조회를 너무 여러 번 시도하셨습니다.</b><br>잠시 후 다시 시도해 주세요.'+ivKakao());
+        ivNotice(MSGH("rate","조회를 너무 여러 번 시도하셨습니다.\n잠시 후 다시 시도해 주세요.")+(MSGK("rate",true)?ivKakao():""));
         return;
       }
       if(why==="notarget"){
         const sk=(res.skipped||[]);
-        ivNotice('<b style="color:#c1121f">이벤트 대상 제품이 아닙니다.</b><br>'
-          +(sk.length?`구매하신 제품 : ${sk.join(", ")}<br>`:"")
-          +'자세한 내용은 상담사에게 문의해 주세요.'+ivKakao());
+        /* 걸러진 제품 이름은 조회 결과라서 문구 사이에 그대로 끼워 넣습니다. */
+        ivNotice(MSGH("noTarget","이벤트 대상 제품이 아닙니다.\n자세한 내용은 상담사에게 문의해 주세요.")
+          +(sk.length?`<br>구매하신 제품 : ${esc(sk.join(", "))}`:"")
+          +(MSGK("noTarget",true)?ivKakao():""));
         return;
       }
       if(why==="empty"){
-        ivNotice('<b style="color:#c1121f">주문 정보를 읽지 못했습니다.</b> 상담사에게 문의해 주세요.'+ivKakao());
+        ivNotice(MSGH("readFail","주문 정보를 읽지 못했습니다. 상담사에게 문의해 주세요.")
+          +(MSGK("readFail",true)?ivKakao():""));
         return;
       }
       if(why==="server"){
-        $("#invResult").innerHTML='<div class="notice" style="margin:0;color:#c1121f">조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';
+        $("#invResult").innerHTML='<div class="notice" style="margin:0;color:#c1121f">'
+          +rich(MSGT("lookupErr","조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."))+'</div>';
         return;
       }
-      const how = tab==="np"
-        ? '구매하신 사이트에 따라 연락처가 <b>안심번호</b>로 등록돼 있거나, 개인정보 보호로 성함이 <b>홍*동</b>처럼 가려진 채 전달되어 조회되지 않을 수 있습니다.<br>'
-          +'<b style="color:#c1121f">이런 경우에는 송장번호로 조회해 주세요.</b>'
-        : '송장번호를 다시 확인해 주세요.';
-      ivNotice('<b style="color:#c1121f">구매 내역을 찾지 못했습니다.</b><br>'+how
-        +'<br>최근 구매 건은 아직 등록 전일 수 있습니다.'+ivSwitch(tab)
-        +'<div style="margin-top:10px">계속 안 되시면 아래로 문의해 주세요.'+ivKakao()+'</div>');
+      /* 성함+연락처 탭과 송장번호 탭이 안내가 달라서 문구도 따로 둡니다. */
+      const key = tab==="np" ? "notFoundNP" : "notFoundInv";
+      const dflt = tab==="np"
+        ? "구매 내역을 찾지 못했습니다.\n구매하신 사이트에 따라 연락처가 {{안심번호}}로 등록돼 있거나, 개인정보 보호로 성함이 {{홍*동}}처럼 가려진 채 전달되어 조회되지 않을 수 있습니다.\n[[이런 경우에는 송장번호로 조회해 주세요.]]\n최근 구매 건은 아직 등록 전일 수 있습니다."
+        : "구매 내역을 찾지 못했습니다.\n송장번호를 다시 확인해 주세요.\n최근 구매 건은 아직 등록 전일 수 있습니다.";
+      ivNotice(MSGH(key, dflt)+ivSwitch(tab)
+        +(MSGK(key,true)?'<div style="margin-top:10px">계속 안 되시면 아래로 문의해 주세요.'+ivKakao()+'</div>':""));
       return;
     }
 
     /* 창구가 돌려준 값 — 제품·수량과 가려진 이름·연락처뿐이다 */
     const qtyByCode=res.qtyByCode||{}, usedByCode=res.usedByCode||{};
     const codes=Object.keys(qtyByCode);
-    /* 남은 제품 — 형제코드(밀폐키친홀더·활성탄필터)는 한 덩어리로 본다 */
-    const remainCodes=codes.filter(c=>((qtyByCode[c]||1)-usedOf(usedByCode,c))>0);
+    const remainCodes=codes.filter(c=>((qtyByCode[c]||1)-(usedByCode[c]||0))>0);
     const groups=(res.groups||[]).map(g=>({
       label:(g.code?(prodNameOf(g.code)||g.prodRaw):g.prodRaw)||"-",
       qty:g.qty, codes:g.codes||[]
@@ -1226,9 +1313,11 @@ async function lookupPurchase(){
     }).join("<br>");
 
     if(!remainCodes.length){
-      ivNotice('<b style="color:#c1121f">이미 참여하신 내역이 있습니다.</b><br>'
-        +prodHtml+'<br>구매하신 수량만큼 모두 접수되어 추가 참여가 어렵습니다.<br>'
-        +'더 참여하셔야 하는 사정이 있으시면 아래로 문의해 주세요.'+ivKakao());
+      /* 제품·수량 줄(prodHtml)은 조회 결과라 문구 아래에 그대로 붙입니다. */
+      ivNotice(MSGH("dupTitle","이미 참여하신 내역이 있습니다")
+        +'<br>'+prodHtml+'<br>'
+        +rich(MSGT("dupAll","구매하신 수량만큼 모두 접수되어 추가 참여가 어렵습니다.\n더 참여하셔야 하는 사정이 있으시면 아래로 문의해 주세요."))
+        +(MSGK("dupAll",true)?ivKakao():""));
       return;
     }
 
@@ -1239,7 +1328,7 @@ async function lookupPurchase(){
       state.product=c0;
       state.category=categoryOf(c0)||state.category;
       state.buyQty=qtyByCode[c0];
-      state.usedQty=usedOf(usedByCode,c0);
+      state.usedQty=usedByCode[c0]||0;
     }
     /* 자동 채움은 고객이 직접 입력한 값에만 쓴다.
        원장의 실제 이름·전화번호는 창구가 내보내지 않는다(가려진 값만 온다). */
@@ -1265,7 +1354,8 @@ async function lookupPurchase(){
     });
   }catch(err){
     console.error(err);
-    $("#invResult").innerHTML='<div class="notice" style="margin:0;color:#c1121f">조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';
+    $("#invResult").innerHTML='<div class="notice" style="margin:0;color:#c1121f">'
+      +rich(MSGT("lookupErr","조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."))+'</div>';
   }finally{ btn.disabled=false; }
 }
 window.lookupPurchase=lookupPurchase;
@@ -1337,7 +1427,9 @@ function validateStep(step){
   } return true;
 }
 
-$("#next").addEventListener("click",()=>{ const flow=getFlow(); if(validateStep(flow[current])){ current++; showStep(); } else focusFirstError(); });
+function goNext(){ const flow=getFlow(); if(validateStep(flow[current])){ current++; showStep(); } else focusFirstError(); }
+$("#next").addEventListener("click",goNext);
+$("#nextTop").addEventListener("click",goNext);
 $("#back").addEventListener("click",()=>{ if(current>0){ current--; showStep(); } });
 $("#submitBtn").addEventListener("click",submit);
 
@@ -1380,7 +1472,7 @@ function toggleCheck(){const body=$("#chkBody");const open=body.classList.toggle
 window.toggleCheck=toggleCheck;
 async function lookupParticipation(){
   const name=$("#chkName").value.trim(),phone=$("#chkPhone").value.trim(),box=$("#chkResult");
-  if(!name||normPhone(phone).length<10){box.innerHTML='<div class="cpempty">성함과 연락처를 정확히 입력해 주세요.</div>';return;}
+  if(!name||normPhone(phone).length<10){box.innerHTML='<div class="cpempty">'+rich(MSGT("checkNeed","성함과 연락처를 정확히 입력해 주세요."))+'</div>';return;}
   const pk=normPhone(phone),nm=name.replace(/\s/g,"");
   box.innerHTML='<div class="cpempty">조회 중…</div>';
   try{
@@ -1390,12 +1482,14 @@ async function lookupParticipation(){
       /* 창구가 성함+연락처를 모두 확인한 뒤, 발송 여부만 돌려준다.
          이름·연락처·주소·주문번호는 브라우저로 나오지 않는다. */
       const res=await eventApi({action:"checkParticipation",name:name,phone:phone});
-      if(res&&res.reason==="rate"){box.innerHTML='<div class="cpempty">조회를 너무 여러 번 시도하셨습니다. 잠시 후 다시 시도해 주세요.</div>';return;}
-      if(!res||!res.ok){box.innerHTML='<div class="cpempty">조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';return;}
+      if(res&&res.reason==="rate"){box.innerHTML='<div class="cpempty">'+rich(MSGT("checkRate","조회를 너무 여러 번 시도하셨습니다. 잠시 후 다시 시도해 주세요."))+'</div>';return;}
+      if(!res||!res.ok){box.innerHTML='<div class="cpempty">'+rich(MSGT("checkErr","조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."))+'</div>';return;}
       list=res.list||[];
     }
     if(DEMO_MODE) list=list.filter(e=>(e.name||"").replace(/\s/g,"")===nm);
-    if(!list.length){box.innerHTML=`<div class="cpempty"><b>${name}</b> 님으로 참여하신 내역이 없습니다.<br>포토리뷰 이벤트 또는 쿠팡 로켓배송 정품등록 여부 선택 후 다음을 눌러 접수 부탁드립니다.</div>`;return;}
+    if(!list.length){box.innerHTML='<div class="cpempty">'
+      +rich(fill(MSGT("checkNone","{{○○}} 님으로 참여하신 내역이 없습니다.\n포토리뷰 이벤트 또는 쿠팡 로켓배송 정품등록 여부 선택 후 다음을 눌러 접수 부탁드립니다."),[name]))
+      +'</div>';return;}
     const MSG='margin-top:9px;font-size:12.5px;color:var(--sub);line-height:1.55';
     box.innerHTML=`<div class="cpempty" style="border-style:solid;color:var(--ink)"><b>${name}</b> 님 · 참여 ${list.length}건</div>`+
       list.map(e=>{const st=custStatus(e);const tp=e.type==="coupang"?"쿠팡 정품등록":"포토리뷰";
@@ -1404,15 +1498,19 @@ async function lookupParticipation(){
         const kakao=url?`<div style="margin-top:6px"><a href="${url}" target="_blank" rel="noopener" class="cpkakao">💬 상담사 문의하기</a></div>`:"";
         if(st.consult){
           // 검수 지연·부적합 등 상담이 필요한 건
-          h+=`<div style="${MSG}">리뷰 검수가 진행 중입니다. 첨부 이미지를 확인하기 어렵거나 중복 참여, 구매 정보 확인이 어려운 경우 이벤트 참여 검수가 지연될 수 있습니다. 처리가 지연되는 경우 아래 채널을 통해 문의해 주세요.${kakao}</div>`;
+          h+=`<div style="${MSG}">`
+            +rich(MSGT("checkConsult","리뷰 검수가 진행 중입니다. 첨부 이미지를 확인하기 어렵거나 중복 참여, 구매 정보 확인이 어려운 경우 이벤트 참여 검수가 지연될 수 있습니다. 처리가 지연되는 경우 아래 채널을 통해 문의해 주세요."))
+            +(MSGK("checkConsult",true)?kakao:"")+`</div>`;
         } else if(st.cls==="wait"){
           // 정상 접수 · 아직 미발송
           const ev=e.type==="coupang"?"쿠팡 로켓배송 정품등록":"포토리뷰 이벤트";
           const what=e.rewardType==="coupon"?"기프티콘":"사은품";
-          h+=`<div style="${MSG}"><b>${ev}에 정상 참여되었습니다.</b><br>${what}은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.</div>`;
+          h+=`<div style="${MSG}">`
+            +MSGH("checkWait","○○에 정상 참여되었습니다.\n○○은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.",[ev,what])
+            +(MSGK("checkWait",true)?kakao:"")+`</div>`;
         }
         return h+`</div>`;}).join("");
-  }catch(err){box.innerHTML='<div class="cpempty">조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';}
+  }catch(err){box.innerHTML='<div class="cpempty">'+rich(MSGT("checkErr","조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."))+'</div>';}
 }
 window.lookupParticipation=lookupParticipation;
 function collectSurvey(){ const list=surveyOf(state.product)||[]; const out=collectEntrySurvey();
@@ -1448,14 +1546,8 @@ async function submit(){
     if(DEMO_MODE){
       const cap=Math.max(1,entry.buyQty), want=Math.max(1,entry.giftQty);
       let used=0,hit=null;
-      /* 형제코드(밀폐키친홀더·활성탄필터)는 같은 것으로 봅니다 — 서버와 같은 규칙 */
-      const sibSet=new Set(siblingsOf(state.product));
-      const kmatch=(saved,mine)=>{ if(!saved||!mine) return false;
-        const i=saved.indexOf("|"), j=mine.indexOf("|");
-        if(i<0||j<0) return saved===mine;
-        return sibSet.has(saved.slice(0,i)) && saved.slice(i+1)===mine.slice(j+1); };
       demoStore.forEach(e=>{
-        const same=kmatch(e.kPhone,entry.kPhone)||(entry.orderNo&&kmatch(e.kOrder,entry.kOrder))||(entry.kNA&&kmatch(e.kNA,entry.kNA))||(entry.kInv&&kmatch(e.kInv,entry.kInv));
+        const same=(e.kPhone===entry.kPhone)||(entry.orderNo&&e.kOrder===entry.kOrder)||(entry.kNA&&e.kNA===entry.kNA)||(entry.kInv&&e.kInv===entry.kInv);
         if(same){ used+=Math.max(1,e.giftQty||1); if(!hit)hit={data:e,type:"phone"}; }
       });
       if(entry.serial && demoStore.some(e=>e.serial===entry.serial)){ showDup({type:"serial",cap:1,used:1},review); resetBtn(); return; }
@@ -1469,8 +1561,7 @@ async function submit(){
       entry.giftQty=res.giftQty||entry.giftQty;
       entry.buyQty=res.buyQty||entry.buyQty;
       entry.usedBefore=res.usedBefore||0;
-      /* 참여 이력 반영은 showDone() 에서 한 번만 합니다.
-         (예전에는 여기서도 더하고 showDone 에서도 더해서 두 번 세었습니다) */
+      if(state.product) state.usedByCode[state.product]=(res.usedBefore||0)+(res.giftQty||1);
       showDone(entry,false);
     }
   }catch(err){console.error(err);alert(uploadErrMsg(err));resetBtn();}
@@ -1479,17 +1570,21 @@ async function submit(){
 function uploadErrMsg(err){
   const s=((err&&(err.code||err.name))||"")+" "+((err&&err.message)||String(err||""));
   if(/retry-limit-exceeded|canceled|network|Network|timeout|deadline/i.test(s))
-    return "네트워크가 불안정해 사진 전송이 중단되었습니다.\n\nWi-Fi 연결 후 다시 시도해 주세요.";
+    return MSGT("netFail","네트워크가 불안정해 사진 전송이 중단되었습니다.\nWi-Fi 연결 후 다시 시도해 주세요.");
   if(/unauthorized|permission|denied|forbidden|quota-exceeded|payload|too large|entity-too-large/i.test(s))
-    return "사진을 저장하지 못했습니다. 용량이 크거나 형식이 맞지 않을 수 있습니다.\n\n다른 사진으로 다시 시도해 주세요.";
+    return MSGT("uploadFail","사진을 저장하지 못했습니다. 용량이 크거나 형식이 맞지 않을 수 있습니다.\n다른 사진으로 다시 시도해 주세요.");
   return "접수 중 오류가 발생했습니다.\n\n잠시 후 다시 시도해 주세요. 계속 실패하면 고객센터로 문의해 주세요.";
 }
 function resetBtn(){const b=$("#submitBtn");b.disabled=false;b.textContent="참여 신청하기";}
-function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅";$("#mTitle").textContent="참여가 접수되었습니다";state.lastModal="done";
+function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅";
+  $("#mTitle").textContent=MSGT("doneTitle","참여가 접수되었습니다");state.lastModal="done";
   const review=e.type==="review";
   const rlabel=e.rewardType==="coupon"?"기프티콘(상품권)이":"사은품이";
-  const pre=review?"리뷰 심사(별점·사진 자동 확인) 후 ":"정품등록 심사(시리얼번호 자동 대조) 후 ";
-  $("#mDesc").textContent=pre+rlabel+" 발송됩니다."+(demo?" ※ 데모라 실제 저장은 안 됩니다.":"");
+  /* 포토리뷰냐 쿠팡 정품등록이냐에 따라 심사 방법이 달라 문구도 따로 둡니다. */
+  const pre=review
+    ? MSGT("doneReview","리뷰 심사(별점·사진 자동 확인) 후 ○○ 발송됩니다.")
+    : MSGT("doneCoupang","정품등록 심사(시리얼번호 자동 대조) 후 ○○ 발송됩니다.");
+  $("#mDesc").textContent=fill(pre,[rlabel])+(demo?" ※ 데모라 실제 저장은 안 됩니다.":"");
   const prod=(PRODUCTS[e.category]||[]).find(p=>p.code===e.product);
   const pname=(prod&&prod.name)||e.productName||e.product;
   const unit=e.rewardType==="coupon"?"기프티콘":"사은품";
@@ -1499,11 +1594,15 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
   let head="";
   if(q>1){
     head=`<div style="margin:2px 0 12px;padding:12px 13px;background:#eef6ee;border:1px solid #cfe3cf;border-radius:10px;font-size:13.5px;font-weight:700;color:#2c6b3c;line-height:1.6">`
-      +`${e.name} 고객님, 이벤트 참여가 완료되었습니다.<br>신청하신 <b>${rname}</b> <b>${q}개</b>가 구매 수량에 맞게 발송될 예정입니다.</div>`;
+      +rich(fill(MSGT("doneMulti","○○ 고객님, 이벤트 참여가 완료되었습니다.\n신청하신 {{○○}} {{○○개}}가 구매 수량에 맞게 발송될 예정입니다."),
+                 [e.name, rname, q]))+`</div>`;
   } else if(left>0){
     head=`<div style="margin:2px 0 12px;padding:12px 13px;background:#fff7e6;border:1px solid #f0e0c0;border-radius:10px;font-size:13.5px;font-weight:700;color:#8a5a10;line-height:1.6">`
-      +`${e.name} 고객님, 구매 수량 <b>${cap}개</b> 중 <b>${cap-left}개</b>가 접수되었습니다.<br>남은 <b>${left}개</b>는 리뷰를 추가로 남기신 뒤 아래 버튼으로 이어서 접수해 주세요.`
-      +(e.rewardType==="gift"?`<br><span style="color:#c0392b">※ 접수 건마다 따로 발송되어 배송비(착불)가 각각 부과됩니다.</span>`:"")+`</div>`;
+      +rich(fill(MSGT("doneLeft","○○ 고객님, 구매 수량 {{○○개}} 중 {{○○개}}가 접수되었습니다.\n남은 {{○○개}}는 리뷰를 추가로 남기신 뒤 아래 버튼으로 이어서 접수해 주세요."),
+                 [e.name, cap, cap-left, left]))
+      +(e.rewardType==="gift"
+        ?`<br><span style="color:#c0392b">`+rich(MSGT("doneLeftShip","※ 접수 건마다 따로 발송되어 배송비(착불)가 각각 부과됩니다."))+`</span>`
+        :"")+`</div>`;
   }
   let kv=head
     +`<div><b>유형</b> ${review?"포토리뷰 이벤트":"쿠팡·로켓배송 정품 등록"}</div>`
@@ -1511,15 +1610,10 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
     +(e.giftItem?`<div><b>${e.rewardType==="coupon"?"상품권":"사은품"}</b> ${e.giftItem}${q>1?` · ${q}개`:""}</div>`:``)
     +`<div><b>주문번호</b> ${e.orderNo}</div><div><b>수령인</b> ${e.name}</div><div><b>연락처</b> ${e.phone}</div>`;
   $("#mKv").innerHTML=kv;
-  /* 접수한 만큼 참여 이력에 반영 — 이어서 신청 화면에서 남은 수량이 정확해진다.
-     · 「이미 받은 개수 + 이번에 받은 개수」로 **한 번만** 적습니다(더하기 금지 — 두 번 세게 됩니다).
-     · 형제코드(밀폐키친홀더·활성탄필터)에는 함께 적습니다. 한 대 사고 둘 다 받을 수 없기 때문입니다. */
-  if(review && e.product){
-    const now=Math.max(0,e.usedBefore||0)+q;
-    siblingsOf(e.product).forEach(c=>{ state.usedByCode[c]=Math.max(state.usedByCode[c]||0, now); });
-  }
+  /* 접수한 만큼 참여 이력에 반영 — 이어서 신청 화면에서 남은 수량이 정확해진다 */
+  if(review && e.product) state.usedByCode[e.product]=(state.usedByCode[e.product]||0)+q;
   /* 이어서 신청 — 다른 제품이 남았거나(A→B), 나눠 받기로 수량이 남은 경우 */
-  const remainList = review ? state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-usedOf(state.usedByCode,c))>0) : [];
+  const remainList = review ? state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-(state.usedByCode[c]||0))>0) : [];
   const otherProd  = remainList.some(c=>c!==e.product);
   const more=$("#mMore");
   if(more){
@@ -1527,24 +1621,31 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
     more.textContent = otherProd ? "➕ 다른 제품도 이어서 신청하기" : "➕ 남은 수량 이어서 신청하기";
   }
   $("#modal").classList.add("on");}
+/* 중복 사유 — 어떤 값이 겹쳤는지에 따라 문구가 다릅니다. 설정에서 각각 고칠 수 있습니다. */
+const DUP_KEY={invoice:"dupInvoice",phone:"dupPhone",order:"dupOrder",nameAddr:"dupNameAddr",serial:"dupSerial"};
 const DUP_LABEL={invoice:"이 송장번호로 이미 접수되었습니다",phone:"연락처가 이미 접수되었습니다",order:"주문번호가 이미 접수되었습니다",nameAddr:"수령인·주소가 이미 접수되었습니다",serial:"시리얼번호(S/N)가 이미 등록되었습니다"};
-function showDup(dup,review){$("#box").className="box dup";$("#mIcon").textContent="⚠️";$("#mTitle").textContent="이미 참여하신 내역이 있습니다";state.lastModal="dup";
+function showDup(dup,review){$("#box").className="box dup";$("#mIcon").textContent="⚠️";
+  $("#mTitle").textContent=MSGT("dupTitle","이미 참여하신 내역이 있습니다");state.lastModal="dup";
   const cat=state.category;
   const prod=((PRODUCTS[cat]||[]).find(p=>p.code===state.product)||{}).name||state.product||"-";
   const cap=Math.max(1,(dup&&dup.cap)||1), used=Math.max(1,(dup&&dup.used)||1);
+  const dkey = DUP_KEY[dup&&dup.type];
   const reason = cap>1
-    ? `구매 수량 ${cap}개를 모두 접수하셨습니다 (접수 ${used}개)`
-    : (DUP_LABEL[dup&&dup.type]||"이미 참여한 내역이 있습니다");
+    ? fill(MSGT("dupQty","구매 수량 ○○개를 모두 접수하셨습니다 (접수 ○○개)"),[cap,used])
+    : (dkey ? MSGT(dkey, DUP_LABEL[dup.type]) : "이미 참여한 내역이 있습니다");
   const url=KAKAO_CHANNELS[cat]||"";
   $("#mDesc").textContent="";
   const more=$("#mMore"); if(more) more.classList.add("hide");
   const kakao = url
     ? `<div style="margin-top:10px"><a href="${url}" target="_blank" rel="noopener" style="display:inline-block;background:#FEE500;color:#191600;font-weight:800;padding:10px 16px;border-radius:8px;text-decoration:none">💬 ${cat} 카카오톡 채널로 문의하기</a></div>`
-    : `<div style="margin-top:6px;font-size:12px;color:#b26a00">※ 카카오톡 채널 문의 링크는 준비되는 대로 안내됩니다.</div>`;
+    : `<div style="margin-top:6px;font-size:12px;color:#b26a00">`
+      +rich(MSGT("dupNoKakao","※ 카카오톡 채널 문의 링크는 준비되는 대로 안내됩니다."))+`</div>`;
   $("#mKv").innerHTML=
       `<div style="margin:2px 0 12px;padding:11px 13px;background:#fdecec;border:1px solid #f3c6c6;border-radius:10px;font-size:13.5px;font-weight:700;color:#b23b3b;line-height:1.5">중복 사유 : 동일 제품으로 ${reason}</div>`
     + `<div><b>제품</b> ${prod}</div>`
-    + `<div style="margin-top:12px;padding:11px 13px;background:#fff7e6;border:1px solid #f0e0c0;border-radius:9px;font-size:13px;line-height:1.6">구매하신 수량보다 <b>더 많이</b> 참여하셔야 하는 사정이 있으시면, 아래 <b>${cat} 카카오톡 채널</b>로 문의해 주세요.<div style="margin-top:6px;font-weight:800;color:#c0392b">중복접수를 방지하기 위해 아이닉 상담사에게 포토리뷰 수기접수 요청해 주세요.</div>${kakao}</div>`;
+    + `<div style="margin-top:12px;padding:11px 13px;background:#fff7e6;border:1px solid #f0e0c0;border-radius:9px;font-size:13px;line-height:1.6">`
+      +rich(fill(MSGT("dupAsk","구매하신 수량보다 {{더 많이}} 참여하셔야 하는 사정이 있으시면, 아래 {{○○ 카카오톡 채널}}로 문의해 주세요.\n[[중복접수를 방지하기 위해 아이닉 상담사에게 포토리뷰 수기접수 요청해 주세요.]]"),[cat]))
+      +(MSGK("dupAsk",true)?kakao:"")+`</div>`;
   $("#modal").classList.add("on");}
 /* 이어서 신청 — 조회 결과·개인정보·동의는 그대로 두고 제품/설문/사진만 다시 받는다 */
 function continueEntry(){
@@ -1555,12 +1656,12 @@ function continueEntry(){
   const fi=$("#file"); if(fi) fi.value="";
   resetDropInner(); const fn=$("#filename"); if(fn) fn.textContent="";
   // 다 쓴 제품은 목록에서 빼서 다시 못 고르게 한다
-  state.prodCodes=state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-usedOf(state.usedByCode,c))>0);
+  state.prodCodes=state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-(state.usedByCode[c]||0))>0);
   if(state.prodCodes.length>1){ state.product=null; state.buyQty=1; state.usedQty=0; }   // 제품 선택 단계로
   else if(state.prodCodes.length===1){
     const c=state.prodCodes[0];
     state.product=c; state.category=categoryOf(c)||state.category;
-    state.buyQty=state.qtyByCode[c]||1; state.usedQty=usedOf(state.usedByCode,c);
+    state.buyQty=state.qtyByCode[c]||1; state.usedQty=state.usedByCode[c]||0;
   }
   resetBtn();
   const f=getFlow();
@@ -1629,6 +1730,10 @@ function apiErrMsg(reason){
 
 if(!DEMO_MODE)$("#demoBadge").style.display="none";
 showStep();
+/* 관리자 화면에서 정한 안내 문구·채널을 뒤늦게 받아 갈아 끼웁니다.
+   ⚠️ 기다리지 않습니다. 화면은 이미 다 그려져 있고, 답이 오면 글자만 바뀝니다.
+      설정 서버가 죽어도 고객은 아무 일 없이 접수할 수 있습니다. */
+loadConfig();
 </script>
 
 <!-- 포토리뷰 캡처 예시 -->

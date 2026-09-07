@@ -547,6 +547,18 @@ const GIFT_NOTICE="사은품은 <b>착불 발송</b>(택배비 3,200원, 배송 
 const COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 발송</b>(기프티쇼비즈)됩니다. 발송일: 매주 월요일(월요일 신청 건은 익주 월요일). 사용 기한: 수령 후 30일, 경과 후 재발송이 어렵습니다.";
 /* ============================================================ */
 
+/* ── 형제 제품코드 — 「한 대를 사면 둘 중 하나만」 ──────────────────────
+   음식물처리기(iFD01)는 원장에 한 줄인데 사은품은 두 가지입니다.
+     iFD01-H 밀폐키친홀더 / iFD01-F 활성탄필터  → 둘 중 하나만 받으실 수 있습니다.
+   따로 세면 밀폐키친홀더를 받은 분께 활성탄필터가 「아직 남았다」고 뜹니다.
+   서버(eventApi.js)에도 똑같은 묶음이 들어 있습니다. **한쪽만 고치지 마세요.** */
+const PICK_GROUPS=[["iFD01-H","iFD01-F"]];
+const SIBLINGS={}; PICK_GROUPS.forEach(g=>g.forEach(c=>{SIBLINGS[c]=g;}));
+const siblingsOf=c=>SIBLINGS[c]||[c];
+/* 이미 가져간 개수 — 형제코드 중 가장 큰 값을 씁니다.
+   창구가 돌려주는 값은 이미 형제를 합친 값이라 여기서 또 더하면 두 번 세게 됩니다. */
+const usedOf=(map,c)=>siblingsOf(c).reduce((n,s)=>Math.max(n,(map&&map[s])||0),0);
+
 const state={type:null,category:"주방가전",product:null,file:null,serialPrefix:"",
   vTab:"np",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
   invNo:"",ordNo:"",autoName:"",autoPhone:"",token:"",
@@ -700,14 +712,14 @@ function renderProds(){
     for(const c in PRODUCTS) PRODUCTS[c].forEach(p=>{ if(state.prodCodes.includes(p.code)) all.push(p); });
     box.innerHTML="";
     all.forEach(p=>{const el=document.createElement("div");el.className="prod"+(state.product===p.code?" on":"");
-      const q=Math.max(1,(state.qtyByCode[p.code]||1)-(state.usedByCode[p.code]||0));
+      const q=Math.max(1,(state.qtyByCode[p.code]||1)-usedOf(state.usedByCode,p.code));
       el.innerHTML=(p.img?`<img class="pimg" src="${p.img}" alt="${p.name}">`:`<div class="pph">이미지</div>`)
         +`<span class="badge">${p.code}</span><div class="pname">${p.name}${q>1?` <span style="color:#c1121f">${q}개</span>`:""}</div><div class="check">✓</div>`;
       el.onclick=()=>{
         if(state.product!==p.code){ state.surveyFor=null; state.infoFor=null; state.qtyMode=null; }
         state.product=p.code; state.category=categoryOf(p.code)||state.category;
         state.buyQty=state.qtyByCode[p.code]||1;
-        state.usedQty=state.usedByCode[p.code]||0;
+        state.usedQty=usedOf(state.usedByCode,p.code);
         hideErr("err-prod"); renderProds();};
       box.appendChild(el);});
     const cats=$("#cats"); if(cats) cats.style.display="none";
@@ -1198,7 +1210,8 @@ async function lookupPurchase(){
     /* 창구가 돌려준 값 — 제품·수량과 가려진 이름·연락처뿐이다 */
     const qtyByCode=res.qtyByCode||{}, usedByCode=res.usedByCode||{};
     const codes=Object.keys(qtyByCode);
-    const remainCodes=codes.filter(c=>((qtyByCode[c]||1)-(usedByCode[c]||0))>0);
+    /* 남은 제품 — 형제코드(밀폐키친홀더·활성탄필터)는 한 덩어리로 본다 */
+    const remainCodes=codes.filter(c=>((qtyByCode[c]||1)-usedOf(usedByCode,c))>0);
     const groups=(res.groups||[]).map(g=>({
       label:(g.code?(prodNameOf(g.code)||g.prodRaw):g.prodRaw)||"-",
       qty:g.qty, codes:g.codes||[]
@@ -1226,7 +1239,7 @@ async function lookupPurchase(){
       state.product=c0;
       state.category=categoryOf(c0)||state.category;
       state.buyQty=qtyByCode[c0];
-      state.usedQty=usedByCode[c0]||0;
+      state.usedQty=usedOf(usedByCode,c0);
     }
     /* 자동 채움은 고객이 직접 입력한 값에만 쓴다.
        원장의 실제 이름·전화번호는 창구가 내보내지 않는다(가려진 값만 온다). */
@@ -1435,8 +1448,14 @@ async function submit(){
     if(DEMO_MODE){
       const cap=Math.max(1,entry.buyQty), want=Math.max(1,entry.giftQty);
       let used=0,hit=null;
+      /* 형제코드(밀폐키친홀더·활성탄필터)는 같은 것으로 봅니다 — 서버와 같은 규칙 */
+      const sibSet=new Set(siblingsOf(state.product));
+      const kmatch=(saved,mine)=>{ if(!saved||!mine) return false;
+        const i=saved.indexOf("|"), j=mine.indexOf("|");
+        if(i<0||j<0) return saved===mine;
+        return sibSet.has(saved.slice(0,i)) && saved.slice(i+1)===mine.slice(j+1); };
       demoStore.forEach(e=>{
-        const same=(e.kPhone===entry.kPhone)||(entry.orderNo&&e.kOrder===entry.kOrder)||(entry.kNA&&e.kNA===entry.kNA)||(entry.kInv&&e.kInv===entry.kInv);
+        const same=kmatch(e.kPhone,entry.kPhone)||(entry.orderNo&&kmatch(e.kOrder,entry.kOrder))||(entry.kNA&&kmatch(e.kNA,entry.kNA))||(entry.kInv&&kmatch(e.kInv,entry.kInv));
         if(same){ used+=Math.max(1,e.giftQty||1); if(!hit)hit={data:e,type:"phone"}; }
       });
       if(entry.serial && demoStore.some(e=>e.serial===entry.serial)){ showDup({type:"serial",cap:1,used:1},review); resetBtn(); return; }
@@ -1450,7 +1469,8 @@ async function submit(){
       entry.giftQty=res.giftQty||entry.giftQty;
       entry.buyQty=res.buyQty||entry.buyQty;
       entry.usedBefore=res.usedBefore||0;
-      if(state.product) state.usedByCode[state.product]=(res.usedBefore||0)+(res.giftQty||1);
+      /* 참여 이력 반영은 showDone() 에서 한 번만 합니다.
+         (예전에는 여기서도 더하고 showDone 에서도 더해서 두 번 세었습니다) */
       showDone(entry,false);
     }
   }catch(err){console.error(err);alert(uploadErrMsg(err));resetBtn();}
@@ -1491,10 +1511,15 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
     +(e.giftItem?`<div><b>${e.rewardType==="coupon"?"상품권":"사은품"}</b> ${e.giftItem}${q>1?` · ${q}개`:""}</div>`:``)
     +`<div><b>주문번호</b> ${e.orderNo}</div><div><b>수령인</b> ${e.name}</div><div><b>연락처</b> ${e.phone}</div>`;
   $("#mKv").innerHTML=kv;
-  /* 접수한 만큼 참여 이력에 반영 — 이어서 신청 화면에서 남은 수량이 정확해진다 */
-  if(review && e.product) state.usedByCode[e.product]=(state.usedByCode[e.product]||0)+q;
+  /* 접수한 만큼 참여 이력에 반영 — 이어서 신청 화면에서 남은 수량이 정확해진다.
+     · 「이미 받은 개수 + 이번에 받은 개수」로 **한 번만** 적습니다(더하기 금지 — 두 번 세게 됩니다).
+     · 형제코드(밀폐키친홀더·활성탄필터)에는 함께 적습니다. 한 대 사고 둘 다 받을 수 없기 때문입니다. */
+  if(review && e.product){
+    const now=Math.max(0,e.usedBefore||0)+q;
+    siblingsOf(e.product).forEach(c=>{ state.usedByCode[c]=Math.max(state.usedByCode[c]||0, now); });
+  }
   /* 이어서 신청 — 다른 제품이 남았거나(A→B), 나눠 받기로 수량이 남은 경우 */
-  const remainList = review ? state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-(state.usedByCode[c]||0))>0) : [];
+  const remainList = review ? state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-usedOf(state.usedByCode,c))>0) : [];
   const otherProd  = remainList.some(c=>c!==e.product);
   const more=$("#mMore");
   if(more){
@@ -1530,12 +1555,12 @@ function continueEntry(){
   const fi=$("#file"); if(fi) fi.value="";
   resetDropInner(); const fn=$("#filename"); if(fn) fn.textContent="";
   // 다 쓴 제품은 목록에서 빼서 다시 못 고르게 한다
-  state.prodCodes=state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-(state.usedByCode[c]||0))>0);
+  state.prodCodes=state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-usedOf(state.usedByCode,c))>0);
   if(state.prodCodes.length>1){ state.product=null; state.buyQty=1; state.usedQty=0; }   // 제품 선택 단계로
   else if(state.prodCodes.length===1){
     const c=state.prodCodes[0];
     state.product=c; state.category=categoryOf(c)||state.category;
-    state.buyQty=state.qtyByCode[c]||1; state.usedQty=state.usedByCode[c]||0;
+    state.buyQty=state.qtyByCode[c]||1; state.usedQty=usedOf(state.usedByCode,c);
   }
   resetBtn();
   const f=getFlow();

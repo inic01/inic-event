@@ -143,6 +143,273 @@
 #authGate .agerr{margin-top:10px;font-size:12.8px;color:#c1121f;white-space:pre-line;line-height:1.55;min-height:18px}
 #whoBox{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#555}
 #whoBox b{font-weight:800}
+
+/* ══════════ 이벤트 설정 화면 (관리자 탭) ══════════
+   ⚠️ 모든 선택자가 #evtCfg 안으로 갇혀 있습니다. 리포트 기존 스타일과 섞이지 않습니다. */
+
+  #evtCfg{
+    --brand:#3f3939; --ink:#2b2725; --sub:#8a827c; --line:#ece8e4;
+    --bg:#f6f4f2; --card:#ffffff; --sunk:#faf8f6; --sunk2:#f2efec;
+    --ok:#12a150; --okbg:#e9f4ee; --bad:#e5484d; --badbg:#fbedee;
+    --warn:#b8791a; --warnbg:#fdf3e4; --blue:#2f6df6; --bluebg:#eaf0fd;
+    --accent:#c98a2e;
+    --shadow:0 1px 2px rgba(63,57,57,.05), 0 6px 18px rgba(63,57,57,.05);
+    --r:10px;
+  }
+  @media (prefers-color-scheme: dark){
+    #evtCfg:not([data-theme="light"]){
+      --brand:#e8e2de; --ink:#f0ebe7; --sub:#a29892; --line:#3a3533;
+      --bg:#211e1d; --card:#2b2725; --sunk:#242120; --sunk2:#332e2c;
+      --ok:#4ecf8a; --okbg:#1c3327; --bad:#f47b7f; --badbg:#3a2325;
+      --warn:#e0a54a; --warnbg:#3a2e1c; --blue:#7ba4ff; --bluebg:#22293a;
+      --accent:#e0a54a;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+    }
+  }
+  #evtCfg[data-theme="dark"]{
+    --brand:#e8e2de; --ink:#f0ebe7; --sub:#a29892; --line:#3a3533;
+    --bg:#211e1d; --card:#2b2725; --sunk:#242120; --sunk2:#332e2c;
+    --ok:#4ecf8a; --okbg:#1c3327; --bad:#f47b7f; --badbg:#3a2325;
+    --warn:#e0a54a; --warnbg:#3a2e1c; --blue:#7ba4ff; --bluebg:#22293a;
+    --accent:#e0a54a;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+  }
+
+  #evtCfg *{box-sizing:border-box}
+  #evtCfg{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    font-size:14px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  #evtCfg .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:.92em}
+  #evtCfg .wrap{max-width:1320px; margin:0 auto; padding:26px 20px 80px}
+
+  #evtCfg .top{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap}
+  #evtCfg h1{font-size:24px; font-weight:900; margin:0; letter-spacing:-.02em}
+  #evtCfg .lede{color:var(--sub); font-size:13.5px; margin:6px 0 0; max-width:64ch}
+  #evtCfg .protobar{
+    display:flex; gap:10px; align-items:center; background:var(--warnbg); color:var(--warn);
+    border:1px solid color-mix(in srgb, var(--warn) 28%, transparent);
+    border-radius:var(--r); padding:10px 14px; font-size:12.5px; font-weight:700; margin:16px 0 20px;
+  }
+  #evtCfg .protobar b{color:var(--ink)}
+
+  #evtCfg .cols{display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:18px; align-items:start}
+  #evtCfg .cols.full{grid-template-columns:minmax(0,1fr)}
+  #evtCfg .cols.full .side{display:none}
+  @media (max-width:1000px){ #evtCfg .cols{grid-template-columns:minmax(0,1fr)} }
+
+  #evtCfg .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+  #evtCfg .panel > .body{padding:18px 20px 22px}
+  #evtCfg h2{font-size:16px; font-weight:800; margin:0 0 3px; letter-spacing:-.01em}
+  #evtCfg .hint{color:var(--sub); font-size:12.5px; margin:0 0 14px; max-width:74ch}
+  #evtCfg .hint b{color:var(--ink)}
+
+  #evtCfg .tabs{display:flex; gap:4px; padding:6px 6px 0; border-bottom:1px solid var(--line);
+    flex-wrap:wrap; align-items:center}
+  #evtCfg .tab{appearance:none; border:0; background:transparent; cursor:pointer; color:var(--sub);
+    font:inherit; font-weight:700; font-size:13px; padding:10px 14px; border-radius:8px 8px 0 0;
+    border-bottom:2px solid transparent; margin-bottom:-1px}
+  #evtCfg .tab:hover{color:var(--ink); background:var(--sunk)}
+  #evtCfg .tab[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--brand)}
+  #evtCfg .tab:focus-visible{outline:2px solid var(--blue); outline-offset:-2px}
+
+  #evtCfg .tablewrap{overflow-x:auto; border:1px solid var(--line); border-radius:var(--r)}
+  #evtCfg table{border-collapse:collapse; width:100%; min-width:700px}
+  #evtCfg th, #evtCfg td{text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:middle}
+  #evtCfg th{font-size:11.5px; font-weight:700; color:var(--sub); background:var(--sunk); white-space:nowrap; letter-spacing:.04em}
+  #evtCfg tr:last-child td{border-bottom:0}
+  #evtCfg td.tight{white-space:nowrap; width:1%}
+
+  #evtCfg input[type=text], #evtCfg select, #evtCfg textarea{
+    font:inherit; color:var(--ink); background:var(--card);
+    border:1px solid var(--line); border-radius:8px; padding:7px 10px; width:100%;
+  }
+  #evtCfg textarea{resize:vertical; min-height:74px; line-height:1.7}
+  #evtCfg input:focus, #evtCfg select:focus, #evtCfg textarea:focus{outline:2px solid var(--blue); outline-offset:-1px; border-color:transparent}
+  #evtCfg select{cursor:pointer}
+  #evtCfg input.bare{border:0; background:transparent; padding:4px 2px}
+  #evtCfg input.bare:focus{outline:none; box-shadow:inset 0 -2px 0 var(--blue)}
+
+  #evtCfg button{font:inherit}
+  #evtCfg .btn{appearance:none; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--ink);
+    font-weight:700; font-size:12.5px; padding:7px 13px; border-radius:8px; white-space:nowrap}
+  #evtCfg .btn:hover{background:var(--sunk)}
+  #evtCfg .btn:focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+  #evtCfg .btn.primary{background:var(--brand); border-color:var(--brand); color:var(--bg)}
+  #evtCfg /* 「필수」 버튼 — 켜면 빨강, #evtCfg 다시 누르면 꺼져서 검정 */
+  .btn.reqbtn{color:var(--ink); border-color:var(--line); background:var(--card)}
+  #evtCfg .btn.reqbtn.on{background:var(--bad); border-color:var(--bad); color:#fff}
+  #evtCfg .btn.reqbtn.on:hover{background:var(--bad); filter:brightness(1.06)}
+  #evtCfg .btn.primary:hover{filter:brightness(1.12)}
+  #evtCfg .btn.ghost{border-color:transparent; color:var(--sub); padding:5px 8px}
+  #evtCfg .btn.ghost:hover{color:var(--bad); background:var(--badbg)}
+  #evtCfg .btn.sm{font-size:11.5px; padding:4px 9px}
+  #evtCfg .btn[disabled]{opacity:.35; cursor:default}
+
+  #evtCfg .pill{display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap}
+  #evtCfg .pill.gift{background:var(--okbg); color:var(--ok)}
+  #evtCfg .pill.coupon{background:var(--warnbg); color:var(--warn)}
+  #evtCfg .pill.mute{background:var(--sunk2); color:var(--sub)}
+
+  #evtCfg .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  #evtCfg .stack{display:flex; flex-direction:column; gap:12px}
+  #evtCfg .field{display:flex; flex-direction:column; gap:5px}
+  #evtCfg .field > label{font-size:11.5px; font-weight:700; color:var(--sub); letter-spacing:.03em}
+  #evtCfg .note{font-size:12px; color:var(--sub); margin-top:12px}
+  #evtCfg .strike{text-decoration:line-through; opacity:.55}
+  #evtCfg .warnbox{margin-top:18px; border:1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+    background:var(--warnbg); color:var(--ink); border-radius:var(--r); padding:14px 16px}
+  #evtCfg .warnbox strong{color:var(--warn); font-size:14px}
+  #evtCfg tr.editing td{background:var(--sunk)}
+  #evtCfg tr.editing td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  #evtCfg .warn-inline{font-size:11.5px;color:var(--bad);font-weight:700;margin-top:3px}
+  #evtCfg .rname{font-weight:700; font-size:14.5px; max-width:460px}
+  #evtCfg .step{display:flex; gap:12px; align-items:flex-start; border:1px solid var(--line);
+    border-radius:9px; padding:10px 13px; background:var(--card)}
+  #evtCfg .step.cut{background:var(--sunk); border-style:dashed}
+  #evtCfg .step.cut .st{text-decoration:line-through; color:var(--sub)}
+  #evtCfg .sn{flex:none; width:23px; height:23px; border-radius:50%; background:var(--brand); color:var(--bg);
+    display:grid; place-items:center; font-size:11.5px; font-weight:800}
+  #evtCfg .step.cut .sn{background:var(--sunk2); color:var(--sub)}
+  #evtCfg .st{font-weight:700; font-size:13.5px}
+  #evtCfg .sd{font-size:12px; color:var(--sub); margin-top:2px}
+  #evtCfg .gtitle{font-size:12px; font-weight:800; color:var(--sub); letter-spacing:.05em;
+    margin:24px 0 10px; padding-bottom:7px; border-bottom:1px solid var(--line)}
+  #evtCfg .gtitle:first-of-type{margin-top:16px}
+  #evtCfg .ncard{border:1px solid var(--line); border-radius:var(--r); padding:13px 15px; background:var(--card)}
+  #evtCfg .nhead{display:flex; gap:14px; align-items:flex-start; justify-content:space-between; margin-bottom:9px}
+  #evtCfg .ncard textarea{min-height:64px}
+  #evtCfg .linkbox{display:flex; gap:14px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    margin-top:18px; border:1px solid var(--line); border-radius:var(--r);
+    background:var(--sunk); padding:13px 15px}
+  #evtCfg .fsec .qhead{margin-bottom:0}
+  #evtCfg .fbody{margin-top:12px}
+  #evtCfg .sdesc{font-size:12.5px; color:var(--sub); line-height:1.7; white-space:pre-wrap}
+  #evtCfg .subhead{font-size:11px; font-weight:800; color:var(--sub); letter-spacing:.05em;
+    margin:16px 0 4px; padding-top:12px; border-top:1px dashed var(--line)}
+  #evtCfg .lookuptabs{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap}
+  #evtCfg .ltab{font-size:12px; font-weight:700; color:var(--sub); border:1px solid var(--line);
+    border-radius:8px; padding:6px 12px; background:var(--card)}
+  #evtCfg .ltab.on{background:var(--brand); border-color:var(--brand); color:var(--bg)}
+  #evtCfg .cblock{border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-top:12px; background:var(--card)}
+  #evtCfg .ctitle{display:flex; gap:8px; align-items:center; font-weight:800; font-size:13.5px; margin-bottom:9px}
+  #evtCfg .cbadge{font-size:10.5px; font-weight:800; padding:2px 9px; border-radius:999px; flex:none}
+  #evtCfg .cbadge.must{background:var(--badbg); color:var(--bad)}
+  #evtCfg .cbadge.opt{background:var(--sunk2); color:var(--sub)}
+  #evtCfg .cdesc{background:var(--bluebg); border-radius:8px; padding:10px 12px; font-size:12px; line-height:1.7; white-space:pre-wrap}
+  #evtCfg .copt{display:flex; gap:11px; align-items:flex-start; border:1px solid var(--line);
+    border-radius:9px; padding:11px 13px; margin-top:9px}
+  #evtCfg .copt.on{border-color:var(--brand); background:var(--sunk)}
+  #evtCfg .cradio{flex:none; width:15px; height:15px; border-radius:50%; border:2px solid var(--sub); margin-top:3px}
+  #evtCfg .copt.on .cradio{border-color:var(--brand); box-shadow:inset 0 0 0 2px var(--card), inset 0 0 0 9px var(--brand)}
+  #evtCfg .cchk{flex:none; width:15px; height:15px; border-radius:4px; border:2px solid var(--sub)}
+  #evtCfg .cmain{font-size:13px; font-weight:700}
+  #evtCfg .csub{font-size:11.5px; color:var(--sub)}
+  #evtCfg .gcard{border:1px solid var(--line); border-radius:10px; padding:18px; text-align:center;
+    background:var(--sunk); margin-top:12px}
+  #evtCfg .gimg{width:160px; height:100px; border-radius:8px; background:var(--sunk2);
+    display:grid; place-items:center; margin:0 auto 12px; color:var(--sub); font-size:11.5px}
+  #evtCfg .exbox{border:1px dashed var(--line); border-radius:10px; padding:22px; text-align:center;
+    background:var(--sunk); margin-top:10px; color:var(--sub); font-size:12.5px}
+  #evtCfg .errrow{border:1px solid var(--line); border-radius:9px; padding:11px 13px; background:var(--card); margin-top:8px}
+  #evtCfg .errtext{font-size:12.5px; color:var(--sub); white-space:pre-wrap; margin-top:4px}
+  #evtCfg .addline{display:flex; justify-content:flex-start; padding:2px 0 6px}
+  #evtCfg .kbtn{display:inline-block; margin-top:9px; background:#FEE500; color:#191600;
+    font-weight:800; font-size:12.5px; padding:7px 13px; border-radius:8px}
+
+  #evtCfg /* ── 판매처 예외 ── */
+  .rule{border:1px solid var(--line); border-radius:var(--r); padding:14px 16px; background:var(--sunk)}
+  #evtCfg .rule .head{display:flex; gap:10px; align-items:center; justify-content:space-between; margin-bottom:10px}
+  #evtCfg .rulegrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px}
+  #evtCfg .chips{display:flex; flex-wrap:wrap; gap:6px}
+  #evtCfg .chip{display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none;
+    border:1px solid var(--line); background:var(--card); color:var(--sub);
+    border-radius:999px; padding:5px 11px; font-size:12px; font-weight:600}
+  #evtCfg .chip:hover{border-color:var(--sub)}
+  #evtCfg .chip[aria-pressed="true"]{background:var(--brand); border-color:var(--brand); color:var(--bg); font-weight:700}
+  #evtCfg .chip:focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+
+  #evtCfg /* ══ 설문 편집기 ══ */
+  .svtop{display:flex; gap:12px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; margin-bottom:16px}
+  #evtCfg .svcols{display:grid; grid-template-columns:minmax(0,1fr) 236px; gap:18px; align-items:start}
+  @media (max-width:820px){ #evtCfg .svcols{grid-template-columns:minmax(0,1fr)} }
+
+  #evtCfg .form{display:flex; flex-direction:column; gap:12px}
+  #evtCfg .fcard{border:1px solid var(--line); border-radius:var(--r); background:var(--card); overflow:hidden}
+  #evtCfg .fcard.head{border-color:var(--accent)}
+  #evtCfg .band{height:96px; background:var(--accent); display:grid; place-items:center}
+  #evtCfg .band svg{width:42px; height:42px; opacity:.9}
+  #evtCfg .fcard .pad{padding:16px 18px}
+  #evtCfg .ftitle{font-size:19px; font-weight:800; letter-spacing:-.01em}
+  #evtCfg .fdesc{font-size:13px; color:var(--sub); margin-top:4px}
+  #evtCfg .fmeta{display:inline-flex; gap:8px; align-items:center; margin-top:12px; background:var(--sunk2);
+    border-radius:999px; padding:5px 13px; font-size:12px; color:var(--sub); font-weight:600}
+  #evtCfg .addbar{display:grid; grid-template-columns:1fr 1px 1fr; border-top:1px solid var(--line)}
+  #evtCfg .addbar .sep{background:var(--line)}
+  #evtCfg .addbar button{appearance:none; border:0; background:transparent; cursor:pointer; color:var(--ink);
+    font-weight:700; font-size:13px; padding:13px 8px}
+  #evtCfg .addbar button:hover{background:var(--sunk)}
+
+  #evtCfg .qcard{border:1px solid var(--line); border-radius:var(--r); background:var(--card); padding:15px 17px; cursor:pointer}
+  #evtCfg .qcard:hover{border-color:var(--sub)}
+  #evtCfg .qcard.sel{border-color:var(--accent); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent)}
+  #evtCfg .qcard.grp{background:var(--sunk); border-style:dashed; cursor:default; padding:10px 16px}
+  #evtCfg .qcard.grp:hover{border-color:var(--line)}
+  #evtCfg .qhead{display:flex; gap:9px; align-items:center; margin-bottom:11px}
+  #evtCfg .qn{font-weight:800; font-size:14px; white-space:nowrap}
+  #evtCfg .req{color:var(--bad); font-weight:800; margin-right:2px}
+  #evtCfg .qtext{flex:1; min-width:0; font-weight:700; font-size:14.5px}
+  #evtCfg .qacts{display:flex; gap:3px; align-items:center; opacity:0; transition:opacity .12s}
+  #evtCfg .qcard:hover .qacts, #evtCfg .qcard.sel .qacts{opacity:1}
+  @media (prefers-reduced-motion:reduce){ #evtCfg .qacts{transition:none} }
+
+  #evtCfg .oview{display:flex; align-items:center; gap:9px; background:var(--sunk); border:1px solid transparent;
+    border-radius:8px; padding:9px 12px; font-size:13px; color:var(--sub); margin-top:6px}
+  #evtCfg .dot{flex:none; width:14px; height:14px; border-radius:50%; border:1.5px solid var(--sub); opacity:.55}
+  #evtCfg .oedit{display:flex; align-items:center; gap:6px; background:var(--sunk); border:1px solid var(--line);
+    border-radius:8px; padding:4px 6px 4px 12px; margin-top:6px}
+  #evtCfg .x{appearance:none; border:0; background:transparent; cursor:pointer; color:var(--sub);
+    font-size:15px; line-height:1; padding:3px 6px; border-radius:6px}
+  #evtCfg .x:hover{color:var(--bad); background:var(--badbg)}
+
+  #evtCfg .toc{border:1px solid var(--line); border-radius:var(--r); background:var(--card); padding:12px; position:sticky; top:20px}
+  #evtCfg .toc h3{font-size:12.5px; font-weight:800; margin:2px 4px 10px; color:var(--sub); letter-spacing:.03em}
+  #evtCfg .titem{display:flex; gap:8px; align-items:center; width:100%; text-align:left; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--ink);
+    border-radius:8px; padding:8px 10px; font-size:12.5px; margin-bottom:6px; font-weight:600}
+  #evtCfg .titem:hover{background:var(--sunk)}
+  #evtCfg .titem.on{border-color:var(--accent); background:var(--sunk)}
+  #evtCfg .titem .num{color:var(--sub); font-weight:800; flex:none}
+  #evtCfg .titem .lbl{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #evtCfg .tgrp{font-size:11px; font-weight:800; color:var(--sub); margin:12px 4px 7px; letter-spacing:.04em}
+
+  #evtCfg .switch{display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--sub); cursor:pointer}
+  #evtCfg .switch input{appearance:none; width:38px; height:21px; border-radius:999px; background:var(--sunk2);
+    border:1px solid var(--line); position:relative; cursor:pointer; flex:none}
+  #evtCfg .switch input::after{content:""; position:absolute; top:2px; left:2px; width:15px; height:15px;
+    border-radius:50%; background:var(--sub); transition:transform .15s}
+  #evtCfg .switch input:checked{background:var(--accent); border-color:var(--accent)}
+  #evtCfg .switch input:checked::after{transform:translateX(17px); background:#fff}
+  #evtCfg .switch input:focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){ #evtCfg .switch input::after{transition:none} }
+
+  #evtCfg /* ── 미리보기 ── */
+  .side{position:sticky; top:20px; display:flex; flex-direction:column; gap:14px}
+  #evtCfg .sim .out{margin-top:14px; border:1px solid var(--line); border-radius:var(--r); background:var(--sunk); padding:14px 15px}
+  #evtCfg .sim .gift{font-size:17px; font-weight:800; letter-spacing:-.01em; margin:6px 0 2px; text-wrap:balance}
+  #evtCfg .why{font-size:12px; color:var(--sub); margin-top:10px; padding-top:10px; border-top:1px dashed var(--line)}
+  #evtCfg .why b{color:var(--ink)}
+  #evtCfg .kv{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:12.5px; margin-top:10px}
+  #evtCfg .kv dt{color:var(--sub)} #evtCfg .kv dd{margin:0; font-weight:600}
+
+  #evtCfg .save{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:18px}
+  #evtCfg .msg{font-size:12.5px; font-weight:700; color:var(--ok)}
+  #evtCfg details{border:1px solid var(--line); border-radius:var(--r); background:var(--card); margin-top:14px}
+  #evtCfg summary{cursor:pointer; padding:11px 15px; font-size:12.5px; font-weight:700; color:var(--sub)}
+  #evtCfg summary:hover{color:var(--ink)}
+  #evtCfg pre{margin:0; padding:0 15px 15px; overflow-x:auto; font-size:11.5px; line-height:1.65; color:var(--sub)}
+
 </style>
 </head>
 <body>
@@ -472,6 +739,62 @@
 
   <!-- 관리자 — 리포트 사용자 관리 (관리자 역할만 보임) -->
   <section class="page" id="page-admin">
+
+<div id="evtCfg" hidden>
+  <div class="protobar" id="evtWarn" hidden>
+    <span>◇</span><span></span>
+  </div>
+<div class="cols" id="cols">
+    <main class="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true"  data-t="gift">사은품</button>
+        <button class="tab" role="tab" aria-selected="false" data-t="rule">프로모션</button>
+        <button class="tab" role="tab" aria-selected="false" data-t="form">접수폼</button>
+        <button class="tab" role="tab" aria-selected="false" data-t="notice">안내 문구</button>
+        <button class="tab" role="tab" aria-selected="false" data-t="users">사용자</button>
+      </div>
+      <div class="body" id="pane"></div>
+    </main>
+
+    <aside class="side">
+      <section class="panel sim">
+        <div class="body">
+          <h2>미리보기</h2>
+          <p class="hint">고객이 이 조건일 때 <b>실제로 무엇을 받는지</b> 보여줍니다. 규칙을 고치면 바로 바뀝니다.</p>
+          <div class="stack">
+            <div class="field"><label for="simP">제품</label><select id="simP"></select></div>
+            <div class="field"><label for="simS">원장에 적힌 판매처</label><select id="simS"></select></div>
+            <div class="field"><label for="simD">이 날짜에 접수한다면</label><input type="date" id="simD"></div>
+          </div>
+          <div class="out" id="simOut"></div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="body">
+          <h2>판정 기준</h2>
+          <p class="hint" style="margin-bottom:0">사은품은 <b>고객이 고른 구입처가 아니라 원장의 판매처</b>로 정해집니다. 고객이 어떤 링크로 들어오든 결과가 같고, 값을 고쳐 접수할 수 없습니다.</p>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="save">
+    <button class="btn primary" id="saveBtn">저장</button>
+    <button class="btn" id="resetBtn">되돌리기</button>
+    <span class="msg" id="saveMsg"></span>
+  </div>
+  <div class="save">
+    <button class="btn primary" id="saveBtn">저장</button>
+    <button class="btn" id="resetBtn">되돌리기</button>
+    <span class="msg" id="saveMsg"></span>
+  </div>
+  <details style="margin-top:10px">
+    <summary>서버에 저장될 내용 보기 (개발자용)</summary>
+    <pre class="mono" id="dump"></pre>
+  </details>
+</div>
+
+  <div id="admUsers" hidden>
     <div class="panel">
       <h3>사용자 추가</h3>
       <div class="filters">
@@ -538,6 +861,7 @@
       </div>
       <div class="tablewrap" id="lgList"></div>
     </div>
+  </div>
   </section>
 </div>
 
@@ -2362,7 +2686,46 @@ function renderActiveTab(){
   else if(curTab==="reserve")renderReserve();
   else if(curTab==="bad")renderBad();
   else if(curTab==="cs")renderCS();
+  else if(curTab==="admin")openEventSettings();
 }
+
+/* ══════════ 이벤트 설정 — 저장·불러오기 ══════════
+   화면 그리기는 아래쪽 별도 <script> 가 하고(#evtCfg 안에 갇혀 있음),
+   여기서는 서버(Firestore)와 주고받는 것만 합니다.
+
+   저장 위치 : eventConfig / eventSettings
+   ⚠️ 접수폼(index.html)이 이 값을 읽어 쓰도록 하는 작업은 아직입니다.
+      지금은 「담당자가 고치고 저장하는 것」까지만 됩니다.              */
+const EVT_CFG_DOC = ["eventConfig", "eventSettings"];
+let evtCfgMounted = false;
+
+async function openEventSettings(){
+  if(evtCfgMounted || !window.EVTCFG) return;
+  evtCfgMounted = true;
+  let loaded = null;
+  try {
+    const d = await db.collection(EVT_CFG_DOC[0]).doc(EVT_CFG_DOC[1]).get();
+    if(d.exists){
+      const v = d.data() || {};
+      /* 통째로 한 칸(json)에 넣어 둡니다 — 설문·규칙이 중첩 배열이라
+         Firestore 가 배열 안의 배열을 받지 못하기 때문입니다. */
+      if(v.json) loaded = JSON.parse(v.json);
+    }
+  } catch(e){ console.warn("이벤트 설정 불러오기 실패", e); }
+  window.EVTCFG.mount(loaded);
+}
+
+/* 설정 화면의 「저장」 버튼이 부릅니다 */
+window.EVTCFG_SAVE = async function(cfg){
+  if(!ME || ME.role !== "master") throw new Error("관리자만 저장할 수 있습니다.");
+  await db.collection(EVT_CFG_DOC[0]).doc(EVT_CFG_DOC[1]).set({
+    json: JSON.stringify(cfg),
+    at: firebase.firestore.FieldValue.serverTimestamp(),
+    by: ME.name || "",
+    byUid: ME.uid || ""
+  }, { merge:true });
+  try { logAccess("이벤트 설정 저장", "사은품·프로모션·접수폼·안내 문구", 1); } catch(e){}
+};
 
 /* ══════════════ 고객DB (orders) ══════════════
    접수폼이 '주문번호/송장번호'로 본인 확인을 하기 위한 고객DB.
@@ -2565,10 +2928,10 @@ async function gfApply(){
   }catch(err){ $("#gfState").textContent="실패: "+(err.message||err); $("#gfState").style.color="var(--bad,#c1121f)"; }
   finally{ $("#gfApply").disabled=false; }
 }
-function switchTab(name){curTab=name;$$(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));$$(".page").forEach(p=>p.classList.remove("on"));$("#page-"+name).classList.add("on");renderActiveTab();}
+function switchTab(name){curTab=name;$$("#tabs .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));$$(".page").forEach(p=>p.classList.remove("on"));$("#page-"+name).classList.add("on");renderActiveTab();}
 function reset(key,fn){return()=>{pageState[key]=1;fn();};}
 
-$$(".tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.tab)));
+$$("#tabs .tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.tab)));
 $("#odFile").addEventListener("change",e=>{const f=e.target.files[0];if(f)odParseFile(f).catch(err=>odSetState("파일 읽기 실패: "+(err.message||err),"var(--bad,#c0392b)"));});
 $("#odUpload").addEventListener("click",odUpload);
 $("#odClear").addEventListener("click",odReset);
@@ -3553,6 +3916,1044 @@ $("#btnChangePw").addEventListener("click", ()=>showChangePw(false));
 bootAuth();
 
 </script>
+
+<!-- ══════════ 이벤트 설정 화면 (관리자 탭) ══════════ -->
+<script>
+(function(){
+
+/* 프로토타입 — 값은 메모리에만 있습니다. 실제로는 eventConfig/content 에 저장됩니다. */
+
+const LEDGER_SRC  = ["스마트스토어","cafe24(신)","쿠팡","11번가","지마켓","옥션","오늘의집",
+                     "현대홈쇼핑","신세계몰","CJ온스타일","하이마트","카카오톡딜"];
+const LEDGER_SKIP = ["교환","교환/반품거부","보상판매","사은품(선불)","선출고","체험단"];
+const FORM_SRC    = ["아이닉 공식홈페이지","아이닉샵 스토어팜(네이버)","지마켓","옥션","오늘의집",
+                     "현대몰","11번가","카카오톡쇼핑","쿠팡(일반배송)","신세계몰","CJ온스타일","하이마트","기타"];
+const CATS = ["주방가전","생활가전","계절가전","이미용가전"];
+
+/* 고객DB(출고리스트)에서 올라온 제품군 목록과 줄 수.
+   담당자가 코드를 직접 치지 않고 여기서 고르게 하는 것이 요점입니다. */
+const LEDGER_PRODUCTS = [
+  ["에어프라이어 16L", 2410], ["무선청소기 맥스제로 i90", 1980], ["아이타워 i50", 1620],
+  ["에어프라이어 6L", 1150],  ["AI 디텍트 i50", 880],          ["서큘레이터 iSC02", 720],
+  ["음식물처리기", 591],      ["에어프라이어 7L", 480],         ["복합식가습기 iH05UV", 330],
+  ["헤어드라이어 iHD01", 306],["공기청정기 iAP22", 220],        ["분유포트 iEK01", 180],
+  ["복합식가습기 iH12", 120], ["유선 서큘레이터 iC01", 95],     ["무선청소기 iV10", 80],
+  ["무선청소기 iv11", 60],    ["공청가습기 iAH01", 88]
+];
+const LP_COUNT = Object.fromEntries(LEDGER_PRODUCTS);
+
+const DEFAULTS = {
+  /* 제품 = 원장 제품군 이름. 사은품이 지정된 것만 이벤트 대상이 됩니다. */
+  products: [
+    { ledger:"에어프라이어 16L",        cat:"주방가전",  gift:"튀김용바스켓 16L,16LS",        type:"gift" },
+    { ledger:"에어프라이어 7L",         cat:"주방가전",  gift:"디바이더 7L",                  type:"gift" },
+    { ledger:"에어프라이어 6L",         cat:"주방가전",  gift:"CU 3,000원",                   type:"coupon" },
+    { ledger:"음식물처리기",            cat:"주방가전",  gift:"밀폐키친홀더 / 활성탄필터",     type:"gift" },
+    { ledger:"분유포트 iEK01",          cat:"주방가전",  gift:"배민 3,000원",                 type:"coupon" },
+    { ledger:"아이타워 i50",            cat:"생활가전",  gift:"미니 악세사리 거치대",          type:"gift" },
+    { ledger:"AI 디텍트 i50",           cat:"생활가전",  gift:"워셔블필터+배기부필터 1set",    type:"gift" },
+    { ledger:"무선청소기 맥스제로 i90", cat:"생활가전",  gift:"네이버페이 10,000원",           type:"coupon" },
+    { ledger:"무선청소기 iV10",         cat:"생활가전",  gift:"거치대 iv10,iv11",             type:"gift" },
+    { ledger:"무선청소기 iv11",         cat:"생활가전",  gift:"거치대 iv10,iv11",             type:"gift" },
+    { ledger:"복합식가습기 iH05UV",     cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
+    { ledger:"복합식가습기 iH12",       cat:"계절가전",  gift:"전용 관리 set 가습기용",        type:"gift" },
+    { ledger:"공기청정기 iAP22",        cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
+    { ledger:"유선 서큘레이터 iC01",    cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
+    { ledger:"서큘레이터 iSC02",        cat:"계절가전",  gift:"보관백 iSC01,iSC02",           type:"gift" }
+  ],
+  giftRules: [
+    { product:"무선청소기 맥스제로 i90", srcs:["스마트스토어"], label:"스팀물걸레키트", type:"gift",
+      from:"2026-09-01", to:"2026-09-30", basis:"apply", name:"스토어팜 i90 9월 프로모션" }
+  ],
+  survey: {
+    title:"아이닉 포토리뷰 이벤트 설문",
+    desc:"솔직한 의견을 들려주시면 다음 제품을 만드는 데 쓰겠습니다.",
+    thanks:"설문에 참여해 주셔서 감사합니다."
+  },
+  entrySurvey: [
+    { q:"성별을 선택해주세요.", opts:["여성","남성"], req:true },
+    { q:"연령대를 선택해주세요.", opts:["10대","20대","30대","40대","50대 이상"], req:true },
+    { q:"아이닉 제품을 구매하게 된 경로를 선택해주세요.", opts:["광고","블로그","카페","지인추천","행사","기타"], req:true }
+  ],
+  surveys: {
+    "무선청소기 맥스제로 i90":[
+      { q:"아이닉 맥스제로 i90을 선택한 가장 큰 이유는 무엇인가요?",
+        opts:["흡입력이 강해서","먼지비움이 자동이라서","아이닉 브랜드를 알고 있어서","디자인이 예뻐서","가격이 가성비 있게 느껴져서","기타"], req:true },
+      { q:"사용하면서 가장 만족하는 점은 무엇인가요?",
+        opts:["먼지통을 비울 일이 없다","흡입력","소음이 작다","가볍다","거치대가 편하다","기타"], req:true }
+    ],
+    "에어프라이어 16L":[
+      { q:"아이닉 AO-16L을 선택한 가장 큰 이유는 무엇인가요?",
+        opts:["아이닉 브랜드를 알고 있어서","올스텐 소재로 안심돼서","16L 대용량으로 크기가 커서","로티세리 기능이 필요해서","디자인이 예뻐서","기타"], req:true },
+      { q:"구매 전 가장 고민했던 브랜드는 무엇인가요?", opts:["쿠쿠","닌자","풀무원","필립스","자일렉","기타"], req:false },
+      { q:"사용하면서 가장 만족하는 점은 무엇인가요?",
+        opts:["음식이 골고루 잘 익는다","올스텐이라 안심하고 사용","세척이 간편하다","조리 공간이 넓다","기타"], req:true }
+    ],
+    "서큘레이터 iSC02":[
+      { q:"서큘레이터 iSC02를 선택한 가장 큰 이유는 무엇인가요?",
+        opts:["바람이 멀리 간다고 해서","소음이 작다고 해서","디자인이 예뻐서","가격이 가성비 있게 느껴져서","기타"], req:true }
+    ]
+  },
+  form: {
+    lookup: {
+      title:"구매 확인",
+      desc:"성함+연락처 또는 송장번호로 구매하신 내역을 확인합니다.",
+      tip:"쿠팡·네이버로 사신 경우 연락처가 안심번호로 넘어와, 성함+연락처로는 찾기 어려울 수 있습니다.",
+    },
+    consent: {
+      title:"참여 안내 및 동의",
+      desc:"아래 항목을 선택해 주세요. 필수 항목을 \"거부\"하시면 사은품/기프티콘이 발행되지 않습니다.",
+      privacy:{
+        label:"개인정보 수집·이용", badge:"필수",
+        desc:"수집 항목: 수령인 성함·연락처·주소·주문번호 또는 S/N·리뷰 캡처·설문 응답. 이용 목적: 참여 확인·심사·발송·중복 방지. 보유: 배송 완료 후 관련 법령에 따라 파기.",
+        yes:"개인정보 수집·이용에 동의합니다", yesSub:"(*사은품/기프티콘 발행*)",
+        no:"개인정보 수집·이용을 거부합니다", noSub:"(*미발행*)"
+      },
+      marketing:{
+        label:"마케팅 활용", badge:"선택",
+        desc:"제공하신 사진·정보를 아이닉의 마케팅 목적으로 활용하는 것에 대한 동의입니다.",
+        yes:"마케팅 활용에 동의합니다", yesSub:"(*제공 사진·정보 마케팅 활용*)",
+        no:"마케팅 활용에 동의하지 않습니다", noSub:"(*마케팅 미활용 · 참여는 가능*)"
+      },
+      /* 담당자가 직접 넣는 동의 항목. 처음엔 비어 있습니다. */
+      extra: []
+    },
+    pick:   { title:"제품 선택", desc:"여러 제품을 구매하신 경우에만 나옵니다. 리뷰를 쓰신 제품을 골라 주세요." },
+    reward: {
+      titleGift:"사은품 받으실 정보", titleCoupon:"기프티콘 받으실 정보",
+      desc:"정확히 입력해 주세요. 오기재 시 발송이 지연되거나 누락될 수 있습니다.",
+      noticeGiftLabel:"사은품 발송 안내",
+      noticeGift:"사은품은 착불 발송(택배비 3,200원, 배송 기사님 안내)됩니다. 제주·도서산간은 추가 배송비가 발생할 수 있습니다. 접수 후 1~2영업일 출고.",
+      ackGift:"네, 착불 발송에 동의합니다",
+      noticeCouponLabel:"기프티콘 발송 안내",
+      noticeCoupon:"기프티콘은 수령인 휴대폰으로 카카오톡 발송(기프티쇼비즈)됩니다. 발송일: 매주 월요일(월요일 신청 건은 익주 월요일). 사용 기한: 수령 후 30일, 경과 후 재발송이 어렵습니다.",
+      ackCoupon:"네, 확인했습니다",
+      ackReq:true
+    },
+    capture: {
+      title:"포토리뷰 캡처 이미지",
+      desc:"본인이 작성한 리뷰 화면을 캡처해 등록해 주세요. 별점·후기 내용·첨부하신 사진이 함께 보여야 합니다.",
+      warn:"※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.",
+      exampleName:"포토리뷰_사진첨부_예시.webp",
+      req:true
+    },
+    info:   { title:"받으실 정보 입력", desc:"성함 · 연락처 · 주소를 입력해 주세요.",
+      /* 처음 들어 있는 항목 3개. 담당자가 필수/선택을 바꾸거나 지울 수 있습니다.
+         ⚠️ 성함·연락처·주소를 선택으로 바꾸거나 지우면 발송을 못 하게 되니 주의하세요. */
+      fields: [
+        { label:"성함",   type:"단답",     req:true, note:"" },
+        { label:"연락처", type:"연락처",   req:true, note:"기프티콘이 이 번호로 갑니다" },
+        { label:"주소",   type:"주소 검색", req:true, note:"사은품(착불)일 때만 보입니다" }
+      ] },
+    done:   { title:"접수 완료", desc:"접수가 완료되었습니다. 심사 후 순차적으로 발송해 드립니다." }
+  },
+
+  /* 상황이 생겼을 때만 화면에 뜨는 문구 전부 (빨간 글씨·팝업·완료 창 포함). */
+  notices: {
+    /* ── 빨간 글씨 (항목 바로 밑) ── */
+    errName:      { t:"성함을 입력해 주세요.", k:false },
+    errPhone:     { t:"올바른 연락처를 입력해 주세요.", k:false },
+    errOrder:     { t:"주문번호를 입력해 주세요.", k:false },
+    errInv:       { t:"구매 내역을 확인해 주세요.", k:false },
+    errConsent:   { t:"필수 동의 항목을 선택해 주세요.", k:false },
+    errEntry:     { t:"모든 문항에 답해 주세요. (기타 선택 시 내용 입력)", k:false },
+    errType:      { t:"참여 유형을 선택해 주세요.", k:false },
+    errProd:      { t:"제품을 선택해 주세요.", k:false },
+    errSurvey:    { t:"모든 문항에 답해 주세요. (기타 선택 시 내용 입력)", k:false },
+    errSource:    { t:"구입처를 선택해 주세요. (기타는 직접 입력)", k:false },
+    errGift:      { t:"사은품을 선택해 주세요.", k:false },
+    errQty:       { t:"받으실 방법을 선택해 주세요.", k:false },
+    errReward:    { t:"발송 안내에 확인·동의해 주세요.", k:false },
+    errSerial:    { t:"시리얼번호를 입력해 주세요.", k:false },
+    errSerialack: { t:"확인에 체크해 주세요.", k:false },
+    errFile:      { t:"이미지를 등록해 주세요.", k:false },
+    errAddr:      { t:"[주소 검색]으로 기본주소를 등록한 뒤 상세주소를 입력해 주세요.", k:false },
+
+    /* ── 구매 확인 · 조회 버튼 ── */
+    needNamePhone:{ t:"성함과 연락처를 모두 정확히 입력해 주세요.\n두 가지가 모두 일치해야 조회됩니다.", k:false },
+    needOrder:    { t:"주문번호를 정확히 입력해 주세요.", k:false },
+    needInv:      { t:"송장번호를 정확히 입력해 주세요.", k:false },
+
+    /* ── 구매 확인 · 조회 결과 ── */
+    rate:         { t:"조회 입력이 20회를 넘었습니다.\n잠시 후 다시 시도해 주세요. 계속 안 되시면 아래 카카오 채널로 포토리뷰 참여 문의를 남겨 주세요.", k:true },
+    notFoundNP:   { t:"구매 내역을 찾지 못했습니다.\n구매하신 사이트에 따라 연락처가 안심번호로 등록돼 있거나, 개인정보 보호로 성함이 홍*동처럼 가려진 채 전달되어 조회되지 않을 수 있습니다.\n이런 경우에는 주문번호나 송장번호로 조회해 주세요.", k:true },
+    notFoundOrd:  { t:"구매 내역을 찾지 못했습니다.\n주문번호를 다시 확인해 주세요. 앞뒤 공백이나 빠진 숫자가 없는지 봐주세요.\n최근 구매 건은 아직 등록 전일 수 있습니다.", k:true },
+    notFoundInv:  { t:"구매 내역을 찾지 못했습니다.\n송장번호를 다시 확인해 주세요.\n최근 구매 건은 아직 등록 전일 수 있습니다.", k:true },
+    noTarget:     { t:"이벤트 대상 제품이 아닙니다.\n자세한 내용은 상담사에게 문의해 주세요.", k:true },
+    readFail:     { t:"주문 정보를 읽지 못했습니다. 상담사에게 문의해 주세요.", k:true },
+    lookupErr:    { t:"조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", k:false },
+
+    /* ── 이미 참여함 (중복 창) ── */
+    dupTitle:     { t:"이미 참여하신 내역이 있습니다", k:false },
+    dupQty:       { t:"구매 수량 ○개를 모두 접수하셨습니다 (접수 ○개)", k:false },
+    dupInvoice:   { t:"이 송장번호로 이미 접수되었습니다", k:false },
+    dupPhone:     { t:"연락처가 이미 접수되었습니다", k:false },
+    dupOrder:     { t:"주문번호가 이미 접수되었습니다", k:false },
+    dupNameAddr:  { t:"수령인·주소가 이미 접수되었습니다", k:false },
+    dupSerial:    { t:"시리얼번호(S/N)가 이미 등록되었습니다", k:false },
+    dupAsk:       { t:"구매하신 수량보다 더 많이 참여하셔야 하는 사정이 있으시면, 아래 카카오톡 채널로 문의해 주세요.\n중복접수를 방지하기 위해 아이닉 상담사에게 포토리뷰 수기접수 요청해 주세요.", k:true },
+    dupNoKakao:   { t:"※ 카카오톡 채널 문의 링크는 준비되는 대로 안내됩니다.", k:false },
+
+    /* ── 참여 안내 및 동의 ── */
+    consentDeny:  { t:"\"○○\"을(를) 거부하시면 사은품/기프티콘이 발행되지 않습니다.\n참여를 계속하시려면 \"동의\"를 선택해 주세요.", k:false },
+
+    /* ── 캡처 이미지 ── */
+    fileTooBig:   { t:"사진 용량이 너무 큽니다.\n다른 사진으로 시도하시거나, 화면을 캡처해서 올려주세요.", k:false },
+    netFail:      { t:"네트워크가 불안정해 사진 전송이 중단되었습니다.\nWi-Fi 연결 후 다시 시도해 주세요.", k:false },
+    uploadFail:   { t:"사진을 저장하지 못했습니다. 용량이 크거나 형식이 맞지 않을 수 있습니다.\n다른 사진으로 다시 시도해 주세요.", k:false },
+
+    /* ── 접수 (서버가 막았을 때) ── */
+    submitRate:   { t:"접수 시도가 너무 잦습니다.\n잠시 후 다시 시도해 주세요.", k:true },
+    tokenExpired: { t:"구매 확인이 만료되었습니다.\n처음 화면에서 구매 내역을 다시 조회한 뒤 접수해 주세요.", k:false },
+    productMismatch:{ t:"조회하신 구매 내역에 없는 제품입니다.\n구매 내역을 다시 조회해 주세요.", k:false },
+    inputInvalid: { t:"입력하신 정보를 다시 확인해 주세요.", k:false },
+    originBlocked:{ t:"접수는 아이닉 공식 접수폼에서만 가능합니다.", k:false },
+    submitErr:    { t:"접수 중 오류가 발생했습니다.\n잠시 후 다시 시도해 주세요. 계속 실패하면 상담사에게 문의해 주세요.", k:true },
+
+    /* ── 접수 완료 창 ── */
+    doneTitle:    { t:"참여가 접수되었습니다", k:false },
+    doneReview:   { t:"리뷰 심사(별점·사진 자동 확인) 후 사은품이 발송됩니다.", k:false },
+    doneCoupang:  { t:"정품등록 심사(시리얼번호 자동 대조) 후 사은품이 발송됩니다.", k:false },
+    doneMulti:    { t:"○○ 고객님, 이벤트 참여가 완료되었습니다.\n신청하신 ○○ ○개가 구매 수량에 맞게 발송될 예정입니다.", k:false },
+    doneLeft:     { t:"○○ 고객님, 구매 수량 ○개 중 ○개가 접수되었습니다.\n남은 ○개는 리뷰를 추가로 남기신 뒤 아래 버튼으로 이어서 접수해 주세요.", k:false },
+    doneLeftShip: { t:"※ 접수 건마다 따로 발송되어 배송비(착불)가 각각 부과됩니다.", k:false },
+
+    /* ── 참여 조회 ── */
+    checkNeed:    { t:"성함과 연락처를 정확히 입력해 주세요.", k:false },
+    checkRate:    { t:"조회를 너무 여러 번 시도하셨습니다. 잠시 후 다시 시도해 주세요.", k:false },
+    checkErr:     { t:"조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", k:false },
+    checkNone:    { t:"○○ 님으로 참여하신 내역이 없습니다.\n포토리뷰 이벤트 또는 쿠팡 로켓배송 정품등록 여부 선택 후 다음을 눌러 접수 부탁드립니다.", k:false },
+    checkConsult: { t:"리뷰 검수가 진행 중입니다. 첨부 이미지를 확인하기 어렵거나 중복 참여, 구매 정보 확인이 어려운 경우 이벤트 참여 검수가 지연될 수 있습니다. 처리가 지연되는 경우 아래 채널을 통해 문의해 주세요.", k:true },
+    checkWait:    { t:"○○에 정상 참여되었습니다.\n사은품은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.", k:true }
+  },
+  kakao: {
+    "생활가전":"http://pf.kakao.com/_PQANG",
+    "주방가전":"http://pf.kakao.com/_xeQANG",
+    "계절가전":"http://pf.kakao.com/_PWgmG",
+    "이미용가전":"http://pf.kakao.com/_TCjVn"
+  },
+  srcMap: {}
+};
+
+const clone = o => JSON.parse(JSON.stringify(o));
+let cfg = clone(DEFAULTS);
+let tab = "gift";
+let surveyProduct = "무선청소기 맥스제로 i90";
+let sel = null;          // {g:"entry"|"prod", i:number}
+let editAll = false;
+
+const $ = s => document.querySelector(s);
+const el = (t, a = {}, ...kids) => {
+  const n = document.createElement(t);
+  for(const k in a){
+    if(k === "class") n.className = a[k];
+    else if(k.startsWith("on")) n.addEventListener(k.slice(2), a[k]);
+    else if(a[k] !== null && a[k] !== undefined) n.setAttribute(k, a[k]);
+  }
+  kids.flat().forEach(c => n.append(c?.nodeType ? c : document.createTextNode(c ?? "")));
+  return n;
+};
+const prodOf = c => cfg.products.find(p => p.ledger === c);
+const pname  = c => c;
+
+/* 서버가 쓰는 것과 같은 계산 */
+function resolveGift(code, ledgerSrc, d){
+  d = d || simDate();
+  const hit = (cfg.giftRules || []).find(r =>
+    r.product === code && (r.srcs || []).includes(ledgerSrc) && r.label && ruleActive(r, d));
+  if(hit) return { label:hit.label, type:hit.type, rule:hit };
+  const p = prodOf(code);
+  return p ? { label:p.gift, type:p.type, rule:null } : null;
+}
+const typeName = t => t === "coupon" ? "상품권·기프티콘" : "사은품";
+
+/* ══════ 사은품 ══════ */
+let editRow = null;                 // 지금 고치고 있는 줄 번호
+
+function paneGift(){
+  const names = cfg.products.map(p => p.ledger.trim());
+  const missing = LEDGER_PRODUCTS.filter(([n]) => !names.includes(n));
+  const dup = n => n.trim() && names.filter(x => x === n.trim()).length > 1;
+
+  const rows = cfg.products.map((p, i) => {
+    const on = editRow === i;
+
+    const cells = on
+      ? [ el("td", {},
+            el("input", { type:"text", value:p.ledger, placeholder:"제품군 이름", "aria-label":"제품군",
+              oninput:e => { p.ledger = e.target.value; softRefresh(); } }),
+            dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : ""),
+          el("td", { class:"tight" },
+            el("select", { "aria-label":"카테고리", onchange:e => { p.cat = e.target.value; softRefresh(); } },
+              CATS.map(c => el("option", { value:c, ...(p.cat === c ? { selected:"" } : {}) }, c)))),
+          el("td", {},
+            el("input", { type:"text", value:p.gift, placeholder:"사은품 이름을 입력하세요", "aria-label":"사은품 이름",
+              oninput:e => { p.gift = e.target.value; softRefresh(); } })),
+          el("td", { class:"tight" },
+            el("select", { "aria-label":"종류", onchange:e => { p.type = e.target.value; softRefresh(); } },
+              el("option", { value:"gift",   ...(p.type === "gift"   ? { selected:"" } : {}) }, "사은품"),
+              el("option", { value:"coupon", ...(p.type === "coupon" ? { selected:"" } : {}) }, "상품권"))) ]
+      : [ el("td", {},
+            el("span", { style:"font-weight:700" }, p.ledger || el("span", { style:"color:var(--bad)" }, "(제품군 없음)")),
+            dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : ""),
+          el("td", { class:"tight" }, el("span", { style:"color:var(--sub)" }, p.cat)),
+          el("td", {}, p.gift
+            ? el("span", {}, p.gift)
+            : el("span", { style:"color:var(--sub)" }, "아직 정하지 않음")),
+          el("td", { class:"tight" }, p.gift
+            ? el("span", { class:"pill " + (p.type === "coupon" ? "coupon" : "gift") },
+                p.type === "coupon" ? "상품권" : "사은품")
+            : el("span", { class:"pill mute" }, "미실시")) ];
+
+    return el("tr", { class: on ? "editing" : "" }, cells,
+      el("td", { class:"tight" },
+        el("div", { class:"row", style:"gap:6px;flex-wrap:nowrap" },
+          on
+            ? el("button", { class:"btn primary", type:"button",
+                onclick:() => { editRow = null; render(); } }, "저장")
+            : el("button", { class:"btn", type:"button",
+                onclick:() => { editRow = i; render(); } }, "수정"),
+          el("button", { class:"btn ghost", type:"button", title:"이 제품 빼기",
+            onclick:() => {
+              if(!confirm((p.ledger || "이 줄") + " 을(를) 목록에서 뺍니다. 계속할까요?")) return;
+              cfg.products.splice(i, 1); editRow = null; render();
+            } }, "삭제"))));
+  });
+
+  const out = [
+    el("h2", {}, "제품별 사은품"),
+    el("p", { class:"hint" },
+      "고치려면 ", el("b", {}, "수정"), " 을 누르세요. 다 고치면 같은 자리의 ", el("b", {}, "저장"), " 을 누르면 됩니다. ",
+      "제품군 이름은 ", el("b", {}, "원장(출고리스트)에 적힌 것과 똑같이"), " 넣어야 합니다. 한 글자라도 다르면 그 제품을 산 고객이 조회되지 않습니다.",
+      el("br", {}),
+      "사은품을 비워 두고 저장하면 ", el("b", {}, "미실시"), " 상태가 됩니다. 제품만 먼저 등록해 두고 나중에 수정으로 채우셔도 됩니다."),
+    el("div", { class:"tablewrap" },
+      el("table", {},
+        el("thead", {}, el("tr", {},
+          el("th", {}, "제품군"), el("th", {}, "카테고리"), el("th", {}, "사은품"), el("th", {}, "종류"), el("th", {}, ""))),
+        el("tbody", {}, rows))),
+    el("div", { class:"row", style:"margin-top:14px" },
+      el("button", { class:"btn", type:"button", onclick:() => {
+        cfg.products.push({ ledger:"", cat:"주방가전", gift:"", type:"gift" });
+        editRow = cfg.products.length - 1; render();
+        document.querySelector("#pane tr.editing input")?.focus();
+      } }, "+ 제품 추가"),
+      el("span", { style:"font-size:12px;color:var(--sub)" },
+        "현재 " + cfg.products.filter(x => x.gift.trim()).length + "개 제품이 이벤트를 실시합니다."))
+    ,
+    el("div", { class:"linkbox" },
+      el("div", {},
+        el("b", {}, "착불 안내 · 기프티콘 안내는 여기 없습니다."),
+        el("div", { style:"font-size:12px;color:var(--sub);margin-top:2px" },
+          "제품마다 다른 문구가 아니라 사은품·상품권이면 모두 같은 문장이 나가서, 「접수폼」의 사은품 안내 자리에서 고치게 해 두었습니다.")),
+      el("button", { class:"btn", type:"button",
+        onclick:() => { tab = "form"; sel = "reward"; editRow = null; render(); } }, "접수폼에서 보기"))
+  ];
+
+  if(missing.length){
+    out.push(el("div", { class:"warnbox" },
+      el("strong", {}, "원장에 있는데 등록되지 않은 제품군 " + missing.length + "개"),
+      el("p", { style:"margin:6px 0 10px;font-size:12.5px" },
+        el("b", {}, "이 제품을 산 고객은 접수 자체가 되지 않습니다."),
+        " 이벤트 대상이 아니라면 그대로 두셔도 됩니다. 누르면 이름이 그대로 채워집니다."),
+      el("div", { class:"chips" }, missing.map(([n, c]) =>
+        el("button", { class:"chip", type:"button", onclick:() => {
+          cfg.products.push({ ledger:n, cat:"주방가전", gift:"", type:"gift" });
+          editRow = cfg.products.length - 1; render();
+        } }, "+ " + n + " " + c.toLocaleString() + "줄")))));
+  }
+  return out;
+}
+
+/* ══════ 판매처 예외 ══════ */
+const today = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);   // 한국시간 오늘
+function ruleState(r, d){
+  if(!r.from && !r.to) return { k:"always", t:"계속 적용", c:"var(--ok)" };
+  if(r.from && d < r.from) return { k:"soon", t:"시작 전", c:"var(--sub)" };
+  if(r.to   && d > r.to)   return { k:"done", t:"프로모션 종료", c:"var(--bad)" };
+  return { k:"on", t:"진행 중", c:"var(--ok)" };
+}
+function ruleActive(r, d){ return ruleState(r, d).k === "on" || ruleState(r, d).k === "always"; }
+
+function paneRule(){
+  const d = simDate();
+  const cards = (cfg.giftRules || []).map((r, i) => {
+    const st = ruleState(r, d);
+    const chips = LEDGER_SRC.map(x => el("button", {
+      class:"chip", type:"button", "aria-pressed":String(r.srcs.includes(x)),
+      onclick:() => { const k = r.srcs.indexOf(x); k >= 0 ? r.srcs.splice(k, 1) : r.srcs.push(x); render(); }
+    }, x));
+
+    return el("div", { class:"rule" },
+      el("div", { class:"head" },
+        el("div", { class:"row", style:"gap:8px" },
+          el("strong", { style:"font-size:13px;color:var(--sub)" }, "프로모션 " + (i + 1)),
+          el("span", { class:"pill", style:"background:var(--sunk2);color:" + st.c }, st.t)),
+        el("button", { class:"btn ghost", type:"button",
+          onclick:() => { cfg.giftRules.splice(i, 1); render(); } }, "규칙 삭제")),
+
+      el("div", { class:"field", style:"margin-bottom:12px" },
+        el("label", { for:"rn" + i }, "프로모션 이름"),
+        el("input", { id:"rn" + i, class:"rname", type:"text", value:r.name || "",
+          placeholder:"프로모션 이름을 입력하세요",
+          oninput:e => { r.name = e.target.value; softRefresh(); } })),
+
+      el("div", { class:"rulegrid" },
+        el("div", { class:"field" },
+          el("label", { for:"rp" + i }, "제품"),
+          el("select", { id:"rp" + i, onchange:e => { r.product = e.target.value; render(); } },
+            el("option", { value:"", ...(r.product ? {} : { selected:"" }) }, "— 고르세요 —"),
+            cfg.products.filter(x => x.ledger.trim()).map(x =>
+              el("option", { value:x.ledger, ...(r.product === x.ledger ? { selected:"" } : {}) }, x.ledger)))),
+        el("div", { class:"field" },
+          el("label", { for:"rl" + i }, "이 경우 줄 사은품"),
+          el("input", { id:"rl" + i, type:"text", value:r.label,
+            oninput:e => { r.label = e.target.value; softRefresh(); } })),
+        el("div", { class:"field" },
+          el("label", { for:"rt" + i }, "종류"),
+          el("select", { id:"rt" + i, onchange:e => { r.type = e.target.value; render(); } },
+            el("option", { value:"gift",   ...(r.type === "gift"   ? { selected:"" } : {}) }, "사은품"),
+            el("option", { value:"coupon", ...(r.type === "coupon" ? { selected:"" } : {}) }, "상품권"))),
+        el("div", { class:"field" },
+          el("label", { for:"rb" + i }, "기간 기준"),
+          el("select", { id:"rb" + i, onchange:e => { r.basis = e.target.value; render(); } },
+            el("option", { value:"apply", ...(r.basis !== "buy" ? { selected:"" } : {}) }, "접수한 날"),
+            el("option", { value:"buy",   ...(r.basis === "buy" ? { selected:"" } : {}) }, "구매한 날(출고일)")))),
+
+      el("div", { class:"rulegrid", style:"margin-top:12px" },
+        el("div", { class:"field" },
+          el("label", { for:"rf" + i }, "시작일"),
+          el("input", { id:"rf" + i, type:"date", value:r.from || "",
+            onchange:e => { r.from = e.target.value; render(); } })),
+        el("div", { class:"field" },
+          el("label", { for:"rto" + i }, "종료일 (이 날 밤 12시에 자동 해제)"),
+          el("input", { id:"rto" + i, type:"date", value:r.to || "",
+            onchange:e => { r.to = e.target.value; render(); } })),
+        el("div", {})),
+
+      el("div", { class:"field", style:"margin-top:14px" },
+        el("label", {}, "어느 판매처일 때"),
+        el("p", { class:"note", style:"margin:0 0 6px" },
+          "고객DB에서 실제로 올라온 판매처 값입니다. 여러 개 고를 수 있습니다."),
+        el("div", { class:"chips" }, chips)),
+
+      (!r.product || !r.srcs.length || !r.label)
+        ? el("p", { class:"note", style:"color:var(--bad)" }, "제품 · 판매처 · 사은품을 모두 채워야 이 규칙이 동작합니다.")
+        : el("p", { class:"note" },
+            r.name ? el("b", {}, "「" + r.name + "」 ") : "",
+            el("b", {}, r.product), "을(를) ", el("b", {}, r.srcs.join(", ")), "에서 ",
+            (r.basis === "buy" ? "구매한" : "접수한"), " 고객은 ",
+            el("b", {}, r.label), "을(를) 받습니다",
+            (r.from || r.to) ? " · " + (r.from || "제한 없음") + " ~ " + (r.to || "제한 없음") : " · 기간 제한 없음", "."));
+  });
+
+  return [
+    el("h2", {}, "판매처 예외 규칙"),
+    el("p", { class:"hint" },
+      "같은 제품이라도 특정 판매처에서 산 고객에게만 다른 사은품을 줄 때 씁니다. ",
+      el("b", {}, "원장에 적힌 판매처"), "로 판정하므로 고객이 링크를 바꿔 들어와도 결과가 달라지지 않습니다."),
+    el("div", { class:"stack" }, cards.length ? cards
+      : el("p", { class:"note" }, "규칙이 없습니다. 모든 고객이 기본 사은품을 받습니다.")),
+    el("div", { style:"margin-top:16px" },
+      el("button", { class:"btn", type:"button", onclick:() => {
+        cfg.giftRules.push({ product:"", srcs:[], label:"", type:"gift", from:"", to:"", basis:"apply", name:"" });
+        render();
+      } }, "+ 규칙 추가")),
+    el("p", { class:"note" }, "종료일을 정하면 ", el("b", {}, "그 날 밤 12시(한국시간)가 지나는 순간"),
+      " 규칙이 저절로 풀립니다. 사람이 끄러 들어올 필요가 없습니다. 걸러내는 값(",
+      el("span", { class:"strike" }, LEDGER_SKIP.join(", ")), ")은 애초에 구매로 세지 않으므로 목록에 없습니다.")
+  ];
+}
+
+/* ══════ 접수폼 — 고객이 보는 순서 그대로 편집 ══════ */
+function groupList(g){ return g === "entry" ? cfg.entrySurvey : (cfg.surveys[surveyProduct] ||= []); }
+function isOpen(id){ return editAll || sel === id; }
+
+/* 편집칸 / 보기 전환 */
+function tv(o, k, id, opt){
+  opt = opt || {};
+  if(!isOpen(id)) return el(opt.tag || "div", { class:opt.cls || "" }, o[k] || opt.ph || "");
+  return opt.multi
+    ? el("textarea", { "aria-label":opt.ph || k, oninput:e => { o[k] = e.target.value; syncToc(); } }, o[k] || "")
+    : el("input", { type:"text", value:o[k] || "", placeholder:opt.ph || "", "aria-label":opt.ph || k,
+        oninput:e => { o[k] = e.target.value; syncToc(); } });
+}
+
+/* 상황별 안내 문구 (오류·차단) */
+function errBlock(o, k, label, id){
+  const n = o[k], open = isOpen(id);
+  return el("div", { class:"errrow" },
+    el("div", { class:"row", style:"justify-content:space-between;gap:8px" },
+      el("b", { style:"font-size:12.5px" }, label),
+      open
+        ? el("label", { class:"switch", style:"font-size:11.5px" },
+            el("input", { type:"checkbox", ...(n.k ? { checked:"" } : {}),
+              onchange:e => { n.k = e.target.checked; render(); } }), "상담 버튼")
+        : (n.k ? el("span", { class:"pill mute" }, "상담 버튼 있음") : "")),
+    open
+      ? el("textarea", { style:"margin-top:6px", "aria-label":label,
+          oninput:e => { n.t = e.target.value; } }, n.t)
+      : el("div", { class:"errtext" }, n.t),
+    n.k ? el("div", { class:"kbtn" }, "💬 상담사 문의하기") : "");
+}
+
+/* 카드 껍데기 */
+function card(id, no, title, sub, kids){
+  const open = isOpen(id);
+  return el("div", { class:"qcard fsec" + (open ? " sel" : ""), id:"c-" + id,
+    onclick:e => { if(e.target.closest(".qcard.fsec") !== e.currentTarget) return; sel = id; render(); } },
+    el("div", { class:"qhead" },
+      el("span", { class:"qn" }, no ? no + "." : ""),
+      el("span", { class:"qtext" }, title),
+      sub ? el("span", { class:"pill mute" }, sub) : "",
+      el("button", { class:"btn sm", type:"button", style:"opacity:1",
+        onclick:e => { e.stopPropagation(); sel = open ? null : id; render(); } }, open ? "저장" : "수정")),
+    kids);
+}
+
+function qCard(g, i, no){
+  const list = groupList(g), item = list[i], id = "q:" + g + ":" + i, open = isOpen(id);
+
+  const head = el("div", { class:"qhead" },
+    el("span", { class:"qn" }, item.req ? el("span", { class:"req" }, "*") : "", no + "."),
+    open
+      ? el("input", { class:"bare qtext", type:"text", value:item.q, "aria-label":"질문",
+          oninput:e => { item.q = e.target.value; syncToc(); } })
+      : el("span", { class:"qtext" }, item.q || "(질문 없음)"),
+    el("div", { class:"qacts" },
+      reqBtn(item.req, () => { item.req = !item.req; }),
+      el("button", { class:"btn sm", type:"button", title:"위로", disabled:i === 0 ? "" : null,
+        onclick:e => { e.stopPropagation(); [list[i-1], list[i]] = [list[i], list[i-1]]; sel = "q:" + g + ":" + (i-1); render(); } }, "↑"),
+      el("button", { class:"btn sm", type:"button", title:"아래로", disabled:i === list.length - 1 ? "" : null,
+        onclick:e => { e.stopPropagation(); [list[i+1], list[i]] = [list[i], list[i+1]]; sel = "q:" + g + ":" + (i+1); render(); } }, "↓"),
+      el("button", { class:"btn ghost", type:"button",
+        onclick:e => { e.stopPropagation(); list.splice(i, 1); sel = null; render(); } }, "삭제")));
+
+  const opts = item.opts.map((o, j) => open
+    ? el("div", { class:"oedit" },
+        el("span", { class:"dot" }),
+        el("input", { class:"bare", type:"text", value:o, "aria-label":"항목 " + (j + 1),
+          oninput:e => { item.opts[j] = e.target.value; } }),
+        el("button", { class:"x", type:"button", title:"항목 삭제",
+          onclick:e => { e.stopPropagation(); item.opts.splice(j, 1); render(); } }, "×"))
+    : el("div", { class:"oview" }, el("span", { class:"dot" }), o));
+
+  return el("div", { class:"qcard" + (open ? " sel" : ""), id:"c-" + id,
+    onclick:() => { sel = id; render(); } }, head, opts,
+    open ? el("div", { style:"margin-top:10px" },
+      el("button", { class:"btn sm", type:"button",
+        onclick:e => { e.stopPropagation(); item.opts.push("새 항목"); render(); } }, "+ 항목 추가")) : "");
+}
+
+/* 「필수」 버튼 하나로 켜고 끕니다.
+   켜져 있으면 빨간 버튼 + 항목 이름 앞에 빨간 * , 끄면 검은 버튼 + * 없음. */
+function reqBtn(on, toggle){
+  return el("button", { class:"btn sm reqbtn" + (on ? " on" : ""), type:"button",
+    title:on ? "누르면 필수가 해제됩니다" : "누르면 필수가 됩니다",
+    "aria-pressed":String(on),
+    onclick:e => { e.stopPropagation(); toggle(); render(); } }, "필수");
+}
+
+function grpBar(t, d){
+  return el("div", { class:"qcard grp" }, el("strong", {}, t),
+    el("span", { style:"color:var(--sub);font-size:12.5px;margin-left:8px" }, d));
+}
+
+function paneForm(){
+  const F = cfg.form, entry = cfg.entrySurvey, prod = groupList("prod");
+  const form = el("div", { class:"form" });
+  let n = 0;
+
+  /* 표지 — 폼의 머리글 */
+  form.append(el("div", { class:"fcard head" },
+    el("div", { class:"band" }, el("span", { style:"font-size:36px" }, "🗒️")),
+    el("div", { class:"pad" },
+      el("input", { class:"bare ftitle", type:"text", value:cfg.survey.title, "aria-label":"접수폼 제목",
+        oninput:e => { cfg.survey.title = e.target.value; syncToc(); } }),
+      el("input", { class:"bare fdesc", type:"text", value:cfg.survey.desc, "aria-label":"설명",
+        oninput:e => { cfg.survey.desc = e.target.value; } }),
+      el("div", { class:"fmeta" }, "접수 기간", el("b", { style:"color:var(--ink)" }, "이벤트 기간과 동일")))));
+
+  /* ⚠️ 구매 확인 화면은 여기 없습니다 — 고객이 채우는 항목이 고정(성함·연락처·송장번호)이라
+     담당자가 고칠 것은 「조회가 안 될 때」 같은 문구뿐이고, 그건 전부 「안내 문구」 탭에 있습니다. */
+
+  /* 1 참여 안내 및 동의 */
+  /* ⚠️ 「필수」로 두면 고객 화면에서 항목 이름 뒤에 빨간 * 가 붙고, 안 고르면 다음으로 못 넘어갑니다.
+     개인정보 수집·이용은 법으로 반드시 받아야 해서 바꿀 수 없게 잠가 둡니다. */
+  const cblock = (o, key) => el("div", { class:"cblock" },
+    el("div", { class:"ctitle" },
+      o.badge === "필수" ? el("span", { class:"req" }, "*") : "",
+      isOpen("consent") ? el("input", { type:"text", value:o.label, style:"max-width:220px",
+          oninput:e => { o.label = e.target.value; } }) : el("span", {}, o.label),
+      reqBtn(o.badge === "필수", () => { o.badge = o.badge === "필수" ? "선택" : "필수"; })),
+    tv(o, "desc", "consent", { cls:"cdesc", multi:true }),
+    el("div", { class:"copt on" }, el("span", { class:"cradio" }),
+      el("div", {}, tv(o, "yes", "consent", { cls:"cmain" }), tv(o, "yesSub", "consent", { cls:"csub" }))),
+    el("div", { class:"copt" }, el("span", { class:"cradio" }),
+      el("div", {}, tv(o, "no", "consent", { cls:"cmain" }), tv(o, "noSub", "consent", { cls:"csub" }))));
+
+  form.append(card("consent", ++n, F.consent.title, "", [
+    el("div", { class:"fbody" },
+      tv(F.consent, "desc", "consent", { cls:"sdesc", multi:true }),
+      cblock(F.consent.privacy, "privacy"),
+      cblock(F.consent.marketing, "marketing"),
+      ...F.consent.extra.map((o, i) => el("div", {},
+        cblock(o, "extra"),
+        el("div", { class:"addline", style:"margin-top:-4px" },
+          el("button", { class:"btn ghost", type:"button", onclick:e => {
+            e.stopPropagation(); F.consent.extra.splice(i, 1); render();
+          } }, "이 동의 항목 삭제")))),
+      el("div", { class:"addline" },
+        el("button", { class:"btn sm", type:"button", onclick:e => {
+          e.stopPropagation();
+          F.consent.extra.push({ label:"새 동의 항목", badge:"선택",
+            desc:"어떤 동의인지 설명을 적어 주세요.",
+            yes:"동의합니다", yesSub:"", no:"동의하지 않습니다", noSub:"" });
+          sel = "consent"; render();
+        } }, "+ 동의 항목 추가")))]));
+
+  /* 2 공통 설문 */
+  form.append(grpBar("참여 설문 · 공통 문항", "제품과 상관없이 모든 참여 고객에게 한 번만 묻습니다"));
+  entry.forEach((_, i) => form.append(qCard("entry", i, i + 1)));
+  form.append(el("div", { class:"addline" },
+    el("button", { class:"btn sm", type:"button", onclick:() => {
+      entry.push({ q:"새 질문", opts:["항목 1", "항목 2"], req:true });
+      sel = "q:entry:" + (entry.length - 1); render();
+    } }, "+ 공통 문항 추가")));
+  n++;
+
+  /* ⚠️ 제품 선택 화면은 여기 없습니다.
+     고객이 산 제품은 원장 조회로 이미 정해지므로 담당자가 고칠 것이 없습니다. */
+
+  /* 3 제품 문항 */
+  form.append(grpBar("제품 사용 설문 · " + surveyProduct,
+    prod.length ? "이 제품을 산 고객에게만 나옵니다" : "문항이 없어 이 단계를 건너뜁니다"));
+  prod.forEach((_, i) => form.append(qCard("prod", i, entry.length + i + 1)));
+  form.append(el("div", { class:"addline" },
+    el("button", { class:"btn sm", type:"button", onclick:() => {
+      prod.push({ q:"새 질문", opts:["항목 1", "항목 2", "기타"], req:true });
+      sel = "q:prod:" + (prod.length - 1); render();
+    } }, "+ 제품 문항 추가")));
+  n++;
+
+  /* 4 받으실 사은품 */
+  const simP = cfg.products.find(x => x.ledger === surveyProduct) || {};
+  const isCoupon = simP.type === "coupon";
+  form.append(card("reward", ++n, isCoupon ? F.reward.titleCoupon : F.reward.titleGift,
+    isCoupon ? "상품권일 때" : "사은품일 때", [
+    el("div", { class:"fbody" },
+      tv(F.reward, "desc", "reward", { cls:"sdesc", multi:true }),
+      el("div", { class:"gcard" },
+        el("div", { class:"gimg" }, "사은품 이미지"),
+        el("div", { style:"font-size:12px;color:var(--sub)" }, "받으실 " + (isCoupon ? "상품권" : "사은품")),
+        el("div", { style:"font-weight:800;margin-top:2px" }, simP.gift || "(미실시)")),
+      el("div", { class:"cblock" },
+        el("div", { class:"ctitle" },
+          F.reward.ackReq ? el("span", { class:"req" }, "*") : "",
+          tv(F.reward, isCoupon ? "noticeCouponLabel" : "noticeGiftLabel", "reward", {}),
+          reqBtn(F.reward.ackReq, () => { F.reward.ackReq = !F.reward.ackReq; })),
+        tv(F.reward, isCoupon ? "noticeCoupon" : "noticeGift", "reward", { cls:"cdesc", multi:true }),
+        el("div", { class:"copt", style:"align-items:center" },
+          el("span", { class:"cchk" }),
+          tv(F.reward, isCoupon ? "ackCoupon" : "ackGift", "reward", { cls:"cmain" }))),
+      el("p", { class:"note" }, "제품이 사은품이냐 상품권이냐에 따라 위 문구가 자동으로 바뀝니다. ",
+        "위쪽 제품을 바꿔 보시면 다른 쪽 문구를 고칠 수 있습니다."))]));
+
+  /* 5 캡처 이미지 */
+  form.append(card("capture", ++n, F.capture.title, "포토리뷰만", [
+    el("div", { class:"fbody" },
+      el("div", { class:"ctitle", style:"margin-bottom:8px" },
+        F.capture.req ? el("span", { class:"req" }, "*") : "",
+        el("span", {}, "리뷰 캡처 이미지"),
+        reqBtn(F.capture.req, () => { F.capture.req = !F.capture.req; })),
+      tv(F.capture, "desc", "capture", { cls:"sdesc", multi:true }),
+      tv(F.capture, "warn", "capture", { cls:"warnline", multi:true }),
+      el("div", { class:"exbox" },
+        el("div", { style:"font-weight:700;color:var(--ink)" }, "사진 첨부 예시 이미지"),
+        el("div", { style:"margin-top:4px" }, F.capture.exampleName),
+        isOpen("capture")
+          ? el("div", { style:"margin-top:10px" },
+              el("button", { class:"btn sm", type:"button",
+                onclick:e => { e.stopPropagation(); alert("프로토타입이라 실제 업로드는 되지 않습니다."); } }, "이미지 바꾸기"))
+          : ""))]));
+
+  /* 6 정보 입력 */
+  const TYPES = ["단답", "장문", "연락처", "주소 검색", "객관식", "체크"];
+  form.append(card("info", ++n, F.info.title, "", [
+    el("div", { class:"fbody" },
+      tv(F.info, "desc", "info", { cls:"sdesc", multi:true }),
+      ...F.info.fields.map((f, i) => el("div", { class:"cblock" },
+        el("div", { class:"ctitle" },
+          f.req ? el("span", { class:"req" }, "*") : "",
+          isOpen("info")
+            ? el("input", { type:"text", value:f.label, style:"max-width:200px",
+                oninput:e => { f.label = e.target.value; } })
+            : el("span", {}, f.label),
+          reqBtn(f.req, () => { f.req = !f.req; })),
+        f.note ? el("div", { class:"cdesc" }, f.note) : "",
+        el("div", { class:"fi", style:"margin-top:6px;color:#b3aaa2;font-size:12px" }, f.type + " 입력칸"),
+        isOpen("info") ? el("div", { class:"addline", style:"margin-top:8px" },
+          el("select", {
+            onchange:e => { f.type = e.target.value; render(); } },
+            TYPES.map(t => el("option", { value:t, ...(f.type === t ? { selected:"" } : {}) }, t))),
+          el("button", { class:"btn sm", type:"button", disabled:i === 0 ? "" : null,
+            onclick:e => { e.stopPropagation();
+              [F.info.fields[i-1], F.info.fields[i]] = [F.info.fields[i], F.info.fields[i-1]]; render(); } }, "↑"),
+          el("button", { class:"btn sm", type:"button", disabled:i === F.info.fields.length - 1 ? "" : null,
+            onclick:e => { e.stopPropagation();
+              [F.info.fields[i+1], F.info.fields[i]] = [F.info.fields[i], F.info.fields[i+1]]; render(); } }, "↓"),
+          el("button", { class:"btn ghost", type:"button",
+            onclick:e => { e.stopPropagation(); F.info.fields.splice(i, 1); render(); } }, "삭제"),
+          f.note ? el("span", { style:"font-size:11.5px;color:var(--sub)" }, f.note) : "") : "")),
+      el("div", { class:"addline" },
+        el("button", { class:"btn sm", type:"button", onclick:e => {
+          e.stopPropagation();
+          F.info.fields.push({ label:"새 항목", type:"단답", req:false, note:"" });
+          sel = "info"; render();
+        } }, "+ 받으실 정보 항목 추가")))]));
+
+  const toc = el("div", { class:"toc", id:"toc" });
+  buildToc(toc);
+
+  return [
+    el("div", { class:"svtop" },
+      el("div", {},
+        el("h2", {}, "접수폼"),
+        el("p", { class:"hint", style:"margin:0" },
+          "고객이 보는 순서 그대로입니다. 고칠 곳을 눌러 그 자리에서 바로 고치세요. ",
+          el("b", {}, "구매 확인 · 접수 완료"), " 는 고칠 것이 문구뿐이라 ",
+          el("b", {}, "「안내 문구」 탭"), " 에 있습니다. ",
+          el("span", { class:"req" }, "*"), " 가 붙은 항목이 ", el("b", {}, "필수"), " 입니다 — ",
+          el("b", {}, "「필수」 버튼"), " 을 누르면 ", el("b", {}, "빨간색"), " 으로 켜지고, 다시 누르면 꺼집니다. ",
+          "고객 화면에도 그대로 반영됩니다.")),
+      el("div", { class:"row" },
+        el("div", { class:"field" },
+          el("label", { for:"svP" }, "제품 문항·사은품을 볼 제품"),
+          el("select", { id:"svP", style:"min-width:250px",
+            onchange:e => { surveyProduct = e.target.value; sel = null; render(); } },
+            cfg.products.filter(x => x.ledger.trim()).map(p =>
+              el("option", { value:p.ledger, ...(surveyProduct === p.ledger ? { selected:"" } : {}) },
+                p.ledger + ((cfg.surveys[p.ledger] || []).length ? " · " + cfg.surveys[p.ledger].length + "문항" : " · 설문 없음"))))),
+        el("label", { class:"switch" },
+          el("input", { type:"checkbox", ...(editAll ? { checked:"" } : {}),
+            onchange:e => { editAll = e.target.checked; render(); } }),
+          "전체 편집 모드"))),
+    el("div", { class:"svcols" }, form, toc)
+  ];
+}
+
+function buildToc(node){
+  node.replaceChildren();
+  node.append(el("h3", {}, "차례"));
+  const F = cfg.form;
+  node.append(tocCard("consent", "1", F.consent.title));
+
+  node.append(el("div", { class:"tgrp" }, "2 · 참여 설문"));
+  cfg.entrySurvey.forEach((q, i) => node.append(tocQ("entry", i, i + 1, q)));
+
+  node.append(el("div", { class:"tgrp" }, "3 · 제품 사용 설문"));
+  const prod = cfg.surveys[surveyProduct] || [];
+  if(!prod.length) node.append(el("p", { style:"font-size:12px;color:var(--sub);margin:0 4px" }, "문항 없음"));
+  prod.forEach((q, i) => node.append(tocQ("prod", i, cfg.entrySurvey.length + i + 1, q)));
+
+  node.append(el("div", { class:"tgrp" }, "그 다음"));
+  [["reward", "4", "받으실 사은품 안내"], ["capture", "5", F.capture.title],
+   ["info", "6", F.info.title]].forEach(([id, n, t]) => node.append(tocCard(id, n, t)));
+}
+function tocCard(id, no, t){
+  return el("button", { class:"titem" + (isOpen(id) && !editAll ? " on" : ""), type:"button",
+    onclick:() => { sel = id; render();
+      document.getElementById("c-" + id)?.scrollIntoView({ block:"center", behavior:"smooth" }); } },
+    el("span", { class:"num" }, no), el("span", { class:"lbl" }, t));
+}
+function tocQ(g, i, no, q){
+  const id = "q:" + g + ":" + i;
+  return el("button", { class:"titem" + (isOpen(id) && !editAll ? " on" : ""), type:"button",
+    onclick:() => { sel = id; render();
+      document.getElementById("c-" + id)?.scrollIntoView({ block:"center", behavior:"smooth" }); } },
+    el("span", { class:"num" }, no + "."), el("span", { class:"lbl" }, q.q || "(질문 없음)"));
+}
+function syncToc(){ const t = $("#toc"); if(t) buildToc(t); softRefresh(); }
+
+/* ══════ 안내 문구 — 상황이 생겼을 때만 화면에 뜨는 문장 전부 ══════ */
+const NOTICE_GROUPS = [
+  ["① 항목 바로 밑 빨간 글씨 — 안 채우고 「다음」을 눌렀을 때", [
+    ["errName",     "성함",            "1단계 · 성함 칸이 비었을 때"],
+    ["errPhone",    "연락처",          "1단계 · 연락처가 10자리가 안 될 때"],
+    ["errInv",      "구매 내역 미확인","1단계 · 조회를 안 하고 다음을 눌렀을 때"],
+    ["errConsent",  "동의 항목",       "2단계 · 안 고른 동의 항목이 있을 때"],
+    ["errEntry",    "참여 설문",       "3단계 · 안 채운 문항이 있을 때"],
+    ["errType",     "참여 유형",       "3단계 · 포토리뷰/정품등록을 안 골랐을 때"],
+    ["errProd",     "제품 선택",       "4단계 · 제품을 안 골랐을 때"],
+    ["errSurvey",   "제품 사용 설문",  "5단계 · 안 채운 문항이 있을 때"],
+    ["errGift",     "사은품 선택",     "6단계 · 고를 수 있는 사은품이 여러 개일 때"],
+    ["errQty",      "받으실 방법",     "6단계 · 2개 이상 구매 고객이 방법을 안 골랐을 때"],
+    ["errReward",   "발송 안내 확인",  "6단계 · 착불 안내에 체크를 안 했을 때"],
+    ["errSerial",   "시리얼번호",      "쿠팡 정품등록 · S/N 칸이 비었을 때"],
+    ["errSerialack","시리얼 확인 체크","쿠팡 정품등록 · 확인 체크를 안 했을 때"],
+    ["errFile",     "캡처 이미지",     "7단계 · 사진을 안 올렸을 때"],
+    ["errAddr",     "주소",            "8단계 · 주소 검색을 안 하고 넘어가려 할 때"]
+  ]],
+  ["② 구매 확인 — 「조회」를 눌렀는데 입력이 부족할 때", [
+    ["needNamePhone", "성함·연락처 미입력", "성함 또는 연락처를 비운 채 조회를 눌렀을 때"],
+    ["needInv",       "송장번호 미입력",    "송장번호가 8자리보다 짧을 때"]
+  ]],
+  ["③ 구매 확인 — 조회 결과", [
+    ["rate",        "조회 횟수 초과",           "10분에 20번을 넘겨 입력했을 때"],
+    ["notFoundNP",  "못 찾음 · 성함+연락처 탭", "안심번호·이름 마스킹 때문에 안 나오는 경우를 안내"],
+    ["notFoundInv", "못 찾음 · 송장번호 탭",    "송장번호로 아무것도 못 찾았을 때"],
+    ["noTarget",    "이벤트 대상 제품 아님",    "구매는 확인됐지만 사은품이 지정되지 않은 제품일 때"],
+    ["readFail",    "주문 정보를 읽지 못함",    "원장 행이 비어 있는 등 드물게"],
+    ["lookupErr",   "조회 중 오류",            "서버가 응답하지 못했을 때"]
+  ]],
+  ["④ 이미 참여하셨습니다 — 노란 팝업 창", [
+    ["dupTitle",    "창 제목",              "구매 수량만큼 이미 접수한 고객일 때"],
+    ["dupQty",      "사유 · 수량 다 씀",    "2개 이상 사서 전부 접수한 경우"],
+    ["dupInvoice",  "사유 · 송장번호 중복",  "같은 송장번호로 이미 접수됨"],
+    ["dupPhone",    "사유 · 연락처 중복",    "같은 연락처로 이미 접수됨"],
+    ["dupOrder",    "사유 · 주문번호 중복",  "같은 주문번호로 이미 접수됨"],
+    ["dupNameAddr", "사유 · 수령인·주소 중복","같은 수령인+주소로 이미 접수됨"],
+    ["dupSerial",   "사유 · 시리얼 중복",    "같은 S/N으로 이미 등록됨"],
+    ["dupAsk",      "그 밑 안내",           "창 아래쪽에 항상 같이 나옵니다"],
+    ["dupNoKakao",  "채널 주소가 비었을 때", "아래 「카카오 채널 주소」가 비어 있으면 버튼 대신 이 문장이 나옵니다"]
+  ]],
+  ["⑤ 참여 안내 및 동의", [
+    ["consentDeny", "필수 항목 거부", "개인정보 수집·이용을 거부하고 다음으로 넘어가려 할 때 (○○ 자리에 항목 이름이 들어갑니다)"]
+  ]],
+  ["⑥ 캡처 이미지 올릴 때", [
+    ["fileTooBig", "사진 용량 초과", "고른 사진이 너무 클 때"],
+    ["netFail",    "전송 중 끊김",   "업로드 도중 인터넷이 끊겼을 때"],
+    ["uploadFail", "사진 저장 실패", "형식이 맞지 않는 등 저장에 실패했을 때"]
+  ]],
+  ["⑦ 「참여 신청하기」를 눌렀는데 서버가 막았을 때", [
+    ["submitRate",     "접수 시도 과다",       "짧은 시간에 접수를 여러 번 눌렀을 때"],
+    ["tokenExpired",   "구매 확인 만료",       "구매 확인 후 3시간이 지나 접수를 눌렀을 때"],
+    ["productMismatch","구매 내역에 없는 제품", "조회 결과에 없는 제품으로 접수를 시도했을 때"],
+    ["inputInvalid",   "입력값 오류",          "성함·연락처 형식이 맞지 않을 때"],
+    ["originBlocked",  "공식 폼이 아님",       "복제된 페이지에서 접수를 시도했을 때"],
+    ["submitErr",      "접수 중 오류",         "그 밖의 오류일 때"]
+  ]],
+  ["⑧ 접수 완료 — 초록 팝업 창", [
+    ["doneTitle",    "창 제목",          "접수가 끝나면 항상"],
+    ["doneReview",   "포토리뷰일 때",     "제목 밑 한 줄"],
+    ["doneCoupang",  "쿠팡 정품등록일 때","제목 밑 한 줄"],
+    ["doneMulti",    "여러 개 한 번에",   "2개 이상을 한 번에 접수했을 때"],
+    ["doneLeft",     "남은 수량이 있을 때","산 수량보다 적게 접수했을 때"],
+    ["doneLeftShip", "착불 주의",        "위 문구 아래 · 사은품(착불)일 때만"]
+  ]],
+  ["⑨ 참여 조회 (고객이 자기 참여 내역을 볼 때)", [
+    ["checkNeed",    "성함·연락처 미입력", "비우고 조회를 눌렀을 때"],
+    ["checkRate",    "조회 횟수 초과",     "여러 번 눌렀을 때"],
+    ["checkErr",     "조회 중 오류",       "서버가 응답하지 못했을 때"],
+    ["checkNone",    "참여 내역 없음",     "그 이름으로 접수된 게 없을 때"],
+    ["checkConsult", "검수 지연·상담 필요", "부적합 처리됐거나 확인이 어려운 건일 때"],
+    ["checkWait",    "정상 접수 · 발송 대기","심사를 통과했고 아직 발송 전일 때"]
+  ]]
+];
+
+/* ══ 항상 화면에 적혀 있는 글 ══
+   표지 · 구매 확인 · 접수 완료 세 화면은 담당자가 고칠 것이 **문구뿐**이라
+   접수폼 탭에서 빼고 여기로 옮겼습니다. (항목을 넣고 빼는 화면이 아닙니다) */
+const ALWAYS_GROUPS = [
+  ["구매 확인", "성함+연락처 또는 송장번호로 구매 내역을 찾는 화면입니다", [
+    ["화면 설명", () => cfg.form.lookup, "desc",  true ],
+    ["주의 문구", () => cfg.form.lookup, "tip",   true ]
+  ]],
+  ["접수 완료", "「참여 신청하기」를 누른 뒤 보이는 화면입니다", [
+    ["완료 문구", () => cfg.form.done,   "desc",  true ]
+  ]]
+];
+
+function paneNotice(){
+  const total = NOTICE_GROUPS.reduce((n, g) => n + g[1].length, 0);
+  const always = ALWAYS_GROUPS.reduce((n, g) => n + g[2].length, 0);
+  const out = [
+    el("h2", {}, "안내 문구"),
+    el("p", { class:"hint" },
+      "고객이 채우는 항목은 ", el("b", {}, "접수폼"), " 탭에 있고, 여기는 ", el("b", {}, "고객에게 보여 주는 말"), " 입니다. ",
+      el("b", {}, "조회가 안 될 때 · 이미 참여했을 때"), " 처럼 상황이 생겼을 때 뜨는 문장 ",
+      el("b", {}, total + "개"), " 와, 그 문구마다 ", el("b", {}, "카카오 상담 버튼"), " 을 켜고 끄는 곳입니다. ",
+      "맨 위 ", el("b", {}, always + "개"), " 만 상황과 상관없이 늘 적혀 있는 글입니다. ",
+      "각 문구 밑의 회색 줄이 ", el("b", {}, "언제 어디에 나오는지"), " 입니다. ",
+      el("b", {}, "○○"), " 는 고객 이름·제품명처럼 자동으로 채워지는 자리라 지우지 마세요.")
+  ];
+
+  /* ── ① 항상 적혀 있는 글 ── */
+  out.push(el("h3", { class:"gtitle" }, "◎ 구매 확인 · 접수 완료 화면에 늘 적혀 있는 글"));
+  ALWAYS_GROUPS.forEach(([scr, when, rows]) => {
+    out.push(el("div", { class:"stack" }, rows.map(([lab, get, key, multi]) => {
+      const o = get();
+      return el("div", { class:"ncard" },
+        el("div", { class:"nhead" },
+          el("div", {},
+            el("div", { style:"font-weight:800;font-size:13.5px" }, scr + " · " + lab),
+            el("div", { style:"font-size:12px;color:var(--sub);margin-top:2px" }, when))),
+        el("textarea", { "aria-label":scr + " " + lab,
+          style: multi ? "" : "min-height:44px",
+          oninput:e => { o[key] = e.target.value; softRefresh(); } }, o[key] || ""));
+    })));
+  });
+  out.push(el("h3", { class:"gtitle" }, "◎ 그 상황이 생겼을 때만 뜨는 문장"));
+
+  NOTICE_GROUPS.forEach(([title, items]) => {
+    out.push(el("h3", { class:"gtitle" }, title));
+    out.push(el("div", { class:"stack" }, items.map(([k, t, when]) => {
+      const n = cfg.notices[k];
+      return el("div", { class:"ncard" },
+        el("div", { class:"nhead" },
+          el("div", {},
+            el("div", { style:"font-weight:800;font-size:13.5px" }, t),
+            el("div", { style:"font-size:12px;color:var(--sub);margin-top:2px" }, when)),
+          el("label", { class:"switch", style:"font-size:12px" },
+            el("input", { type:"checkbox", ...(n.k ? { checked:"" } : {}),
+              onchange:e => { n.k = e.target.checked; render(); } }),
+            "상담 버튼")),
+        el("textarea", { "aria-label":t, oninput:e => { n.t = e.target.value; softRefresh(); } }, n.t),
+        n.k ? el("div", { class:"kbtn" }, "💬 상담사 문의하기") : "");
+    })));
+  });
+
+  out.push(el("h3", { class:"gtitle" }, "카카오 채널 주소"));
+  out.push(el("p", { class:"hint" },
+    el("b", {}, "상담 버튼"), "을 켠 문구 아래에 노란 「💬 상담사 문의하기」 버튼이 붙고, ",
+    "고객이 접수한 카테고리에 맞는 채널로 연결됩니다."));
+  out.push(el("div", { class:"tablewrap" }, el("table", {},
+    el("thead", {}, el("tr", {}, el("th", {}, "카테고리"), el("th", {}, "채널 주소"))),
+    el("tbody", {}, CATS.map(c => el("tr", {},
+      el("td", { class:"tight" }, el("b", {}, c)),
+      el("td", {}, el("input", { type:"text", class:"mono", value:cfg.kakao[c] || "",
+        placeholder:"http://pf.kakao.com/...", "aria-label":c + " 채널 주소",
+        oninput:e => { cfg.kakao[c] = e.target.value; softRefresh(); } }))))))));
+
+  return out;
+}
+
+/* ══════ 미리보기 ══════ */
+function simDate(){ const d = $("#simD"); return (d && d.value) || today(); }
+function buildSim(){
+  const p = $("#simP"), s = $("#simS"), d = $("#simD");
+  if(!d.value) d.value = today();
+  const keepP = p.value, keepS = s.value;
+  p.replaceChildren(...cfg.products.filter(x => x.ledger.trim()).map(x => el("option", { value:x.ledger }, x.ledger)));
+  if(!s.options.length) LEDGER_SRC.forEach(v => s.append(el("option", { value:v }, v)));
+  p.value = cfg.products.some(x => x.ledger === keepP) ? keepP : (cfg.products[0] || {}).ledger || "";
+  s.value = keepS || "스마트스토어";
+  if(!p._b){ p._b = 1; p.addEventListener("change", drawSim); s.addEventListener("change", drawSim);
+    d.addEventListener("change", () => { drawSim(); if(tab === "rule") render(); }); }
+  drawSim();
+}
+function drawSim(){
+  const code = $("#simP").value, src = $("#simS").value, out = $("#simOut");
+  const g = resolveGift(code, src, simDate());
+  out.replaceChildren();
+  if(!g || !g.label){
+    out.append(el("span", { class:"pill mute" }, "지급 대상 아님"),
+      el("p", { class:"gift", style:"color:var(--sub)" }, "사은품이 정해지지 않았습니다"),
+      el("p", { class:"why" }, "사은품이 비어 있어 ", el("b", {}, "이 제품은 접수를 받지 않습니다."),
+        " 참여시키려면 사은품 탭에서 이름을 채워 주세요."));
+    return;
+  }
+  out.append(
+    el("span", { class:"pill " + (g.type === "coupon" ? "coupon" : "gift") }, typeName(g.type)),
+    el("p", { class:"gift" }, g.label),
+    el("dl", { class:"kv" },
+      el("dt", {}, "제품"),   el("dd", {}, pname(code)),
+      el("dt", {}, "판매처"), el("dd", {}, src),
+      el("dt", {}, "설문"),   el("dd", {}, ((cfg.surveys[code] || []).length + cfg.entrySurvey.length) + "문항")),
+    g.rule
+      ? el("p", { class:"why" }, el("b", {}, "예외 규칙이 적용되었습니다."), " ",
+          (g.rule.name || (code + " + " + g.rule.srcs.join(", "))),
+          (g.rule.to ? el("span", {}, el("br", {}), g.rule.to + " 밤 12시에 자동으로 풀립니다") : ""))
+      : el("p", { class:"why" }, (() => {
+          const off = (cfg.giftRules || []).find(r => r.product === code && (r.srcs || []).includes(src) && r.label);
+          return off ? "기본 사은품입니다. 예외 규칙이 있지만 이 날짜에는 " + ruleState(off, simDate()).t + " 상태입니다."
+                     : "기본 사은품입니다. 이 판매처에 걸리는 예외 규칙이 없습니다.";
+        })()));
+}
+
+/* ══════ 그리기 ══════ */
+const PANES = { gift:paneGift, rule:paneRule, form:paneForm, notice:paneNotice };
+const WIDE = ["form", "notice"];
+
+function render(){
+  document.querySelectorAll("#evtCfg .tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.t === tab)));
+  $("#cols").classList.toggle("full", WIDE.includes(tab));
+  $("#pane").replaceChildren(...[PANES[tab]()].flat());
+  buildSim();
+  softRefresh();
+}
+function softRefresh(){ drawSim(); $("#dump").textContent = JSON.stringify(cfg, null, 2); }
+
+/* ── 리포트에 붙이는 부분 ───────────────────────────────────────
+   화면 그리기는 위 코드가 그대로 하고, 여기서는
+   탭 전환 · 저장 · 불러오기만 리포트 쪽과 연결합니다.            */
+let SAVED = null;                    // 서버에서 마지막으로 읽어온 값
+
+function showUsers(on){
+  const c = document.getElementById("evtCfg");
+  const u = document.getElementById("admUsers");
+  if(c) c.hidden = on;
+  if(u) u.hidden = !on;
+}
+
+document.querySelectorAll("#evtCfg .tab").forEach(b =>
+  b.addEventListener("click", () => {
+    document.querySelectorAll("#evtCfg .tab").forEach(x =>
+      x.setAttribute("aria-selected", String(x === b)));
+    if(b.dataset.t === "users"){ showUsers(true); return; }
+    showUsers(false);
+    tab = b.dataset.t; sel = null; editRow = null; render();
+  }));
+
+$("#saveBtn").addEventListener("click", async () => {
+  const msg = $("#saveMsg");
+  msg.textContent = "저장 중…";
+  try {
+    await window.EVTCFG_SAVE(clone(cfg));
+    SAVED = clone(cfg);
+    const n = (cfg.giftRules || []).filter(r => r.srcs.length && r.label && r.product).length;
+    const q = cfg.entrySurvey.length + Object.values(cfg.surveys).reduce((s, a) => s + a.length, 0);
+    msg.textContent = "저장했습니다 — 제품 " + cfg.products.length +
+      "개 · 프로모션 " + n + "건 · 설문 " + q + "문항";
+  } catch (e) {
+    msg.textContent = "저장하지 못했습니다: " + (e && e.message ? e.message : e);
+  }
+});
+
+$("#resetBtn").addEventListener("click", () => {
+  cfg = clone(SAVED || DEFAULTS);
+  surveyProduct = (cfg.products[0] || {}).ledger || "";
+  sel = null; editAll = false; editRow = null;
+  $("#saveMsg").textContent = SAVED ? "마지막으로 저장한 값으로 되돌렸습니다." : "처음 값으로 되돌렸습니다.";
+  render();
+});
+
+window.EVTCFG = {
+  /* 리포트가 관리자 탭을 열 때 한 번 부릅니다. loaded = 서버에 저장돼 있던 값 */
+  mount(loaded){
+    if(loaded && typeof loaded === "object" && loaded.products){
+      cfg = clone(loaded); SAVED = clone(loaded);
+      surveyProduct = (cfg.products[0] || {}).ledger || "";
+    }
+    const w = document.getElementById("evtWarn");
+    if(w && !loaded){
+      w.hidden = false;
+      w.lastElementChild.innerHTML =
+        "<b>아직 저장된 설정이 없습니다.</b> 지금 보이는 값은 기본값이고, " +
+        "<b>저장</b>을 눌러야 서버에 남습니다.";
+    }
+    showUsers(false);
+    render();
+  },
+  get(){ return clone(cfg); }
+};
+
+showUsers(false);
+render();
+
+})();
+</script>
+
 <div id="svTip"></div>
 </body>
 </html>

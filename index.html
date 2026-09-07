@@ -241,6 +241,9 @@
         <label class="fld">주문번호 <span class="req">*</span></label>
         <input type="text" id="vOrd" placeholder="예) 2026090112345678">
       </div>
+      <!-- 쇼핑몰별 「주문번호 어디서 보나」 이미지 안내 (guide/*.webp) 를 여는 입구입니다.
+           ⚠️ 이 버튼이 없으면 안내 이미지 12장이 통째로 안 쓰이게 됩니다. 지우지 마세요. -->
+      <button type="button" class="ogbtn" onclick="openOrdGuide()">🔍 주문번호가 어디 있는지 모르겠어요</button>
     </div>
 
     <div class="vpane" id="vp-inv">
@@ -721,7 +724,37 @@ const GIFTS={
   "iH05":{label:"배민 3,000원",type:"coupon"},
   "iHD01":{label:"CU 3,000원",type:"coupon"}
 };
-function giftOf(code){ return GIFTS[code]||null; }
+/* ══════════ 판매처 예외 규칙(프로모션) ══════════
+   「이 기간에 · 이 판매처에서 · 이 제품을 산 고객」은 사은품이 바뀝니다.
+   판매처는 고객이 고르는 것이 아니라 원장에 적힌 값이며, 조회할 때 창구가 알려 줍니다.
+   ⚠️ 서버(eventApi.js)에도 글자 하나까지 같은 계산이 들어 있습니다.
+      한쪽만 고치면 고객이 본 사은품과 실제로 저장되는 사은품이 달라집니다. */
+function todayYmd(){ const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+function ruleOn(r,d){
+  if(!r.from && !r.to) return true;        // 기간을 안 정했으면 계속 적용
+  if(r.from && d<r.from) return false;     // 아직 시작 전
+  if(r.to   && d>r.to)   return false;     // 이미 끝남
+  return true;
+}
+function promoFor(code){
+  const rules = (CFG && Array.isArray(CFG.giftRules)) ? CFG.giftRules : null;
+  if(!rules || !code) return null;
+  const src = (state.srcByCode||{})[code] || "";
+  if(!src) return null;                    // 쿠팡 정품등록은 원장이 없어 여기서 끝납니다
+  const today = todayYmd();
+  return rules.find(r => r && r.label
+    && Array.isArray(r.codes) && r.codes.includes(code)
+    && Array.isArray(r.srcs)  && r.srcs.includes(src)
+    && ruleOn(r, r.basis==="buy" ? ((state.buyByCode||{})[code] || today) : today)) || null;
+}
+/* 사은품을 묻는 곳은 전부 이 함수 하나를 거칩니다.
+   그래서 여기서 한 번만 바꿔 주면 화면·착불 안내·저장값이 모두 따라옵니다. */
+function giftOf(code){
+  const hit = promoFor(code);
+  if(hit) return { label:hit.label, type:hit.type==="coupon"?"coupon":"gift", promo:hit.name||"" };
+  return GIFTS[code]||null;
+}
 function rewardType(type,code){
   const g=giftOf(code); if(!g) return "gift";
   if(g.choice){ return (state.giftChoice!=null && g.options[state.giftChoice])?g.options[state.giftChoice].type:"gift"; }
@@ -752,6 +785,7 @@ const COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 �
 
 const state={type:null,category:"주방가전",product:null,file:null,serialPrefix:"",
   vTab:"np",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
+  srcByCode:{},buyByCode:{},        // 원장의 판매처·구매일자 (프로모션 판단용)
   invNo:"",ordNo:"",autoName:"",autoPhone:"",token:"",
   consent:{},esurvey:{},esurveyInit:false,survey:{},surveyFor:null,giftChoice:null};
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
@@ -1375,6 +1409,7 @@ function clearLookup(){
   state.usedByCode={}; state.usedQty=0;
   state.buyQty=1; state.qtyMode=null; state.product=null; state.surveyFor=null; state.infoFor=null;
   state.invNo=""; state.ordNo=""; state.autoName=""; state.autoPhone=""; state.token="";
+  state.srcByCode={}; state.buyByCode={};
 }
 function ivNotice(html){ $("#invResult").innerHTML='<div class="notice" style="margin:0;line-height:1.65">'+html+'</div>'; }
 /* 조회가 안 될 때 다른 방법으로 바로 넘어가는 버튼 */
@@ -1490,6 +1525,8 @@ async function lookupPurchase(){
     }
 
     state.token=res.token||"";          // 접수할 때 이 도장을 함께 보낸다
+    /* 프로모션 판단용 — 원장의 판매처·구매일자 */
+    state.srcByCode=res.srcByCode||{}; state.buyByCode=res.buyByCode||{};
     state.qtyByCode=qtyByCode; state.usedByCode=usedByCode; state.prodCodes=remainCodes;
     if(remainCodes.length===1){
       const c0=remainCodes[0];

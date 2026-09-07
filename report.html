@@ -2737,6 +2737,7 @@ async function openEventSettings(){
   evtCfgMounted = true;
   let loaded = null;
   try {
+    const db = await initFirebase();          /* ⚠️ 이 줄이 빠져 있어서 「db is not defined」가 났습니다 */
     const d = await db.collection(EVT_CFG_DOC[0]).doc(EVT_CFG_DOC[1]).get();
     if(d.exists){
       const v = d.data() || {};
@@ -2751,6 +2752,7 @@ async function openEventSettings(){
 /* 설정 화면의 「저장」 버튼이 부릅니다 */
 window.EVTCFG_SAVE = async function(cfg){
   if(!ME || ME.role !== "master") throw new Error("관리자만 저장할 수 있습니다.");
+  const db = await initFirebase();            /* ⚠️ 이 줄이 빠져 있어서 「db is not defined」가 났습니다 */
   await db.collection(EVT_CFG_DOC[0]).doc(EVT_CFG_DOC[1]).set({
     json: JSON.stringify(cfg),
     at: firebase.firestore.FieldValue.serverTimestamp(),
@@ -4215,7 +4217,7 @@ const DEFAULTS = {
 
     /* ── 구매 확인 · 조회 결과 ── */
     rate:         { t:"조회를 너무 여러 번 시도하셨습니다.\n잠시 후 다시 시도해 주세요.", k:true },
-    notFoundNP:   { t:"구매 내역을 찾지 못했습니다.\n구매하신 사이트에 따라 연락처가 {{안심번호}}로 등록돼 있거나, 개인정보 보호로 성함이 {{홍*동}}처럼 가려진 채 전달되어 조회되지 않을 수 있습니다.\n[[이런 경우에는 송장번호로 조회해 주세요.]]\n최근 구매 건은 아직 등록 전일 수 있습니다.", k:true },
+    notFoundNP:   { t:"구매 내역을 찾지 못했습니다.\n구매하신 사이트에 따라 연락처가 {{안심번호}}로 등록돼 있거나, 개인정보 보호로 성함이 {{홍*동}}처럼 가려진 채 전달되어 조회되지 않을 수 있습니다.\n[[이런 경우에는 주문번호나 송장번호로 조회해 주세요.]]\n최근 구매 건은 아직 등록 전일 수 있습니다.", k:true },
     notFoundOrd:  { t:"구매 내역을 찾지 못했습니다.\n주문번호를 다시 확인해 주세요. 앞뒤 공백이나 빠진 숫자가 없는지 봐주세요.\n최근 구매 건은 아직 등록 전일 수 있습니다.", k:true },
     notFoundInv:  { t:"구매 내역을 찾지 못했습니다.\n송장번호를 다시 확인해 주세요.\n최근 구매 건은 아직 등록 전일 수 있습니다.", k:true },
     dupAll:       { t:"구매하신 수량만큼 모두 접수되어 추가 참여가 어렵습니다.\n더 참여하셔야 하는 사정이 있으시면 아래로 문의해 주세요.", k:true },
@@ -4231,7 +4233,11 @@ const DEFAULTS = {
     dupOrder:     { t:"주문번호가 이미 접수되었습니다", k:false },
     dupNameAddr:  { t:"수령인·주소가 이미 접수되었습니다", k:false },
     dupSerial:    { t:"시리얼번호(S/N)가 이미 등록되었습니다", k:false },
-    dupAsk:       { t:"구매하신 수량보다 {{더 많이}} 참여하셔야 하는 사정이 있으시면, 아래 {{○○ 카카오톡 채널}}로 문의해 주세요.\n[[중복접수를 방지하기 위해 아이닉 상담사에게 포토리뷰 수기접수 요청해 주세요.]]", k:true },
+    /* ⚠️ 유형에 따라 나가는 문구가 다릅니다.
+       포토리뷰는 원장에 「몇 개 샀는지」가 있어 수량으로 이야기하지만,
+       쿠팡 정품등록은 원장이 없어 무조건 제품당 1건이라 수량 개념이 없습니다. */
+    dupAskReview: { t:"구매하신 수량보다 {{더 많이}} 참여하셔야 하는 사정이 있으시면, 아래 {{○○ 카카오톡 채널}}로 문의해 주세요.\n[[중복접수를 방지하기 위해 아이닉 상담사에게 포토리뷰 수기접수 요청해 주세요.]]", k:true },
+    dupAskCoupang:{ t:"{{2대 이상}} 구매하셔서 추가로 등록하셔야 하거나, 등록하신 적이 없는데 이 안내가 보이시면 아래 {{○○ 카카오톡 채널}}로 문의해 주세요.\n[[중복접수를 방지하기 위해 아이닉 상담사에게 수기접수를 요청해 주세요.]]", k:true },
     dupNoKakao:   { t:"※ 카카오톡 채널 문의 링크는 준비되는 대로 안내됩니다.", k:false },
 
     /* ── 참여 안내 및 동의 ── */
@@ -4747,7 +4753,7 @@ function paneForm(){
     el("strong", {}, formType === "review" ? "① 구매 확인" : "① 구매 확인 없음"),
     el("span", { style:"color:var(--sub);font-size:12.5px;margin-left:8px" },
       formType === "review"
-        ? "성함+연락처 또는 송장번호로 원장을 조회합니다. 고칠 것은 문구뿐이라 「안내 문구」 탭에 있습니다."
+        ? "성함+연락처 · 주문번호 · 송장번호 세 가지로 원장을 조회합니다. 고칠 것은 문구뿐이라 「안내 문구」 탭에 있습니다."
         : "쿠팡 로켓배송은 원장에 구매 정보가 없어 조회 화면이 없습니다. 대신 시리얼번호(S/N)로 확인합니다.")));
 
   /* 1 참여 안내 및 동의 */
@@ -5022,11 +5028,13 @@ const NOTICE_GROUPS = [
   ]],
   ["② 구매 확인 — 「조회」를 눌렀는데 입력이 부족할 때", [
     ["needNamePhone", "성함·연락처 미입력", "성함 또는 연락처를 비운 채 조회를 눌렀을 때"],
+    ["needOrder",     "주문번호 미입력",    "주문번호가 4자리보다 짧을 때"],
     ["needInv",       "송장번호 미입력",    "송장번호가 8자리보다 짧을 때"]
   ]],
   ["③ 구매 확인 — 조회 결과", [
     ["rate",        "조회 횟수 초과",           "10분에 20번을 넘겨 입력했을 때"],
     ["notFoundNP",  "못 찾음 · 성함+연락처 탭", "안심번호·이름 마스킹 때문에 안 나오는 경우를 안내"],
+    ["notFoundOrd", "못 찾음 · 주문번호 탭",    "주문번호로 아무것도 못 찾았을 때"],
     ["notFoundInv", "못 찾음 · 송장번호 탭",    "송장번호로 아무것도 못 찾았을 때"],
     ["dupAll",      "이미 다 접수함",           "산 수량만큼 이미 다 접수한 고객이 조회했을 때"],
     ["noTarget",    "이벤트 대상 제품 아님",    "구매는 확인됐지만 사은품이 지정되지 않은 제품일 때"],
@@ -5041,7 +5049,8 @@ const NOTICE_GROUPS = [
     ["dupOrder",    "사유 · 주문번호 중복",  "같은 주문번호로 이미 접수됨"],
     ["dupNameAddr", "사유 · 수령인·주소 중복","같은 수령인+주소로 이미 접수됨"],
     ["dupSerial",   "사유 · 시리얼 중복",    "같은 S/N으로 이미 등록됨"],
-    ["dupAsk",      "그 밑 안내",           "창 아래쪽에 항상 같이 나옵니다"],
+    ["dupAskReview", "그 밑 안내 · 포토리뷰일 때",     "창 아래쪽 · 포토리뷰로 참여한 고객에게만"],
+    ["dupAskCoupang","그 밑 안내 · 쿠팡 정품등록일 때", "창 아래쪽 · 쿠팡 정품등록으로 참여한 고객에게만"],
     ["dupNoKakao",  "채널 주소가 비었을 때", "아래 「카카오 채널 주소」가 비어 있으면 버튼 대신 이 문장이 나옵니다"]
   ]],
   ["⑤ 참여 안내 및 동의", [
@@ -5377,11 +5386,41 @@ $("#resetBtn").addEventListener("click", () => {
   render();
 });
 
+/* ══════ 예전에 저장해 둔 설정을 지금 화면에 맞춰 손봅니다 ══════
+   설정을 저장한 뒤에 문구가 새로 생기면, 저장된 값에는 그 칸이 없습니다.
+   그대로 그리면 화면이 깨지므로 빠진 칸을 기본값으로 채워 넣습니다.
+   ⚠️ 저장돼 있던 글은 절대 덮어쓰지 않습니다. 없는 것만 채웁니다. */
+function fixNotices(c){
+  if(!c || typeof c !== "object") return;
+  if(!c.notices || typeof c.notices !== "object") c.notices = {};
+  const N = c.notices;
+
+  /* 「추가 참여 안내」를 포토리뷰용·쿠팡용 둘로 나눴습니다.
+     예전에 하나로 저장해 두셨으면 그 글을 두 곳에 그대로 옮겨 드립니다. */
+  const old = N.dupAsk;
+  if(old && typeof old === "object"){
+    if(!N.dupAskReview)  N.dupAskReview  = { t:old.t, k:old.k };
+    if(!N.dupAskCoupang) N.dupAskCoupang = { t:old.t, k:old.k };
+    delete N.dupAsk;
+  }
+
+  /* 그 밖에 빠진 문구는 기본값으로 채웁니다 */
+  Object.keys(DEFAULTS.notices).forEach(k=>{
+    const d = DEFAULTS.notices[k];
+    if(!N[k] || typeof N[k] !== "object") N[k] = { t:d.t, k:d.k };
+    else {
+      if(typeof N[k].t !== "string")  N[k].t = d.t;
+      if(typeof N[k].k !== "boolean") N[k].k = d.k;
+    }
+  });
+}
+
 window.EVTCFG = {
   /* 리포트가 관리자 탭을 열 때 한 번 부릅니다. loaded = 서버에 저장돼 있던 값 */
   mount(loaded){
     if(loaded && typeof loaded === "object" && loaded.products){
       cfg = clone(loaded); SAVED = clone(loaded);
+      fixNotices(cfg); fixNotices(SAVED);
       surveyProduct = (cfg.products[0] || {}).ledger || "";
     }
     /* 저장된 설정이 없을 때의 안내는 저장 줄 옆에 한 번만 적습니다.

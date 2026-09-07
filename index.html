@@ -230,7 +230,17 @@
     <p class="desc">구매 내역이 확인되어야 접수하실 수 있습니다. <b>편하신 방법 하나</b>를 골라 입력해 주세요.</p>
     <div class="vtabs" id="vtabs">
       <button type="button" class="vtab on" data-vt="np">성함 + 연락처</button>
+      <button type="button" class="vtab" data-vt="ord">주문번호</button>
       <button type="button" class="vtab" data-vt="inv">송장번호</button>
+    </div>
+
+    <div class="vpane" id="vp-ord">
+      <div class="notice" style="margin:0 0 10px">구매하신 쇼핑몰의 <b>주문내역</b>이나 주문 완료 문자에서 확인하실 수 있습니다.<br>
+        ※ 한 번에 여러 개를 주문하신 경우, 주문번호로 조회하시면 <span class="hlk">주문하신 제품이 모두</span> 함께 조회됩니다.</div>
+      <div class="field">
+        <label class="fld">주문번호 <span class="req">*</span></label>
+        <input type="text" id="vOrd" placeholder="예) 2026090112345678">
+      </div>
     </div>
 
     <div class="vpane" id="vp-inv">
@@ -474,6 +484,12 @@ const ERR_KEY={ "err-name":"errName", "err-phone":"errPhone", "err-inv":"errInv"
 
 function applyConfig(){
   if(!CFG) return;
+  /* 「추가 참여 안내」를 포토리뷰용·쿠팡용 둘로 나누기 전에 저장해 두신 설정이면
+     예전 글이 하나뿐입니다. 그 글을 두 곳에 그대로 씁니다. */
+  if(CFG.notices && CFG.notices.dupAsk){
+    if(!CFG.notices.dupAskReview)  CFG.notices.dupAskReview  = CFG.notices.dupAsk;
+    if(!CFG.notices.dupAskCoupang) CFG.notices.dupAskCoupang = CFG.notices.dupAsk;
+  }
   Object.keys(ERR_KEY).forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
     const t=MSGT(ERR_KEY[id],""); if(t) el.textContent=t;
@@ -1349,7 +1365,7 @@ function maskPhone(p){const d=String(p||"").replace(/\D/g,"");
 function setVTab(t){
   state.vTab=t;
   $$("#vtabs .vtab").forEach(b=>b.classList.toggle("on",b.dataset.vt===t));
-  ["np","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k===t);});
+  ["np","ord","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k===t);});
   clearLookup();
   $("#invResult").innerHTML=""; hideErr("err-inv");
 }
@@ -1364,7 +1380,7 @@ function ivNotice(html){ $("#invResult").innerHTML='<div class="notice" style="m
 /* 조회가 안 될 때 다른 방법으로 바로 넘어가는 버튼 */
 function ivSwitch(tab){
   const B=(t,label)=>`<button type="button" class="ivswitch" onclick="setVTab('${t}')">${label}</button>`;
-  const rest=[["inv","송장번호로 조회하기"],["np","성함+연락처로 조회하기"]].filter(x=>x[0]!==tab);
+  const rest=[["ord","주문번호로 조회하기"],["inv","송장번호로 조회하기"],["np","성함+연락처로 조회하기"]].filter(x=>x[0]!==tab);
   return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+rest.map(x=>B(x[0],x[1])).join("")+'</div>';
 }
 function ivKakao(){
@@ -1397,6 +1413,10 @@ async function lookupPurchase(){
     const nm=$("#vName").value.trim(), ph=$("#vPhone").value.trim();
     if(!nm||phoneDigits(ph).length<10){ ivNotice(MSGH("needNamePhone","성함과 연락처를 모두 정확히 입력해 주세요.\n두 가지가 모두 일치해야 조회됩니다.")); return; }
     typed={name:nm,phone:ph}; payload.name=nm; payload.phone=ph;
+  } else if(tab==="ord"){
+    const v=normInv($("#vOrd").value);
+    if(v.length<4){ ivNotice(MSGH("needOrder","주문번호를 정확히 입력해 주세요.")); return; }
+    payload.orderNo=v; state.ordNo=v;
   } else {
     const v=normInv($("#vInv").value);
     if(v.length<8){ ivNotice(MSGH("needInv","송장번호를 정확히 입력해 주세요.")); return; }
@@ -1430,11 +1450,14 @@ async function lookupPurchase(){
           +rich(MSGT("lookupErr","조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."))+'</div>';
         return;
       }
-      /* 성함+연락처 탭과 송장번호 탭이 안내가 달라서 문구도 따로 둡니다. */
-      const key = tab==="np" ? "notFoundNP" : "notFoundInv";
-      const dflt = tab==="np"
-        ? "구매 내역을 찾지 못했습니다.\n구매하신 사이트에 따라 연락처가 {{안심번호}}로 등록돼 있거나, 개인정보 보호로 성함이 {{홍*동}}처럼 가려진 채 전달되어 조회되지 않을 수 있습니다.\n[[이런 경우에는 송장번호로 조회해 주세요.]]\n최근 구매 건은 아직 등록 전일 수 있습니다."
-        : "구매 내역을 찾지 못했습니다.\n송장번호를 다시 확인해 주세요.\n최근 구매 건은 아직 등록 전일 수 있습니다.";
+      /* 탭마다 안내가 달라서 문구도 따로 둡니다. */
+      const NF={
+        np : ["notFoundNP",  "구매 내역을 찾지 못했습니다.\n구매하신 사이트에 따라 연락처가 {{안심번호}}로 등록돼 있거나, 개인정보 보호로 성함이 {{홍*동}}처럼 가려진 채 전달되어 조회되지 않을 수 있습니다.\n[[이런 경우에는 주문번호나 송장번호로 조회해 주세요.]]\n최근 구매 건은 아직 등록 전일 수 있습니다."],
+        ord: ["notFoundOrd", "구매 내역을 찾지 못했습니다.\n주문번호를 다시 확인해 주세요. 앞뒤 공백이나 빠진 숫자가 없는지 봐주세요.\n최근 구매 건은 아직 등록 전일 수 있습니다."],
+        inv: ["notFoundInv", "구매 내역을 찾지 못했습니다.\n송장번호를 다시 확인해 주세요.\n최근 구매 건은 아직 등록 전일 수 있습니다."]
+      };
+      const key  = (NF[tab]||NF.np)[0];
+      const dflt = (NF[tab]||NF.np)[1];
       ivNotice(MSGH(key, dflt)+ivSwitch(tab)
         +(MSGK(key,true)?'<div style="margin-top:10px">계속 안 되시면 아래로 문의해 주세요.'+ivKakao()+'</div>':""));
       return;
@@ -1788,6 +1811,13 @@ function showDup(dup,review){$("#box").className="box dup";$("#mIcon").textConte
   const reason = cap>1
     ? fill(MSGT("dupQty","구매 수량 ○○개를 모두 접수하셨습니다 (접수 ○○개)"),[cap,used])
     : (dkey ? MSGT(dkey, DUP_LABEL[dup.type]) : "이미 참여한 내역이 있습니다");
+  /* 창 아래 「추가 참여 안내」는 유형에 따라 다릅니다.
+     포토리뷰는 원장에 구매 수량이 있어 수량으로 이야기하지만,
+     쿠팡 정품등록은 원장이 없어 제품당 1건 고정이라 수량 개념이 없습니다. */
+  const askKey = state.type==="coupang" ? "dupAskCoupang" : "dupAskReview";
+  const askDflt = state.type==="coupang"
+    ? "{{2대 이상}} 구매하셔서 추가로 등록하셔야 하거나, 등록하신 적이 없는데 이 안내가 보이시면 아래 {{○○ 카카오톡 채널}}로 문의해 주세요.\n[[중복접수를 방지하기 위해 아이닉 상담사에게 수기접수를 요청해 주세요.]]"
+    : "구매하신 수량보다 {{더 많이}} 참여하셔야 하는 사정이 있으시면, 아래 {{○○ 카카오톡 채널}}로 문의해 주세요.\n[[중복접수를 방지하기 위해 아이닉 상담사에게 포토리뷰 수기접수 요청해 주세요.]]";
   const url=KAKAO_CHANNELS[cat]||"";
   $("#mDesc").textContent="";
   const more=$("#mMore"); if(more) more.classList.add("hide");
@@ -1799,8 +1829,8 @@ function showDup(dup,review){$("#box").className="box dup";$("#mIcon").textConte
       `<div style="margin:2px 0 12px;padding:11px 13px;background:#fdecec;border:1px solid #f3c6c6;border-radius:10px;font-size:13.5px;font-weight:700;color:#b23b3b;line-height:1.5">중복 사유 : 동일 제품으로 ${reason}</div>`
     + `<div><b>제품</b> ${prod}</div>`
     + `<div style="margin-top:12px;padding:11px 13px;background:#fff7e6;border:1px solid #f0e0c0;border-radius:9px;font-size:13px;line-height:1.6">`
-      +rich(fill(MSGT("dupAsk","구매하신 수량보다 {{더 많이}} 참여하셔야 하는 사정이 있으시면, 아래 {{○○ 카카오톡 채널}}로 문의해 주세요.\n[[중복접수를 방지하기 위해 아이닉 상담사에게 포토리뷰 수기접수 요청해 주세요.]]"),[cat]))
-      +(MSGK("dupAsk",true)?kakao:"")+`</div>`;
+      +rich(fill(MSGT(askKey, askDflt),[cat]))
+      +(MSGK(askKey,true)?kakao:"")+`</div>`;
   $("#modal").classList.add("on");}
 /* 이어서 신청 — 조회 결과·개인정보·동의는 그대로 두고 제품/설문/사진만 다시 받는다 */
 function continueEntry(){
@@ -1828,10 +1858,12 @@ window.continueEntry=continueEntry;
 function resetForm(){
   state.type=null;state.category="주방가전";state.file=null;state.buyFile=null;
   clearLookup(); state.doneCodes=[]; state.vTab="np";
-  ["#vName","#vPhone","#vInv"].forEach(s=>{const el=$(s);if(el)el.value="";});
+  ["#vName","#vPhone","#vOrd","#vInv"].forEach(s=>{const el=$(s);if(el)el.value="";});
   {const b=$("#invResult");if(b)b.innerHTML="";}
-  $$("#vtabs .vtab").forEach(b=>b.classList.toggle("on",b.dataset.vt==="ord"));
-  ["np","ord","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k==="ord");});
+  /* ⚠️ 처음 화면은 「성함+연락처」 탭입니다. 예전에 "ord" 로 적혀 있어
+     state 는 np 인데 화면은 다른 탭이 열리는 어긋남이 있었습니다. */
+  $$("#vtabs .vtab").forEach(b=>b.classList.toggle("on",b.dataset.vt==="np"));
+  ["np","ord","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k==="np");});
   state.consent={};state.survey={};state.surveyFor=null;state.giftChoice=null;state.infoFor=null;
   state.esurvey={};state.esurveyInit=false;{const eb=$("#entryBox");if(eb)eb.innerHTML="";}
   ["#name","#phone","#addrRoad","#addrDetail","#serial","#file"].forEach(s=>{const el=$(s);if(el)el.value="";});

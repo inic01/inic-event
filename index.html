@@ -493,6 +493,14 @@ function applyConfig(){
     if(!CFG.notices.dupAskReview)  CFG.notices.dupAskReview  = CFG.notices.dupAsk;
     if(!CFG.notices.dupAskCoupang) CFG.notices.dupAskCoupang = CFG.notices.dupAsk;
   }
+  /* 접수 완료 문구도 마찬가지 — 둘로 저장돼 있으면 넷에 그대로 씁니다. */
+  if(CFG.notices){
+    const N=CFG.notices;
+    [["doneReview","doneReviewGift","doneReviewCoupon"],
+     ["doneCoupang","doneCoupangGift","doneCoupangCoupon"]].forEach(([o,a,b])=>{
+      if(N[o]){ if(!N[a]) N[a]=N[o]; if(!N[b]) N[b]=N[o]; }
+    });
+  }
   Object.keys(ERR_KEY).forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
     const t=MSGT(ERR_KEY[id],""); if(t) el.textContent=t;
@@ -1385,7 +1393,9 @@ $("#buyFile").addEventListener("change",async e=>{
   $("#buyDropInner").innerHTML=`<img class="preview" src="${buyPreviewUrl}"><div style="margin-top:8px"><span class="upbtn">다른 이미지로 변경</span></div>`;
   $("#buyFilename").textContent="📎 "+(f.name||"이미지")+" · "+fmtBytes(out.size)+(out!==f?` (원본 ${fmtBytes(f.size)}에서 줄임)`:"");
 });
-function openBuyEx(){ exOpen(BUY_EXAMPLE,"쿠팡 구매내역 캡처 예시",false,false); }
+/* ⚠️ 예시 이미지가 **왼쪽 PC · 오른쪽 핸드폰**으로 나뉘어 있습니다.
+   폰에서는 통째로 보면 글씨가 안 읽혀서, 한쪽만 크게 보는 버튼을 함께 띄웁니다. */
+function openBuyEx(){ exOpen(BUY_EXAMPLE,"쿠팡 구매내역 캡처 예시",false,true); }
 
 /* ══════════ 구매 확인 게이트 ══════════
    리포트 '주문DB'에 올려둔 구매 원장에서 본인 구매 건을 찾는다.
@@ -1810,6 +1820,7 @@ async function submit(){
       entry.giftQty=res.giftQty||entry.giftQty;
       entry.buyQty=res.buyQty||entry.buyQty;
       entry.usedBefore=res.usedBefore||0;
+      if(res.orderNo) entry.orderNo=res.orderNo;      // 주문번호는 창구가 원장에서 채워 준다
       if(state.product) state.usedByCode[state.product]=(res.usedBefore||0)+(res.giftQty||1);
       showDone(entry,false);
     }
@@ -1828,11 +1839,14 @@ function resetBtn(){const b=$("#submitBtn");b.disabled=false;b.textContent="참�
 function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅";
   $("#mTitle").textContent=MSGT("doneTitle","참여가 접수되었습니다");state.lastModal="done";
   const review=e.type==="review";
-  const rlabel=e.rewardType==="coupon"?"기프티콘(상품권)이":"사은품이";
-  /* 포토리뷰냐 쿠팡 정품등록이냐에 따라 심사 방법이 달라 문구도 따로 둡니다. */
-  const pre=review
-    ? MSGT("doneReview","리뷰 심사(별점·사진 자동 확인) 후 ○○ 발송됩니다.")
-    : MSGT("doneCoupang","정품등록 심사(시리얼번호 자동 대조) 후 ○○ 발송됩니다.");
+  const coupon=e.rewardType==="coupon";
+  const rlabel=coupon?"기프티콘(상품권)이":"사은품이";
+  /* 심사 방법(포토리뷰/쿠팡)과 받는 것(사은품/상품권)에 따라 문구가 넷으로 나뉩니다.
+     ⚠️ 예전에는 둘뿐이라 「사은품이 발송됩니다」와 「기프티콘이 발송됩니다」를
+        ○○ 자리로만 바꿨습니다. 이제는 문장 전체를 따로 쓰실 수 있습니다. */
+  const dKey  = (review?"doneReview":"doneCoupang") + (coupon?"Coupon":"Gift");
+  const dHead = review ? "리뷰 심사(별점·사진 자동 확인) 후 " : "정품등록 심사(시리얼번호 자동 대조) 후 ";
+  const pre   = MSGT(dKey, dHead + "○○ 발송됩니다.");
   $("#mDesc").textContent=fill(pre,[rlabel])+(demo?" ※ 데모라 실제 저장은 안 됩니다.":"");
   const prod=(PRODUCTS[e.category]||[]).find(p=>p.code===e.product);
   const pname=(prod&&prod.name)||e.productName||e.product;
@@ -1857,7 +1871,14 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
     +`<div><b>유형</b> ${review?"포토리뷰 이벤트":"쿠팡·로켓배송 정품 등록"}</div>`
     +`<div><b>제품</b> ${pname}</div>`
     +(e.giftItem?`<div><b>${e.rewardType==="coupon"?"상품권":"사은품"}</b> ${e.giftItem}${q>1?` · ${q}개`:""}</div>`:``)
-    +`<div><b>주문번호</b> ${e.orderNo}</div><div><b>수령인</b> ${e.name}</div><div><b>연락처</b> ${e.phone}</div>`;
+    +(e.orderNo?`<div><b>주문번호</b> ${esc(e.orderNo)}</div>`:``)
+    +`<div><b>수령인</b> ${e.name}</div><div><b>연락처</b> ${e.phone}</div>`;
+  /* 설정 「접수폼 → 접수 완료 · 완료 문구」 — 유형·사은품과 상관없는 공통 안내를
+     팝업 맨 아래에 붙입니다. 예: 「접수일로부터 1~2일 내 순차 출고」
+     ⚠️ 예전에는 이 칸이 화면 어디에도 안 나와서, 저장해도 바뀌지 않았습니다(2026-09-08 발견). */
+  const doneNote = (CFG && CFG.done && CFG.done.desc) ? String(CFG.done.desc).trim() : "";
+  if(doneNote) kv += '<div style="margin-top:12px;padding:11px 13px;background:#f7f9fc;'
+    + 'border-radius:9px;font-size:12.5px;color:#6b6560;line-height:1.6">'+rich(doneNote)+'</div>';
   $("#mKv").innerHTML=kv;
   /* 접수한 만큼 참여 이력에 반영 — 이어서 신청 화면에서 남은 수량이 정확해진다 */
   /* ⚠️ 형제 코드도 같이 올립니다. 안 그러면 「이어서 신청」에서 밀폐키친홀더 → 활성탄필터로

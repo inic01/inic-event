@@ -1204,27 +1204,53 @@ function buildCatalog(){
   SOURCES=[...src];
   computeDups();
 }
-/* 중복 참여 판정: 같은 유형 안에서 (제품+연락처) 또는 (제품+이름+주소), 쿠팡은 시리얼번호까지.
-   먼저 접수된 건은 유효, 이후 같은 정보 건은 부적합. 수기접수 건은 제외. */
+/* 중복 참여 판정 —
+   ⚠️ 예전에는 「같은 제품 + 같은 연락처」가 두 번 나오면 무조건 중복(부적합)이었습니다.
+      그런데 2개 이상 사신 고객이 「나눠서 접수하기」로 두 번 접수하면
+      정상 접수인데도 두 번째 건이 부적합으로 찍혔습니다(2026-09-08 발견).
+   그래서 「몇 번째 접수냐」가 아니라 「지금까지 접수한 개수가 산 개수를 넘었느냐」로 봅니다.
+     산 개수  = 접수 당시 원장에서 도장 찍힌 buyQty (예전 건은 값이 없어 1로 봅니다)
+     접수 개수 = giftQty 를 더해 나갑니다
+   시리얼번호(쿠팡)는 한 대에 하나뿐이라 지금처럼 한 번만 허용합니다.
+   수기접수 건은 처음부터 제외합니다. */
 function computeDups(){
-  dupIds=new Set(); dupReasonMap={};
+  dupIds = new Set(); dupReasonMap = {};
   ["review","coupang"].forEach(t=>{
-    const seenP=new Set(), seenNA=new Set(), seenS=new Set();
-    ALL.filter(e=>e.type===t).slice()
-       .sort((a,b)=>(a._date?.getTime()||0)-(b._date?.getTime()||0))
-       .forEach(e=>{
-         if(e.manual)return;
-         const prod=String(e.product||"").trim();
-         const phone=e.phoneKey||String(e.phone||"").replace(/\D/g,"");
-         const nm=String(e.name||"").trim(), addr=String(e.address||"").trim();
-         const kP=prod+"|"+phone, kNA=prod+"|"+nm+"|"+addr, kS=String(e.serial||"").trim().toLowerCase();
-         const hit=[];
-         if(phone && seenP.has(kP)) hit.push("연락처");
-         if((nm||addr) && seenNA.has(kNA)) hit.push("이름·주소");
-         if(t==="coupang" && kS && seenS.has(kS)) hit.push("시리얼번호");
-         if(hit.length){ dupIds.add(e._id); dupReasonMap[e._id]="중복 참여 ("+hit.join("·")+")"; }
-         else { if(phone)seenP.add(kP); if(nm||addr)seenNA.add(kNA); if(t==="coupang"&&kS)seenS.add(kS); }
-       });
+    const rows = ALL.filter(e=>e.type===t && !e.manual).slice()
+      .sort((a,b)=>(a._date?.getTime()||0)-(b._date?.getTime()||0));
+    const keyOf = e=>{
+      const prod  = String(e.product||"").trim();
+      const phone = e.phoneKey || String(e.phone||"").replace(/\D/g,"");
+      const nm    = String(e.name||"").trim(), addr = String(e.address||"").trim();
+      return { prod, phone, nm, addr,
+               kP: prod+"|"+phone, kNA: prod+"|"+nm+"|"+addr,
+               kS: String(e.serial||"").trim().toLowerCase(),
+               cap: Math.max(1, parseInt(e.buyQty,10) || 1),
+               q:   Math.max(1, parseInt(e.giftQty,10) || 1) };
+    };
+    /* ① 그 고객이 몇 개를 샀는지 먼저 모읍니다(같은 사람의 건 중 가장 큰 값). */
+    const capP = {}, capNA = {};
+    rows.forEach(e=>{ const k=keyOf(e);
+      if(k.phone)        capP[k.kP]  = Math.max(capP[k.kP]  || 1, k.cap);
+      if(k.nm || k.addr) capNA[k.kNA]= Math.max(capNA[k.kNA]|| 1, k.cap); });
+    /* ② 접수 순서대로 개수를 더해 가며, 산 개수를 넘는 건부터 중복으로 봅니다. */
+    const useP = {}, useNA = {}, seenS = new Set();
+    rows.forEach(e=>{
+      const k = keyOf(e), hit = [];
+      const capp = capP[k.kP] || 1, capn = capNA[k.kNA] || 1;
+      if(k.phone && (useP[k.kP]||0) + k.q > capp)          hit.push("연락처");
+      if((k.nm||k.addr) && (useNA[k.kNA]||0) + k.q > capn) hit.push("이름·주소");
+      if(t==="coupang" && k.kS && seenS.has(k.kS))         hit.push("시리얼번호");
+      if(hit.length){
+        dupIds.add(e._id);
+        dupReasonMap[e._id] = "중복 참여 (" + hit.join("·")
+          + (hit[0] !== "시리얼번호" ? " · 구매 " + Math.max(capp, capn) + "개 초과" : "") + ")";
+      } else {
+        if(k.phone)        useP[k.kP]   = (useP[k.kP]   || 0) + k.q;
+        if(k.nm || k.addr) useNA[k.kNA] = (useNA[k.kNA] || 0) + k.q;
+        if(t==="coupang" && k.kS) seenS.add(k.kS);
+      }
+    });
   });
 }
 function allProducts(){const s=[];for(const c in PRODUCTS)PRODUCTS[c].forEach(([code])=>s.push(code));ALL.forEach(e=>{if(e.product&&!s.includes(e.product))s.push(e.product);});return s;}
@@ -4292,8 +4318,12 @@ const DEFAULTS = {
 
     /* ── 접수 완료 창 ── */
     doneTitle:    { t:"참여가 접수되었습니다", k:false },
-    doneReview:   { t:"리뷰 심사(별점·사진 자동 확인) 후 ○○ 발송됩니다.", k:false },
-    doneCoupang:  { t:"정품등록 심사(시리얼번호 자동 대조) 후 ○○ 발송됩니다.", k:false },
+    /* 심사 방법(포토리뷰/쿠팡) × 받는 것(사은품/상품권) = 넷.
+       ○○ 를 남겨 두면 「사은품이」 「기프티콘(상품권)이」 가 자동으로 들어갑니다. */
+    doneReviewGift:   { t:"리뷰 심사(별점·사진 자동 확인) 후 사은품이 발송됩니다.", k:false },
+    doneReviewCoupon: { t:"리뷰 심사(별점·사진 자동 확인) 후 기프티콘(상품권)이 발송됩니다.", k:false },
+    doneCoupangGift:  { t:"정품등록 심사(시리얼번호 자동 대조) 후 사은품이 발송됩니다.", k:false },
+    doneCoupangCoupon:{ t:"정품등록 심사(시리얼번호 자동 대조) 후 기프티콘(상품권)이 발송됩니다.", k:false },
     doneMulti:    { t:"○○ 고객님, 이벤트 참여가 완료되었습니다.\n신청하신 {{○○}} {{○○개}}가 구매 수량에 맞게 발송될 예정입니다.", k:false },
     doneLeft:     { t:"○○ 고객님, 구매 수량 {{○○개}} 중 {{○○개}}가 접수되었습니다.\n남은 {{○○개}}는 리뷰를 추가로 남기신 뒤 아래 버튼으로 이어서 접수해 주세요.", k:false },
     doneLeftShip: { t:"※ 접수 건마다 따로 발송되어 배송비(착불)가 각각 부과됩니다.", k:false },
@@ -4774,68 +4804,118 @@ function pvE(s){ return String(s == null ? "" : s)
 function pvT(s){ return pvE(s).replace(/\n/g, "<br>")
   .replace(/\[\[([^\]]+)\]\]/g, '<span class="hl">$1</span>')
   .replace(/\{\{([^}]+)\}\}/g, '<span class="hlk">$1</span>'); }
-/* 「구매 확인」·「접수 완료」 화면 미리보기 —
-   이 두 화면의 문구는 항목 밑 빨간 글씨도, 팝업도 아니라서
-   글만 봐서는 어디에 어떻게 붙는지 알 수 없습니다.
-   그래서 실제 접수폼 화면을 폰 모양 그대로 띄워 그 자리에 넣어 보여 줍니다. */
-function pvScreenDoc(kind, spot){
-  /* spot — 지금 고치고 있는 문구가 들어가는 자리. 노란 테두리로 짚어 줍니다. */
-  const hl = k => (spot === k ? ' pvhl' : '');
-  const tag = k => (spot === k ? '<span class="pvtag">\u25B2 지금 고치는 문구</span>' : '');
-  let body;
-  if(kind === "done"){
-    /* 접수 완료 — 실제로는 화면을 덮는 팝업입니다. */
-    body = '<div class="wrap"><div class="card">'
-      + '<h2>캡처 및 받으실 정보 <span class="req">*</span></h2>'
-      + '<p class="desc">정확히 입력해 주세요.</p>'
-      + '<div class="field"><label class="fld">수령인 성함 <span class="req">*</span></label>'
-      +   '<input type="text" value="홍길동" readonly></div>'
-      + '</div></div>'
-      + '<div class="modal on"><div class="box">'
-      +   '<div class="icon">\u2705</div><h3>참여가 접수되었습니다</h3>'
-      +   '<p class="' + hl("desc").trim() + '">' + pvT(cfg.form.done.desc || "(완료 문구가 비어 있습니다)") + '</p>'
-      +   tag("desc")
-      +   '<div class="kv"><b>제품</b> ' + pvE(surveyProduct) + '<br><b>수령인</b> 홍길동<br><b>연락처</b> 010-1234-5678</div>'
-      +   '<button type="button">확인</button>'
-      + '</div></div>';
-  } else {
-    /* 구매 확인 — 글이 들어가는 자리가 두 군데입니다.
-         desc  제목 바로 밑 작은 회색 글씨
-         tip   조회 칸 위 회색 안내 상자                    */
-    body = '<div class="wrap"><div class="card">'
-      + '<h2>구매 확인 <span class="req">*</span></h2>'
-      + '<p class="desc' + hl("desc") + '">' + pvT(cfg.form.lookup.desc || "(화면 설명이 비어 있습니다)") + '</p>'
-      + tag("desc")
-      + '<div class="vtabs"><button type="button" class="vtab on">성함 + 연락처</button>'
-      +   '<button type="button" class="vtab">송장번호</button></div>'
-      + '<div class="notice' + hl("tip") + '" style="margin:0 0 4px">'
-      +   pvT(cfg.form.lookup.tip || "(주의 문구가 비어 있습니다)") + '</div>'
-      + tag("tip")
-      + '<div class="field" style="margin:10px 0"><label class="fld">성함 <span class="req">*</span></label>'
-      +   '<input type="text" placeholder="주문하신 분 성함"></div>'
-      + '<div class="field"><label class="fld">연락처 <span class="req">*</span></label>'
-      +   '<input type="tel" placeholder="예) 010-1234-5678"></div>'
-      + '<button type="button" style="width:100%;margin-top:14px;padding:13px 0;border-radius:10px;'
-      +   'border:1.5px solid var(--brand);background:var(--brand);color:#fff;font-weight:800;font-size:14px">'
-      +   '구매 내역 확인</button>'
-      + '</div></div>';
+/* 「구매 확인」·「접수 완료」·상황별 안내 문구 미리보기 —
+   글만 봐서는 어디에 어떻게 붙는지 알 수 없어서,
+   실제 접수폼 화면을 폰 모양 그대로 띄우고 그 자리에 문구를 넣어 보여 줍니다.
+   ⚠️ 여기 쓰이는 글씨·색·간격은 전부 접수폼(index.html)의 것과 같습니다(PV_CSS).
+      그래서 이 화면이 곧 고객이 보는 화면입니다. */
+
+/* ── 구매 확인 화면 한 판 ──
+   ex.err 를 주면 항목 밑 빨간 글씨가, ex.box 를 주면 조회 버튼 아래 회색 상자가 붙습니다. */
+function pvLookupBody(spot, ex){
+  ex = ex || {};
+  const hl = k => (spot === k ? " pvhl" : "");
+  const F  = (cfg.form && cfg.form.lookup) || {};
+  return '<div class="wrap"><div class="card">'
+  + '<h2>' + pvE(F.title || "구매 확인") + ' <span class="req">*</span></h2>'
+  + '<p class="desc' + hl("desc") + '">' + pvT(F.desc || "(화면 설명이 비어 있습니다)") + '</p>'
+  + '<div class="vtabs"><div class="vtab on">성함+연락처</div>'
+  +   '<div class="vtab">주문번호</div><div class="vtab">송장번호</div></div>'
+  + '<div class="notice' + hl("tip") + '">' + pvT(F.tip || "(주의 문구가 비어 있습니다)") + '</div>'
+  + '<div class="field" style="margin-bottom:10px">'
+  +   '<label class="fld">성함 <span class="req">*</span></label>'
+  +   '<input type="text" value="홍길동" readonly' + (ex.err ? ' class="invalid"' : '') + '></div>'
+  + '<div class="field"><label class="fld">연락처 <span class="req">*</span></label>'
+  +   '<input type="tel" value="010-1234-5678" readonly></div>'
+  + (ex.err ? '<div class="pvhl" style="color:#e5484d;font-size:12px;font-weight:700;margin-top:8px">'
+      + ex.err + '</div>' : '')
+  + '<button type="button" style="width:100%;margin-top:14px;padding:13px 0;border-radius:10px;'
+  +   'border:1.5px solid var(--brand);background:var(--brand);color:#fff;font-weight:800;font-size:14px">'
+  +   '구매 내역 확인</button>'
+  + (ex.box ? '<div style="margin-top:12px">' + ex.box + '</div>' : '')
+  + '</div></div>';
+}
+
+/* ── 접수 완료 팝업 한 판 ──
+   ⚠️ 「완료 문구」는 팝업 맨 아래 회색 상자로 붙습니다(2026-09-08 연결). */
+function pvDoneBody(spot){
+  const hl = k => (spot === k ? " pvhl" : "");
+  const D  = (cfg.form && cfg.form.done) || {};
+  const nt = k => { const o = (cfg.notices || {})[k]; return (o && o.t) || ""; };
+  const note = String(D.desc || "").trim();
+  const noteBox = note
+    ? '<div class="' + hl("desc").trim() + '" style="margin-top:12px;padding:11px 13px;'
+      + 'background:#f7f9fc;border-radius:9px;font-size:12.5px;color:#6b6560;line-height:1.6">'
+      + pvT(note) + '</div>'
+    : '<div class="' + hl("desc").trim() + '" style="margin-top:12px;padding:11px 13px;'
+      + 'border:1px dashed #e6e2de;border-radius:9px;font-size:12.5px;color:#b3aaa2">'
+      + '(완료 문구가 비어 있어 이 자리에는 아무것도 안 나옵니다)</div>';
+  return '<div class="wrap"><div class="card"><h2>참여 신청</h2>'
+  +   '<p class="desc">마지막 단계까지 채우고 「참여 신청하기」를 누른 뒤 뜨는 화면입니다.</p></div></div>'
+  + '<div class="modal on"><div class="box">'
+  +   '<div class="icon">✅</div>'
+  +   '<h3>' + pvE(nt("doneTitle") || "참여가 접수되었습니다") + '</h3>'
+  +   '<p>' + pvT((nt("doneReviewGift")
+        || "리뷰 심사(별점·사진 자동 확인) 후 ○○ 발송됩니다.").replace("○○", "사은품이")) + '</p>'
+  +   '<div class="kv">'
+  +     '<div><b>유형</b> 포토리뷰 이벤트</div>'
+  +     '<div><b>제품</b> 무선청소기 맥스제로 i90</div>'
+  +     '<div><b>사은품</b> 물걸레 키트</div>'
+  +     '<div><b>주문번호</b> 2026090112345678</div>'
+  +     '<div><b>수령인</b> 홍길동</div>'
+  +     '<div><b>연락처</b> 010-1234-5678</div>'
+  +     noteBox
+  +   '</div>'
+  +   '<button type="button">확인</button>'
+  + '</div></div>';
+}
+
+/* ── 상황별 안내 문구 한 판 ──
+   모양은 셋뿐입니다. box=회색 상자, err=항목 밑 빨간 글씨, popup=화면을 덮는 팝업. */
+function pvNoticeBody(shape, text, kakao, name){
+  const t  = pvT(text || "(문구가 비어 있습니다)");
+  const kb = kakao ? '<div style="margin-top:10px"><span class="cpkakao">'
+    + '💬 상담사 문의하기</span></div>' : '';
+  if(shape === "popup"){
+    return '<div class="wrap"><div class="card"><h2>' + pvE(name) + '</h2>'
+    +   '<p class="desc">이 상황이 되면 아래 팝업이 화면을 덮습니다.</p></div></div>'
+    + '<div class="modal on"><div class="box pvhl">'
+    +   '<div class="icon">⚠️</div>'
+    +   '<p style="color:#2b2725;font-size:13.5px;font-weight:600">' + t + '</p>'
+    +   kb
+    +   '<button type="button">확인</button></div></div>';
   }
+  if(shape === "err") return pvLookupBody(null, { err: t + kb });
+  /* 회색 상자는 실제 화면에서 첫 줄만 빨간 굵은 글씨입니다. */
+  const raw   = String(text || "(문구가 비어 있습니다)").split("\n");
+  const first = '<span class="hl">' + pvT(raw[0]) + '</span>';
+  const rest  = raw.length > 1 ? "<br>" + pvT(raw.slice(1).join("\n")) : "";
+  return pvLookupBody(null, { box:'<div class="notice pvhl" style="margin:0">' + first + rest + kb + '</div>' });
+}
+
+function pvScreenDoc(kind, spot, o){
+  o = o || {};
+  let body, prog = 22;
+  if(kind === "done"){ body = pvDoneBody(spot); prog = 100; }
+  else if(kind === "notice"){ body = pvNoticeBody(o.shape, o.text, o.kakao, o.name);
+    if(o.shape === "popup") prog = 100; }
+  else body = pvLookupBody(spot);
   return '<!doctype html><html lang="ko"><head><meta charset="utf-8">'
   + '<meta name="viewport" content="width=device-width,initial-scale=1">'
   + '<style>' + PV_CSS
-  + '\n.wrap{max-width:none;padding-bottom:20px}\n.modal{padding:16px}'
+  + '\n.wrap{max-width:none;padding-bottom:20px}\n.modal{padding:16px;position:static;background:rgba(20,16,14,.42)}'
   + '\n.pvhl{outline:2px dashed #b26a00;outline-offset:5px;border-radius:8px;background:#fffaf0}'
-  + '\n.pvtag{display:block;margin:12px 0 8px;font-size:11px;font-weight:800;color:#b26a00}'
+  + '\n.vtab{text-align:center}'
   + '\n</style></head><body>'
   + '<header class="hero"><img class="logo" src="' + PV_LOGO + '" alt="inic">'
   +   '<h1>' + pvE(cfg.survey.title) + '</h1>'
-  +   '<span class="demo-badge">\uD83D\uDC41 미리보기 — 실제로 접수되지 않습니다</span></header>'
-  + '<div class="bar"><i style="width:' + (kind === "done" ? "100" : "22") + '%"></i></div>'
+  +   '<span class="demo-badge">👁 미리보기 — 실제로 접수되지 않습니다</span></header>'
+  + '<div class="bar"><i style="width:' + prog + '%"></i></div>'
   + body + '</body></html>';
 }
 
 /* 폰 모양 창을 띄우고 그 안에 위 화면을 넣습니다. */
-function openScreenPreview(kind, spot, cap){
+function openScreenPreview(kind, spot, cap, o){
   let m = document.getElementById("pvModal");
   if(!m){
     m = document.createElement("div");
@@ -4859,7 +4939,7 @@ function openScreenPreview(kind, spot, cap){
   }
   m.querySelector("#pvCap").textContent = "\uD83D\uDC41 고객이 보는 화면 — " + cap;
   m.style.display = "flex";
-  m.querySelector("#pvFrame").srcdoc = pvScreenDoc(kind, spot);
+  m.querySelector("#pvFrame").srcdoc = pvScreenDoc(kind, spot, o);
 }
 
 
@@ -5204,8 +5284,10 @@ const NOTICE_GROUPS = [
   ]],
   ["⑧ 접수 완료 — 초록 팝업 창", [
     ["doneTitle",    "창 제목",          "접수가 끝나면 항상"],
-    ["doneReview",   "포토리뷰일 때",     "제목 밑 한 줄"],
-    ["doneCoupang",  "쿠팡 정품등록일 때","제목 밑 한 줄"],
+    ["doneReviewGift",   "포토리뷰 · 사은품일 때",      "제목 밑 한 줄"],
+    ["doneReviewCoupon", "포토리뷰 · 상품권일 때",      "제목 밑 한 줄"],
+    ["doneCoupangGift",  "쿠팡 정품등록 · 사은품일 때",  "제목 밑 한 줄"],
+    ["doneCoupangCoupon","쿠팡 정품등록 · 상품권일 때",  "제목 밑 한 줄"],
     ["doneMulti",    "여러 개 한 번에",   "2개 이상을 한 번에 접수했을 때"],
     ["doneLeft",     "남은 수량이 있을 때","산 수량보다 적게 접수했을 때"],
     ["doneLeftShip", "착불 주의",        "위 문구 아래 · 사은품(착불)일 때만"]
@@ -5299,21 +5381,12 @@ function noticePreview(title, name, text, kakao){
   return box;
 }
 
+/* 상황별 문구도 손으로 그린 상자가 아니라
+   위와 똑같은 폰 화면(고객이 보는 그대로) 안에 넣어 보여 줍니다. */
 function openNoticePreview(title, name, text, kakao){
-  let m = document.getElementById("npvModal");
-  if(!m){
-    m = el("div", { id:"npvModal", class:"npvmodal",
-      onclick:e => { if(e.target === m) m.style.display = "none"; } },
-      el("div", { class:"npvcard" },
-        el("div", { id:"npvSlot" }),
-        el("div", { style:"text-align:right;margin-top:12px" },
-          el("button", { class:"btn sm primary", type:"button",
-            onclick:() => { m.style.display = "none"; } }, "닫기"))));
-    (document.getElementById("evtCfg") || document.body).appendChild(m);
-  }
-  const slot = m.querySelector("#npvSlot");
-  slot.replaceChildren(noticePreview(title, name, text, kakao));
-  m.style.display = "flex";
+  const shape = NOTICE_SHAPE[title.slice(0, 1)] || "box";
+  openScreenPreview("notice", null, name + " · " + SHAPE_LABEL[shape],
+    { shape, text, kakao, name });
 }
 
 function paneNotice(){
@@ -5536,6 +5609,18 @@ function fixNotices(c){
     if(!N.dupAskCoupang) N.dupAskCoupang = { t:old.t, k:old.k };
     delete N.dupAsk;
   }
+
+  /* 접수 완료 문구를 「사은품/상품권」까지 넷으로 나눴습니다.
+     예전에 둘로 저장해 두셨으면 그 글을 각각 옮겨 드립니다. */
+  [["doneReview", "doneReviewGift", "doneReviewCoupon"],
+   ["doneCoupang", "doneCoupangGift", "doneCoupangCoupon"]].forEach(([old, a, b]) => {
+    const o2 = N[old];
+    if(o2 && typeof o2 === "object"){
+      if(!N[a]) N[a] = { t:o2.t, k:o2.k };
+      if(!N[b]) N[b] = { t:o2.t, k:o2.k };
+      delete N[old];
+    }
+  });
 
   /* 그 밖에 빠진 문구는 기본값으로 채웁니다 */
   Object.keys(DEFAULTS.notices).forEach(k=>{

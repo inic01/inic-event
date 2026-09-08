@@ -4507,6 +4507,26 @@ function ledgerSrcNote(){
     list.slice(0, 20).map(x => x.name + "(" + x.n.toLocaleString() + ")").join(" · "));
 }
 
+/* 사은품 사진명을 자동으로 지어 줍니다.
+   담당자가 파일 이름을 고민하지 않도록 제품 코드와 시작일로 규칙을 정해 두었습니다.
+     gifts/promo-i50t-20260908.webp
+   ⚠️ 담당자가 직접 고친 이름은 건드리지 않습니다. */
+function autoImgName(r){
+  const pr = prodOf(r.product);
+  const code = (pr && (pr.codes || [])[0]) || "";
+  if(!code) return "";
+  const c = String(code).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const day = String(r.from || "").replace(/-/g, "");
+  return "gifts/promo-" + c + (day ? "-" + day : "") + ".webp";
+}
+/* 바꾸기 전후의 자동 이름을 비교해, 담당자가 손대지 않은 칸만 새로 채웁니다 */
+function syncImgName(r, change){
+  const before = autoImgName(r);
+  change();
+  const after = autoImgName(r);
+  if(after && (!r.img || r.img === before)) r.img = after;
+}
+
 function paneRule(){
   const d = simDate();
   const cards = (cfg.giftRules || []).map((r, i) => {
@@ -4533,7 +4553,7 @@ function paneRule(){
       el("div", { class:"rulegrid" },
         el("div", { class:"field" },
           el("label", { for:"rp" + i }, "제품"),
-          el("select", { id:"rp" + i, onchange:e => { r.product = e.target.value; render(); } },
+          el("select", { id:"rp" + i, onchange:e => { syncImgName(r, () => { r.product = e.target.value; }); render(); } },
             el("option", { value:"", ...(r.product ? {} : { selected:"" }) }, "— 고르세요 —"),
             cfg.products.filter(x => x.ledger.trim()).map(x =>
               el("option", { value:x.ledger, ...(r.product === x.ledger ? { selected:"" } : {}) }, x.ledger)))),
@@ -4544,20 +4564,22 @@ function paneRule(){
         /* 프로모션 사은품은 이름이 새것이라 접수폼에 사진이 없습니다.
            깃허브 저장소에 올린 사진의 파일 경로를 여기 적으면 그 사진이 나갑니다. */
         el("div", { class:"field" },
-          el("label", { for:"ri" + i }, "사은품 사진 (파일 경로)"),
+          el("label", { for:"ri" + i }, "사은품 사진명"),
           el("input", { id:"ri" + i, type:"text", value:r.img || "",
-            placeholder:"gifts/promo_i50.webp",
             oninput:e => { r.img = e.target.value; softRefresh(); } }),
           r.img
             ? el("img", { src:r.img, alt:"사은품 사진 미리보기",
                 style:"margin-top:8px;max-width:150px;border-radius:8px;border:1px solid var(--line);display:block",
                 onerror:"this.style.display='none';this.nextSibling&&(this.nextSibling.style.display='block')" })
             : "",
+          el("p", { class:"note", style:"margin-top:4px" },
+            r.img
+              ? el("span", {}, "이 이름 그대로 사진을 만들어 깃허브 ", el("b", {}, "gifts"), " 폴더에 올리시면 됩니다.")
+              : el("span", {}, "제품을 고르면 이름이 자동으로 채워집니다. 비워 두면 「이미지 준비 중」으로 나갑니다.")),
           r.img
             ? el("p", { class:"note", style:"display:none;color:var(--bad)" },
-                "이 경로에 사진이 없습니다. 깃허브에 올렸는지, 파일 이름이 맞는지 확인해 주세요.")
-            : el("p", { class:"note", style:"margin-top:4px" },
-                "비워 두면 「이미지 준비 중」으로 나갑니다.")),
+                "이 이름의 사진이 아직 없습니다. 깃허브에 올렸는지, 이름이 맞는지 확인해 주세요.")
+            : ""),
         el("div", { class:"field" },
           el("label", { for:"rt" + i }, "종류"),
           el("select", { id:"rt" + i, onchange:e => { r.type = e.target.value; render(); } },
@@ -4573,7 +4595,7 @@ function paneRule(){
         el("div", { class:"field" },
           el("label", { for:"rf" + i }, "시작일"),
           el("input", { id:"rf" + i, type:"date", value:r.from || "",
-            onchange:e => { r.from = e.target.value; render(); } })),
+            onchange:e => { syncImgName(r, () => { r.from = e.target.value; }); render(); } })),
         el("div", { class:"field" },
           el("label", { for:"rto" + i }, "종료일 (이 날 밤 12시에 자동 해제)"),
           el("input", { id:"rto" + i, type:"date", value:r.to || "",
@@ -4611,7 +4633,7 @@ function paneRule(){
       el("button", { class:"btn", type:"button", onclick:() => {
         cfg.giftRules.push({ product:"", srcs:[], label:"", type:"gift", from:"", to:"", basis:"apply", name:"", img:"" });
         render();
-      } }, "+ 규칙 추가")),
+      } }, "+ 프로모션 추가")),
     el("p", { class:"note" }, "종료일을 정하면 ", el("b", {}, "그 날 밤 12시(한국시간)가 지나는 순간"),
       " 규칙이 저절로 풀립니다. 사람이 끄러 들어올 필요가 없습니다. 걸러내는 값(",
       el("span", { class:"strike" }, LEDGER_SKIP.join(", ")), ")은 애초에 구매로 세지 않으므로 목록에 없습니다.")

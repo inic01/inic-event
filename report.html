@@ -4389,6 +4389,9 @@ function paneGift(){
                 FORM_PRODUCTS.map(([v, n]) => el("option", {
                   value:v, ...((p.codes||[]).join(",") === v ? { selected:"" } : {}) }, n))),
               el("div", { style:"font-size:11px;color:var(--sub);margin-top:3px" },
+                "여기에는 ", el("b", {}, "접수폼에 들어 있는 제품"), " 만 나옵니다. ",
+                "원장에는 있지만 이벤트를 안 하는 제품(공청가습기 등)은 ",
+                el("b", {}, "「이벤트 대상 아님」"), " 을 고르세요. ",
                 "고르지 않으면 사은품·설문·프로모션이 고객 화면에 반영되지 않습니다."))),
           el("td", { class:"tight" },
             el("select", { "aria-label":"카테고리", onchange:e => { p.cat = e.target.value; softRefresh(); } },
@@ -4410,11 +4413,11 @@ function paneGift(){
           el("td", { class:"tight" }, el("span", { style:"color:var(--sub)" }, p.cat)),
           el("td", {}, p.gift
             ? el("span", {}, p.gift)
-            : el("span", { style:"color:var(--sub)" }, "아직 정하지 않음")),
+            : el("span", { style:"color:var(--sub)" }, "이벤트 대상 아님")),
           el("td", { class:"tight" }, p.gift
             ? el("span", { class:"pill " + (p.type === "coupon" ? "coupon" : "gift") },
                 p.type === "coupon" ? "상품권" : "사은품")
-            : el("span", { class:"pill mute" }, "미실시")) ];
+            : el("span", { class:"pill mute" }, "대상 아님")) ];
 
     return el("tr", { class: on ? "editing" : "" }, cells,
       el("td", { class:"tight" },
@@ -4437,7 +4440,8 @@ function paneGift(){
       "고치려면 ", el("b", {}, "수정"), " 을 누르세요. 다 고치면 같은 자리의 ", el("b", {}, "저장"), " 을 누르면 됩니다. ",
       "제품군 이름은 ", el("b", {}, "원장(출고리스트)에 적힌 것과 똑같이"), " 넣어야 합니다. 한 글자라도 다르면 그 제품을 산 고객이 조회되지 않습니다.",
       el("br", {}),
-      "사은품을 비워 두고 저장하면 ", el("b", {}, "미실시"), " 상태가 됩니다. 제품만 먼저 등록해 두고 나중에 수정으로 채우셔도 됩니다."),
+      "사은품을 비워 두면 ", el("b", {}, "이벤트 대상 아님"), " 이 됩니다 — 원장에는 있지만 이벤트를 안 하는 제품입니다. ",
+      "제품만 먼저 등록해 두고 나중에 수정으로 채우셔도 됩니다."),
     el("div", { class:"tablewrap" },
       el("table", {},
         el("thead", {}, el("tr", {},
@@ -4957,7 +4961,7 @@ function paneForm(){
       el("div", { class:"gcard" },
         el("div", { class:"gimg" }, "사은품 이미지"),
         el("div", { style:"font-size:12px;color:var(--sub)" }, "받으실 " + (isCoupon ? "상품권" : "사은품")),
-        el("div", { style:"font-weight:800;margin-top:2px" }, simP.gift || "(미실시)")),
+        el("div", { style:"font-weight:800;margin-top:2px" }, simP.gift || "(이벤트 대상 아님)")),
       el("div", { class:"cblock" },
         el("div", { class:"ctitle" },
           F.reward.ackReq ? el("span", { class:"req" }, "*") : "",

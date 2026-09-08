@@ -1483,9 +1483,18 @@ async function lookupPurchase(){
       }
       if(why==="notarget"){
         const sk=(res.skipped||[]);
-        /* 걸러진 제품 이름은 조회 결과라서 문구 사이에 그대로 끼워 넣습니다. */
-        ivNotice(MSGH("noTarget","이벤트 대상 제품이 아닙니다.\n자세한 내용은 상담사에게 문의해 주세요.")
-          +(sk.length?`<br>구매하신 제품 : ${esc(sk.join(", "))}`:"")
+        const names = sk.join(", ");
+        const dflt = "구매하신 {{○○}} 제품은 이번 포토리뷰 이벤트를 진행하지 않습니다.\n다른 제품을 함께 구매하셨다면 그 제품으로 참여하실 수 있습니다.\n자세한 내용은 상담사에게 문의해 주세요.";
+        /* 문구 안에 ○○ 를 넣어 두면 그 자리에 제품 이름이 들어갑니다.
+           ○○ 를 안 쓴 문구라면 예전처럼 아래에 「구매하신 제품 : …」 을 따로 붙입니다. */
+        const hasSlot = /○/.test(MSGT("noTarget", dflt));
+        const used = (res.skippedUsed||[]).join(", ");
+        const usedLn = used
+          ? '<br>'+rich(fill(MSGT("skippedUsed","※ 중고·리퍼로 구매하신 상품은 포토리뷰 참여 대상이 아닌 점 참고 부탁드립니다."),[used]))
+          : "";
+        ivNotice((names ? MSGH("noTarget", dflt, [names]) : "")
+          +((!hasSlot && names) ? `<br>구매하신 제품 : ${esc(names)}` : "")
+          +usedLn
           +(MSGK("noTarget",true)?ivKakao():""));
         return;
       }
@@ -1538,6 +1547,20 @@ async function lookupPurchase(){
       return;
     }
 
+    /* 이벤트 대상이 아니라 빠진 제품이 있으면 그 이유를 알려 준다.
+       말없이 빼면 「두 개 샀는데 하나만 나온다」는 문의가 들어온다. */
+    const outNames  = (res.skipped||[]).join(", ");
+    const usedNames = (res.skippedUsed||[]).join(", ");
+    /* 이벤트를 안 하는 제품과 중고·리퍼는 이유가 달라서 문구를 따로 씁니다.
+       두 문구 모두 ○○ 자리에 제품 이름이 들어갑니다(안 쓰셔도 됩니다). */
+    const outLine = outNames
+      ? rich(fill(MSGT("skippedSome","※ {{○○}} 은(는) 이번 포토리뷰 이벤트를 진행하지 않아 제외되었습니다."),[outNames])) : "";
+    const usedLine = usedNames
+      ? rich(fill(MSGT("skippedUsed","※ 중고·리퍼로 구매하신 상품은 포토리뷰 참여 대상이 아닌 점 참고 부탁드립니다."),[usedNames])) : "";
+    const outHtml = (outLine || usedLine)
+      ? '<div class="notice" style="margin:10px 0 0;font-size:11.5px">'
+        + outLine + (outLine && usedLine ? '<br>' : '') + usedLine + '</div>'
+      : "";
     state.token=res.token||"";          // 접수할 때 이 도장을 함께 보낸다
     /* 프로모션 판단용 — 원장의 판매처·구매일자 */
     state.srcByCode=res.srcByCode||{}; state.buyByCode=res.buyByCode||{};
@@ -1563,6 +1586,7 @@ async function lookupPurchase(){
       +ivRow("제품",prodHtml||"-")
       +(res.date?ivRow("출고일",res.date):"")
       +'</div>'
+      +outHtml
       +'<div class="hint">개인정보 보호를 위해 일부만 표시합니다.'
       +(remainCodes.length>1?' 여러 제품을 구매하셨습니다 — 다음 단계에서 이번에 리뷰를 남기신 제품을 골라 주세요.':'')
       +'</div>'

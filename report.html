@@ -222,6 +222,10 @@
   #evtCfg th{font-size:11.5px; font-weight:700; color:var(--sub); background:var(--sunk); white-space:nowrap; letter-spacing:.04em}
   #evtCfg tr:last-child td{border-bottom:0}
   #evtCfg td.tight{white-space:nowrap; width:1%}
+  /* ⚠️ tight 칸은 폭을 1%로 눌러 두는데, 그 안의 선택칸(select)이 width:100% 라
+     「계절가전」이 「계절」로, 「사은품」이 「ㅅ」으로 잘려 보였습니다(2026-09-08).
+     글자가 다 보이도록 최소 폭을 줍니다. */
+  #evtCfg td.tight select{min-width:118px}
 
   #evtCfg input[type=text], #evtCfg select, #evtCfg textarea{
     font:inherit; color:var(--ink); background:var(--card);
@@ -3752,7 +3756,8 @@ async function ordApi(payload){
 
 function syncRender(st){
   /* 이벤트 설정의 프로모션 화면이 「실제 판매처 값」을 보여줄 수 있게 넘겨 둡니다 */
-  try{ if(st && Array.isArray(st.srcs)) window.__ledgerSrcs = st.srcs; }catch(e){}
+  try{ if(st && Array.isArray(st.srcs))  window.__ledgerSrcs  = st.srcs;  }catch(e){}
+  try{ if(st && Array.isArray(st.prods)) window.__ledgerProds = st.prods; }catch(e){}
   const box=$("#syncBox");
   if(!st){ box.innerHTML='<div class="hint">아직 한 번도 가져오지 않았습니다. [⟳ 지금 가져오기]를 눌러 주세요.</div>'; return; }
 
@@ -3969,6 +3974,31 @@ const CATS = ["주방가전","생활가전","계절가전","이미용가전"];
 
 /* 고객DB(출고리스트)에서 올라온 제품군 목록과 줄 수.
    담당자가 코드를 직접 치지 않고 여기서 고르게 하는 것이 요점입니다. */
+/* ══════════ 접수폼에 들어 있는 제품 (코드 → 이름) ══════════
+   ⚠️ 설정의 「제품군 이름」은 원장(시트)에 적힌 이름이고,
+      접수폼은 이 **코드**로만 제품을 구분합니다(제품 사진·설문·사은품이 코드에 매달려 있습니다).
+      그래서 제품을 추가할 때 「접수폼 제품」을 함께 골라야 연결이 됩니다.
+      고르지 않으면 그 제품은 설정을 아무리 고쳐도 고객 화면에 반영되지 않습니다.
+   ⚠️ 접수폼(index.html)에 제품이 늘면 여기에도 한 줄 넣어야 합니다. */
+const FORM_PRODUCTS = [
+  ["AO-16LS",         "에어프라이어 16L"],
+  ["iSA7",            "에어프라이어 7L"],
+  ["iSA6L",           "에어프라이어 6L"],
+  ["iFD01-H,iFD01-F", "음식물처리기 iFD01 (사은품 2종 · 고객이 선택)"],
+  ["iEK01",           "분유포트 iEK01"],
+  ["i50T",            "무선청소기 아이타워 i50"],
+  ["i50D",            "무선청소기 AI 디텍트 i50"],
+  ["i90",             "무선청소기 맥스제로 i90"],
+  ["iV10",            "무선청소기 iV10"],
+  ["iv11",            "무선청소기 iv11"],
+  ["iH05",            "복합식가습기 iH05UV"],
+  ["iH12",            "복합식가습기 iH12"],
+  ["iAP22",           "공기청정기 iAP22"],
+  ["iC01",            "유선 서큘레이터 iC01"],
+  ["iSC02",           "서큘레이터 iSC02"],
+  ["iHD01",           "헤어드라이어 iHD01"]
+];
+
 const LEDGER_PRODUCTS = [
   ["에어프라이어 16L", 2410], ["무선청소기 맥스제로 i90", 1980], ["아이타워 i50", 1620],
   ["에어프라이어 6L", 1150],  ["AI 디텍트 i50", 880],          ["서큘레이터 iSC02", 720],
@@ -4223,7 +4253,9 @@ const DEFAULTS = {
     notFoundOrd:  { t:"구매 내역을 찾지 못했습니다.\n주문번호를 다시 확인해 주세요. 앞뒤 공백이나 빠진 숫자가 없는지 봐주세요.\n최근 구매 건은 아직 등록 전일 수 있습니다.", k:true },
     notFoundInv:  { t:"구매 내역을 찾지 못했습니다.\n송장번호를 다시 확인해 주세요.\n최근 구매 건은 아직 등록 전일 수 있습니다.", k:true },
     dupAll:       { t:"구매하신 수량만큼 모두 접수되어 추가 참여가 어렵습니다.\n더 참여하셔야 하는 사정이 있으시면 아래로 문의해 주세요.", k:true },
-    noTarget:     { t:"이벤트 대상 제품이 아닙니다.\n자세한 내용은 상담사에게 문의해 주세요.", k:true },
+    skippedSome:  { t:"※ {{○○}} 은(는) 이번 포토리뷰 이벤트를 진행하지 않아 제외되었습니다.", k:false },
+    skippedUsed:  { t:"※ 중고·리퍼로 구매하신 상품은 포토리뷰 참여 대상이 아닌 점 참고 부탁드립니다.", k:false },
+    noTarget:     { t:"구매하신 {{○○}} 제품은 이번 포토리뷰 이벤트를 진행하지 않습니다.\n다른 제품을 함께 구매하셨다면 그 제품으로 참여하실 수 있습니다.\n자세한 내용은 상담사에게 문의해 주세요.", k:true },
     readFail:     { t:"주문 정보를 읽지 못했습니다. 상담사에게 문의해 주세요.", k:true },
     lookupErr:    { t:"조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", k:false },
 
@@ -4320,9 +4352,23 @@ const typeName = t => t === "coupon" ? "상품권·기프티콘" : "사은품";
 /* ══════ 사은품 ══════ */
 let editRow = null;                 // 지금 고치고 있는 줄 번호
 
+/* 제품군 이름 맞추기 — 서버(ordersApi)와 같은 방식입니다 */
+const pKey = v => String(v==null?"":v).replace(/\s/g,"").replace(/（/g,"(").replace(/）/g,")").toLowerCase();
+
 function paneGift(){
   const names = cfg.products.map(p => p.ledger.trim());
-  const missing = LEDGER_PRODUCTS.filter(([n]) => !names.includes(n));
+  /* ⚠️ 예전에는 코드에 박아 둔 옛 목록과 「정확히 같은가」로 비교했습니다.
+     담당자가 원장에 맞춰 이름을 고치면 멀쩡한 제품이 「등록 안 됨」으로 떴습니다(2026-09-08).
+     이제는 고객DB에 **실제로 들어 있는** 제품군을 보고, 「이름이 들어 있는가」로 봅니다.
+     고객DB 탭을 한 번도 안 열었으면 옛 목록으로 대신합니다. */
+  const live = (window.__ledgerProds || []).filter(x => x && x.name);
+  const covered = raw => { const k = pKey(raw);
+    return names.some(n => { const nk = pKey(n); return nk && k.includes(nk); }); };
+  const missing = live.length
+    ? live.filter(x => !x.covered && !x.note && !covered(x.name)).map(x => [x.name, x.n])
+    : LEDGER_PRODUCTS.filter(([n]) => !covered(n));
+  /* 접수폼 제품을 안 고른 것 — 조용히 끊어져 있어서 눈에 보이게 합니다 */
+  const noCode = cfg.products.filter(p => p.ledger.trim() && !(p.codes || []).length);
   const dup = n => n.trim() && names.filter(x => x === n.trim()).length > 1;
 
   const rows = cfg.products.map((p, i) => {
@@ -4332,7 +4378,18 @@ function paneGift(){
       ? [ el("td", {},
             el("input", { type:"text", value:p.ledger, placeholder:"제품군 이름", "aria-label":"제품군",
               oninput:e => { p.ledger = e.target.value; softRefresh(); } }),
-            dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : ""),
+            dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : "",
+            /* 접수폼 제품 고르기 — 이게 있어야 사은품·설문·프로모션이 고객 화면에 붙습니다 */
+            el("div", { style:"margin-top:6px" },
+              el("div", { style:"font-size:11px;color:var(--sub);margin-bottom:3px" }, "접수폼 제품"),
+              el("select", { "aria-label":"접수폼 제품",
+                onchange:e => { const v = e.target.value;
+                  p.codes = v ? v.split(",") : []; softRefresh(); } },
+                el("option", { value:"", ...((p.codes||[]).length ? {} : { selected:"" }) }, "이벤트 대상 아님"),
+                FORM_PRODUCTS.map(([v, n]) => el("option", {
+                  value:v, ...((p.codes||[]).join(",") === v ? { selected:"" } : {}) }, n))),
+              el("div", { style:"font-size:11px;color:var(--sub);margin-top:3px" },
+                "고르지 않으면 사은품·설문·프로모션이 고객 화면에 반영되지 않습니다."))),
           el("td", { class:"tight" },
             el("select", { "aria-label":"카테고리", onchange:e => { p.cat = e.target.value; softRefresh(); } },
               CATS.map(c => el("option", { value:c, ...(p.cat === c ? { selected:"" } : {}) }, c)))),
@@ -4345,7 +4402,11 @@ function paneGift(){
               el("option", { value:"coupon", ...(p.type === "coupon" ? { selected:"" } : {}) }, "상품권"))) ]
       : [ el("td", {},
             el("span", { style:"font-weight:700" }, p.ledger || el("span", { style:"color:var(--bad)" }, "(제품군 없음)")),
-            dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : ""),
+            dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : "",
+            (p.codes || []).length
+              ? el("div", { style:"font-size:11px;color:var(--sub);margin-top:2px" },
+                  (FORM_PRODUCTS.find(([v]) => v === p.codes.join(",")) || [null, p.codes.join(", ")])[1])
+              : el("div", { class:"warn-inline" }, "접수폼 제품 미지정 — 「수정」에서 골라 주세요")),
           el("td", { class:"tight" }, el("span", { style:"color:var(--sub)" }, p.cat)),
           el("td", {}, p.gift
             ? el("span", {}, p.gift)
@@ -4384,7 +4445,7 @@ function paneGift(){
         el("tbody", {}, rows))),
     el("div", { class:"row", style:"margin-top:14px" },
       el("button", { class:"btn", type:"button", onclick:() => {
-        cfg.products.push({ ledger:"", cat:"주방가전", gift:"", type:"gift" });
+        cfg.products.push({ ledger:"", cat:"주방가전", gift:"", type:"gift", codes:[] });
         editRow = cfg.products.length - 1; render();
         document.querySelector("#pane tr.editing input")?.focus();
       } }, "+ 제품 추가"),
@@ -4400,6 +4461,17 @@ function paneGift(){
         onclick:() => { tab = "form"; sel = "reward"; editRow = null; render(); } }, "접수폼에서 보기"))
   ];
 
+  if(noCode.length){
+    out.push(el("div", { class:"warnbox" },
+      el("strong", {}, "접수폼 제품을 고르지 않은 제품 " + noCode.length + "개"),
+      el("p", { style:"margin:6px 0 10px;font-size:12.5px" },
+        el("b", {}, "여기서 사은품·설문을 고쳐도 고객 화면에 반영되지 않습니다."),
+        " 「수정」을 눌러 ", el("b", {}, "접수폼 제품"), " 을 골라 주세요. ",
+        "이벤트 대상이 아닌 제품이면 그대로 두셔도 됩니다."),
+      el("div", { class:"chips" }, noCode.map(p =>
+        el("span", { class:"chip" }, p.ledger)))));
+  }
+
   if(missing.length){
     out.push(el("div", { class:"warnbox" },
       el("strong", {}, "원장에 있는데 등록되지 않은 제품군 " + missing.length + "개"),
@@ -4408,7 +4480,7 @@ function paneGift(){
         " 이벤트 대상이 아니라면 그대로 두셔도 됩니다. 누르면 이름이 그대로 채워집니다."),
       el("div", { class:"chips" }, missing.map(([n, c]) =>
         el("button", { class:"chip", type:"button", onclick:() => {
-          cfg.products.push({ ledger:n, cat:"주방가전", gift:"", type:"gift" });
+          cfg.products.push({ ledger:n, cat:"주방가전", gift:"", type:"gift", codes:[] });
           editRow = cfg.products.length - 1; render();
         } }, "+ " + n + " " + c.toLocaleString() + "줄")))));
   }
@@ -5070,7 +5142,9 @@ const NOTICE_GROUPS = [
     ["notFoundOrd", "못 찾음 · 주문번호 탭",    "주문번호로 아무것도 못 찾았을 때"],
     ["notFoundInv", "못 찾음 · 송장번호 탭",    "송장번호로 아무것도 못 찾았을 때"],
     ["dupAll",      "이미 다 접수함",           "산 수량만큼 이미 다 접수한 고객이 조회했을 때"],
-    ["noTarget",    "이벤트 대상 제품 아님",    "구매는 확인됐지만 사은품이 지정되지 않은 제품일 때"],
+    ["skippedSome", "일부 제품만 제외됨",       "이벤트를 안 하는 제품을 함께 사셨을 때 · 확인 카드 아래 · ○○ 자리에 제품 이름"],
+    ["skippedUsed", "중고·리퍼를 사셨을 때",     "중고·리퍼 줄이 섞여 있을 때 · ○○ 를 넣으면 제품 이름이 들어갑니다(안 넣어도 됩니다)"],
+    ["noTarget",    "이벤트 대상 제품 아님",    "이벤트를 실시하지 않는 제품일 때 · ○○ 자리에 제품 이름이 들어갑니다"],
     ["readFail",    "주문 정보를 읽지 못함",    "원장 행이 비어 있는 등 드물게"],
     ["lookupErr",   "조회 중 오류",            "서버가 응답하지 못했을 때"]
   ]],

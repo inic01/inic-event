@@ -920,6 +920,8 @@
           <div style="font-weight:800;font-size:12.5px;color:var(--sub);margin-bottom:6px">🧾 구매내역 캡처 (쿠팡 정품등록)</div>
           <img id="dtBuyImg" alt="구매내역 캡처" style="width:100%;max-height:360px;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#f4f2f0;cursor:zoom-in" onclick="openImg(this.src)">
           <a id="dtBuyOpen" href="#" target="_blank" class="img" style="display:block;font-size:12px;text-align:right;margin-top:6px">새 탭에서 원본 열기 ↗</a>
+          <!-- 구매내역 캡처를 AI가 읽은 결과 — 사진 바로 아래에 두어야 눈으로 대조할 수 있습니다. -->
+          <div id="dtBuyAi" style="display:none;margin-top:8px;padding:9px 11px;background:var(--sunk,#f6f4f2);border:1px solid var(--line);border-radius:9px;font-size:12.5px;line-height:1.75"></div>
         </div>
       </div>
       <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:9px">
@@ -1057,7 +1059,11 @@ function aiErrMsg(r){
   if(/AI 심사 오류|AI 심사 일시 오류|"error"|UNAVAILABLE|high demand|503|overload|quota|deadline|ECONNRESET/i.test(r)) return "AI 일시 오류";
   return "";
 }
-function aiErrOf(e){return aiErrMsg(e.aiErrorDetail)||aiErrMsg(e.aiReason);}
+function aiErrOf(e){return aiErrMsg(e.aiErrorDetail)||aiErrMsg(e.aiBuyErrorDetail)||aiErrMsg(e.aiReason);}
+/* 구매내역 캡처를 AI가 실제로 읽어 본 건인지 (예전 건·캡처 없는 건은 필드 자체가 없습니다) */
+function buyJudged(e){return e.aiBuyCapture!==undefined;}
+/* 화면은 맞는데 배송상태나 상품명을 못 읽은 경우 → 부적합이 아니라 확인필요 */
+function buyUnread(e){return buyJudged(e)&&e.aiBuyCapture!==false&&(e.aiBuyDelivered==null||e.aiBuyProductMatch==null);}
 function cleanReason(r){return aiErrMsg(r)||r;}
 /* ── 사유 기준 (단일 정의) ──────────────────────────────────
    여기 REASON_RULES 하나만 고치면 사유 문구·부적합 탭 필터가 같이 바뀝니다.
@@ -1068,6 +1074,11 @@ const REASON_RULES=[
   {key:"notcap",   label:"캡처·사진 아님",  solo:true,
                    hit:e=>e.aiReviewCapture===false||e.aiSerialPhoto===false,
                                                                                  text:e=>e.type==="coupang"?"S/N 라벨 사진 아님":"리뷰 캡처 아님"},
+  /* 구매내역 캡처(쿠팡 정품등록의 두 번째 사진) 판독 결과 — 셋 다 부적합 사유 */
+  {key:"buynotcap",label:"구매내역 화면 아님", hit:e=>e.aiBuyCapture===false,     text:()=>"구매내역 캡처 아님"},
+  {key:"buyship",  label:"배송완료 아님",   hit:e=>e.aiBuyDelivered===false,     text:()=>"배송완료 아님"},
+  {key:"buyprod",  label:"구매내역 제품 다름", hit:e=>e.aiBuyProductMatch===false,
+                                                                                 text:e=>"구매내역 다른 제품"+(e.aiBuyProductInImage?` (${e.aiBuyProductInImage})`:"")},
   {key:"abuse",    label:"욕설·비방",       hit:e=>e.aiAbuseFree===false,        text:()=>"욕설·비방"},
   {key:"wrongprod",label:"다른 제품 리뷰",  hit:e=>e.aiProductMatch===false,     text:()=>"다른 제품 리뷰"},
   {key:"photo",    label:"사진 없음",       hit:e=>e.aiPhotoPass===false,        text:()=>"사진 없음"},
@@ -1089,7 +1100,10 @@ function reasonOf(e){
   // ① AI가 판정을 못 한 건(확인필요) — 오류/쿼터가 먼저, 그 다음 판독 실패
   if(st==="review"){
     const em=aiErrOf(e); if(em) return em;
-    if(e.type==="coupang") return e.aiSerialMatch===false ? "S/N 불일치" : "S/N 판독 불가";
+    if(e.type==="coupang"){
+      if(buyUnread(e)) return "구매내역 판독 불가";
+      return e.aiSerialMatch===false ? "S/N 불일치" : "S/N 판독 불가";
+    }
     return "별점 판독 불가";
   }
   // ② 아직 심사 전
@@ -1563,7 +1577,7 @@ function eligCheck(e){
 /* 확인필요 사유 셀 — AI 오류면 실제 원인(aiErrorDetail)까지 함께 표시 */
 function reasonCell(e){
   const base=reasonOf(e)||"-";
-  const det=e.aiErrorDetail?String(e.aiErrorDetail).slice(0,180):"";
+  const det=(e.aiErrorDetail||e.aiBuyErrorDetail)?String(e.aiErrorDetail||e.aiBuyErrorDetail).slice(0,180):"";
   return det ? `${base}<div style="font-size:11px;color:var(--sub);margin-top:3px;white-space:normal">원인: ${det.replace(/</g,"&lt;")}</div>` : base;
 }
 const ELIG_ORDER=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["검수",e=>eligCheck(e)],["배송구분",e=>shipFeeBadge(e)],["사은품",e=>e.giftItem||"-","wrapcell"],
@@ -1884,6 +1898,23 @@ function openDetail(id){
   if(bw){
     if(_bu){ bw.style.display=""; $("#dtBuyImg").src=_bu; $("#dtBuyOpen").href=_bu; }
     else   { bw.style.display="none"; $("#dtBuyImg").src=""; }
+  }
+  /* 구매내역 캡처 AI 판독 결과 — 사진 아래에 세 줄로. 못 읽은 항목은 회색 '판독 불가'. */
+  const ba=$("#dtBuyAi");
+  if(ba){
+    if(_bu && buyJudged(e)){
+      const yn=(v,ok,no)=>v===true?`<span style="color:var(--ok,#12a150);font-weight:800">${ok}</span>`
+                        :v===false?`<span style="color:var(--bad,#c0392b);font-weight:800">${no}</span>`
+                        :`<span style="color:var(--sub)">판독 불가</span>`;
+      let h=`<div style="font-weight:800;margin-bottom:4px">🤖 구매내역 AI 판독</div>`
+        +`<div>주문목록 화면 · ${yn(e.aiBuyCapture,"맞음","아님")}</div>`
+        +`<div>배송완료 · ${yn(e.aiBuyDelivered,"배송완료","배송완료 아님")}</div>`
+        +`<div>상품명 · ${yn(e.aiBuyProductMatch,"일치","다른 제품")}`
+        +(e.aiBuyProductInImage?` <span style="color:var(--sub)">— 읽은 값: ${String(e.aiBuyProductInImage).replace(/</g,"&lt;")}</span>`:"")+`</div>`
+        +`<div>구매일자 · ${e.aiBuyDate?String(e.aiBuyDate).replace(/</g,"&lt;"):'<span style="color:var(--sub)">판독 불가</span>'} <span style="color:var(--sub)">(판정에는 쓰지 않습니다)</span></div>`;
+      if(e.aiBuyErrorDetail) h+=`<div style="color:var(--sub);margin-top:4px">원인: ${String(e.aiBuyErrorDetail).slice(0,180).replace(/</g,"&lt;")}</div>`;
+      ba.innerHTML=h; ba.style.display="";
+    } else { ba.style.display="none"; ba.innerHTML=""; }
   }
   $("#dtAgent").value = e.agent || "";
   $("#dtStatus").innerHTML=CALL_STATES.map(o=>`<option value="${o}" ${o===(e.callStatus||"")?"selected":""}>${o||"— 응대상태 선택 —"}</option>`).join("");

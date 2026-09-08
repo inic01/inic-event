@@ -929,6 +929,8 @@
         <div class="dtrow"><b>제품</b><span id="dtProduct">-</span></div>
         <div class="dtrow"><b>주문번호</b><span id="dtOrder">-</span></div>
         <div class="dtrow" id="dtSnRow" style="display:none"><b>S/N</b><span id="dtSn">-</span></div>
+        <!-- 구매내역 AI 판독 요약 — 사진 아래 상자와 같은 내용을 오른쪽에서도 바로 보이게. -->
+        <div class="dtrow" id="dtBuyRow" style="display:none"><b>구매내역</b><span id="dtBuyCell">-</span></div>
         <div class="dtrow"><b>배송구분</b><span id="dtFee">-</span></div>
         <div class="dtrow"><b>주소</b><span id="dtAddr">-</span></div>
         <div class="dtrow"><b>상태</b><span id="dtState">-</span></div>
@@ -1899,22 +1901,27 @@ function openDetail(id){
     if(_bu){ bw.style.display=""; $("#dtBuyImg").src=_bu; $("#dtBuyOpen").href=_bu; }
     else   { bw.style.display="none"; $("#dtBuyImg").src=""; }
   }
-  /* 구매내역 캡처 AI 판독 결과 — 사진 아래에 세 줄로. 못 읽은 항목은 회색 '판독 불가'. */
-  const ba=$("#dtBuyAi");
-  if(ba){
-    if(_bu && buyJudged(e)){
-      const yn=(v,ok,no)=>v===true?`<span style="color:var(--ok,#12a150);font-weight:800">${ok}</span>`
-                        :v===false?`<span style="color:var(--bad,#c0392b);font-weight:800">${no}</span>`
-                        :`<span style="color:var(--sub)">판독 불가</span>`;
-      let h=`<div style="font-weight:800;margin-bottom:4px">🤖 구매내역 AI 판독</div>`
-        +`<div>주문목록 화면 · ${yn(e.aiBuyCapture,"맞음","아님")}</div>`
-        +`<div>배송완료 · ${yn(e.aiBuyDelivered,"배송완료","배송완료 아님")}</div>`
-        +`<div>상품명 · ${yn(e.aiBuyProductMatch,"일치","다른 제품")}`
-        +(e.aiBuyProductInImage?` <span style="color:var(--sub)">— 읽은 값: ${String(e.aiBuyProductInImage).replace(/</g,"&lt;")}</span>`:"")+`</div>`
-        +`<div>구매일자 · ${e.aiBuyDate?String(e.aiBuyDate).replace(/</g,"&lt;"):'<span style="color:var(--sub)">판독 불가</span>'} <span style="color:var(--sub)">(판정에는 쓰지 않습니다)</span></div>`;
-      if(e.aiBuyErrorDetail) h+=`<div style="color:var(--sub);margin-top:4px">원인: ${String(e.aiBuyErrorDetail).slice(0,180).replace(/</g,"&lt;")}</div>`;
-      ba.innerHTML=h; ba.style.display="";
-    } else { ba.style.display="none"; ba.innerHTML=""; }
+  /* 구매내역 캡처 AI 판독 결과 — 두 곳에 같은 내용을 냅니다.
+       ① 사진 바로 아래 상자 (사진과 눈으로 대조할 때)
+       ② 오른쪽 정보 칸 한 줄  (S/N 처럼 한눈에 볼 때)                        */
+  const ba=$("#dtBuyAi"), brow=$("#dtBuyRow"), bcell=$("#dtBuyCell");
+  const buyShow = _bu && buyJudged(e);
+  if(buyShow){
+    const yn=(v,ok,no)=>v===true?`<span style="color:var(--ok,#12a150);font-weight:800">${ok}</span>`
+                      :v===false?`<span style="color:var(--bad,#c0392b);font-weight:800">${no}</span>`
+                      :`<span style="color:var(--sub)">판독 불가</span>`;
+    const esc=s=>String(s).replace(/</g,"&lt;");
+    const lines=`<div>주문목록 화면 · ${yn(e.aiBuyCapture,"맞음","아님")}</div>`
+      +`<div>배송완료 · ${yn(e.aiBuyDelivered,"배송완료","배송완료 아님")}</div>`
+      +`<div>상품명 · ${yn(e.aiBuyProductMatch,"일치","다른 제품")}`
+      +(e.aiBuyProductInImage?` <span style="color:var(--sub)">— 읽은 값: ${esc(e.aiBuyProductInImage)}</span>`:"")+`</div>`
+      +`<div>구매일자 · ${e.aiBuyDate?esc(e.aiBuyDate):'<span style="color:var(--sub)">판독 불가</span>'} <span style="color:var(--sub)">(판정에는 쓰지 않습니다)</span></div>`
+      +(e.aiBuyErrorDetail?`<div style="color:var(--sub);margin-top:4px">원인: ${esc(String(e.aiBuyErrorDetail).slice(0,180))}</div>`:"");
+    if(ba){ ba.innerHTML=`<div style="font-weight:800;margin-bottom:4px">🤖 구매내역 AI 판독</div>`+lines; ba.style.display=""; }
+    if(brow&&bcell){ bcell.innerHTML=lines; brow.style.display=""; }
+  } else {
+    if(ba){ ba.style.display="none"; ba.innerHTML=""; }
+    if(brow){ brow.style.display="none"; }
   }
   $("#dtAgent").value = e.agent || "";
   $("#dtStatus").innerHTML=CALL_STATES.map(o=>`<option value="${o}" ${o===(e.callStatus||"")?"selected":""}>${o||"— 응대상태 선택 —"}</option>`).join("");

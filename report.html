@@ -3751,6 +3751,8 @@ async function ordApi(payload){
 }
 
 function syncRender(st){
+  /* 이벤트 설정의 프로모션 화면이 「실제 판매처 값」을 보여줄 수 있게 넘겨 둡니다 */
+  try{ if(st && Array.isArray(st.srcs)) window.__ledgerSrcs = st.srcs; }catch(e){}
   const box=$("#syncBox");
   if(!st){ box.innerHTML='<div class="hint">아직 한 번도 가져오지 않았습니다. [⟳ 지금 가져오기]를 눌러 주세요.</div>'; return; }
 
@@ -4423,6 +4425,16 @@ function ruleState(r, d){
 }
 function ruleActive(r, d){ return ruleState(r, d).k === "on" || ruleState(r, d).k === "always"; }
 
+/* 고객DB에 실제로 올라온 판매처 값 — 무엇을 골라야 할지 눈으로 보게 합니다.
+   ⚠️ 리포트 「고객DB」 탭을 한 번 열어야 값이 채워집니다. 없으면 아무것도 안 보여줍니다. */
+function ledgerSrcNote(){
+  const list = (window.__ledgerSrcs || []).filter(x => x && x.name && !x.skip);
+  if(!list.length) return "";
+  return el("p", { class:"note", style:"margin-top:8px" },
+    el("b", {}, "지금 고객DB에 들어 있는 판매처 : "),
+    list.slice(0, 20).map(x => x.name + "(" + x.n.toLocaleString() + ")").join(" · "));
+}
+
 function paneRule(){
   const d = simDate();
   const cards = (cfg.giftRules || []).map((r, i) => {
@@ -4457,6 +4469,23 @@ function paneRule(){
           el("label", { for:"rl" + i }, "이 경우 줄 사은품"),
           el("input", { id:"rl" + i, type:"text", value:r.label,
             oninput:e => { r.label = e.target.value; softRefresh(); } })),
+        /* 프로모션 사은품은 이름이 새것이라 접수폼에 사진이 없습니다.
+           깃허브 저장소에 올린 사진의 파일 경로를 여기 적으면 그 사진이 나갑니다. */
+        el("div", { class:"field" },
+          el("label", { for:"ri" + i }, "사은품 사진 (파일 경로)"),
+          el("input", { id:"ri" + i, type:"text", value:r.img || "",
+            placeholder:"gifts/promo_i50.webp",
+            oninput:e => { r.img = e.target.value; softRefresh(); } }),
+          r.img
+            ? el("img", { src:r.img, alt:"사은품 사진 미리보기",
+                style:"margin-top:8px;max-width:150px;border-radius:8px;border:1px solid var(--line);display:block",
+                onerror:"this.style.display='none';this.nextSibling&&(this.nextSibling.style.display='block')" })
+            : "",
+          r.img
+            ? el("p", { class:"note", style:"display:none;color:var(--bad)" },
+                "이 경로에 사진이 없습니다. 깃허브에 올렸는지, 파일 이름이 맞는지 확인해 주세요.")
+            : el("p", { class:"note", style:"margin-top:4px" },
+                "비워 두면 「이미지 준비 중」으로 나갑니다.")),
         el("div", { class:"field" },
           el("label", { for:"rt" + i }, "종류"),
           el("select", { id:"rt" + i, onchange:e => { r.type = e.target.value; render(); } },
@@ -4482,8 +4511,12 @@ function paneRule(){
       el("div", { class:"field", style:"margin-top:14px" },
         el("label", {}, "어느 판매처일 때"),
         el("p", { class:"note", style:"margin:0 0 6px" },
-          "고객DB에서 실제로 올라온 판매처 값입니다. 여러 개 고를 수 있습니다."),
-        el("div", { class:"chips" }, chips)),
+          "여러 개 고를 수 있습니다. ",
+          el("b", {}, "이름이 들어 있기만 하면 걸립니다"),
+          " — 「스마트스토어」를 고르면 원장에 ",
+          el("b", {}, "「풀필먼트(스마트스토어)」"), " 처럼 적힌 것도 함께 걸립니다."),
+        el("div", { class:"chips" }, chips),
+        ledgerSrcNote()),
 
       (!r.product || !r.srcs.length || !r.label)
         ? el("p", { class:"note", style:"color:var(--bad)" }, "제품 · 판매처 · 사은품을 모두 채워야 이 규칙이 동작합니다.")
@@ -4504,7 +4537,7 @@ function paneRule(){
       : el("p", { class:"note" }, "규칙이 없습니다. 모든 고객이 기본 사은품을 받습니다.")),
     el("div", { style:"margin-top:16px" },
       el("button", { class:"btn", type:"button", onclick:() => {
-        cfg.giftRules.push({ product:"", srcs:[], label:"", type:"gift", from:"", to:"", basis:"apply", name:"" });
+        cfg.giftRules.push({ product:"", srcs:[], label:"", type:"gift", from:"", to:"", basis:"apply", name:"", img:"" });
         render();
       } }, "+ 규칙 추가")),
     el("p", { class:"note" }, "종료일을 정하면 ", el("b", {}, "그 날 밤 12시(한국시간)가 지나는 순간"),

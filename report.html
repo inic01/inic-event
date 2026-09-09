@@ -827,10 +827,14 @@
   </div>
 
   <div class="save">
-    <button class="btn primary" id="saveBtn">저장</button>
+    <button class="btn primary" id="saveBtn">💾 서버에 저장</button>
     <button class="btn" id="resetBtn">되돌리기</button>
     <span class="msg" id="saveMsg"></span>
   </div>
+  <p style="margin:6px 0 0;font-size:12px;color:var(--sub)">
+    고친 내용은 <b>이 버튼을 눌러야</b> 서버에 남습니다.
+    각 항목의 <b>「수정 끝」</b>은 그 칸을 닫는 것일 뿐이라, 이 버튼을 안 누르고 창을 닫으면 <b style="color:var(--bad)">전부 사라집니다.</b>
+  </p>
   <details style="margin-top:10px">
     <summary>서버에 저장될 내용 보기 (개발자용)</summary>
     <pre class="mono" id="dump"></pre>
@@ -3049,7 +3053,14 @@ async function gfApply(){
 function switchTab(name){curTab=name;$$("#tabs .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));$$(".page").forEach(p=>p.classList.remove("on"));$("#page-"+name).classList.add("on");renderActiveTab();}
 function reset(key,fn){return()=>{pageState[key]=1;fn();};}
 
-$$("#tabs .tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.tab)));
+$$("#tabs .tab").forEach(t=>t.addEventListener("click",()=>{
+  /* 관리자 탭에서 설정을 고치다 저장 없이 다른 탭으로 가면 고친 게 사라집니다.
+     그래서 한 번만 물어봅니다(2026-09-09). */
+  if(curTab==="admin" && t.dataset.tab!=="admin" && typeof window.EVTCFG_DIRTY==="function" && window.EVTCFG_DIRTY()){
+    if(!confirm("저장하지 않은 변경이 있습니다.\n\n이대로 나가면 고치신 내용이 사라집니다.\n그래도 나가시겠습니까?")) return;
+  }
+  switchTab(t.dataset.tab);
+}));
 $("#odFile").addEventListener("change",e=>{const f=e.target.files[0];if(f)odParseFile(f).catch(err=>odSetState("파일 읽기 실패: "+(err.message||err),"var(--bad,#c0392b)"));});
 $("#odUpload").addEventListener("click",odUpload);
 $("#odClear").addEventListener("click",odReset);
@@ -4683,14 +4694,17 @@ function paneGift(){
                 ? "background:#e9f0fb;color:#2f6df6" : "background:#f2eeea;color:#6b625b" },
                 p.shipFee === "선불" ? "선불" : "착불")) ];
 
-    return el("tr", { class: on ? "editing" : "" }, cells,
+    return el("tr", { class: on ? "editing" : "", style:"cursor:pointer",
+      onclick:e => {
+        if(e.target.closest("input,textarea,select,button,label,a")) return;
+        if(editRow === i) return;
+        editRow = i; render();
+      } }, cells,
       el("td", { class:"tight" },
         el("div", { class:"row", style:"gap:6px;flex-wrap:nowrap" },
-          on
-            ? el("button", { class:"btn primary", type:"button",
-                onclick:() => { editRow = null; render(); } }, "저장")
-            : el("button", { class:"btn", type:"button",
-                onclick:() => { editRow = i; render(); } }, "수정"),
+          /* 여는 법을 「눌러서」 하나로 맞췄습니다 — 줄 아무 데나 누르면 열립니다(2026-09-09) */
+          on ? el("span", { class:"pill", style:"background:#e9f0fb;color:#2f6df6" }, "고치는 중")
+             : el("span", { style:"font-size:12px;color:var(--sub)" }, "눌러서 고치기"),
           el("button", { class:"btn ghost", type:"button", title:"이 제품 빼기",
             onclick:() => {
               if(!confirm((p.ledger || "이 줄") + " 을(를) 목록에서 뺍니다. 계속할까요?")) return;
@@ -4701,7 +4715,8 @@ function paneGift(){
   const out = [
     el("h2", {}, "제품별 사은품"),
     el("p", { class:"hint" },
-      "고치려면 ", el("b", {}, "수정"), " 을 누르세요. 다 고치면 같은 자리의 ", el("b", {}, "저장"), " 을 누르면 됩니다. ",
+      "고치려면 ", el("b", {}, "그 줄을 누르세요"), ". 다른 줄을 누르면 닫힙니다. ",
+      el("b", { style:"color:var(--bad)" }, "다 고치신 뒤 화면 맨 아래 「💾 서버에 저장」까지 눌러야 남습니다."), " ",
       "제품군 이름은 ", el("b", {}, "원장(출고리스트)에 적힌 것과 똑같이"), " 넣어야 합니다. 한 글자라도 다르면 그 제품을 산 고객이 조회되지 않습니다.",
       el("br", {}),
       "사은품을 비워 두면 ", el("b", {}, "이벤트 대상 아님"), " 이 됩니다 — 원장에는 있지만 이벤트를 안 하는 제품입니다. ",
@@ -4958,8 +4973,14 @@ function card(id, no, title, sub, kids){
       el("span", { class:"qn" }, no ? no + "." : ""),
       el("span", { class:"qtext" }, title),
       sub ? el("span", { class:"pill mute" }, sub) : "",
-      el("button", { class:"btn sm", type:"button", style:"opacity:1",
-        onclick:e => { e.stopPropagation(); sel = open ? null : id; render(); } }, open ? "저장" : "수정")),
+      /* 🔴 「수정 / 저장」 버튼을 없앴습니다(2026-09-09).
+            설문 문항은 카드를 눌러서 열고, 여기만 버튼이 있어 방식이 둘로 갈려 있었습니다.
+            게다가 그 버튼이 「저장」이라고 적혀 있어서, 그것만 누르고 창을 닫아
+            고친 내용이 통째로 날아가는 일이 있었습니다.
+            이제 여는 법은 「카드를 누른다」 하나뿐이고,
+            「저장」이라는 말은 화면 맨 아래 딱 한 곳에만 있습니다. */
+      open ? el("span", { class:"pill", style:"background:#e9f0fb;color:#2f6df6" }, "고치는 중")
+           : el("span", { style:"font-size:12px;color:var(--sub)" }, "눌러서 고치기")),
     kids);
 }
 
@@ -5917,6 +5938,21 @@ $("#saveBtn").addEventListener("click", async () => {
   } catch (e) {
     msg.textContent = "저장하지 못했습니다: " + (e && e.message ? e.message : e);
   }
+});
+
+/* ══════ 저장 안 한 변경이 있으면 나가기 전에 물어봅니다 ══════
+   🔴 이름을 아무리 잘 지어도 깜빡하는 건 막을 수 없습니다.
+      실제로 한참 고쳐 놓고 저장을 안 눌러 통째로 날린 일이 있었습니다(2026-09-09).
+   ⚠️ 「비교」는 저장된 값과 지금 값을 글자로 맞춰 보는 것뿐이라 부담이 없습니다. */
+function evtDirty(){
+  try { return JSON.stringify(cfg) !== JSON.stringify(SAVED || DEFAULTS); }
+  catch(_) { return false; }
+}
+window.EVTCFG_DIRTY = evtDirty;
+/* 창을 닫거나 새로고침할 때 — 브라우저가 대신 물어봅니다 */
+window.addEventListener("beforeunload", e => {
+  if(!evtDirty()) return;
+  e.preventDefault(); e.returnValue = "";
 });
 
 $("#resetBtn").addEventListener("click", () => {

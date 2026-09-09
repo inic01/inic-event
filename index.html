@@ -372,7 +372,10 @@
     <!-- 이메일 — 성함 위. 마케팅 활용에 동의하신 분께 2년마다 수신동의 확인 메일을 보냅니다. -->
     <div class="field" id="emailField">
       <label class="fld">이메일 <span class="req">*</span></label>
-      <input type="email" id="email" placeholder="예) inic@example.com" inputmode="email" autocomplete="email">
+      <!-- ⚠️ autocomplete 를 켜 두면 한 기기로 여러 분이 접수할 때
+           브라우저가 앞사람 이메일을 그대로 채워 넣습니다(2026-09-09 발견). 꺼 둡니다. -->
+      <input type="email" id="email" placeholder="예) inic@example.com" inputmode="email"
+        autocomplete="off" autocapitalize="off" spellcheck="false">
       <div class="hint" id="emailHint">이벤트 안내와 마케팅 수신동의 확인에 사용됩니다.</div>
       <div class="err" id="err-email">올바른 이메일을 입력해 주세요.</div>
     </div>
@@ -2105,7 +2108,10 @@ function resetForm(){
   ["np","ord","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k==="np");});
   state.consent={};state.survey={};state.surveyFor=null;state.giftChoice=null;state.infoFor=null;
   state.esurvey={};state.esurveyInit=false;{const eb=$("#entryBox");if(eb)eb.innerHTML="";}
-  ["#name","#phone","#addrRoad","#addrDetail","#serial","#file"].forEach(s=>{const el=$(s);if(el)el.value="";});
+  /* ⚠️ #email 이 빠져 있어서, 접수를 끝내고 처음 화면으로 돌아와도 앞사람 이메일이
+     그대로 남아 있었습니다(2026-09-09 발견). 같은 기기로 다른 분이 접수하면 남의 이메일이 들어갑니다.
+     ※ 「이어서 신청」은 같은 분이 계속 하시는 것이라 일부러 지우지 않습니다. */
+  ["#email","#name","#phone","#addrRoad","#addrDetail","#serial","#file"].forEach(s=>{const el=$(s);if(el)el.value="";});
   document.querySelectorAll(".type").forEach(x=>x.classList.remove("on"));
   const di=$("#dropInner"); if(di) di.innerHTML='<div style="font-size:30px">📷</div><div style="margin-top:6px" id="dropText">여기를 눌러 이미지를 등록</div><span class="upbtn">파일 선택</span>';
   const fn=$("#filename"); if(fn) fn.textContent="";

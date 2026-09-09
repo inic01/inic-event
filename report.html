@@ -720,13 +720,14 @@
       <h3>마케팅 활용 <span style="color:var(--sub);font-weight:600;font-size:12px">(관리자만)</span></h3>
       <div class="hint">
         접수하실 때 <b>광고성 정보 수신</b>과 <b>사진·리뷰 마케팅 활용</b>에 답한 내용을 모은 명단입니다.<br>
-        내려받으면 <b>엑셀 한 파일 안에 시트가 세 장</b> 나옵니다 — <b>둘다동의 · 1개동의 · 거부</b>.<br>
+        내려받으면 <b>엑셀 한 파일 안에 시트가 네 장</b> 나옵니다 — <b>둘다동의 · 광고성만동의 · 사진리뷰만동의 · 2개거부</b>.<br>
         <b>거부 시트는 「보내면 안 되는 분」 목록입니다.</b> 마케팅 발송 전에 이 명단을 반드시 빼세요.<br>
         같은 분이 여러 번 참여하셨으면 <b>연락처 기준으로 한 줄</b>로 합치고, <b>가장 이른 동의일</b>을 씁니다
         — 수신동의 확인은 처음 동의한 날부터 2년마다이기 때문입니다.
       </div>
       <div class="filters" style="margin-top:11px">
-        <button id="mkDownload" class="sm primary">명단 내려받기 (엑셀 · 시트 3장)</button>
+        <button id="mkDownload" class="sm primary">명단 내려받기 (엑셀 · 시트 4장)</button>
+        <button id="mkSheetNow" class="sm">시트에 지금 올리기</button>
         <span id="mkState" style="font-size:12.5px;font-weight:800"></span>
       </div>
       <div id="mkBox" style="margin-top:10px"></div>
@@ -3346,6 +3347,7 @@ function finishEnter(){
   $("#purgePanel").style.display = ME.role==="master" ? "" : "none";
   /* 마케팅 활용 명단은 고객 이메일·연락처가 그대로 나가므로 관리자만 봅니다. */
   if($("#mkPanel")) $("#mkPanel").style.display = ME.role==="master" ? "" : "none";
+  if($("#mkSheetNow")) $("#mkSheetNow").style.display = ME.role==="master" ? "" : "none";
   const _mst = ME.role==="master" ? "" : "none";
   if($("#resyncBtn"))  $("#resyncBtn").style.display  = _mst;
   if($("#resyncHint")) $("#resyncHint").style.display = _mst;
@@ -3968,11 +3970,21 @@ async function resyncGo(){
 function mkAnsOf(e){
   const norm = v => v === "agree" ? "동의" : (v === "deny" ? "미동의" : "");
   let ad = norm(e.mkAd), photo = norm(e.mkPhoto);
-  /* 값이 아예 없는 예전 건 — 옛 「마케팅 활용」 항목 하나만 있던 시절입니다 */
-  if(!ad && !photo){
-    const c = e.consent || {};
-    photo = norm(c.marketing);
+  /* 값이 비어 있으면 접수 기록에 함께 남긴 동의 목록에서 찾습니다.
+     ① 설정에서 정한 용도(role) → ② 항목 이름 → ③ 아주 예전의 「마케팅 활용」 한 칸
+     ⚠️ 용도를 아직 안 정한 채 접수된 건도 이름으로 건져 올리기 위한 장치입니다.
+        서버(ordersApi)의 같은 이름 함수와 계산이 똑같아야 합니다. 한쪽만 고치지 마세요. */
+  if(!ad || !photo){
+    (Array.isArray(e.consentLog) ? e.consentLog : []).forEach(c=>{
+      const v = norm(c && c.v); if(!v) return;
+      const lab  = String((c && c.label) || "");
+      const role = (c && c.role) || (/광고|수신/.test(lab) ? "ad"
+                                   : (/사진|리뷰/.test(lab) ? "photo" : ""));
+      if(role==="ad"    && !ad)    ad = v;
+      if(role==="photo" && !photo) photo = v;
+    });
   }
+  if(!ad && !photo) photo = norm((e.consent || {}).marketing);
   return { ad, photo };
 }
 /* 사람 단위로 합칩니다 — 연락처가 열쇠, 가장 이른 동의일을 씁니다.
@@ -4011,26 +4023,30 @@ function mkYmd(d){
 const MK_HEAD = ["일자","이메일","성함","핸드폰","광고성 정보 수신","사진·리뷰 마케팅 활용"];
 const mkRow = p => ({ "일자":mkYmd(p.at), "이메일":p.email, "성함":p.name, "핸드폰":p.phone,
                       "광고성 정보 수신":p.ad, "사진·리뷰 마케팅 활용":p.photo });
-/* 셋으로 나눕니다 — 겹치지 않고, 셋을 더하면 전체가 됩니다.
-     both 둘 다 동의 · one 하나만 동의 · none 둘 다 미동의(마케팅 금지) */
+/* 넷으로 나눕니다 — 겹치지 않고, 넷을 더하면 전체가 됩니다.
+     both  둘 다 동의
+     adOnly  광고성만 동의
+     phOnly  사진·리뷰만 동의
+     none  둘 다 미동의 (마케팅 금지) */
 function mkSplit(){
-  const both=[], one=[], none=[];
+  const both=[], adOnly=[], phOnly=[], none=[];
   mkPeople().forEach(p=>{
-    const n = (p.ad==="동의"?1:0) + (p.photo==="동의"?1:0);
-    (n===2 ? both : n===1 ? one : none).push(mkRow(p));
+    const a = p.ad==="동의", ph = p.photo==="동의";
+    (a && ph ? both : a ? adOnly : ph ? phOnly : none).push(mkRow(p));
   });
-  return { both, one, none };
+  return { both, adOnly, phOnly, none };
 }
 function mkRender(){
   const box = $("#mkBox"); if(!box) return;
   const s = mkSplit();
-  const noMail = both => both.filter(r => !r["이메일"]).length;
-  const miss = noMail(s.both) + noMail(s.one);
+  const noMail = rows => rows.filter(r => !r["이메일"]).length;
+  const miss = noMail(s.both) + noMail(s.adOnly) + noMail(s.phOnly);
   box.innerHTML =
     `<div style="font-size:12.5px;line-height:1.9">`
     + `둘 다 동의 <b>${s.both.length.toLocaleString()}명</b> · `
-    + `하나만 동의 <b>${s.one.length.toLocaleString()}명</b> · `
-    + `<span style="color:var(--bad,#c0392b)">거부 <b>${s.none.length.toLocaleString()}명</b></span>`
+    + `광고성만 <b>${s.adOnly.length.toLocaleString()}명</b> · `
+    + `사진·리뷰만 <b>${s.phOnly.length.toLocaleString()}명</b> · `
+    + `<span style="color:var(--bad,#c0392b)">둘 다 거부 <b>${s.none.length.toLocaleString()}명</b></span>`
     + (miss ? `<br><span style="color:var(--bad,#c0392b)">동의하셨는데 이메일이 없는 분 ${miss.toLocaleString()}명 — 이메일 칸을 넣기 전에 접수한 분들입니다. 이분들께는 메일을 보낼 수 없습니다.</span>` : "")
     + `</div>`;
 }
@@ -4062,15 +4078,36 @@ function downloadSheets(sheets, baseName){
 function mkDownload(){
   const s = mkSplit();
   const ok = downloadSheets([
-    { name:"둘다동의", rows:s.both },
-    { name:"1개동의",  rows:s.one  },
-    { name:"거부",     rows:s.none }
+    { name:"둘다동의",        rows:s.both   },
+    { name:"광고성만동의",     rows:s.adOnly },
+    { name:"사진리뷰만동의",   rows:s.phOnly },
+    { name:"2개거부",         rows:s.none   }
   ], "마케팅활용명단");
   if(!ok) return;
-  $("#mkState").textContent = `✔ 둘 다 ${s.both.length} · 하나만 ${s.one.length} · 거부 ${s.none.length}명 내려받음`;
+  $("#mkState").textContent =
+    `✔ 둘 다 ${s.both.length} · 광고성만 ${s.adOnly.length} · 사진·리뷰만 ${s.phOnly.length} · 거부 ${s.none.length}명 내려받음`;
   $("#mkState").style.color = "var(--ok)";
 }
 $("#mkDownload").addEventListener("click", mkDownload);
+
+/* 시트에 지금 올리기 — 5분을 안 기다리고 바로 확인할 때. 관리자만 보입니다.
+   ⚠️ 이 기능을 붙이기 전에 접수된 건은 「표시」가 없어 자동으로는 안 올라갑니다.
+      그래서 물어본 뒤 예전 건까지 훑는 방식도 함께 씁니다. */
+async function mkSheetNow(){
+  const back = confirm("마케팅활용 시트에 지금 올립니다.\n\n예전에 접수된 건까지 함께 올리려면 「확인」,\n새로 들어온 것만 올리려면 「취소」를 눌러 주세요.");
+  const btn=$("#mkSheetNow"); btn.disabled=true;
+  $("#mkState").textContent="시트에 올리는 중…"; $("#mkState").style.color="";
+  const r = await ordApi({ action:"mkSync", backfill: back });
+  btn.disabled=false;
+  if(!r.ok){
+    $("#mkState").textContent = "실패 — " + (r.message || agMsg(r.reason));
+    $("#mkState").style.color = "var(--bad,#c1121f)";
+    return;
+  }
+  $("#mkState").textContent = `✔ 시트에 올림 — 동의 ${r.rows||0}건 · 거부 ${r.denied||0}건`;
+  $("#mkState").style.color = "var(--ok)";
+}
+$("#mkSheetNow").addEventListener("click", mkSheetNow);
 
 $("#resyncBtn").addEventListener("click", resyncGo);
 $("#syncNow").addEventListener("click", syncNow);

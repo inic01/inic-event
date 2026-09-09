@@ -560,9 +560,15 @@ function applyConfig(){
     const conv=(o,id)=>({ id, title:o.label||"", tag:(o.badge==="필수"?"must":"opt"),
       notice:o.desc||"", agree:o.yes||"", agreeCons:strip(o.yesSub),
       deny:o.no||"", denyCons:strip(o.noSub), denyBox:wantBox(o),
-      /* 용도 — 「광고성 정보 수신(ad)」·「사진·리뷰 마케팅(photo)」.
-         항목 이름이나 순서가 바뀌어도 명단이 안 깨지게 이 값으로 기록합니다. */
-      role:(o.role==="ad"||o.role==="photo")?o.role:"" });
+      /* 용도 — 개인정보 수집·이용(privacy) · 개인정보 처리 위탁(trust)
+                 광고성 정보 수신(ad) · 사진·리뷰 마케팅(photo).
+         항목 이름이나 순서가 바뀌어도 명단이 안 깨지게 이 값으로 기록합니다.
+         설정에서 안 고르셨으면 항목 이름으로 짐작합니다(임시방편 — 지정해 두시는 게 안전합니다). */
+      role: ["privacy","trust","ad","photo"].includes(o.role) ? o.role
+          : (/위탁/.test(o.label||"") ? "trust"
+           : /광고|수신/.test(o.label||"") ? "ad"
+           : /사진|리뷰/.test(o.label||"") ? "photo"
+           : id==="privacy" ? "privacy" : "") });
     const list=[];
     if(cc.privacy)   list.push(conv(cc.privacy,"privacy"));
     if(cc.marketing) list.push(conv(cc.marketing,"marketing"));
@@ -768,7 +774,7 @@ const SURVEYS={
 const CONSENTS={
   common:[
     /* denyBox : 「거부」로 고르면 참여 불가 안내를 띄울 항목 */
-    {id:"privacy",title:"개인정보 수집·이용",tag:"must",denyBox:true,
+    {id:"privacy",title:"개인정보 수집·이용",tag:"must",denyBox:true,role:"privacy",
      notice:"수집 항목: 수령인 성함·연락처·주소/주문번호 또는 S/N·리뷰 캡처·설문 응답. 이용 목적: 참여 확인·심사·발송·중복 방지. 보유: 배송 완료 후 관련 법령에 따라 파기.",
      agree:"개인정보 수집·이용에 동의합니다",agreeCons:"사은품/기프티콘 발행",
      deny:"개인정보 수집·이용을 거부합니다",denyCons:"미발행"},
@@ -1925,11 +1931,11 @@ async function submit(){
      ⚠️ 창구(서버)가 설정 기준으로 다시 계산하므로, 화면에서 값을 고쳐 보내도 소용없습니다. */
   {
     const clist=[...CONSENTS.common,...(review?CONSENTS.review:CONSENTS.coupang)];
-    entry.mkAd=""; entry.mkPhoto="";
+    entry.mkPrivacy=""; entry.mkTrust=""; entry.mkAd=""; entry.mkPhoto="";
+    const K={ privacy:"mkPrivacy", trust:"mkTrust", ad:"mkAd", photo:"mkPhoto" };
     entry.consentLog=clist.map(c=>{
       const v=state.consent[c.id]||"";
-      if(c.role==="ad")    entry.mkAd=v;
-      if(c.role==="photo") entry.mkPhoto=v;
+      if(K[c.role] && !entry[K[c.role]]) entry[K[c.role]]=v;
       return { label:c.title, role:c.role||"", v };
     });
   }

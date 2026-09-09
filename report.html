@@ -4765,7 +4765,15 @@ function errBlock(o, k, label, id){
 function card(id, no, title, sub, kids){
   const open = isOpen(id);
   return el("div", { class:"qcard fsec" + (open ? " sel" : ""), id:"c-" + id,
-    onclick:e => { if(e.target.closest(".qcard.fsec") !== e.currentTarget) return; sel = id; render(); } },
+    /* 🔴 카드 안을 누를 때마다 화면을 다시 그리면 방금 누른 입력칸이 새로 만들어져
+          커서가 빠집니다(2026-09-09 발견 — 「입력할 때 커서가 해제된다」의 원인).
+          ① 입력칸·버튼을 누른 것은 그냥 둡니다  ② 이미 열려 있으면 다시 그리지 않습니다 */
+    onclick:e => {
+      if(e.target.closest(".qcard.fsec") !== e.currentTarget) return;
+      if(e.target.closest("input,textarea,select,button,label,a")) return;
+      if(sel === id) return;
+      sel = id; render();
+    } },
     el("div", { class:"qhead" },
       el("span", { class:"qn" }, no ? no + "." : ""),
       el("span", { class:"qtext" }, title),

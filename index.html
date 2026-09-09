@@ -542,7 +542,29 @@ function applyConfig(){
     if(cc.privacy)   list.push(conv(cc.privacy,"privacy"));
     if(cc.marketing) list.push(conv(cc.marketing,"marketing"));
     (cc.extra||[]).forEach((o,i)=>list.push(conv(o,"extra"+i)));
-    if(list.length){ CONSENTS.common=list; state.consentFor=null; }
+    if(list.length){
+      CONSENTS.common=list;
+      /* 🔴 이미 그려 놓은 동의 화면은 저절로 바뀌지 않습니다.
+            설정은 화면이 다 그려진 뒤에 늦게 도착하므로, 여기서 다시 그려 줘야
+            고친 문구가 고객 화면에 나갑니다.
+            (2026-09-09 발견 — 「설정에서 고쳤는데 접수폼이 그대로다」의 원인.
+             예전에는 state.consentFor=null 만 넣어 뒀는데 그 값을 읽는 곳이 없었습니다)
+            고객이 이미 골라 둔 답은 그대로 되살립니다. */
+      const cbox=$("#consentBox");
+      if(cbox && cbox.children.length){
+        const keep={...(state.consent||{})};
+        renderConsent();
+        Object.keys(keep).forEach(id=>{
+          const v=keep[id]; if(!v) return;
+          const inp = v==="ack"
+            ? cbox.querySelector('input[type=checkbox][data-cid="'+id+'"]')
+            : cbox.querySelector('input[name="c_'+id+'"][value="'+v+'"]');
+          if(!inp) return;
+          inp.checked=true; state.consent[id]=v;
+          const lab=inp.closest(".radio"); if(lab) lab.classList.add("sel");
+        });
+      }
+    }
     const h=document.querySelector("#step-consent .desc");
     if(h && cc.desc) h.innerHTML=richPlain(cc.desc);
   }

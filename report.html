@@ -4357,6 +4357,10 @@ const DEFAULTS = {
     doneReviewCoupon: { t:"리뷰 심사(별점·사진 자동 확인) 후 기프티콘(상품권)이 발송됩니다.", k:false },
     doneCoupangGift:  { t:"정품등록 심사(시리얼번호 자동 대조) 후 사은품이 발송됩니다.", k:false },
     doneCoupangCoupon:{ t:"정품등록 심사(시리얼번호 자동 대조) 후 기프티콘(상품권)이 발송됩니다.", k:false },
+    /* 사은품이 선불로 나가는 제품(가습기 iH12 등) 전용.
+       착불 문구에서 배송비 이야기만 빠진 문장입니다. 처음 열 때 착불 문구를 그대로 옮겨 드립니다. */
+    doneReviewGiftPre:  { t:"리뷰 심사(별점·사진 자동 확인) 후 사은품이 발송됩니다.", k:false },
+    doneCoupangGiftPre: { t:"정품등록 심사(시리얼번호 자동 대조) 후 사은품이 발송됩니다.", k:false },
     doneMulti:    { t:"○○ 고객님, 이벤트 참여가 완료되었습니다.\n신청하신 {{○○}} {{○○개}}가 구매 수량에 맞게 발송될 예정입니다.", k:false },
     doneLeft:     { t:"○○ 고객님, 구매 수량 {{○○개}} 중 {{○○개}}가 접수되었습니다.\n남은 {{○○개}}는 리뷰를 추가로 남기신 뒤 아래 버튼으로 이어서 접수해 주세요.", k:false },
     doneLeftShip: { t:"※ 접수 건마다 따로 발송되어 배송비(착불)가 각각 부과됩니다.", k:false },
@@ -4889,6 +4893,8 @@ function pvLookupBody(spot, ex){
 
 /* ── 접수 완료 팝업 한 판 ──
    ⚠️ 「완료 문구」는 팝업 맨 아래 회색 상자로 붙습니다(2026-09-08 연결). */
+const DONE_BODY_KEYS = ["doneReviewGift","doneReviewGiftPre","doneReviewCoupon",
+                        "doneCoupangGift","doneCoupangGiftPre","doneCoupangCoupon"];
 function pvDoneBody(spot){
   const hl = k => (spot === k ? " pvhl" : "");
   const D  = (cfg.form && cfg.form.done) || {};
@@ -4906,8 +4912,11 @@ function pvDoneBody(spot){
   + '<div class="modal on"><div class="box">'
   +   '<div class="icon">✅</div>'
   +   '<h3>' + pvE(nt("doneTitle") || "참여가 접수되었습니다") + '</h3>'
-  +   '<p>' + pvT((nt("doneReviewGift")
-        || "리뷰 심사(별점·사진 자동 확인) 후 ○○ 발송됩니다.").replace("○○", "사은품이")) + '</p>'
+  /* 지금 고치고 있는 문구가 「제목 밑 한 줄」 여섯 가지 중 하나면 그것을 보여 줍니다.
+     아니면 대표로 「포토리뷰 · 사은품(착불)」 문구를 씁니다. */
+  +   '<p class="' + hl(spot).trim() + '">' + pvT((nt(DONE_BODY_KEYS.includes(spot) ? spot : "doneReviewGift")
+        || "리뷰 심사(별점·사진 자동 확인) 후 ○○ 발송됩니다.")
+        .replace("○○", /Coupon$/.test(spot) ? "기프티콘(상품권)이" : "사은품이")) + '</p>'
   +   '<div class="kv">'
   +     '<div><b>유형</b> 포토리뷰 이벤트</div>'
   +     '<div><b>제품</b> 무선청소기 맥스제로 i90</div>'
@@ -5341,10 +5350,12 @@ const NOTICE_GROUPS = [
   ]],
   ["⑧ 접수 완료 — 초록 팝업 창", [
     ["doneTitle",    "창 제목",          "접수가 끝나면 항상"],
-    ["doneReviewGift",   "포토리뷰 · 사은품일 때",      "제목 밑 한 줄"],
-    ["doneReviewCoupon", "포토리뷰 · 상품권일 때",      "제목 밑 한 줄"],
-    ["doneCoupangGift",  "쿠팡 정품등록 · 사은품일 때",  "제목 밑 한 줄"],
-    ["doneCoupangCoupon","쿠팡 정품등록 · 상품권일 때",  "제목 밑 한 줄"],
+    ["doneReviewGift",   "포토리뷰 · 사은품(착불)일 때",      "제목 밑 한 줄"],
+    ["doneReviewGiftPre","포토리뷰 · 사은품(선불)일 때",      "제목 밑 한 줄 · 가습기 iH12처럼 선불로 나가는 제품"],
+    ["doneReviewCoupon", "포토리뷰 · 상품권일 때",            "제목 밑 한 줄"],
+    ["doneCoupangGift",  "쿠팡 정품등록 · 사은품(착불)일 때",  "제목 밑 한 줄"],
+    ["doneCoupangGiftPre","쿠팡 정품등록 · 사은품(선불)일 때", "제목 밑 한 줄 · 가습기 iH12처럼 선불로 나가는 제품"],
+    ["doneCoupangCoupon","쿠팡 정품등록 · 상품권일 때",        "제목 밑 한 줄"],
     ["doneMulti",    "여러 개 한 번에",   "2개 이상을 한 번에 접수했을 때"],
     ["doneLeft",     "남은 수량이 있을 때","산 수량보다 적게 접수했을 때"],
     ["doneLeftShip", "착불 주의",        "위 문구 아래 · 사은품(착불)일 때만"]
@@ -5677,6 +5688,17 @@ function fixNotices(c){
       if(!N[b]) N[b] = { t:o2.t, k:o2.k };
       delete N[old];
     }
+  });
+
+  /* 사은품이 선불로 나가는 제품 전용 완료 문구.
+     처음 열 때는 착불 문구를 그대로 옮겨 오되, 거기 적힌 배송비 문장 한 줄만 빼 드립니다.
+     ⚠️ 옮겨 오는 것은 딱 한 번뿐입니다. 그 뒤로는 두 문구가 서로 상관없이 따로 갑니다
+        — 착불 문구를 고쳐도 선불 문구는 그대로입니다(그래야 문장을 바꿔도 안 깨집니다). */
+  const FEE_LINE = /\s*배송비는 착불로 발생합니다\.?/g;
+  [["doneReviewGift","doneReviewGiftPre"],["doneCoupangGift","doneCoupangGiftPre"]].forEach(([a,pre])=>{
+    if(N[pre] && typeof N[pre] === "object") return;          // 이미 있으면 손대지 않습니다
+    const base = (N[a] && typeof N[a] === "object") ? N[a] : DEFAULTS.notices[a];
+    N[pre] = { t:String(base.t||"").replace(FEE_LINE,"").trim(), k:!!base.k };
   });
 
   /* 그 밖에 빠진 문구는 기본값으로 채웁니다 */

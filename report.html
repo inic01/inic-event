@@ -920,8 +920,6 @@
           <div style="font-weight:800;font-size:12.5px;color:var(--sub);margin-bottom:6px">🧾 구매내역 캡처 (쿠팡 정품등록)</div>
           <img id="dtBuyImg" alt="구매내역 캡처" style="width:100%;max-height:360px;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#f4f2f0;cursor:zoom-in" onclick="openImg(this.src)">
           <a id="dtBuyOpen" href="#" target="_blank" class="img" style="display:block;font-size:12px;text-align:right;margin-top:6px">새 탭에서 원본 열기 ↗</a>
-          <!-- 구매내역 캡처를 AI가 읽은 결과 — 사진 바로 아래에 두어야 눈으로 대조할 수 있습니다. -->
-          <div id="dtBuyAi" style="display:none;margin-top:8px;padding:9px 11px;background:var(--sunk,#f6f4f2);border:1px solid var(--line);border-radius:9px;font-size:12.5px;line-height:1.75"></div>
         </div>
       </div>
       <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:9px">
@@ -1901,12 +1899,10 @@ function openDetail(id){
     if(_bu){ bw.style.display=""; $("#dtBuyImg").src=_bu; $("#dtBuyOpen").href=_bu; }
     else   { bw.style.display="none"; $("#dtBuyImg").src=""; }
   }
-  /* 구매내역 캡처 AI 판독 결과 — 두 곳에 같은 내용을 냅니다.
-       ① 사진 바로 아래 상자 (사진과 눈으로 대조할 때)
-       ② 오른쪽 정보 칸 한 줄  (S/N 처럼 한눈에 볼 때)                        */
-  const ba=$("#dtBuyAi"), brow=$("#dtBuyRow"), bcell=$("#dtBuyCell");
-  const buyShow = _bu && buyJudged(e);
-  if(buyShow){
+  /* 구매내역 캡처 AI 판독 결과 — 오른쪽 정보 칸에 S/N 다음 줄로 냅니다.
+     (사진 아래에도 같은 내용을 넣었더니 같은 말이 두 번 나와서 없앴습니다) */
+  const brow=$("#dtBuyRow"), bcell=$("#dtBuyCell");
+  if(_bu && buyJudged(e)){
     const yn=(v,ok,no)=>v===true?`<span style="color:var(--ok,#12a150);font-weight:800">${ok}</span>`
                       :v===false?`<span style="color:var(--bad,#c0392b);font-weight:800">${no}</span>`
                       :`<span style="color:var(--sub)">판독 불가</span>`;
@@ -1917,12 +1913,8 @@ function openDetail(id){
       +(e.aiBuyProductInImage?` <span style="color:var(--sub)">— 읽은 값: ${esc(e.aiBuyProductInImage)}</span>`:"")+`</div>`
       +`<div>구매일자 · ${e.aiBuyDate?esc(e.aiBuyDate):'<span style="color:var(--sub)">판독 불가</span>'} <span style="color:var(--sub)">(판정에는 쓰지 않습니다)</span></div>`
       +(e.aiBuyErrorDetail?`<div style="color:var(--sub);margin-top:4px">원인: ${esc(String(e.aiBuyErrorDetail).slice(0,180))}</div>`:"");
-    if(ba){ ba.innerHTML=`<div style="font-weight:800;margin-bottom:4px">🤖 구매내역 AI 판독</div>`+lines; ba.style.display=""; }
     if(brow&&bcell){ bcell.innerHTML=lines; brow.style.display=""; }
-  } else {
-    if(ba){ ba.style.display="none"; ba.innerHTML=""; }
-    if(brow){ brow.style.display="none"; }
-  }
+  } else if(brow){ brow.style.display="none"; if(bcell) bcell.innerHTML="-"; }
   $("#dtAgent").value = e.agent || "";
   $("#dtStatus").innerHTML=CALL_STATES.map(o=>`<option value="${o}" ${o===(e.callStatus||"")?"selected":""}>${o||"— 응대상태 선택 —"}</option>`).join("");
   $("#dtResult").innerHTML=CALL_RESULTS.map(o=>`<option value="${o}" ${o===(e.callResult||"")?"selected":""}>${o||"— 처리상태 선택 —"}</option>`).join("");
@@ -4092,7 +4084,7 @@ const DEFAULTS = {
     { ledger:"무선청소기 iV10",         codes:["iV10"],    cat:"생활가전",  gift:"거치대 iv10,iv11",             type:"gift" },
     { ledger:"무선청소기 iv11",         codes:["iv11"],    cat:"생활가전",  gift:"거치대 iv10,iv11",             type:"gift" },
     { ledger:"복합식가습기 iH05UV",     codes:["iH05"],    cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
-    { ledger:"복합식가습기 iH12",       codes:["iH12"],    cat:"계절가전",  gift:"전용 관리 set 가습기용",        type:"gift" },
+    { ledger:"복합식가습기 iH12",       codes:["iH12"],    cat:"계절가전",  gift:"전용 관리 set 가습기용",        type:"gift", shipFee:"선불" },
     { ledger:"공기청정기 iAP22",        codes:["iAP22"],   cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
     { ledger:"유선 서큘레이터 iC01",    codes:["iC01"],    cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
     { ledger:"서큘레이터 iSC02",        codes:["iSC02"],   cat:"계절가전",  gift:"보관백 iSC01,iSC02",           type:"gift" }
@@ -4245,6 +4237,9 @@ const DEFAULTS = {
       noticeGiftLabel:"사은품 발송 안내",
       noticeGift:"사은품은 착불 발송(택배비 3,200원, 배송 기사님 안내)됩니다. 제주·도서산간은 추가 배송비가 발생할 수 있습니다. 접수 후 1~2영업일 출고.",
       ackGift:"네, 착불 발송에 동의합니다",
+      /* 선불로 나가는 제품(가습기 iH12 등) — 배송비 이야기가 아예 안 나갑니다 */
+      noticeGiftPre:"사은품은 무료 배송으로 발송됩니다. 접수 후 1~2영업일 출고, 1인 1회 참여.",
+      ackGiftPre:"네, 확인했습니다",
       noticeCouponLabel:"기프티콘 발송 안내",
       noticeCoupon:"기프티콘은 수령인 휴대폰으로 카카오톡 발송(기프티쇼비즈)됩니다. 발송일: 매주 월요일(월요일 신청 건은 익주 월요일). 사용 기한: 수령 후 30일, 경과 후 재발송이 어렵습니다.",
       ackCoupon:"네, 확인했습니다",
@@ -4470,7 +4465,19 @@ function paneGift(){
           el("td", { class:"tight" },
             el("select", { "aria-label":"종류", onchange:e => { p.type = e.target.value; softRefresh(); } },
               el("option", { value:"gift",   ...(p.type === "gift"   ? { selected:"" } : {}) }, "사은품"),
-              el("option", { value:"coupon", ...(p.type === "coupon" ? { selected:"" } : {}) }, "상품권"))) ]
+              el("option", { value:"coupon", ...(p.type === "coupon" ? { selected:"" } : {}) }, "상품권"))),
+          /* 배송비 — 제품마다 다릅니다(가습기 iH12는 선불). 상품권은 배송이 없어 해당 없음. */
+          el("td", { class:"tight" }, p.type === "coupon"
+            ? el("span", { style:"color:var(--sub)" }, "해당 없음")
+            : el("div", {},
+                el("select", { "aria-label":"배송비",
+                  onchange:e => { p.shipFee = e.target.value; softRefresh(); } },
+                  el("option", { value:"착불", ...(p.shipFee !== "선불" ? { selected:"" } : {}) }, "착불"),
+                  el("option", { value:"선불", ...(p.shipFee === "선불" ? { selected:"" } : {}) }, "선불")),
+                el("div", { style:"font-size:11px;color:var(--sub);margin-top:3px" },
+                  p.shipFee === "선불"
+                    ? "고객 화면에서 배송비 안내가 나가지 않습니다."
+                    : "고객이 착불 발송에 동의해야 접수됩니다."))) ]
       : [ el("td", {},
             el("span", { style:"font-weight:700" }, p.ledger || el("span", { style:"color:var(--bad)" }, "(제품군 없음)")),
             dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : "",
@@ -4485,7 +4492,12 @@ function paneGift(){
           el("td", { class:"tight" }, p.gift
             ? el("span", { class:"pill " + (p.type === "coupon" ? "coupon" : "gift") },
                 p.type === "coupon" ? "상품권" : "사은품")
-            : el("span", { class:"pill mute" }, "대상 아님")) ];
+            : el("span", { class:"pill mute" }, "대상 아님")),
+          el("td", { class:"tight" }, (!p.gift || p.type === "coupon")
+            ? el("span", { style:"color:var(--sub)" }, "-")
+            : el("span", { class:"pill", style: p.shipFee === "선불"
+                ? "background:#e9f0fb;color:#2f6df6" : "background:#f2eeea;color:#6b625b" },
+                p.shipFee === "선불" ? "선불" : "착불")) ];
 
     return el("tr", { class: on ? "editing" : "" }, cells,
       el("td", { class:"tight" },
@@ -4513,11 +4525,11 @@ function paneGift(){
     el("div", { class:"tablewrap" },
       el("table", {},
         el("thead", {}, el("tr", {},
-          el("th", {}, "제품군"), el("th", {}, "카테고리"), el("th", {}, "사은품"), el("th", {}, "종류"), el("th", {}, ""))),
+          el("th", {}, "제품군"), el("th", {}, "카테고리"), el("th", {}, "사은품"), el("th", {}, "종류"), el("th", {}, "배송비"), el("th", {}, ""))),
         el("tbody", {}, rows))),
     el("div", { class:"row", style:"margin-top:14px" },
       el("button", { class:"btn", type:"button", onclick:() => {
-        cfg.products.push({ ledger:"", cat:"주방가전", gift:"", type:"gift", codes:[] });
+        cfg.products.push({ ledger:"", cat:"주방가전", gift:"", type:"gift", codes:[], shipFee:"착불" });
         editRow = cfg.products.length - 1; render();
         document.querySelector("#pane tr.editing input")?.focus();
       } }, "+ 제품 추가"),
@@ -4526,9 +4538,10 @@ function paneGift(){
     ,
     el("div", { class:"linkbox" },
       el("div", {},
-        el("b", {}, "착불 안내 · 기프티콘 안내는 여기 없습니다."),
+        el("b", {}, "발송 안내 문구는 여기 없습니다."),
         el("div", { style:"font-size:12px;color:var(--sub);margin-top:2px" },
-          "제품마다 다른 문구가 아니라 사은품·상품권이면 모두 같은 문장이 나가서, 「접수폼」의 사은품 안내 자리에서 고치게 해 두었습니다.")),
+          "착불 문구 · 선불 문구 · 기프티콘 문구 세 가지가 있고, 위에서 정한 ", el("b", {}, "종류와 배송비"),
+          " 에 따라 자동으로 갈립니다. 문장 자체는 「접수폼」의 사은품 안내 자리에서 고치세요.")),
       el("button", { class:"btn", type:"button",
         onclick:() => { tab = "form"; sel = "reward"; editRow = null; render(); } }, "접수폼에서 보기"))
   ];
@@ -5072,8 +5085,12 @@ function paneForm(){
   /* 4 받으실 사은품 */
   const simP = cfg.products.find(x => x.ledger === surveyProduct) || {};
   const isCoupon = simP.type === "coupon";
+  /* 선불 제품은 배송비 문구가 따로 있습니다. 위쪽에서 고른 제품에 맞는 쪽을 고치게 합니다. */
+  const isPre = !isCoupon && simP.shipFee === "선불";
+  const kNotice = isCoupon ? "noticeCoupon" : (isPre ? "noticeGiftPre" : "noticeGift");
+  const kAck    = isCoupon ? "ackCoupon"    : (isPre ? "ackGiftPre"    : "ackGift");
   form.append(card("reward", ++n, isCoupon ? F.reward.titleCoupon : F.reward.titleGift,
-    isCoupon ? "상품권일 때" : "사은품일 때", [
+    isCoupon ? "상품권일 때" : (isPre ? "사은품일 때 · 선불" : "사은품일 때 · 착불"), [
     el("div", { class:"fbody" },
       tv(F.reward, "desc", "reward", { cls:"sdesc", multi:true }),
       el("div", { class:"gcard" },
@@ -5086,12 +5103,14 @@ function paneForm(){
           tv(F.reward, isCoupon ? "noticeCouponLabel" : "noticeGiftLabel", "reward", {}),
           reqBtn(F.reward.ackReq, () => { F.reward.ackReq = !F.reward.ackReq; },
             isOpen("reward"), "reward")),
-        tv(F.reward, isCoupon ? "noticeCoupon" : "noticeGift", "reward", { cls:"cdesc", multi:true }),
+        tv(F.reward, kNotice, "reward", { cls:"cdesc", multi:true }),
         el("div", { class:"copt", style:"align-items:center" },
           el("span", { class:"cchk" }),
-          tv(F.reward, isCoupon ? "ackCoupon" : "ackGift", "reward", { cls:"cmain" }))),
-      el("p", { class:"note" }, "제품이 사은품이냐 상품권이냐에 따라 위 문구가 자동으로 바뀝니다. ",
-        "위쪽 제품을 바꿔 보시면 다른 쪽 문구를 고칠 수 있습니다."))]));
+          tv(F.reward, kAck, "reward", { cls:"cmain" }))),
+      el("p", { class:"note" }, "제품이 ", el("b", {}, "사은품(착불) · 사은품(선불) · 상품권"),
+        " 중 무엇이냐에 따라 위 문구가 자동으로 바뀝니다. ",
+        "위쪽 제품을 바꿔 보시면 다른 쪽 문구를 고칠 수 있습니다. ",
+        el("b", {}, "착불/선불은 「사은품」 탭에서 제품마다 정합니다.")))]));
 
   /* 5 캡처 이미지 (포토리뷰) / 시리얼번호 (쿠팡 정품등록) */
   if(formType === "coupang"){

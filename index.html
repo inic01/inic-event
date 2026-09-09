@@ -105,6 +105,10 @@
   .notice{font-size:11.5px;color:var(--sub);line-height:1.65;background:#f7f9fc;
     border-radius:10px;padding:12px 13px;margin-bottom:10px}
   .notice b{color:var(--ink)}
+  /* 필수 동의를 「거부」로 고르셨을 때 그 항목 아래에 붙는 빨간 안내 */
+  .cdeny{margin:8px 0 2px;padding:11px 12px;background:#fff5f5;border:1px solid #f3c9c9;
+    border-radius:10px;font-size:12px;color:#c0392b;line-height:1.75;white-space:pre-line;font-weight:600}
+  .cdeny b{color:#a02a1c}
   .qitem{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
   .qitem .qtt{font-size:13.5px;font-weight:800;margin-bottom:4px;line-height:1.45}
   .consent{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
@@ -563,6 +567,7 @@ function applyConfig(){
           inp.checked=true; state.consent[id]=v;
           const lab=inp.closest(".radio"); if(lab) lab.classList.add("sel");
         });
+        syncConsentDeny();          // 거부를 골라 둔 상태였으면 안내도 다시 붙입니다
       }
     }
     const h=document.querySelector("#step-consent .desc");
@@ -844,6 +849,14 @@ let GIFT_NOTICE="사은품은 <b>착불 발송</b>(택배비 3,200원, 배송 �
 /* 선불로 나가는 제품(가습기 iH12 등) — 배송비 이야기가 아예 안 나갑니다. */
 let GIFT_NOTICE_PRE="사은품은 <b>무료 배송</b>으로 발송됩니다. 접수 후 1~2영업일 출고, 1인 1회 참여. (쿠팡 로켓배송 구매 고객은 '쿠팡·로켓배송 정품 등록'으로 참여해 주세요 — 이중 접수 시 배송비·회수비 고객 부담)";
 let GIFT_ACK="네, 착불 발송에 동의합니다", GIFT_ACK_PRE="네, 확인했습니다", COUPON_ACK="네, 확인했습니다";
+/* 필수 동의를 「거부」로 고르셨을 때 그 항목 아래에 뜨는 안내.
+   ○○ 자리에 항목 이름(개인정보 수집·이용 동의 등)이 자동으로 들어갑니다.
+   문장은 관리자 「안내 문구」 탭에서 고칠 수 있습니다(열쇠 consentDeny). */
+const CONSENT_DENY_DEFAULT =
+  '○○에 [[“동의”를 하지 않으셨습니다.]]\n'
++ '동의를 원하지 않을 경우, 거부하실 수 있습니다. 다만, 사은품 택배 발송을 위한 정보 수집이 불가하여 이벤트 참여가 어렵습니다.\n\n'
++ '※ 사은품 수령을 위한 설문에 계속 참여하시려면 바로 위에서 {{“동의합니다”}}에 체크 부탁드립니다.\n'
++ '※ “동의”에 체크하시면 다음 단계로 넘어갈 수 있습니다.';
 let COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 발송</b>(기프티쇼비즈)됩니다. 발송일: 매주 월요일(월요일 신청 건은 익주 월요일). 사용 기한: 수령 후 30일, 경과 후 재발송이 어렵습니다.";
 /* ============================================================ */
 
@@ -872,6 +885,25 @@ const ERR_TARGET={
   "err-addr":["#addrRoad","#addrDetail"]
 };
 /* 동의 단계 : 아직 고르지 않았거나 필수인데 '거부'한 항목만 테두리 */
+/* 필수 동의를 「거부」로 고른 항목 아래에 빨간 안내를 붙입니다.
+   고르는 순간 바로 뜨고, 「다음」을 눌렀을 때도 같은 자리를 보여 줍니다.
+   ⚠️ 예전에는 「다음」을 눌러야 알림창(alert)이 떴습니다. 고객이 왜 막혔는지 몰랐습니다. */
+function syncConsentDeny(){
+  const list=[...CONSENTS.common,...(state.type==="review"?CONSENTS.review:CONSENTS.coupang)];
+  let first=null;
+  list.forEach(c=>{
+    if(c.ack || c.tag!=="must") return;
+    const box=document.getElementById("cdeny-"+c.id); if(!box) return;
+    if(state.consent[c.id]==="deny"){
+      box.innerHTML=rich(fill(MSGT("consentDeny",CONSENT_DENY_DEFAULT),[c.title]));
+      box.style.display="block";
+      if(!first) first=box;
+    }else{
+      box.style.display="none"; box.innerHTML="";
+    }
+  });
+  return first;
+}
 function markConsentInvalid(){
   const list=[...CONSENTS.common,...(state.type==="review"?CONSENTS.review:CONSENTS.coupang)];
   list.forEach(c=>{
@@ -988,16 +1020,27 @@ function renderConsent(){
   list.forEach(c=>{
     const el=document.createElement("div"); el.className="consent"; el.dataset.cid=c.id;
     const tag=c.tag==="must"?'<span class="ctag must">필수</span>':'<span class="ctag opt">선택</span>';
-    let inner=`<div class="ctitle">${c.title}${tag}</div><div class="notice" style="margin:6px 0 4px">${c.notice}</div>`;
-    if(c.ack){ inner+=`<label class="chk"><input type="checkbox" data-cid="${c.id}"><span>${c.ackLabel} <span class="req">*</span></span></label>`; }
-    else{ inner+=`<label class="radio"><input type="radio" name="c_${c.id}" value="agree" data-cid="${c.id}"><span>${c.agree}<span class="cons">(*${c.agreeCons}*)</span></span></label>
-      <label class="radio"><input type="radio" name="c_${c.id}" value="deny" data-cid="${c.id}"><span>${c.deny}<span class="cons">(*${c.denyCons}*)</span></span></label>`; }
+    /* 🔴 설정 화면에서 넣은 줄바꿈·빈 줄을 그대로 살립니다.
+          예전에는 글자만 넣어서 여러 줄이 한 덩어리로 붙어 나왔습니다(2026-09-09 지적).
+          [[빨간 굵은 글씨]] · {{검은 굵은 글씨}} 도 다른 문구와 똑같이 씁니다. */
+    let inner=`<div class="ctitle">${esc(c.title)}${tag}</div><div class="notice" style="margin:6px 0 4px">${rich(c.notice)}</div>`;
+    if(c.ack){ inner+=`<label class="chk"><input type="checkbox" data-cid="${c.id}"><span>${rich(c.ackLabel||"")} <span class="req">*</span></span></label>`; }
+    /* 부가 설명이 비어 있으면 괄호 자체를 안 그립니다.
+       예전에는 빈 값이어도 「(**)」 가 남아 보였습니다(2026-09-09 지적). */
+    else{
+      const consHtml = t => t ? `<span class="cons">(*${esc(t)}*)</span>` : "";
+      inner+=`<label class="radio"><input type="radio" name="c_${c.id}" value="agree" data-cid="${c.id}"><span>${rich(c.agree)}${consHtml(c.agreeCons)}</span></label>
+      <label class="radio"><input type="radio" name="c_${c.id}" value="deny" data-cid="${c.id}"><span>${rich(c.deny)}${consHtml(c.denyCons)}</span></label>`;
+      /* 필수 항목을 「거부」로 고르면 이 자리에 빨간 안내가 붙습니다(고를 때 바로). */
+      if(c.tag==="must") inner+=`<div class="cdeny" id="cdeny-${c.id}" style="display:none"></div>`;
+    }
     el.innerHTML=inner; box.appendChild(el);
   });
   box.querySelectorAll('input[type=radio]').forEach(r=>r.addEventListener("change",e=>{
     state.consent[e.target.dataset.cid]=e.target.value;
     e.target.closest(".consent").querySelectorAll(".radio").forEach(x=>x.classList.remove("sel"));
     e.target.closest(".radio").classList.add("sel"); hideErr("err-consent");
+    syncConsentDeny();                         // 필수 항목을 거부로 고르면 그 자리에 바로 안내
   }));
   box.querySelectorAll('input[type=checkbox]').forEach(ck=>ck.addEventListener("change",e=>{
     state.consent[e.target.dataset.cid]=e.target.checked?"ack":null; hideErr("err-consent");
@@ -1677,7 +1720,13 @@ function validateStep(step){
   if(step==="consent"){
     const r=validateConsent();
     markConsentInvalid();                                  // 문제가 된 항목만 테두리
-    if(!r.ok){showErr("err-consent"); if(r.msg)alert(r.msg); return false;}
+    /* 거부한 항목은 알림창이 아니라 그 항목 아래 빨간 안내로 보여 줍니다. */
+    const denyBox=syncConsentDeny();
+    if(!r.ok){
+      showErr("err-consent");
+      if(denyBox) denyBox.scrollIntoView({behavior:"smooth",block:"center"});
+      return false;
+    }
     hideErr("err-consent"); return true; }
   if(step==="product"){ if(!state.product){showErr("err-prod");return false;} return true; }
   if(step==="entry"){ let bad=-1;

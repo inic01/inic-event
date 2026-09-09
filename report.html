@@ -1199,6 +1199,10 @@ async function loadData(){
       const t=cfg.exists&&cfg.data().reserveUpdatedAt;reserveSavedAt=t&&t.toDate?t.toDate():null;}catch(_){reserveProducts=new Set();}
     $("#asof").textContent="기준 "+new Date().toLocaleString("ko-KR")+" · 총 "+ALL.length+"건";
     buildCatalog();renderManualSelects();renderReserveConfig();renderActiveTab();
+    /* 마케팅 활용 인원도 같이 다시 셉니다.
+       ⚠️ 예전에는 고객DB 탭을 눌렀을 때만 셌습니다. 접수를 지우고 새로고침해도
+          예전 숫자가 그대로 남아 「지워지지 않는다」로 보였습니다(2026-09-09 발견). */
+    try{ mkRender(); }catch(_){ }
   }catch(err){console.error(err);$("#asof").textContent="불러오기 실패: "+(err.message||err);}
 }
 function fmtDate(d){if(!d)return "-";const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}

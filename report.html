@@ -78,6 +78,28 @@
   table.data tr:hover td{background:#faf8f6}
   table.data tr.clickrow{cursor:pointer} table.data tr.clickrow:hover td{background:#fbf1ec}
   .dtrow{display:flex;gap:10px;font-size:12.5px;line-height:1.4} .dtrow b{min-width:88px;color:var(--sub);font-weight:800}
+  /* 상세 화면 왼쪽 사진 제목 (2026-09-10) */
+  .shotlbl{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+  .shotlbl .no{flex:0 0 22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;
+    font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .shotlbl .tt{font-size:15px;font-weight:900;letter-spacing:-.2px}
+  .shotlbl .sb{font-size:11.5px;color:var(--sub);font-weight:700}
+  /* 상세 화면 AI 심사 체크리스트 (2026-09-10) */
+  .dtchk{border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden}
+  .dtchk .ch{background:#faf8f6;padding:9px 12px;font-size:12px;font-weight:800;color:var(--sub);
+    border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .dtchk .ci{display:flex;gap:9px;align-items:flex-start;padding:9px 12px;border-bottom:1px solid var(--line);
+    font-size:12.5px;line-height:1.5}
+  .dtchk .ci:last-child{border-bottom:none}
+  .dtchk .ci i{flex:0 0 15px;font-style:normal;font-weight:900;text-align:center}
+  .dtchk .ci.no i{color:var(--bad)} .dtchk .ci.yes i{color:var(--ok)} .dtchk .ci.na i{color:#c3bab3}
+  .dtchk .ci .k{flex:0 0 92px;font-weight:800}
+  .dtchk .ci .v{flex:1;word-break:break-all}
+  .dtchk .ci.no .v{color:var(--bad);font-weight:700}
+  .dtchk .ci.na .v{color:var(--sub)}
+  .dtchk .ci .rd{display:block;font-size:11.5px;color:var(--sub);font-weight:600;margin-top:2px}
+  /* 머리줄의 발송 배지는 「상태」 줄과 같은 작은 크기로 (기본 .shipbig 는 17px) */
+  .dtchk .ch .shipbig{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;vertical-align:middle}
   .pill{font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;white-space:nowrap}
   .pill.gift{background:#eaf3ee;color:var(--ok)} .pill.coupon{background:#fdf0e3;color:var(--warn)}
   .pill.review{background:#eef1f5;color:#4a5568} .pill.coupang{background:#e9f0fb;color:var(--blue)}
@@ -833,8 +855,8 @@
     <span class="msg" id="saveMsg"></span>
   </div>
   <p style="margin:6px 0 0;font-size:12px;color:var(--sub)">
-    고친 내용은 <b>이 버튼을 눌러야</b> 서버에 남습니다.
-    각 항목의 <b>「수정 끝」</b>은 그 칸을 닫는 것일 뿐이라, 이 버튼을 안 누르고 창을 닫으면 <b style="color:var(--bad)">전부 사라집니다.</b>
+    고친 내용은 <b>이 버튼을 눌러야</b> 서버에 남습니다. 이 버튼을 안 누르고 창을 닫으면 <b style="color:var(--bad)">전부 사라집니다.</b>
+    항목에 붙는 <b>「고치는 중」</b>은 <b>그 칸이 열려 있다</b>는 표시일 뿐입니다 — 저장하면 칸이 닫히면서 함께 사라집니다.
   </p>
   <details style="margin-top:10px">
     <summary>서버에 저장될 내용 보기 (개발자용)</summary>
@@ -936,17 +958,24 @@
     </div>
     <div style="display:flex;gap:18px;flex-wrap:wrap">
       <div style="flex:1;min-width:240px">
+        <!-- 🔴 사진 제목(2026-09-10) — 첫 사진에는 제목이 아예 없어서 무슨 사진인지 알 수 없었습니다. -->
+        <div id="dtImgTitle" class="shotlbl"></div>
         <img id="dtImg" alt="리뷰 이미지" style="width:100%;max-height:360px;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#f4f2f0;cursor:zoom-in" onclick="openImg(this.src)">
         <div id="dtNoImg" style="display:none;padding:26px;text-align:center;color:var(--sub);border:1px dashed var(--line);border-radius:10px">첨부 이미지 없음</div>
         <a id="dtImgOpen" href="#" target="_blank" class="img" style="display:block;font-size:12px;text-align:right;margin-top:6px">새 탭에서 원본 열기 ↗</a>
         <!-- 쿠팡 정품등록은 사진이 둘입니다 — 위는 S/N 라벨 사진, 아래가 구매내역 캡처. -->
-        <div id="dtBuyWrap" style="display:none;margin-top:12px">
-          <div style="font-weight:800;font-size:12.5px;color:var(--sub);margin-bottom:6px">🧾 구매내역 캡처 (쿠팡 정품등록)</div>
+        <div id="dtBuyWrap" style="display:none;margin-top:16px">
+          <div id="dtBuyTitle" class="shotlbl"></div>
           <img id="dtBuyImg" alt="구매내역 캡처" style="width:100%;max-height:360px;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#f4f2f0;cursor:zoom-in" onclick="openImg(this.src)">
           <a id="dtBuyOpen" href="#" target="_blank" class="img" style="display:block;font-size:12px;text-align:right;margin-top:6px">새 탭에서 원본 열기 ↗</a>
         </div>
       </div>
       <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:9px">
+        <!-- 🔴 AI 심사 체크리스트(2026-09-10) — 쿠팡 정품등록 전용.
+             예전에는 같은 판정이 ① S/N 줄 ② 구매내역 4줄 ③ 부적합 사유 줄, 세 군데에 흩어져 있었습니다.
+             AI가 보는 항목은 정해져 있으므로 늘 같은 순서로 한 장에 모읍니다.
+             ✕ 가 곧 부적합 사유이므로, 이 상자가 보일 때는 사유 줄에 「체크리스트에 없는 것」만 남깁니다. -->
+        <div class="dtchk" id="dtChkBox" style="display:none"></div>
         <div class="dtrow"><b>사은품/상품권</b><span id="dtReward">-</span></div>
         <div class="dtrow"><b>제품</b><span id="dtProduct">-</span></div>
         <div class="dtrow"><b>주문번호</b><span id="dtOrder">-</span></div>
@@ -955,7 +984,7 @@
         <div class="dtrow" id="dtBuyRow" style="display:none"><b>구매내역</b><span id="dtBuyCell">-</span></div>
         <div class="dtrow"><b>배송구분</b><span id="dtFee">-</span></div>
         <div class="dtrow"><b>주소</b><span id="dtAddr">-</span></div>
-        <div class="dtrow"><b>상태</b><span id="dtState">-</span></div>
+        <div class="dtrow" id="dtStateRow"><b>상태</b><span id="dtState">-</span></div>
         <div class="dtrow" id="dtReasonRow"><b id="dtReasonLabel">부적합 사유</b><span id="dtReason" style="color:var(--bad,#c0392b)">-</span></div>
 
         <!-- 부적합(아웃콜) 전용 : 응대 기록 + 출고 승인 -->
@@ -1089,6 +1118,48 @@ function buyJudged(e){return e.aiBuyCapture!==undefined;}
 /* 화면은 맞는데 배송상태나 상품명을 못 읽은 경우 → 부적합이 아니라 확인필요 */
 function buyUnread(e){return buyJudged(e)&&e.aiBuyCapture!==false&&(e.aiBuyDelivered==null||e.aiBuyProductMatch==null);}
 function cleanReason(r){return aiErrMsg(r)||r;}
+/* ══════ AI 심사 체크리스트 (쿠팡 정품등록 상세 화면) — 2026-09-10 ══════
+   예전에는 같은 판정이 ① S/N 줄 ② 구매내역 4줄 ③ 부적합 사유 줄, 세 군데에 흩어져 있었습니다.
+   AI가 보는 항목은 정해져 있으므로(S/N 라벨·주문목록 화면·배송완료·상품명)
+   늘 같은 순서로 한 장에 늘어놓고 ✓ / ✕ 만 답니다. ✕ 가 곧 부적합 사유입니다.
+   ⚠️ 예전 접수건·수기접수는 필드 자체가 없습니다 — 그때는 회색 「판독 안 함」으로 나옵니다. */
+function chkEsc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+function chkRow(state, k, v, rd){
+  const ic = state==="yes" ? "✓" : state==="no" ? "✕" : "·";
+  return `<div class="ci ${state}"><i>${ic}</i><span class="k">${k}</span>`
+       + `<span class="v">${v}${rd?`<span class="rd">${rd}</span>`:""}</span></div>`;
+}
+/* S/N 판정 필드를 AI가 한 번이라도 채웠는지 */
+function snJudged(e){
+  return e.aiSerialPhoto!==undefined || e.aiSerialInImage!==undefined || e.aiSerialMatch!==undefined;
+}
+function aiChecklist(e){
+  if(e.type!=="coupang") return "";
+  if(!snJudged(e) && !buyJudged(e)) return "";      /* AI를 한 번도 안 거친 건 → 예전 화면 그대로 */
+  const inp = chkEsc(e.serial || "(미입력)");
+  let rows = "";
+  /* ① S/N 라벨 사진 */
+  if(!snJudged(e))                  rows += chkRow("na","S/N 라벨","판독 안 함",`고객 입력 ${inp}`);
+  else if(e.aiSerialPhoto===false)  rows += chkRow("no","S/N 라벨","라벨 사진이 아님",`고객 입력 ${inp}`);
+  else if(e.aiSerialMatch===true)   rows += chkRow("yes","S/N 라벨","일치",`고객 입력 ${inp} · 사진 ${chkEsc(e.aiSerialInImage||e.serial||"-")}`);
+  else if(e.aiSerialMatch===false)  rows += chkRow("no","S/N 라벨","불일치",`고객 입력 ${inp} · 사진 ${chkEsc(e.aiSerialInImage||"-")}`);
+  else                              rows += chkRow("no","S/N 라벨","판독 불가",`고객 입력 ${inp} — 사진과 대조 못 함`);
+  /* ②③④ 구매내역 캡처 */
+  if(!buyJudged(e)) rows += chkRow("na","구매내역","판독 안 함","캡처가 없거나 예전 접수건입니다");
+  else {
+    const yn = (v, ok, no) => v===true ? ["yes",ok] : v===false ? ["no",no] : ["na","판독 불가"];
+    let r;
+    r = yn(e.aiBuyCapture,   "맞음",   "주문목록 화면이 아님"); rows += chkRow(r[0],"주문목록 화면",r[1]);
+    r = yn(e.aiBuyDelivered, "배송완료","배송완료 아님");        rows += chkRow(r[0],"배송완료",r[1]);
+    r = yn(e.aiBuyProductMatch,"일치", "다른 제품");
+    rows += chkRow(r[0],"상품명",r[1], e.aiBuyProductInImage?`읽은 값 : ${chkEsc(e.aiBuyProductInImage)}`:"");
+    rows += chkRow("na","구매일자", e.aiBuyDate?chkEsc(e.aiBuyDate):"판독 불가", "판정에는 쓰지 않습니다");
+  }
+  /* AI가 남긴 원인 문구 — 있을 때만 맨 아래 한 줄 */
+  const det = e.aiErrorDetail || e.aiBuyErrorDetail;
+  if(det) rows += chkRow("na","판독 오류", chkEsc(String(det).slice(0,180)));
+  return rows;
+}
 /* ── 사유 기준 (단일 정의) ──────────────────────────────────
    여기 REASON_RULES 하나만 고치면 사유 문구·부적합 탭 필터가 같이 바뀝니다.
    위에서부터가 우선순위. 해당되는 것은 모두 표시하되 문구는 짧게. */
@@ -1870,17 +1941,13 @@ function openDetail(id){
   $("#dtProduct").textContent=e.product||"-";
   $("#dtOrder").textContent=e.orderNo||"-";
   $("#dtFee").innerHTML=shipFeeBadge(e);
-  /* 정품등록이면 고객 입력 S/N + AI가 이미지에서 읽은 S/N을 나란히 */
-  if(e.type==="coupang"){
+  /* 🔴 AI 심사 체크리스트가 보이는 건은 S/N 판정이 그 안에 들어갑니다(2026-09-10).
+        같은 말을 두 군데 두지 않기 위해 여기서는 S/N 줄을 아예 감춥니다.
+        체크리스트가 없는 건(수기접수·AI를 안 거친 예전 건)은 예전처럼 S/N 줄을 냅니다. */
+  const chkRows = aiChecklist(e);
+  if(e.type==="coupang" && !chkRows){
     $("#dtSnRow").style.display="";
-    const inp=e.serial||"(미입력)";
-    let h=`<span style="${MONO}">${inp}</span>`;
-    if(e.aiSerialInImage!==undefined){
-      const same=e.aiSerialMatch===true;
-      h+=`<div style="${MONO};margin-top:3px;color:${same?"var(--ok,#12a150)":"var(--bad,#c0392b)"}">`
-        +(e.aiSerialInImage?`AI 판독 ${e.aiSerialInImage} ${same?"✓ 일치":"✕ 불일치"}`:"AI 판독 불가")+`</div>`;
-    }
-    $("#dtSn").innerHTML=h;
+    $("#dtSn").innerHTML=`<span style="${MONO}">${e.serial||"(미입력)"}</span>`;
   } else $("#dtSnRow").style.display="none";
   $("#dtAddr").innerHTML=cell(e,"addr");
 
@@ -1890,12 +1957,34 @@ function openDetail(id){
   const st=shipStatus(e);
   const isBad = st==="ineligible" && !e.overrideEligible;
   const isShipped = !!(e.shipped||e.shipState==="shipped");
-  $("#dtState").innerHTML = statusBadge(e)+(e.overrideEligible?' <span class="pill reserved">수동승인</span>':"")+" "+csShipBadge(e);
+  const stateHtml = statusBadge(e)+(e.overrideEligible?' <span class="pill reserved">수동승인</span>':"")+" "+csShipBadge(e);
+  $("#dtState").innerHTML = stateHtml;
+
+  /* 체크리스트가 있으면 상태 배지를 그 머리줄로 올리고, 따로 있던 「상태」 줄은 감춥니다 */
+  const chkBox=$("#dtChkBox");
+  if(chkBox){
+    if(chkRows){
+      chkBox.innerHTML = `<div class="ch"><span>AI 심사 결과</span><span>${stateHtml}</span></div>` + chkRows;
+      chkBox.style.display="";
+      $("#dtStateRow").style.display="none";
+    } else {
+      chkBox.style.display="none"; chkBox.innerHTML="";
+      $("#dtStateRow").style.display="";
+    }
+  }
 
   const rsn=reasonOf(e)||"";
-  $("#dtReasonRow").style.display = rsn ? "" : "none";
+  /* 🔴 체크리스트에 이미 나온 사유는 사유 줄에서 뺍니다 — 같은 말이 두 번 나오지 않게(2026-09-10).
+        체크리스트가 다루지 않는 것만 남깁니다 : 중복 참여 · 담당자 직접 판정 · AI 오류 · 심사 대기. */
+  let rsnShow = rsn;
+  if(chkRows){
+    rsnShow = (!e.manual && dupIds.has(e._id)) ? rsn
+            : (e.manualVerdict==="ineligible" && e.manualReason) ? rsn
+            : (aiErrOf(e) || (st==="pending" ? rsn : ""));
+  }
+  $("#dtReasonRow").style.display = rsnShow ? "" : "none";
   $("#dtReasonLabel").textContent = isBad ? "부적합 사유" : (st==="review" ? "확인필요 사유" : "심사 메모");
-  $("#dtReason").textContent = rsn||"-";
+  $("#dtReason").textContent = rsnShow||"-";
   $("#dtReason").style.color = isBad ? "var(--bad,#c0392b)" : "var(--sub)";
 
   $("#dtCallBox").style.display = isBad ? "" : "none";
@@ -1933,10 +2022,20 @@ function openDetail(id){
     if(_bu){ bw.style.display=""; $("#dtBuyImg").src=_bu; $("#dtBuyOpen").href=_bu; }
     else   { bw.style.display="none"; $("#dtBuyImg").src=""; }
   }
-  /* 구매내역 캡처 AI 판독 결과 — 오른쪽 정보 칸에 S/N 다음 줄로 냅니다.
-     (사진 아래에도 같은 내용을 넣었더니 같은 말이 두 번 나와서 없앴습니다) */
+  /* 🔴 사진 제목(2026-09-10) — 첫 사진에 제목이 없어 무슨 사진인지 알 수 없었습니다.
+        사진이 둘인 쿠팡 정품등록에만 ①② 번호를 붙입니다. */
+  const t1 = e.type==="coupang" ? "시리얼번호(S/N) 라벨 사진"
+           : e.manual           ? "증빙 이미지"
+           :                      "리뷰 캡처";
+  const it=$("#dtImgTitle");
+  if(it) it.innerHTML = (_bu?`<span class="no">1</span>`:"")+`<span><span class="tt">${t1}</span></span>`;
+  const bt=$("#dtBuyTitle");
+  if(bt) bt.innerHTML = `<span class="no">2</span><span><span class="tt">구매내역 캡처</span>`
+                      + ` <span class="sb">쿠팡 주문목록 화면</span></span>`;
+  /* 🔴 구매내역 4줄은 AI 심사 체크리스트로 옮겼습니다(2026-09-10).
+        체크리스트가 없는 건(예전 건·수기접수)에만 예전 방식으로 냅니다. */
   const brow=$("#dtBuyRow"), bcell=$("#dtBuyCell");
-  if(_bu && buyJudged(e)){
+  if(!chkRows && _bu && buyJudged(e)){
     const yn=(v,ok,no)=>v===true?`<span style="color:var(--ok,#12a150);font-weight:800">${ok}</span>`
                       :v===false?`<span style="color:var(--bad,#c0392b);font-weight:800">${no}</span>`
                       :`<span style="color:var(--sub)">판독 불가</span>`;
@@ -4301,7 +4400,8 @@ const DEFAULTS = {
     { ledger:"복합식가습기 iH12",       codes:["iH12"],    cat:"계절가전",  gift:"전용 관리 set 가습기용",        type:"gift", shipFee:"선불" },
     { ledger:"공기청정기 iAP22",        codes:["iAP22"],   cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
     { ledger:"유선 서큘레이터 iC01",    codes:["iC01"],    cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
-    { ledger:"서큘레이터 iSC02",        codes:["iSC02"],   cat:"계절가전",  gift:"보관백 iSC01,iSC02",           type:"gift" }
+    { ledger:"서큘레이터 iSC02",        codes:["iSC02"],   cat:"계절가전",  gift:"보관백 iSC01,iSC02",           type:"gift" },
+    { ledger:"헤어드라이어 iHD01",      codes:["iHD01"],   cat:"이미용가전", gift:"CU 3,000원",                  type:"coupon" }
   ],
   giftRules: [
     { product:"무선청소기 맥스제로 i90", srcs:["스마트스토어"], label:"스팀물걸레키트", type:"gift",
@@ -5966,6 +6066,12 @@ $("#saveBtn").addEventListener("click", async () => {
     SAVED = clone(cfg);
     const n = (cfg.giftRules || []).filter(r => r.srcs.length && r.label && r.product).length;
     const q = cfg.entrySurvey.length + Object.values(cfg.surveys).reduce((s, a) => s + a.length, 0);
+    /* 🔴 저장한 뒤에는 열려 있던 칸을 전부 닫습니다(2026-09-10).
+          「고치는 중」은 그 칸이 열려 있다는 표시일 뿐인데,
+          저장을 눌러도 그대로 남아 있어 담당자가 「아직 저장이 안 됐나」로 읽었습니다.
+          ⚠️ render() 가 화면을 다시 그리므로 안내 문구는 그 뒤에 넣어야 남습니다. */
+    sel = null; editRow = null; editAll = false;
+    render();
     msg.textContent = "저장했습니다 — 제품 " + cfg.products.length +
       "개 · 프로모션 " + n + "건 · 설문 " + q + "문항";
   } catch (e) {

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>광고성 정보 수신동의 확인 · 아이닉</title>
+<!--
+  ═══════════════════════════════════════════════════════════════════════
+  consent.html — 마케팅 수신동의 재확인 안내 메일의 「수신 철회」 링크가 오는 곳
+  ───────────────────────────────────────────────────────────────────────
+  🔴 이 화면은 「철회하기」만 있습니다. 「유지하기」 버튼을 만들지 마세요.
+     법이 요구하는 건 「확인」이고, 우리 안내문은 「별도 조치가 없으면 유지된다」
+     라고 알렸습니다. 여기에 「유지」 버튼을 두면 안 누른 사람의 처지가
+     애매해집니다. 아무것도 안 하면 유지 — 그게 이 화면의 뜻입니다.
+
+  🔴 로그인·본인확인을 넣지 마세요.
+     법은 「수신자가 비용 부담 없이」 거부할 수 있어야 한다고 정했습니다.
+     대신 화면에는 가린 정보만 보여 줍니다(홍*도 · ab***@naver.com).
+     링크가 새어 나가도 남이 할 수 있는 일은 「철회」뿐이라 고객에게 손해가 없습니다.
+
+  올리는 곳 : 깃허브 저장소 최상위 (index.html · report.html 과 같은 자리)
+  ═══════════════════════════════════════════════════════════════════════
+-->
+<style>
+  :root{--brand:#3f3939;--ink:#2b2725;--sub:#8a827c;--line:#ece8e4;--bg:#f6f4f2;--card:#fff;
+    --ok:#12a150;--bad:#e5484d;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+    -webkit-text-size-adjust:100%}
+  .wrap{max-width:520px;margin:0 auto;padding:0 0 60px}
+  header{background:#fff;border-bottom:1px solid var(--line);padding:22px 22px 18px;text-align:center}
+  header h1{margin:0;font-size:17px;font-weight:800;letter-spacing:-.3px}
+  header p{margin:6px 0 0;font-size:12.5px;color:var(--sub);line-height:1.55}
+  .card{background:var(--card);margin:14px;border:1px solid var(--line);border-radius:14px;padding:20px 20px}
+  .card h2{margin:0 0 12px;font-size:15px;font-weight:800}
+  .kv{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#fbfaf9}
+  .kv .r{display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.5}
+  .kv .r:last-child{border-bottom:none}
+  .kv .k{flex:0 0 86px;color:var(--sub);font-weight:700;font-size:12.5px}
+  .kv .v{flex:1;font-weight:700;word-break:break-all}
+  .note{font-size:12.5px;color:var(--sub);line-height:1.75;margin:14px 0 0}
+  .note b{color:var(--ink)}
+  .keep{background:#f4f1ec;border-radius:11px;padding:13px 15px;font-size:13px;line-height:1.7;margin:14px 0 0}
+  .keep b{font-weight:800}
+  button{width:100%;border:none;border-radius:11px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;
+    font-family:inherit}
+  .go{background:var(--brand);color:#fff;margin-top:18px}
+  .go[disabled]{opacity:.5;cursor:not-allowed}
+  .msg{margin:12px 14px;padding:14px 16px;border-radius:11px;font-size:13.5px;line-height:1.7}
+  .msg.err{background:#fbedee;color:#b23b3b}
+  .msg.ok{background:#e9f4ee;color:#1f7a45}
+  .done{text-align:center;padding:34px 20px}
+  .done .ico{font-size:40px}
+  .done h2{margin:10px 0 8px;font-size:18px}
+  .done p{margin:0;font-size:13.5px;color:var(--sub);line-height:1.75}
+  footer{text-align:center;font-size:11.5px;color:var(--sub);line-height:1.7;padding:6px 20px 0}
+  .hide{display:none !important}
+  .spin{text-align:center;color:var(--sub);font-size:13px;padding:40px 0}
+  @media (prefers-color-scheme: dark){
+    :root{--ink:#f0ebe7;--sub:#a29892;--line:#3a3533;--bg:#211e1d;--card:#2a2624;--brand:#e8e2de}
+    header{background:var(--card)}
+    .go{background:var(--brand);color:#2b2725}
+    .kv{background:#231f1e}
+    .keep{background:#332e2c}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>광고성 정보 수신동의 확인</h1>
+    <p>정보통신망법 제50조제8항에 따른 안내입니다.</p>
+  </header>
+
+  <div class="spin" id="loading">확인하는 중입니다…</div>
+
+  <!-- 링크가 잘못되었거나 기간이 지난 경우 -->
+  <div class="msg err hide" id="err"></div>
+
+  <!-- 정상 화면 -->
+  <div class="card hide" id="main">
+    <h2>고객님의 수신동의 내역</h2>
+    <div class="kv">
+      <div class="r"><span class="k">성함</span><span class="v" id="vName">-</span></div>
+      <div class="r"><span class="k">이메일</span><span class="v" id="vMail">-</span></div>
+      <div class="r"><span class="k">동의하신 날</span><span class="v" id="vDate">-</span></div>
+      <div class="r"><span class="k">보내는 곳</span><span class="v" id="vFrom">-</span></div>
+    </div>
+
+    <div class="keep">
+      <b>아무것도 하지 않으셔도 됩니다.</b><br>
+      별도 조치가 없으시면 <b>기존 수신동의는 그대로 유지</b>됩니다.
+      이 창을 그냥 닫으셔도 괜찮습니다.
+    </div>
+
+    <p class="note">
+      더 이상 광고성 정보를 받고 싶지 않으시면 아래 버튼을 눌러 주세요.
+      <b>누르는 즉시 처리</b>되고, 처리 결과를 메일로 보내 드립니다.<br>
+      ※ 이미 신청하신 <b>이벤트 사은품 발송 등 필수 안내</b>는 계속 발송될 수 있습니다.
+    </p>
+
+    <button class="go" id="btn">수신 철회하기</button>
+    <div class="msg err hide" id="berr" style="margin:12px 0 0"></div>
+  </div>
+
+  <!-- 철회 완료 -->
+  <div class="card hide" id="done">
+    <div class="done">
+      <div class="ico">✓</div>
+      <h2>수신 철회가 처리되었습니다</h2>
+      <p id="doneWhen"></p>
+      <p style="margin-top:12px">앞으로 마케팅 정보를 보내드리지 않습니다.<br>
+         처리 결과를 메일로도 보내 드렸습니다.</p>
+    </div>
+  </div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+/* 창구 주소 — 접수폼(index.html)과 같은 지역에 있습니다 */
+var API = "https://asia-northeast3-inic-event.cloudfunctions.net/consentApi";
+
+var $ = function(s){ return document.querySelector(s); };
+var show = function(s, on){ var el=$(s); if(el) el.classList.toggle("hide", !on); };
+var esc  = function(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); };
+
+var tok = (function(){
+  var m = /[?&]t=([^&]+)/.exec(location.search);
+  return m ? decodeURIComponent(m[1]) : "";
+})();
+
+function call(action, extra){
+  var body = { action: action, t: tok };
+  for (var k in (extra||{})) body[k] = extra[k];
+  return fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  }).then(function(r){ return r.json(); });
+}
+
+function fail(msg){
+  show("#loading", false);
+  $("#err").innerHTML = msg;
+  show("#err", true);
+}
+
+/* 안내 문구 — 링크가 만료됐거나 잘못된 경우.
+   ⚠️ 「없는 사람입니다」처럼 남의 정보를 알려 주는 말을 쓰지 않습니다. */
+var LINK_BAD =
+  "이 링크는 <b>사용 기간이 지났거나 올바르지 않습니다.</b><br>" +
+  "가장 최근에 받으신 안내 메일의 링크를 다시 눌러 주세요.<br>" +
+  "계속 같은 화면이 나오면 아래 고객센터로 연락해 주시면 바로 처리해 드립니다.";
+
+if (!tok) {
+  fail(LINK_BAD);
+} else {
+  call("info").then(function(r){
+    show("#loading", false);
+    if (!r || !r.ok) return fail(LINK_BAD);
+
+    $("#vName").textContent = r.name || "고객";
+    $("#vMail").textContent = r.email || "-";
+    $("#vDate").textContent = r.consentAt || "-";
+    $("#vFrom").textContent = r.company || "주식회사 아이닉";
+    $("#foot").innerHTML = esc(r.company || "주식회사 아이닉")
+      + "<br>문의 : 고객센터 " + esc(r.tel || "");
+
+    /* 이미 철회하신 분이 링크를 또 누른 경우 — 오류가 아니라 완료 화면을 보여 드립니다 */
+    if (r.withdrawn) {
+      $("#doneWhen").textContent = r.withdrawnAt ? (r.withdrawnAt + " 처리") : "";
+      show("#done", true);
+      return;
+    }
+    show("#main", true);
+  }).catch(function(){
+    fail("일시적으로 연결이 되지 않습니다. 잠시 후 다시 시도해 주세요.");
+  });
+}
+
+$("#btn").addEventListener("click", function(){
+  var b = $("#btn");
+  b.disabled = true;
+  b.textContent = "처리 중…";
+  show("#berr", false);
+
+  call("withdraw").then(function(r){
+    if (!r || !r.ok) {
+      b.disabled = false;
+      b.textContent = "수신 철회하기";
+      $("#berr").innerHTML = LINK_BAD;
+      show("#berr", true);
+      return;
+    }
+    $("#doneWhen").textContent = r.withdrawnAt ? (r.withdrawnAt + " 처리") : "";
+    show("#main", false);
+    show("#done", true);
+    window.scrollTo(0, 0);
+  }).catch(function(){
+    b.disabled = false;
+    b.textContent = "수신 철회하기";
+    $("#berr").textContent = "일시적으로 연결이 되지 않습니다. 잠시 후 다시 시도해 주세요.";
+    show("#berr", true);
+  });
+});
+</script>
+</body>
+</html>

@@ -77,6 +77,27 @@
   table.data td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
   table.data tr:hover td{background:#faf8f6}
   table.data tr.clickrow{cursor:pointer} table.data tr.clickrow:hover td{background:#fbf1ec}
+  /* 고객DB 안의 작은 탭 (2026-09-10) */
+  .subtab2{border:1px solid var(--line);background:#faf8f6;color:var(--sub);font-weight:800;
+    font-size:13px;padding:9px 15px;border-radius:9px;cursor:pointer;font-family:inherit}
+  .subtab2.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .guidelink{margin-left:auto;font-size:12px;font-weight:800;color:var(--blue);text-decoration:none;
+    border:1px solid #d6e2f7;background:#f4f8ff;border-radius:8px;padding:7px 12px}
+  .helplink{font-size:11.5px;font-weight:800;color:var(--blue);text-decoration:none;white-space:nowrap}
+  .autotag{font-size:11.5px;font-weight:800;background:#eaf3ee;color:#1f7a45;border-radius:999px;padding:3px 10px}
+  .panel .ph{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .panel .ph h3{margin:0}
+  .panel h3 .mute{color:var(--sub);font-weight:600;font-size:12px}
+  /* 🔴 화면에 남기는 경고는 「잘못 누르면 사고 나는 것」뿐입니다. 설명은 사용설명서로. */
+  .care{font-size:12px;line-height:1.6;margin-top:10px;padding:8px 12px;border-radius:8px;
+    background:#fdf7f7;color:#b23b3b;font-weight:700}
+  .care.warn{background:#fdf8f1;color:#9a6212}
+  details.fold{border-top:1px solid var(--line);margin-top:13px;padding-top:11px}
+  details.fold > summary{font-size:12.5px;font-weight:800;color:var(--sub);cursor:pointer;list-style:none}
+  details.fold > summary::-webkit-details-marker{display:none}
+  details.fold > summary::before{content:"\25B8  ";font-size:11px}
+  details.fold[open] > summary::before{content:"\25BE  "}
+  details.fold .foldin{padding-top:11px}
   .dtrow{display:flex;gap:10px;font-size:12.5px;line-height:1.4} .dtrow b{min-width:88px;color:var(--sub);font-weight:800}
   /* 상세 화면 왼쪽 사진 제목 (2026-09-10) */
   .shotlbl{display:flex;align-items:center;gap:8px;margin:0 0 8px}
@@ -713,103 +734,192 @@
   </section>
 
   <!-- 고객DB -->
+  <!-- ══════════ 고객DB ══════════
+       안을 작은 탭 셋으로 나눴습니다(2026-09-10).
+       성격이 다른 상자 여섯 개가 세로로 쌓여 있어 마케팅 하나 보려고
+       한참 스크롤해야 했습니다.
+       🔴 설명은 화면에 길게 쓰지 않습니다. 한 줄 요약 + 「사용법」 링크로 보냅니다.
+          화면에 남기는 경고는 **잘못 누르면 사고 나는 것**뿐입니다. -->
   <section class="page" id="page-orders">
 
-    <div class="panel" style="margin-bottom:14px">
-      <h3>구글 시트에서 자동으로 가져오기</h3>
-      <div class="hint">
-        고객DB 시트를 <b>5분마다 확인</b>해서, 줄이 추가되면 알아서 가져옵니다. 파일을 올리실 필요가 없습니다.<br>
-        내용이 그대로면 아무것도 하지 않으니 자주 확인해도 부담이 없습니다.<br>
-        이름에 <b>출고리스트</b>가 들어간 탭을 <b>전부</b> 읽습니다 — 월이 바뀌어 새 탭이 생겨도 손댈 게 없습니다.<br>
-        덮어쓰지 않고 <b>쌓기</b>라서, 시트에서 밀려난 지난 데이터도 여기 남습니다.
-      </div>
-      <div class="filters" style="margin-top:11px">
-        <button id="syncNow" class="sm primary">⟳ 지금 가져오기</button>
-        <button id="resyncBtn" class="sm" style="display:none">♻ 비우고 다시 가져오기</button>
-        <span id="syncState" style="font-size:12.5px;font-weight:800"></span>
-      </div>
-      <div class="hint" id="resyncHint" style="display:none;margin-top:8px">
-        <b>비우고 다시 가져오기</b>는 걸러내는 규칙(교환·반품 등)을 바꿨을 때만 쓰세요.
-        지금 들어와 있는 고객DB를 <b>전부 지우고 시트에서 처음부터 다시</b> 채웁니다.
-        시트 내용은 그대로 다시 들어오므로 잃는 자료는 없지만, 몇 분 걸릴 수 있습니다.
-      </div>
-      <div id="syncBox" style="margin-top:10px"></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+      <button class="subtab2 active" data-od="src">원장 가져오기</button>
+      <button class="subtab2" data-od="mk" id="odTabMk">마케팅 🔒</button>
+      <button class="subtab2" data-od="tool" id="odTabTool">정리·도구 🔒</button>
+      <a class="guidelink" href="guide.html" target="_blank" rel="noopener">📘 사용설명서</a>
     </div>
 
-    <!-- 마케팅 활용 — 광고성 정보 수신 · 사진·리뷰 마케팅에 동의한 고객 명단.
-         ⚠️ 둘 다 거부한 고객은 이 명단에 절대 나오지 않습니다(2026-09-09 담당자 지시). -->
-    <div class="panel" style="margin-bottom:14px" id="mkPanel">
-      <h3>마케팅 활용 <span style="color:var(--sub);font-weight:600;font-size:12px">(관리자만)</span></h3>
-      <div class="hint">
-        접수하실 때 <b>광고성 정보 수신</b>과 <b>사진·리뷰 마케팅 활용</b>에 답한 내용을 모은 명단입니다.<br>
-        내려받으면 <b>엑셀 한 파일 안에 시트가 네 장</b> 나옵니다 — <b>둘다동의 · 광고성만동의 · 사진리뷰만동의 · 2개거부</b>.<br>
-        <b>거부 시트는 「보내면 안 되는 분」 목록입니다.</b> 마케팅 발송 전에 이 명단을 반드시 빼세요.<br>
-        <b>이벤트 출고일자</b>는 출고완료 처리를 하시면 그 뒤에 채워집니다(접수 시점에는 아직 없습니다).<br>
-        같은 분이 여러 번 참여하셨으면 <b>연락처 기준으로 한 줄</b>로 합치고, <b>가장 이른 동의일</b>을 씁니다
-        — 수신동의 확인은 처음 동의한 날부터 2년마다이기 때문입니다.
+    <!-- ────────── 원장 가져오기 ────────── -->
+    <div class="odpane" id="od-src">
+      <div class="panel" style="margin-bottom:14px">
+        <div class="ph"><h3>구글 시트에서 자동으로 가져오기</h3>
+          <span><span class="autotag">자동 · 5분마다</span> <a class="helplink" href="guide.html#sync" target="_blank" rel="noopener">사용법</a></span></div>
+        <div class="hint">출고리스트 탭을 5분마다 확인합니다. 내용이 그대로면 아무것도 안 합니다.</div>
+        <div class="filters" style="margin-top:11px">
+          <button id="syncNow" class="sm primary">⟳ 지금 가져오기</button>
+          <button id="resyncBtn" class="sm" style="display:none">♻ 비우고 다시 가져오기</button>
+          <span id="syncState" style="font-size:12.5px;font-weight:800"></span>
+        </div>
+        <div class="care" id="resyncHint" style="display:none">
+          「비우고 다시 가져오기」는 창고를 비우고 처음부터 채웁니다. 그동안 접수폼의 구매 확인이 안 될 수 있습니다.
+        </div>
+        <div id="syncBox" style="margin-top:10px"></div>
       </div>
-      <div class="filters" style="margin-top:11px">
-        <button id="mkDownload" class="sm primary">명단 내려받기 (엑셀 · 시트 4장)</button>
-        <button id="mkSheetNow" class="sm">시트에 지금 올리기</button>
-        <span id="mkState" style="font-size:12.5px;font-weight:800"></span>
-      </div>
-      <div id="mkBox" style="margin-top:10px"></div>
-    </div>
 
-    <div class="panel" style="margin-bottom:14px" id="purgePanel">
-      <h3>오래된 고객정보 지우기 <span style="color:var(--sub);font-weight:600;font-size:12px">(관리자만)</span></h3>
-      <div class="hint">
-        <b>구매일자</b>가 이 날짜보다 이른 건을 지웁니다. 개인정보는 필요한 기간만 갖고 있는 것이 안전합니다.<br>
-        <span style="color:var(--bad,#c0392b)">※ 지운 고객은 접수폼에서 <b>구매 확인이 안 되어 참여할 수 없게 됩니다.</b>
-        참여를 받아주실 기한보다 넉넉하게 잡아 주세요.</span>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="ph"><h3>파일로 올리기 <span class="mute">(과거 데이터)</span></h3>
+          <a class="helplink" href="guide.html#upload" target="_blank" rel="noopener">사용법</a></div>
+        <div class="hint">평소에는 위쪽 시트 동기화로 충분합니다. ERP에서 받은 과거 데이터를 한 번에 채울 때만 씁니다.</div>
+        <div class="filters" style="margin-top:11px">
+          <input type="file" id="odFile" accept=".xlsx,.xls,.csv" style="font-size:13px">
+          <button id="odUpload" class="sm primary" disabled>Firestore에 올리기</button>
+          <button id="odClear" class="sm">지우기</button>
+          <span id="odState" style="font-size:12.5px;font-weight:800"></span>
+        </div>
+        <div id="odBar" style="display:none;height:8px;background:#efe9e3;border-radius:99px;margin-top:10px;overflow:hidden">
+          <div id="odBarFill" style="height:100%;width:0;background:#3f3939;transition:width .2s"></div>
+        </div>
+        <div class="care warn">올리기 전에 아래 미리보기에서 칸이 밀리지 않았는지 꼭 확인하세요.</div>
+        <div id="odSummary" style="margin-top:12px"></div>
       </div>
-      <div class="filters" style="margin-top:11px">
-        <label style="font-size:12.5px;font-weight:700;color:var(--sub)">이 날짜 이전</label>
-        <input type="date" id="purgeDate" style="font-size:13px">
-        <button id="purgeGo" class="sm">지우기</button>
-        <span id="purgeState" style="font-size:12.5px;font-weight:800"></span>
+
+      <div class="panel">
+        <h3>미리보기 <span class="mute">(앞 20건)</span></h3>
+        <div class="tablewrap"><table class="data" id="tableOrders"><thead></thead><tbody></tbody></table></div>
+        <div class="empty" id="emptyOrders">파일을 먼저 선택해 주세요.</div>
       </div>
     </div>
 
-    <div class="panel" style="margin-bottom:14px">
-      <h3>파일로 올리기 <span style="color:var(--sub);font-weight:600;font-size:12px">(과거 데이터 채울 때)</span></h3>
-      <div class="hint">평소에는 위쪽 시트 동기화로 충분합니다. <b>ERP에서 받은 과거 데이터를 한 번에 채울 때</b> 쓰세요.<br>
-        접수폼에서 <b>성함+연락처 / 송장번호</b> 두 가지 중 하나로 본인 확인을 하기 위한 고객DB입니다. (주문번호는 이 화면의 수기접수 검색에서만 씁니다)
-        스프레드시트(.xlsx) 또는 .csv 파일을 올리면 세 가지 키로 각각 찾을 수 있게 저장됩니다.<br>
-        필요한 열 : <b>제품군 · 이름 · 전화번호1 · 수량 · 송장번호 · 주문번호</b> (전화번호2·일자·판매처는 있으면 함께 저장 — 판매처는 리포트에 「판매처별 참여」로 보여 주기 위해 저장합니다)<br>
-        <b>전화번호2</b>가 있으면 함께 색인하므로 고객이 <b>안심번호</b>를 넣어도 조회됩니다. <b>수량</b>이 2 이상이면 사은품이 그 수량만큼 나갑니다.<br>
-        <span style="color:var(--bad,#c0392b)">※ 예전 구조로 올린 문서가 있으면 Firebase 콘솔에서 <b>orders 컬렉션을 먼저 삭제</b>한 뒤 올려 주세요.</span></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px">
-        <input type="file" id="odFile" accept=".xlsx,.xls,.csv" style="font-size:13px">
-        <button id="odUpload" class="sm primary" disabled>Firestore에 올리기</button>
-        <button id="odClear" class="sm">지우기</button>
-        <span id="odState" style="font-size:12.5px;font-weight:800"></span>
+    <!-- ────────── 마케팅 (관리자만) ────────── -->
+    <div class="odpane" id="od-mk" style="display:none">
+
+      <div class="panel" style="margin-bottom:14px" id="mkPanel">
+        <div class="ph"><h3>마케팅 활용 명단</h3>
+          <a class="helplink" href="guide.html#mklist" target="_blank" rel="noopener">사용법</a></div>
+        <div class="hint">동의 여부별로 나눈 엑셀을 받습니다 — 둘다동의 · 광고성만동의 · 사진리뷰만동의 · 2개거부.</div>
+        <div class="filters" style="margin-top:11px">
+          <button id="mkDownload" class="sm primary">명단 내려받기</button>
+          <button id="mkSheetNow" class="sm">시트에 지금 올리기</button>
+          <span id="mkState" style="font-size:12.5px;font-weight:800"></span>
+        </div>
+        <div class="care">「2개거부」 시트에 있는 분께는 마케팅을 보내면 안 됩니다.</div>
+        <div id="mkBox" style="margin-top:10px"></div>
       </div>
-      <div id="odBar" style="display:none;height:8px;background:#efe9e3;border-radius:99px;margin-top:10px;overflow:hidden">
-        <div id="odBarFill" style="height:100%;width:0;background:#3f3939;transition:width .2s"></div>
+
+      <!-- 사진 내려받기 (2026-09-10 신규) -->
+      <div class="panel" style="margin-bottom:14px" id="phPanel">
+        <div class="ph"><h3>리뷰 사진 내려받기</h3>
+          <a class="helplink" href="guide.html#photos" target="_blank" rel="noopener">사용법</a></div>
+        <div class="hint">
+          <b>사진·리뷰 마케팅 활용에 동의하신 분</b>의 사진만 받습니다.
+          파일 이름은 <b>성함_주문번호_판매처</b>, 제품이 여럿이면 제품별 폴더로 나눠 담습니다.
+        </div>
+        <div class="filters" style="margin-top:11px">
+          <select id="phProduct" style="font-size:13px;padding:7px 9px"></select>
+          <input type="date" id="phFrom" style="font-size:13px">
+          <span style="color:var(--sub);font-size:12.5px">~</span>
+          <input type="date" id="phTo" style="font-size:13px">
+          <button id="phCount" class="sm">몇 장인지 보기</button>
+          <button id="phGo" class="sm primary" disabled>내려받기</button>
+          <button id="phStop" class="sm" style="display:none">멈추기</button>
+          <span id="phState" style="font-size:12.5px;font-weight:800"></span>
+        </div>
+        <div id="phBar" style="display:none;height:8px;background:#efe9e3;border-radius:99px;margin-top:10px;overflow:hidden">
+          <div id="phBarFill" style="height:100%;width:0;background:#3f3939;transition:width .2s"></div>
+        </div>
+        <div class="care">동의하지 않으신 분의 사진은 마케팅에 쓸 수 없습니다. 이 버튼은 동의하신 분만 골라 담습니다.</div>
+        <div id="phBox" style="margin-top:10px"></div>
       </div>
-      <div id="odSummary" style="margin-top:12px"></div>
-    </div>
-    <div class="panel" style="margin-bottom:14px">
-      <h3>사은품 명칭 최신화</h3>
-      <div class="hint">사은품 이름을 바꾸기 <b>전에 접수된 건</b>은 옛 이름을 그대로 갖고 있어, 사방넷 다운로드에 옛 이름이 섞입니다.
-        아래 버튼으로 <b>현재 사은품표 기준</b>으로 한 번에 맞출 수 있습니다. (제품별 사은품이 1개인 건만 대상)</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
-        <button id="gfCheck" class="sm">대상 확인</button>
-        <button id="gfApply" class="sm primary" disabled>이름 맞추기</button>
-        <span id="gfState" style="font-size:12.5px;font-weight:800"></span>
+
+      <!-- 수신동의 2년 재확인 (2026-09-10 신규) -->
+      <div class="panel" id="cnPanel">
+        <div class="ph"><h3>수신동의 2년 재확인</h3>
+          <span><span class="autotag">자동 · 매일 오후 1시</span> <a class="helplink" href="guide.html#consent" target="_blank" rel="noopener">사용법</a></span></div>
+        <div class="hint">
+          동의하신 날부터 <b>2년마다</b> 확인 메일이 자동으로 나갑니다.
+          답이 없으면 <b style="color:var(--ok)">동의 유지</b>, 「수신 철회」를 누르면 <b style="color:var(--bad)">즉시 제외</b>됩니다.
+          <b>평소에 하실 일은 없습니다.</b>
+        </div>
+        <div class="filters" style="margin-top:11px">
+          <button id="cnNum" class="sm">지금 상태 보기</button>
+          <button id="cnScan" class="sm">새 접수 반영</button>
+          <span id="cnState" style="font-size:12.5px;font-weight:800"></span>
+        </div>
+        <div class="tiles" id="cnTiles" style="display:none;margin-top:11px"></div>
+        <div class="care warn" id="cnMailWarn" style="display:none">
+          메일 계정이 아직 설정되지 않았습니다. 지금은 미리보기만 됩니다.
+        </div>
+
+        <details class="fold">
+          <summary>미리 돌려 보기 · 테스트</summary>
+          <div class="foldin">
+            <div class="hint">기준일을 앞날로 넣으면 그날 누구에게 나가는지 미리 봅니다. 메일은 안 나갑니다.</div>
+            <div class="filters" style="margin-top:10px">
+              <input type="date" id="cnAsOf" style="font-size:13px">
+              <select id="cnCap" style="font-size:13px;padding:7px 9px">
+                <option value="20">20명까지</option><option value="50">50명까지</option><option value="100">100명까지</option>
+              </select>
+              <button id="cnPreview" class="sm">모의 실행</button>
+            </div>
+            <div class="tablewrap" style="margin-top:11px">
+              <table class="data" id="tableConsent"><thead></thead><tbody></tbody></table>
+            </div>
+            <div class="empty" id="emptyConsent">「모의 실행」을 눌러 주세요.</div>
+            <div class="filters" style="margin-top:11px">
+              <input type="email" id="cnTo" placeholder="내 메일 주소" style="font-size:13px;padding:7px 9px;min-width:200px">
+              <button id="cnTest" class="sm">이 주소로만 1통 보내기</button>
+            </div>
+          </div>
+        </details>
+
+        <details class="fold">
+          <summary>이행 기록 · 지금 보내기</summary>
+          <div class="foldin">
+            <div class="filters">
+              <button id="cnLogs" class="sm">이행 기록 보기</button>
+              <button id="cnRun" class="sm">지금 보내기</button>
+              <span id="cnRunState" style="font-size:12.5px;font-weight:800"></span>
+            </div>
+            <div class="care">「지금 보내기」는 고객에게 진짜 메일이 나갑니다.</div>
+            <div class="care warn">이행 기록은 법적 증거입니다. 지우지 마세요.</div>
+            <div class="tablewrap" style="margin-top:11px">
+              <table class="data" id="tableCnLog"><thead></thead><tbody></tbody></table>
+            </div>
+            <div class="empty" id="emptyCnLog">「이행 기록 보기」를 눌러 주세요.</div>
+          </div>
+        </details>
       </div>
-      <div id="gfList" style="margin-top:10px"></div>
     </div>
 
-    <div class="panel">
-      <h3>미리보기 <span style="color:var(--sub);font-weight:600;font-size:12px">(앞 20건)</span></h3>
-      <div class="tablewrap"><table class="data" id="tableOrders"><thead></thead><tbody></tbody></table></div>
-      <div class="empty" id="emptyOrders">파일을 먼저 선택해 주세요.</div>
+    <!-- ────────── 정리·도구 (관리자만) ────────── -->
+    <div class="odpane" id="od-tool" style="display:none">
+      <div class="panel" style="margin-bottom:14px" id="purgePanel">
+        <div class="ph"><h3>오래된 고객정보 지우기</h3>
+          <a class="helplink" href="guide.html#purge" target="_blank" rel="noopener">사용법</a></div>
+        <div class="hint">구매일자를 기준으로 그 이전 원장을 지웁니다.</div>
+        <div class="filters" style="margin-top:11px">
+          <input type="date" id="purgeDate" style="font-size:13px">
+          <button id="purgeGo" class="sm">지우기</button>
+          <span id="purgeState" style="font-size:12.5px;font-weight:800"></span>
+        </div>
+        <div class="care">지운 원장은 되돌릴 수 없습니다. 접수 기록은 지워지지 않습니다.</div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><h3>사은품 명칭 최신화</h3>
+          <a class="helplink" href="guide.html#giftname" target="_blank" rel="noopener">사용법</a></div>
+        <div class="hint">이름을 바꾸기 전에 접수된 건은 옛 이름을 갖고 있어, 사방넷 다운로드에 섞입니다.</div>
+        <div class="filters" style="margin-top:11px">
+          <button id="gfCheck" class="sm">대상 확인</button>
+          <button id="gfApply" class="sm primary" disabled>이름 맞추기</button>
+          <span id="gfState" style="font-size:12.5px;font-weight:800"></span>
+        </div>
+        <div id="gfList" style="margin-top:10px"></div>
+      </div>
     </div>
   </section>
 
-  <!-- 관리자 — 리포트 사용자 관리 (관리자 역할만 보임) -->
+
   <section class="page" id="page-admin">
 
 <div id="evtCfg" hidden>
@@ -2915,6 +3025,154 @@ function renderActiveTab(){
   else if(curTab==="admin")openEventSettings();
 }
 
+/* ══════════ 수신동의 2년 재확인 ══════════
+   법이 「동의받은 날부터 2년마다 확인」하라고 정했습니다(정보통신망법 50조 8항).
+   서버(consentApi)가 매일 새벽 3시에 알아서 돌고, 이 화면은 그 결과를 보는 곳입니다.
+
+   🔴 여기에 「수신 유지」 버튼을 만들지 마세요. 답이 없으면 유지입니다.
+   🔴 이름·메일은 서버가 이미 가려서(홍*도) 내려줍니다. 원본을 받아 오지 않습니다. */
+
+const CONSENT_API = "https://asia-northeast3-inic-event.cloudfunctions.net/consentApi";
+
+async function cnApi(payload){
+  const u = firebase.auth().currentUser;
+  if(!u) return {ok:false, reason:"auth"};
+  let r;
+  try{
+    r = await fetch(CONSENT_API,{ method:"POST",
+      headers:{ "Content-Type":"application/json", Authorization:"Bearer "+(await u.getIdToken()) },
+      body: JSON.stringify(payload) });
+  }catch(e){ return {ok:false, reason:"network"}; }
+  let j=null; try{ j = await r.json(); }catch(_){}
+  return j || {ok:false, reason:"server"};
+}
+
+/* 창구가 돌려주는 짧은 이유를 사람 말로 바꿉니다 */
+function cnWhy(r){
+  const k = r && r.reason;
+  if(k==="auth")     return "로그인이 풀렸습니다. 새로고침 후 다시 로그인해 주세요.";
+  if(k==="forbidden")return "이 기능은 관리자만 쓸 수 있습니다.";
+  if(k==="network")  return "서버에 연결되지 않았습니다. 잠시 후 다시 시도해 주세요.";
+  if(k==="to")       return "메일 주소를 올바르게 적어 주세요.";
+  if(k==="asOf")     return "기준일을 올바르게 골라 주세요.";
+  return (r && r.message) ? r.message : "실패했습니다.";
+}
+
+/* 기준일은 「내일」로 미리 채워 둡니다. 화면을 열 때 조회는 하지 않습니다
+   — 열기만 해도 요금이 나가면 안 되기 때문입니다(2026-09-10 담당자 지적). */
+function cnFillDate(){
+  const t=$("#cnAsOf");
+  if(t && !t.value){
+    const d=new Date(); d.setDate(d.getDate()+1);
+    const p=n=>String(n).padStart(2,"0");
+    t.value = d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+  }
+}
+
+/* keepMsg 를 주면 안내 문구를 건드리지 않습니다.
+   🔴 「새 접수 반영」·「지금 보내기」 뒤에 숫자를 새로 세는데, 그때 문구까지 덮어써서
+      방금 나온 결과가 바로 사라졌습니다(2026-09-10 검사에서 발견). */
+async function cnStats(keepMsg){
+  if(!keepMsg) $("#cnState").textContent="확인하는 중…";
+  const r = await cnApi({ action:"stats", asOf: ($("#cnAsOf").value||undefined) });
+  if(!r.ok){ if(!keepMsg) $("#cnState").textContent = cnWhy(r); return; }
+  if(!keepMsg) $("#cnState").textContent = r.due
+    ? ("오늘 기한인 분 " + r.due + "명 — 오후 1시에 자동으로 나갑니다.")
+    : "오늘 기한인 분은 없습니다.";
+  const n = v => (v==null ? "-" : v);
+  /* 타일은 셋만 — 다섯 개는 화면이 시끄러웠습니다(2026-09-10 담당자 지적) */
+  const tiles = [
+    ["관리 중인 사람", n(r.total), "동의하신 분", ""],
+    ["다음 90일 안에 기한", n(r.due==null||r.soon==null ? null : r.due + r.soon), "미리 준비", "warn"],
+    ["철회하신 분", n(r.withdrawn), "발송 제외", r.withdrawn ? "bad" : ""]
+  ];
+  $("#cnTiles").innerHTML = tiles.map(([l,v,s,c])=>
+    `<div class="tile ${c||""}"><div class="lbl">${l}</div><div class="val">${v}<small> ${s||""}</small></div></div>`).join("");
+  $("#cnTiles").style.display = "";
+  $("#cnMailWarn").style.display = r.mailReady ? "none" : "";
+}
+
+const cnEsc = v => String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+function cnRows(rows, cols, tableId, emptyId, emptyMsg){
+  const tb=$("#"+tableId);
+  if(!rows || !rows.length){
+    tb.querySelector("thead").innerHTML=""; tb.querySelector("tbody").innerHTML="";
+    $("#"+emptyId).style.display=""; $("#"+emptyId).textContent=emptyMsg; return;
+  }
+  $("#"+emptyId).style.display="none";
+  tb.querySelector("thead").innerHTML = "<tr>"+cols.map(c=>`<th>${c[0]}</th>`).join("")+"</tr>";
+  tb.querySelector("tbody").innerHTML = rows.map(r=>
+    "<tr>"+cols.map(c=>`<td>${cnEsc(c[1](r))}</td>`).join("")+"</tr>").join("");
+}
+
+const CN_COLS = [["성함",r=>r.name],["이메일",r=>r.email||"(없음)"],
+                 ["동의한 날",r=>r.consentAt],["기한",r=>r.dueAt],
+                 ["회차",r=>r.round+"회차"],["결과",r=>r.result]];
+
+async function cnPreview(){
+  $("#cnState").textContent="모의 실행 중…";
+  const r = await cnApi({ action:"preview", asOf: $("#cnAsOf").value,
+                          cap: Number($("#cnCap").value) || 20 });
+  if(!r.ok){ $("#cnState").textContent = cnWhy(r); return; }
+  const due = r.due||{}, close = r.close||{};
+  $("#cnState").textContent =
+    `${due.asOf||""} 기준 — 보낼 대상 ${due.total||0}명 (이메일 없음 ${due.noEmail||0}명) · `
+    + `무응답으로 유지 확정될 사람 ${(close.rows||[]).length}명`;
+  cnRows(due.rows, CN_COLS, "tableConsent", "emptyConsent",
+    "그날 기준으로 보낼 대상이 없습니다.");
+}
+
+async function cnTest(){
+  const to = ($("#cnTo").value||"").trim();
+  if(!to){ alert("테스트 발송을 받을 메일 주소를 적어 주세요."); return; }
+  if(!confirm(to+" 로 확인 메일 1통을 보냅니다.\n\n고객에게는 가지 않고, 고객 기록도 바뀌지 않습니다.\n계속할까요?")) return;
+  $("#cnState").textContent="보내는 중…";
+  const r = await cnApi({ action:"testSend", asOf: $("#cnAsOf").value, to, cap:1 });
+  if(!r.ok){ $("#cnState").textContent = cnWhy(r); return; }
+  $("#cnState").textContent = r.sent
+    ? `${to} 로 1통 보냈습니다. 메일함을 확인하고 링크를 눌러 보세요.`
+    : (r.total ? "보낼 대상은 있는데 발송에 실패했습니다. 메일 계정 설정을 확인해 주세요."
+               : "그날 기준으로 보낼 대상이 없습니다. 기준일을 더 뒤로 잡아 보세요.");
+  cnRows(r.rows, CN_COLS, "tableConsent", "emptyConsent", "보낼 대상이 없습니다.");
+}
+
+async function cnRun(){
+  if(!confirm("오늘 기한인 고객에게 진짜 메일이 나갑니다.\n\n보통은 새벽 3시에 자동으로 돕니다.\n그래도 지금 보내시겠습니까?")) return;
+  $("#cnRunState").textContent="보내는 중…";
+  const r = await cnApi({ action:"runNow" });
+  if(!r.ok){ $("#cnRunState").textContent = cnWhy(r); return; }
+  const d=r.due||{}, c=r.close||{};
+  $("#cnRunState").textContent =
+    `발송 ${d.sent||0}통 · 이메일 없음 ${d.noEmail||0}명 · 실패 ${d.failed||0}건 · 무응답 확정 ${c.closed||0}건`;
+  cnStats(true);
+}
+
+async function cnScan(){
+  $("#cnState").textContent="새 접수를 반영하는 중…";
+  const r = await cnApi({ action:"refresh" });
+  if(!r.ok){ $("#cnState").textContent = cnWhy(r); return; }
+  $("#cnState").textContent = `접수 ${r.scanned}건 확인 · 장부 ${r.updated}명 갱신`
+    + (r.revived ? ` · 철회하셨다가 다시 동의하신 분 ${r.revived}명` : "");
+  cnStats(true);
+}
+
+const CN_ACT = { sent:"발송", withdrawn:"철회", no_response:"무응답 → 유지", no_email:"이메일 없음",
+                 send_failed:"발송 실패", notice_sent:"처리결과 통지", notice_failed:"통지 실패",
+                 revived:"재동의" };
+
+async function cnLogs(){
+  const r = await cnApi({ action:"logs", limit:200 });
+  if(!r.ok){ $("#cnState").textContent = cnWhy(r); return; }
+  cnRows(r.rows, [
+    ["시각", x=>x.at ? fmtDate(new Date(x.at)) : ""],
+    ["사람(열쇠)", x=>x.phoneKey],
+    ["무슨 일", x=>CN_ACT[x.action]||x.action],
+    ["회차", x=>x.round?x.round+"회차":""],
+    ["메모", x=>x.note||""]
+  ], "tableCnLog", "emptyCnLog", "아직 기록이 없습니다.");
+}
+
 /* ══════════ 이벤트 설정 — 저장·불러오기 ══════════
    화면 그리기는 아래쪽 별도 <script> 가 하고(#evtCfg 안에 갇혀 있음),
    여기서는 서버(Firestore)와 주고받는 것만 합니다.
@@ -3167,6 +3425,307 @@ $$("#tabs .tab").forEach(t=>t.addEventListener("click",()=>{
   }
   switchTab(t.dataset.tab);
 }));
+/* ══════════ 고객DB 안의 작은 탭 ══════════
+   마케팅·정리도구는 개인정보를 다루므로 관리자에게만 보입니다. */
+let odTab = "src";
+function odSwitch(name){
+  odTab = name;
+  $$("#page-orders .subtab2").forEach(b=>b.classList.toggle("active", b.dataset.od===name));
+  ["src","mk","tool"].forEach(k=>{
+    const p=$("#od-"+k); if(p) p.style.display = (k===name) ? "" : "none";
+  });
+  if(name==="mk"){ phFillProducts(); cnFillDate(); }
+}
+$$("#page-orders .subtab2").forEach(b=>b.addEventListener("click",()=>odSwitch(b.dataset.od)));
+
+
+/* ══════════ 리뷰 사진 내려받기 (2026-09-10) ══════════
+
+   무엇을 하나 — **사진·리뷰 마케팅 활용에 동의하신 분**의 리뷰 사진만 골라
+   「성함_주문번호_판매처.jpg」 이름으로 압축 파일 하나에 담아 드립니다.
+   제품을 「전체」로 고르시면 압축 안에서 **제품별 폴더**로 갈라 담습니다.
+
+   🔴 동의하지 않으신 분은 절대 담지 않습니다. 여기가 이 기능의 존재 이유입니다.
+
+   왜 이렇게 만드나 — 사진을 전부 메모리에 모았다가 압축하면 100장쯤에서
+   브라우저가 버팁니다. 그래서 **저장할 파일을 먼저 열어 두고 한 장 받을 때마다
+   그 파일에 바로 이어 씁니다.** 메모리를 안 쓰니 장수 제한이 사실상 없습니다.
+   ⚠️ 이 방식은 크롬·엣지에서만 됩니다. 사파리는 100장씩 나눠 받기로 자동 전환합니다.
+
+   압축은 「담기만 하고 줄이지는 않는(store) 방식」입니다.
+   사진(jpg·webp)은 이미 압축된 파일이라 다시 줄여 봐야 크기가 거의 그대로입니다. */
+
+const PH_BATCH = 100;          /* 나눠 받기로 갈 때 한 묶음 장수 */
+const PH_PARALLEL = 4;         /* 한 번에 동시에 받는 장수 — 너무 늘리면 서버가 막습니다 */
+
+let phList = [], phStopped = false;
+
+/* ── 압축 파일 조각 만들기 ────────────────────────────────────────────── */
+const PH_CRC = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) { let c = i;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c >>> 0; }
+  return t;
+})();
+function phCrc32(buf){ let c = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) c = PH_CRC[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0; }
+
+/* 파일 이름에 못 쓰는 글자만 지웁니다.
+   🔴 한글·띄어쓰기·하이픈은 그대로 둡니다 — 주문번호 2024-03-15 가
+      20240315 로 바뀌면 나중에 원장과 대조가 안 됩니다. */
+function phSafe(v){
+  let t = String(v == null ? "" : v).replace(/[\\/:*?"<>|]/g, "");
+  t = t.split("").filter(c => c.charCodeAt(0) >= 32).join("");
+  return t.replace(/\s+/g, " ").replace(/^[.\s]+/, "").replace(/[.\s]+$/, "");
+}
+function phExt(url){
+  const m = /\.(jpe?g|png|webp|gif|heic)/i.exec(String(url || ""));
+  return m ? ("." + m[1].toLowerCase()) : ".jpg";
+}
+/* 성함_주문번호_판매처.jpg — 빈 칸은 「없음」으로 채웁니다 */
+function phName(e){
+  return [phSafe(e.name) || "이름없음",
+          phSafe(e.orderNo) || "주문번호없음",
+          phSafe(e.source) || "판매처없음"].join("_") + phExt(imgUrlOf(e));
+}
+
+function phZipWriter(){
+  const enc = new TextEncoder();
+  const central = []; let offset = 0, n = 0;
+  const d = new Date();
+  const time = ((d.getHours() & 31) << 11) | ((d.getMinutes() & 63) << 5) | ((d.getSeconds() / 2) & 31);
+  const date = (((d.getFullYear() - 1980) & 127) << 9) | (((d.getMonth() + 1) & 15) << 5) | (d.getDate() & 31);
+  return {
+    /* 파일 하나를 담을 조각들을 돌려줍니다 */
+    add(name, data){
+      const nb = enc.encode(name), crc = phCrc32(data);
+      const h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true);
+      h.setUint16(6, 0x0800, true);   /* 🔴 이름이 UTF-8 이라는 표시 — 없으면 한글이 깨집니다 */
+      h.setUint16(8, 0, true); h.setUint16(10, time, true); h.setUint16(12, date, true);
+      h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true);
+      h.setUint16(26, nb.length, true); h.setUint16(28, 0, true);
+      const c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true);
+      c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+      c.setUint16(12, time, true); c.setUint16(14, date, true);
+      c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true);
+      c.setUint16(28, nb.length, true); c.setUint32(42, offset, true);
+      central.push(new Uint8Array(c.buffer), nb);
+      offset += 30 + nb.length + data.length; n += 1;
+      return [new Uint8Array(h.buffer), nb, data];
+    },
+    /* 맨 끝에 붙는 차례표 */
+    end(){
+      const size = central.reduce((s, a) => s + a.length, 0);
+      const e = new DataView(new ArrayBuffer(22));
+      e.setUint32(0, 0x06054b50, true);
+      e.setUint16(8, n, true); e.setUint16(10, n, true);
+      e.setUint32(12, size, true); e.setUint32(16, offset, true);
+      return central.concat([new Uint8Array(e.buffer)]);
+    }
+  };
+}
+
+/* ── 대상 고르기 ────────────────────────────────────────────────────── */
+
+/* 제품군 드롭다운 — 실제로 사진이 있는 제품만 나옵니다 */
+function phFillProducts(){
+  const sel = $("#phProduct"); if(!sel || sel.dataset.filled) return;
+  const set = new Set();
+  ALL.forEach(e => { if(e.type==="review" && imgUrlOf(e) && e.product) set.add(e.product); });
+  const list = [...set].sort();
+  sel.innerHTML = '<option value="">제품 전체</option>'
+    + list.map(p => `<option value="${cnEsc(p)}">${cnEsc(p)}</option>`).join("");
+  sel.dataset.filled = "1";
+  /* 기간은 이번 달로 미리 채워 둡니다 */
+  const d = new Date(), p = n => String(n).padStart(2,"0");
+  const f = $("#phFrom"), t = $("#phTo");
+  if(f && !f.value) f.value = d.getFullYear()+"-"+p(d.getMonth()+1)+"-01";
+  if(t && !t.value) t.value = d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+
+/* 🔴 사진·리뷰 마케팅 활용에 「동의」하신 분만 고릅니다 */
+function phPick(){
+  const prod = ($("#phProduct").value || "").trim();
+  const from = ($("#phFrom").value || ""), to = ($("#phTo").value || "");
+  const ymd = d => { const p=n=>String(n).padStart(2,"0");
+    return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); };
+  return ALL.filter(e => {
+    if(e.type !== "review") return false;              /* 리뷰 사진만 */
+    if(!imgUrlOf(e)) return false;
+    const a = mkAnsOf(e);
+    if(a.photo !== "동의") return false;               /* 🔴 동의하신 분만 */
+    if(prod && e.product !== prod) return false;
+    const d = e._date instanceof Date ? e._date : null;
+    if(!d) return false;
+    const s = ymd(d);
+    if(from && s < from) return false;
+    if(to   && s > to)   return false;
+    return true;
+  });
+}
+
+/* ── 화면 ───────────────────────────────────────────────────────────── */
+
+function phCountGo(){
+  phList = phPick();
+  const n = phList.length;
+  $("#phGo").disabled = !n;
+  if(!n){
+    $("#phState").textContent = "고르신 조건에 해당하는 사진이 없습니다.";
+    $("#phBox").innerHTML = "";
+    return;
+  }
+  /* 제품별로 몇 장인지도 보여 드립니다 */
+  const per = {};
+  phList.forEach(e => { per[e.product || "(제품없음)"] = (per[e.product||"(제품없음)"]||0) + 1; });
+  const rows = Object.entries(per).sort((a,b) => b[1]-a[1])
+    .map(([k,v]) => `<tr><td>${cnEsc(k)}</td><td>${v}장</td></tr>`).join("");
+  const way = window.showSaveFilePicker ? "한 파일로 받습니다"
+            : `${PH_BATCH}장씩 나눠서 여러 파일로 받습니다 (이 브라우저는 한 파일로 못 받습니다)`;
+  $("#phState").textContent = `${n}장 — ${way}`;
+  $("#phBox").innerHTML = `<table class="mini">${rows}</table>`;
+}
+
+function phProgress(done, total){
+  $("#phBar").style.display = "";
+  $("#phBarFill").style.width = Math.round(done/total*100) + "%";
+  $("#phState").textContent = `받는 중… ${done} / ${total} 장`;
+}
+
+/* 사진 한 장 가져오기 */
+async function phFetch(e){
+  const url = imgUrlOf(e);
+  const r = await fetch(url);
+  if(!r.ok) throw new Error("HTTP " + r.status);
+  return new Uint8Array(await r.arrayBuffer());
+}
+
+/* 압축 안에서 쓸 이름 — 제품 전체를 고르셨으면 제품별 폴더로 나눕니다 */
+function phPathOf(e, byFolder, used){
+  let p = phName(e);
+  if(byFolder) p = (phSafe(e.product) || "제품없음") + "/" + p;
+  const c = (used.get(p) || 0) + 1;
+  used.set(p, c);
+  if(c === 1) return p;
+  const i = p.lastIndexOf(".");
+  return i > 0 ? p.slice(0,i) + "(" + c + ")" + p.slice(i) : p + "(" + c + ")";
+}
+
+async function phDownload(){
+  if(!phList.length) return;
+  const total = phList.length;
+  const byFolder = !($("#phProduct").value || "").trim();     /* 「전체」면 제품별 폴더 */
+  phStopped = false;
+  $("#phGo").disabled = true; $("#phStop").style.display = "";
+  $("#phCount").disabled = true;
+
+  const stamp = ($("#phFrom").value || "") + "_" + ($("#phTo").value || "");
+  const base = "리뷰사진_" + stamp.replace(/-/g, "");
+  const failed = [];
+
+  try {
+    if(window.showSaveFilePicker) await phStream(base, byFolder, total, failed);
+    else                          await phBatches(base, byFolder, total, failed);
+  } catch (err) {
+    if(err && err.name === "AbortError"){ $("#phState").textContent = "취소하셨습니다."; }
+    else {
+      $("#phState").textContent = "실패했습니다: " + ((err && err.message) || err);
+      $("#phBox").innerHTML = `<div class="care">사진을 읽지 못했습니다. 관리자에게 아래를 전해 주세요 —
+        <b>Storage CORS 설정이 필요할 수 있습니다.</b> 사용설명서의 「사진 내려받기」 항목에 명령이 있습니다.</div>`;
+    }
+  } finally {
+    $("#phGo").disabled = false; $("#phStop").style.display = "none";
+    $("#phCount").disabled = false;
+    $("#phBar").style.display = "none";
+    if(failed.length){
+      $("#phBox").innerHTML = `<div class="care warn">못 받은 사진 ${failed.length}장 —
+        ${cnEsc(failed.slice(0,10).join(", "))}${failed.length>10?" 외":""}</div>`;
+    }
+  }
+}
+
+/* 크롬·엣지 — 파일에 바로 이어 씁니다 (장수 제한 없음) */
+async function phStream(base, byFolder, total, failed){
+  const handle = await window.showSaveFilePicker({
+    suggestedName: base + ".zip",
+    types: [{ description: "압축 파일", accept: { "application/zip": [".zip"] } }]
+  });
+  const w = await handle.createWritable();
+  const zip = phZipWriter(), used = new Map();
+  let done = 0;
+
+  for(let i = 0; i < phList.length; i += PH_PARALLEL){
+    if(phStopped) break;
+    const group = phList.slice(i, i + PH_PARALLEL);
+    const got = await Promise.all(group.map(async e => {
+      try { return { e, data: await phFetch(e) }; }
+      catch (err) { failed.push(phName(e)); return null; }
+    }));
+    for(const g of got){
+      if(!g) { done++; continue; }
+      for(const part of zip.add(phPathOf(g.e, byFolder, used), g.data)) await w.write(part);
+      done++;
+    }
+    phProgress(done, total);
+  }
+  for(const part of zip.end()) await w.write(part);
+  await w.close();
+  $("#phState").textContent = phStopped
+    ? `멈췄습니다 — ${done}장까지 저장했습니다.`
+    : `끝났습니다 — ${done - failed.length}장을 저장했습니다.`;
+}
+
+/* 사파리 등 — 100장씩 나눠서 여러 파일로 */
+async function phBatches(base, byFolder, total, failed){
+  const groups = [];
+  for(let i = 0; i < phList.length; i += PH_BATCH) groups.push(phList.slice(i, i + PH_BATCH));
+  let done = 0;
+  for(let gi = 0; gi < groups.length; gi++){
+    if(phStopped) break;
+    const zip = phZipWriter(), used = new Map(), parts = [];
+    for(let i = 0; i < groups[gi].length; i += PH_PARALLEL){
+      if(phStopped) break;
+      const chunk = groups[gi].slice(i, i + PH_PARALLEL);
+      const got = await Promise.all(chunk.map(async e => {
+        try { return { e, data: await phFetch(e) }; }
+        catch (err) { failed.push(phName(e)); return null; }
+      }));
+      got.forEach(g => { if(g) parts.push(...zip.add(phPathOf(g.e, byFolder, used), g.data)); done++; });
+      phProgress(done, total);
+    }
+    parts.push(...zip.end());
+    const blob = new Blob(parts, { type: "application/zip" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = base + "_" + (gi+1) + "of" + groups.length + ".zip";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+  }
+  $("#phState").textContent = phStopped
+    ? `멈췄습니다 — ${done}장까지 받았습니다.`
+    : `끝났습니다 — ${done - failed.length}장을 ${groups.length}개 파일로 받았습니다.`;
+}
+
+$("#phCount").addEventListener("click", phCountGo);
+$("#phGo").addEventListener("click", phDownload);
+$("#phStop").addEventListener("click", () => { phStopped = true; $("#phState").textContent = "멈추는 중…"; });
+$("#phProduct").addEventListener("change", () => { $("#phGo").disabled = true; $("#phBox").innerHTML=""; $("#phState").textContent=""; });
+$("#phFrom").addEventListener("change", () => { $("#phGo").disabled = true; });
+$("#phTo").addEventListener("change",   () => { $("#phGo").disabled = true; });
+
+/* 수신동의 화면 버튼 */
+$("#cnNum").addEventListener("click",()=>cnStats());
+$("#cnScan").addEventListener("click",cnScan);
+$("#cnPreview").addEventListener("click",cnPreview);
+$("#cnTest").addEventListener("click",cnTest);
+$("#cnRun").addEventListener("click",cnRun);
+$("#cnLogs").addEventListener("click",cnLogs);
+
+
 $("#odFile").addEventListener("change",e=>{const f=e.target.files[0];if(f)odParseFile(f).catch(err=>odSetState("파일 읽기 실패: "+(err.message||err),"var(--bad,#c0392b)"));});
 $("#odUpload").addEventListener("click",odUpload);
 $("#odClear").addEventListener("click",odReset);
@@ -3461,10 +4020,12 @@ function finishEnter(){
   applyDownloadsForRole();
   const ma=$("#mAgent"); if(ma) ma.value = ME.name || "";     // 수기접수 담당자 = 로그인한 사람
   loadStaff();
-  $("#purgePanel").style.display = ME.role==="master" ? "" : "none";
-  /* 마케팅 활용 명단은 고객 이메일·연락처가 그대로 나가므로 관리자만 봅니다. */
-  if($("#mkPanel")) $("#mkPanel").style.display = ME.role==="master" ? "" : "none";
-  if($("#mkSheetNow")) $("#mkSheetNow").style.display = ME.role==="master" ? "" : "none";
+  /* 마케팅·정리도구 소탭은 고객 이메일·연락처가 그대로 나가므로 관리자만 봅니다(2026-09-10). */
+  const _m = ME.role==="master";
+  if($("#odTabMk"))   $("#odTabMk").style.display   = _m ? "" : "none";
+  if($("#odTabTool")) $("#odTabTool").style.display = _m ? "" : "none";
+  if(!_m && odTab!=="src") odSwitch("src");
+  if($("#mkSheetNow")) $("#mkSheetNow").style.display = _m ? "" : "none";
   const _mst = ME.role==="master" ? "" : "none";
   if($("#resyncBtn"))  $("#resyncBtn").style.display  = _mst;
   if($("#resyncHint")) $("#resyncHint").style.display = _mst;
@@ -4107,8 +4668,13 @@ function mkAnsOf(e){
   if(!out.privacy) out.privacy = norm((e.consent || {}).privacy);
   return out;
 }
-/* 사람 단위로 합칩니다 — 연락처가 열쇠, 가장 이른 동의일을 씁니다.
+/* 사람 단위로 합칩니다 — 연락처가 열쇠, **가장 최근 동의일**을 씁니다.
    같은 분이 나중에 답을 바꿨으면 「가장 마지막 답」을 씁니다(최신 의사가 우선).
+   🔴 2026-09-10에 「가장 이른 날 → 가장 최근 날」로 바꿨습니다.
+      재참여하며 동의를 다시 누르면 **그것이 새 동의**라 그날부터 다시 2년입니다.
+      가장 이른 날을 쓰면 필요 없이 일찍 확인 메일이 나갑니다.
+      ⚠️ 수신동의 2년 재확인(consentApi)이 쓰는 기산점과 **같은 날짜**여야 합니다.
+         한쪽만 고치면 엑셀과 실제 발송 날짜가 어긋나 담당자가 헷갈립니다.
    ⚠️ 여기서는 거르지 않고 전원을 모읍니다. 셋으로 나누는 것은 아래에서 합니다. */
 function mkPeople(){
   const map = new Map();
@@ -4127,7 +4693,7 @@ function mkPeople(){
                      privacy:a.privacy, trust:a.trust, ad:a.ad, photo:a.photo, ship: sh });
       return;
     }
-    if(at < cur.at) cur.at = at;                        // 일자 = 가장 이른 참여일
+    if(at > cur.at) cur.at = at;                        // 일자 = 가장 최근 참여일(동의일)
     if(sh && sh > (cur.ship || "")) cur.ship = sh;
     if(at >= cur.last){                                 // 최신 답으로 갱신
       cur.last = at; cur.ad = a.ad; cur.photo = a.photo;

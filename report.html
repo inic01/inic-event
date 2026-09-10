@@ -874,6 +874,24 @@
         </details>
 
         <details class="fold">
+          <summary>손으로 철회 처리</summary>
+          <div class="foldin">
+            <div class="hint">
+              전화로 거부 의사를 밝히신 분처럼 <b>링크를 누를 수 없는 경우</b>에 씁니다.
+              연락처나 이메일로 찾아서 처리하면 링크로 철회한 것과 똑같이 됩니다.
+            </div>
+            <div class="filters" style="margin-top:10px">
+              <input type="text" id="mwQ" placeholder="연락처 또는 이메일"
+                     style="font-size:13px;padding:7px 9px;min-width:220px">
+              <button id="mwFind" class="sm">찾기</button>
+              <span id="mwState" style="font-size:12.5px;font-weight:800"></span>
+            </div>
+            <div id="mwBox" style="margin-top:10px"></div>
+            <div class="care">고객이 <b>직접 거부 의사를 밝힌 경우에만</b> 누르세요. 누가 처리했는지 기록에 남습니다.</div>
+          </div>
+        </details>
+
+        <details class="fold">
           <summary>이행 기록 · 지금 보내기</summary>
           <div class="foldin">
             <div class="filters">
@@ -3167,9 +3185,59 @@ async function cnScan(){
   cnStats(true);
 }
 
+/* ══════════ 손으로 철회 처리 ══════════
+   🔴 고객이 직접 거부 의사를 밝힌 경우에만 씁니다.
+      처리하면 고객에게 처리결과 통지가 자동으로 나가고(법정 요건),
+      이행 기록에 「누가 했는지」까지 남습니다. */
+let mwKey = "";
+
+async function mwFind(){
+  const q = ($("#mwQ").value||"").trim();
+  mwKey = ""; $("#mwBox").innerHTML = "";
+  if(!q){ $("#mwState").textContent = "연락처나 이메일을 넣어 주세요."; return; }
+  $("#mwState").textContent = "찾는 중…";
+  const r = await cnApi({ action:"findPerson", q });
+  if(!r.ok){ $("#mwState").textContent = cnWhy(r); return; }
+  if(!r.found){
+    $("#mwState").textContent = "그 연락처·이메일로 동의하신 분이 없습니다.";
+    $("#mwBox").innerHTML = `<div class="hint">동의하신 적이 없거나, 아직 「새 접수 반영」이 안 된 분일 수 있습니다.</div>`;
+    return;
+  }
+  $("#mwState").textContent = "";
+  if(r.withdrawn){
+    $("#mwBox").innerHTML = `<div class="care warn">${cnEsc(r.name)} · ${cnEsc(r.email)} —
+      <b>${cnEsc(r.withdrawnAt||"")}에 이미 철회</b>하신 분입니다. 더 하실 일이 없습니다.</div>`;
+    return;
+  }
+  mwKey = r.key;
+  $("#mwBox").innerHTML =
+    `<div class="panel" style="margin:0;padding:12px 14px">
+       <div style="font-size:13px;font-weight:800">${cnEsc(r.name)} · ${cnEsc(r.email)}</div>
+       <div class="hint" style="margin-top:3px">${cnEsc(r.consentAt||"")} 에 동의하셨습니다.</div>
+       <div class="filters" style="margin-top:10px">
+         <button id="mwGo" class="sm">이분을 철회 처리</button>
+       </div>
+     </div>`;
+  $("#mwGo").addEventListener("click", mwDo);
+}
+
+async function mwDo(){
+  if(!mwKey) return;
+  if(!confirm("이 고객의 수신동의를 철회 처리합니다.\n\n고객에게 처리결과 통지 메일이 나가고,\n누가 처리했는지 기록에 남습니다.\n\n계속할까요?")) return;
+  $("#mwState").textContent = "처리 중…";
+  const r = await cnApi({ action:"manualWithdraw", key: mwKey });
+  if(!r.ok){ $("#mwState").textContent = cnWhy(r); return; }
+  $("#mwState").textContent = r.already
+    ? "이미 철회하신 분이었습니다."
+    : `철회 처리했습니다 (${r.withdrawnAt||""}). 고객에게 처리결과 통지가 나갔습니다.`;
+  $("#mwBox").innerHTML = "";
+  mwKey = "";
+  $("#mwQ").value = "";
+}
+
 const CN_ACT = { sent:"발송", withdrawn:"철회", no_response:"무응답 → 유지", no_email:"이메일 없음",
                  send_failed:"발송 실패", notice_sent:"처리결과 통지", notice_failed:"통지 실패",
-                 revived:"재동의" };
+                 revived:"재동의", test_withdrawn:"철회 (테스트)" };
 
 async function cnLogs(){
   const r = await cnApi({ action:"logs", limit:200 });
@@ -3734,6 +3802,8 @@ $("#cnPreview").addEventListener("click",cnPreview);
 $("#cnTest").addEventListener("click",cnTest);
 $("#cnRun").addEventListener("click",cnRun);
 $("#cnLogs").addEventListener("click",cnLogs);
+$("#mwFind").addEventListener("click",mwFind);
+$("#mwQ").addEventListener("keydown",e=>{ if(e.key==="Enter") mwFind(); });
 
 
 $("#odFile").addEventListener("change",e=>{const f=e.target.files[0];if(f)odParseFile(f).catch(err=>odSetState("파일 읽기 실패: "+(err.message||err),"var(--bad,#c0392b)"));});

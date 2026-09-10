@@ -869,6 +869,7 @@
               <input type="email" id="cnTo" placeholder="내 메일 주소" style="font-size:13px;padding:7px 9px;min-width:200px">
               <button id="cnTest" class="sm">이 주소로만 1통 보내기</button>
             </div>
+            <div id="cnTestBox" style="margin-top:4px"></div>
           </div>
         </details>
 
@@ -3126,15 +3127,24 @@ async function cnPreview(){
 async function cnTest(){
   const to = ($("#cnTo").value||"").trim();
   if(!to){ alert("테스트 발송을 받을 메일 주소를 적어 주세요."); return; }
-  if(!confirm(to+" 로 확인 메일 1통을 보냅니다.\n\n고객에게는 가지 않고, 고객 기록도 바뀌지 않습니다.\n계속할까요?")) return;
+  if(!confirm(to+" 로 확인 메일 1통을 보냅니다.\n\n「테스트」라는 가짜 고객으로 만들어 보내므로\n진짜 고객에게는 아무 영향이 없습니다.\n계속할까요?")) return;
   $("#cnState").textContent="보내는 중…";
-  const r = await cnApi({ action:"testSend", asOf: $("#cnAsOf").value, to, cap:1 });
-  if(!r.ok){ $("#cnState").textContent = cnWhy(r); return; }
-  $("#cnState").textContent = r.sent
-    ? `${to} 로 1통 보냈습니다. 메일함을 확인하고 링크를 눌러 보세요.`
-    : (r.total ? "보낼 대상은 있는데 발송에 실패했습니다. 메일 계정 설정을 확인해 주세요."
-               : "그날 기준으로 보낼 대상이 없습니다. 기준일을 더 뒤로 잡아 보세요.");
-  cnRows(r.rows, CN_COLS, "tableConsent", "emptyConsent", "보낼 대상이 없습니다.");
+  const r = await cnApi({ action:"testSend", to });
+  if(!r.ok){
+    $("#cnState").textContent = "보내지 못했습니다.";
+    /* 🔴 구글이 보낸 진짜 오류 문구를 그대로 보여 줍니다.
+          「발송 실패」라고만 적어 두었더니 원인을 짚을 수가 없었습니다(2026-09-10). */
+    $("#cnTestBox").innerHTML = `<div class="care">${cnEsc(r.message || cnWhy(r))}</div>`
+      + `<div class="hint" style="margin-top:8px">비밀번호가 틀렸다면 위 문구에
+         <b>Username and Password not accepted</b> 같은 말이 들어 있습니다.
+         그때는 앱 비밀번호를 새로 만들어 넣으시면 됩니다.</div>`;
+    return;
+  }
+  $("#cnState").textContent = `${to} 로 1통 보냈습니다. 메일함을 확인하고 링크를 눌러 보세요.`;
+  $("#cnTestBox").innerHTML =
+    `<div class="care warn">이 메일은 <b>「테스트」라는 가짜 고객</b>으로 만든 것입니다.
+     링크를 눌러 철회해 보셔도 <b>진짜 고객은 아무 영향이 없습니다.</b><br>
+     답장을 보내 보시면 <b>${cnEsc(r.replyTo||"")}</b> 로 들어옵니다.</div>`;
 }
 
 async function cnRun(){

@@ -660,7 +660,9 @@ function applyConfig(){
     GIFTS[c]=Object.assign({},cur,
       g.label?{label:g.label}:{},
       g.type ?{type:g.type} :{},
-      g.fee  ?{fee:g.fee}   :{});      // 착불 / 선불 (관리자 「사은품」 탭에서 정합니다)
+      g.fee  ?{fee:g.fee}   :{},       // 착불 / 선불 (관리자 「사은품」 탭에서 정합니다)
+      g.img  ?{img:g.img}   :{});      /* 사은품 사진 — 깃허브 gifts 폴더의 파일 이름 (2026-09-14).
+                                          비어 있으면 아래 GIFT_IMG 표를 쓰고, 그것도 없으면 「이미지 준비 중」. */
   });
   /* 사은품·기프티콘 발송 안내 문구 — 설정 화면에서 고친 값이 있으면 갈아 끼웁니다. */
   if(CFG.reward){

@@ -849,6 +849,15 @@
         <div class="care warn" id="cnMailWarn" style="display:none">
           메일 계정이 아직 설정되지 않았습니다. 지금은 미리보기만 됩니다.
         </div>
+        <div class="care warn" id="cnLiveWarn" style="display:none">
+          <b>아직 시행 전입니다.</b> 진짜 발송은 나가지 않습니다 — 테스트 발송과 모의 실행만 됩니다.
+          시행하려면 <b>시행일</b>을 정해야 합니다(담당 개발자에게 <b>CONSENT_START</b> 설정 요청).
+          시행일 <b>이후에 접수하신 분만</b> 관리 대상이 됩니다.
+        </div>
+        <div class="care warn" id="cnKeyWarn" style="display:none">
+          <b>철회 링크 열쇠가 설정되지 않았습니다.</b> 이 상태로는 철회 링크를 만들 수 없습니다.
+          담당 개발자에게 <b>EVENT_TOKEN_SECRET</b> 확인을 요청하세요.
+        </div>
 
         <details class="fold">
           <summary>미리 돌려 보기 · 테스트</summary>
@@ -888,6 +897,26 @@
             </div>
             <div id="mwBox" style="margin-top:10px"></div>
             <div class="care">고객이 <b>직접 거부 의사를 밝힌 경우에만</b> 누르세요. 누가 처리했는지 기록에 남습니다.</div>
+          </div>
+        </details>
+
+        <details class="fold">
+          <summary>메일이 안 가는 분</summary>
+          <div class="foldin">
+            <div class="hint">
+              메일이 <b>튕겨서 안 가는 분</b>들입니다. 발송 줄에서만 빠져 있고 <b>동의는 살아 있습니다.</b>
+              <a class="helplink" href="guide.html#consent-blocked" target="_blank" rel="noopener">사용법</a>
+            </div>
+            <div class="filters" style="margin-top:10px">
+              <button id="bkList" class="sm">목록 보기</button>
+              <input type="text" id="bkQ" placeholder="반송된 분 연락처" style="font-size:13px;padding:7px 9px;min-width:180px">
+              <button id="bkMark" class="sm">반송 확인</button>
+              <span id="bkState" style="font-size:12.5px;font-weight:800"></span>
+            </div>
+            <div class="tablewrap" style="margin-top:11px">
+              <table class="data" id="tableBlocked"><thead></thead><tbody></tbody></table>
+            </div>
+            <div class="empty" id="emptyBlocked">「목록 보기」를 눌러 주세요.</div>
           </div>
         </details>
 
@@ -3095,9 +3124,10 @@ async function cnStats(keepMsg){
   if(!keepMsg) $("#cnState").textContent="확인하는 중…";
   const r = await cnApi({ action:"stats", asOf: ($("#cnAsOf").value||undefined) });
   if(!r.ok){ if(!keepMsg) $("#cnState").textContent = cnWhy(r); return; }
-  if(!keepMsg) $("#cnState").textContent = r.due
-    ? ("오늘 기한인 분 " + r.due + "명 — 오후 1시에 자동으로 나갑니다.")
-    : "오늘 기한인 분은 없습니다.";
+  if(!keepMsg) $("#cnState").textContent = (r.due
+    ? ("오늘 기한인 분 " + r.due + "명" + (r.live ? " — 오후 1시에 자동으로 나갑니다." : " (아직 시행 전이라 나가지 않습니다)"))
+    : "오늘 기한인 분은 없습니다.")
+    + (r.blocked ? "  ·  메일이 안 가는 분 " + r.blocked + "명" : "");
   const n = v => (v==null ? "-" : v);
   /* 타일은 셋만 — 다섯 개는 화면이 시끄러웠습니다(2026-09-10 담당자 지적) */
   const tiles = [
@@ -3109,6 +3139,9 @@ async function cnStats(keepMsg){
     `<div class="tile ${c||""}"><div class="lbl">${l}</div><div class="val">${v}<small> ${s||""}</small></div></div>`).join("");
   $("#cnTiles").style.display = "";
   $("#cnMailWarn").style.display = r.mailReady ? "none" : "";
+  /* 시행 전 · 열쇠 없음 — 둘 다 담당자가 알아야 할 상태입니다 */
+  const lw = $("#cnLiveWarn"); if(lw) lw.style.display = r.live ? "none" : "";
+  const kw = $("#cnKeyWarn");  if(kw) kw.style.display = (r.secretOk === false) ? "" : "none";
 }
 
 const cnEsc = v => String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -3235,9 +3268,90 @@ async function mwDo(){
   $("#mwQ").value = "";
 }
 
+/* ══════════ 메일이 안 가는 분 ══════════
+
+   🔴 왜 따로 모으나 — 그냥 두면 내일도, 모레도 같은 분에게 다시 보내려 합니다.
+      그러면 하루 처리량(300명)을 이분들이 계속 차지해 **뒷사람 차례가 영영 안 옵니다.**
+      그래서 발송 줄에서 빼고 여기 모읍니다. **동의는 살아 있습니다.**
+
+   ⚠️ 며칠 뒤 반송되는 경우는 프로그램이 알 수 없습니다(받는 서버가 일단 받아 놓고
+      나중에 되돌려 보내기 때문). 공식 메일함의 mailer-daemon 메일을 보고
+      「반송 확인」으로 손수 넣어 주세요. */
+
+async function bkList(keep){
+  if(!keep) $("#bkState").textContent = "불러오는 중…";
+  const r = await cnApi({ action:"blocked", limit:200 });
+  if(!r.ok){ $("#bkState").textContent = cnWhy(r); return; }
+  if(!keep) $("#bkState").textContent = r.rows.length ? (r.rows.length + "명") : "없습니다 — 모두 정상입니다.";
+  cnRows(r.rows, [
+    ["성함",   x=>x.name || "(이름 없음)"],
+    ["연락처", x=>x.phone || "(없음)"],
+    ["적힌 이메일", x=>x.email || "(없음)"],
+    ["동의한 날", x=>x.consentAt],
+    ["빠진 날",   x=>x.blockedAt],
+    ["이유",     x=>x.why]
+  ], "tableBlocked", "emptyBlocked", "없습니다 — 모두 정상입니다.");
+  /* 줄마다 「고치고 다시 보내기」 단추를 붙입니다 */
+  const tb = $("#tableBlocked").querySelector("tbody");
+  const th = $("#tableBlocked").querySelector("thead tr");
+  if(th && r.rows.length){
+    th.insertAdjacentHTML("beforeend", "<th>고치기</th>");
+    [...tb.rows].forEach((tr,i)=>{
+      const k = r.rows[i].key;
+      const td = document.createElement("td");
+      const b = document.createElement("button");
+      b.className = "sm"; b.textContent = "이메일 고치고 다시";
+      b.addEventListener("click", ()=>bkFix(k, r.rows[i]));
+      td.appendChild(b); tr.appendChild(td);
+    });
+  }
+}
+
+async function bkFix(key, row){
+  const em = prompt(
+    (row.name || "이 고객") + " 님의 이메일을 다시 적어 주세요.\n"
+    + "지금 적힌 주소 : " + (row.email || "(없음)")
+    + "\n\n비워 두고 확인을 누르면, 주소는 그대로 두고 발송 줄에만 다시 세웁니다.",
+    row.email || "");
+  if(em === null) return;                     // 취소
+  $("#bkState").textContent = "처리 중…";
+  const r = await cnApi({ action:"unblock", key, email: em.trim() });
+  if(!r.ok){
+    $("#bkState").textContent = r.reason==="email" ? "이메일 모양이 올바르지 않습니다."
+                              : r.reason==="withdrawn" ? "이미 철회하신 분입니다."
+                              : cnWhy(r);
+    return;
+  }
+  $("#bkState").textContent = "다시 발송 줄에 세웠습니다. 다음 발송 때 나갑니다.";
+  bkList(true);
+}
+
+async function bkMark(){
+  const q = ($("#bkQ").value||"").trim();
+  if(!q){ $("#bkState").textContent = "반송된 분의 연락처를 넣어 주세요."; return; }
+  $("#bkState").textContent = "찾는 중…";
+  const f = await cnApi({ action:"findPerson", q });
+  if(!f.ok){ $("#bkState").textContent = cnWhy(f); return; }
+  if(!f.found){
+    $("#bkState").textContent = f.many
+      ? "같은 이메일을 쓰는 분이 " + f.many + "명입니다. 연락처로 찾아 주세요."
+      : "그 연락처로 동의하신 분이 없습니다.";
+    return;
+  }
+  if(!confirm(f.name + " 님을 「메일이 안 가는 분」으로 넣습니다.\n\n동의는 그대로 살아 있고, 발송 줄에서만 빠집니다.\n계속할까요?")) {
+    $("#bkState").textContent = ""; return;
+  }
+  const r = await cnApi({ action:"markBounce", key:f.key });
+  if(!r.ok){ $("#bkState").textContent = cnWhy(r); return; }
+  $("#bkQ").value = "";
+  $("#bkState").textContent = "넣었습니다.";
+  bkList(true);
+}
+
 const CN_ACT = { sent:"발송", withdrawn:"철회", no_response:"무응답 → 유지", no_email:"이메일 없음",
                  send_failed:"발송 실패", notice_sent:"처리결과 통지", notice_failed:"통지 실패",
-                 revived:"재동의", test_withdrawn:"철회 (테스트)" };
+                 revived:"재동의", test_withdrawn:"철회 (테스트)",
+                 blocked:"메일 안 감 — 줄에서 뺌", bounced:"반송 확인", unblocked:"줄에 다시 세움" };
 
 async function cnLogs(){
   const r = await cnApi({ action:"logs", limit:200 });
@@ -3804,6 +3918,9 @@ $("#cnRun").addEventListener("click",cnRun);
 $("#cnLogs").addEventListener("click",cnLogs);
 $("#mwFind").addEventListener("click",mwFind);
 $("#mwQ").addEventListener("keydown",e=>{ if(e.key==="Enter") mwFind(); });
+$("#bkList").addEventListener("click",()=>bkList());
+$("#bkMark").addEventListener("click",bkMark);
+$("#bkQ").addEventListener("keydown",e=>{ if(e.key==="Enter") bkMark(); });
 
 
 $("#odFile").addEventListener("change",e=>{const f=e.target.files[0];if(f)odParseFile(f).catch(err=>odSetState("파일 읽기 실패: "+(err.message||err),"var(--bad,#c0392b)"));});
@@ -4746,6 +4863,13 @@ function mkAnsOf(e){
   }
   if(!out.ad && !out.photo) out.photo = norm((e.consent || {}).marketing);
   if(!out.privacy) out.privacy = norm((e.consent || {}).privacy);
+
+  /* 🔴 나중에 수신 철회하신 분 — 접수 당시 답이 「동의」여도 **더 이상 동의가 아닙니다.**
+        철회하면 창구(consentApi)가 그 접수 건에 mkAdOff(철회한 날)를 찍어 둡니다.
+        이 한 줄이 없으면 철회하신 분이 「둘다동의」 명단에 그대로 남아,
+        그 명단으로 발송하면 광고가 또 나갑니다(과태료 대상).
+        ⚠️ 서버(ordersApi)의 mkAnswers 와 계산이 똑같아야 합니다. 한쪽만 고치지 마세요. */
+  if(e.mkAdOff) out.ad = "철회(" + e.mkAdOff + ")";
   return out;
 }
 /* 사람 단위로 합칩니다 — 연락처가 열쇠, **가장 최근 동의일**을 씁니다.
@@ -4826,18 +4950,24 @@ function mkRender(){
   const s = mkSplit();
   const noMail = rows => rows.filter(r => !r["이메일"]).length;
   const miss = noMail(s.both) + noMail(s.adOnly) + noMail(s.phOnly);
+  /* 수신 철회하신 분 — 「광고성 정보 수신」 칸이 철회(날짜)로 바뀐 분들입니다 */
+  const off = mkPeople().filter(p => /^철회/.test(p.ad || "")).length;
   box.innerHTML =
     `<div style="font-size:12.5px;line-height:1.9">`
     + `둘 다 동의 <b>${s.both.length.toLocaleString()}명</b> · `
     + `광고성만 <b>${s.adOnly.length.toLocaleString()}명</b> · `
     + `사진·리뷰만 <b>${s.phOnly.length.toLocaleString()}명</b> · `
     + `<span style="color:var(--bad,#c0392b)">둘 다 거부 <b>${s.none.length.toLocaleString()}명</b></span>`
+    + (off ? `<br>그중 <b>수신 철회하신 분 ${off.toLocaleString()}명</b> — 광고성 정보 수신 칸이 「철회(날짜)」로 바뀌어 동의 명단에서 빠집니다.` : "")
     + (miss ? `<br><span style="color:var(--bad,#c0392b)">동의하셨는데 이메일이 없는 분 ${miss.toLocaleString()}명 — 이메일 칸을 넣기 전에 접수한 분들입니다. 이분들께는 메일을 보낼 수 없습니다.</span>` : "")
     + `</div>`;
 }
-/* 엑셀 한 파일 안에 시트 여러 장으로 내려받습니다.
-   ⚠️ 엑셀 도구를 못 불러온 경우에는 시트를 나눌 수 없어, 「구분」 칸을 붙여 한 장으로 받습니다. */
-function downloadSheets(sheets, baseName){
+/* 마케팅 활용 명단을 엑셀 한 파일 안에 시트 여러 장으로 내려받습니다.
+   ⚠️ 엑셀 도구를 못 불러온 경우에는 시트를 나눌 수 없어, 「구분」 칸을 붙여 한 장으로 받습니다.
+   🔴 이름이 mk 로 시작해야 합니다. 그냥 downloadSheets 로 두면
+      위쪽 **사방넷 출고 명단**의 같은 이름 기능을 덮어써서,
+      출고 CSV 가 마케팅 머리글로 나옵니다(2026-09-12 점검에서 발견). */
+function mkDownloadSheets(sheets, baseName){
   const total = sheets.reduce((n,s)=>n+s.rows.length, 0);
   if(!total){ alert("대상 데이터가 없습니다."); return false; }
   logAccess("다운로드", baseName, total);
@@ -4862,7 +4992,7 @@ function downloadSheets(sheets, baseName){
 }
 function mkDownload(){
   const s = mkSplit();
-  const ok = downloadSheets([
+  const ok = mkDownloadSheets([
     { name:"둘다동의",        rows:s.both   },
     { name:"광고성만동의",     rows:s.adOnly },
     { name:"사진리뷰만동의",   rows:s.phOnly },
@@ -6226,7 +6356,13 @@ function paneForm(){
             ? el("input", { type:"text", value:f.label, style:"max-width:200px",
                 oninput:e => { f.label = e.target.value; } })
             : el("span", {}, f.label),
-          reqBtn(f.req, () => { f.req = !f.req; }, isOpen("info"), "info")),
+          /* 🔴 이메일을 「선택」으로 바꾸면 2년 뒤 수신동의 확인 메일을 못 보냅니다.
+                한 번 더 물어봅니다(2026-09-12). */
+          reqBtn(f.req, () => {
+            if(f.req && /이메일/.test(String(f.label || "")) &&
+               !confirm("이메일을 「선택」으로 바꾸면,\n이메일을 안 적은 고객에게는 2년 뒤 수신동의 확인 메일을 보낼 수 없습니다.\n(정보통신망법 제50조 8항 — 과태료 대상)\n\n그래도 바꾸시겠습니까?")) return;
+            f.req = !f.req;
+          }, isOpen("info"), "info")),
         f.note ? el("div", { class:"cdesc" }, f.note) : "",
         el("div", { class:"fi", style:"margin-top:6px;color:#b3aaa2;font-size:12px" }, f.type + " 입력칸"),
         isOpen("info") ? el("div", { class:"addline", style:"margin-top:8px" },
@@ -6800,12 +6936,35 @@ function fixNotices(c){
   });
 }
 
+/* ══════════ 저장된 설정에 없는 「받으실 정보」 칸을 기본값에서 채웁니다 ══════════
+
+   🔴 왜 필요한가 — 관리자 화면은 **서버에 저장된 설정을 그대로** 보여 줍니다.
+      나중에 새 칸(이메일)을 만들면, 그 전에 저장된 설정에는 그 칸이 없어
+      **화면에 나타나지 않습니다.** 그 상태로 저장하면 예전 3칸으로 덮어써집니다.
+      (2026-09-12 점검에서 「이메일 칸이 안 보인다」로 발견)
+
+   ⚠️ 담당자가 **일부러 지운 칸**까지 되살아나면 곤란하므로,
+      되살리는 것은 **없으면 큰일 나는 칸**(아래 MUST)만입니다. */
+const MUST_FIELDS = ["이메일"];
+function fixFields(c){
+  const st = c && c.form && c.form.info;
+  if(!st || !Array.isArray(st.fields)) return;
+  const D = DEFAULTS.form.info.fields;
+  MUST_FIELDS.forEach(lab => {
+    if(st.fields.some(f => String(f && f.label || "").includes(lab))) return;
+    const d = D.find(f => f.label === lab);
+    if(d) st.fields.unshift(JSON.parse(JSON.stringify(d)));   // 맨 위에 넣습니다
+  });
+}
+
+
 window.EVTCFG = {
   /* 리포트가 관리자 탭을 열 때 한 번 부릅니다. loaded = 서버에 저장돼 있던 값 */
   mount(loaded){
     if(loaded && typeof loaded === "object" && loaded.products){
       cfg = clone(loaded); SAVED = clone(loaded);
       fixNotices(cfg); fixNotices(SAVED);
+      fixFields(cfg);  fixFields(SAVED);
       surveyProduct = (cfg.products[0] || {}).ledger || "";
     }
     /* 저장된 설정이 없을 때의 안내는 저장 줄 옆에 한 번만 적습니다.
@@ -6817,7 +6976,9 @@ window.EVTCFG = {
     showUsers(false);
     render();
   },
-  get(){ return clone(cfg); }
+  get(){ return clone(cfg); },
+  /* 검사 스크립트용 — 기본값 꾸러미를 그대로 내줍니다. 운영 화면은 쓰지 않습니다. */
+  defaults(){ return clone(DEFAULTS); }
 };
 
 showUsers(false);

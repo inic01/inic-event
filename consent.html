@@ -63,6 +63,8 @@
   .msg.err{background:#fbedee;color:#b23b3b}
   .spin{text-align:center;color:var(--sub);font-size:13px;padding:46px 0}
   footer{text-align:center;font-size:11.5px;color:var(--sub);line-height:1.7;padding:6px 20px 0}
+  footer .kk{display:inline-block;margin-top:10px;background:#FEE500;color:#191600;
+    text-decoration:none;font-weight:800;padding:9px 16px;border-radius:8px;font-size:12.5px}
   .hide{display:none !important}
   @media (prefers-color-scheme: dark){
     :root{--ink:#f0ebe7;--sub:#a29892;--line:#3a3533;--bg:#211e1d;--card:#2a2624;--brand:#e8e2de}
@@ -122,10 +124,13 @@ var esc  = function(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replac
 /* 🔴 고객센터 안내는 **화면을 여는 순간** 채웁니다.
       예전에는 성공했을 때만 채워서, 링크가 만료된 화면에는 전화번호가 아예 없었습니다.
       철회하러 오신 분이 연락할 곳을 못 찾는 것이 가장 나쁩니다(2026-09-12 점검에서 발견). */
-var CS_FALLBACK = { company:"주식회사 아이닉", tel:"1800-8515" };
-function foot(company, tel){
+var CS_FALLBACK = { company:"주식회사 아이닉", tel:"1800-8515",
+                    kakao:"http://pf.kakao.com/_ZxaExfT" };
+function foot(company, tel, kakao){
+  var k = kakao || CS_FALLBACK.kakao;
   $("#foot").innerHTML = esc(company || CS_FALLBACK.company)
-    + "<br>문의 : 고객센터 " + esc(tel || CS_FALLBACK.tel);
+    + "<br>문의 : 고객센터 " + esc(tel || CS_FALLBACK.tel)
+    + (k ? '<br><a class="kk" href="' + esc(k) + '" target="_blank" rel="noopener">💬 카카오톡 상담</a>' : "");
 }
 foot();
 
@@ -154,7 +159,7 @@ function paint(r){
   $("#vMail").textContent = r.email || "-";
   $("#vDate").textContent = r.consentAt || "-";
   $("#vFrom").textContent = r.company || "주식회사 아이닉";
-  foot(r.company, r.tel);
+  foot(r.company, r.tel, r.kakao);
 
   /* 이미 철회하신 분이 링크를 또 누른 경우에도 같은 화면을 보여 드립니다 */
   $("#dTitle").textContent = r.already

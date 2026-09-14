@@ -5391,7 +5391,16 @@ const DEFAULTS = {
         { label:"연락처", type:"연락처",   req:true, note:"기프티콘이 이 번호로 갑니다" },
         { label:"주소",   type:"주소 검색", req:true, note:"사은품(착불)일 때만 보입니다" }
       ] },
-    done:   { title:"접수 완료", desc:"접수가 완료되었습니다. 심사 후 순차적으로 발송해 드립니다." }
+    done:   { title:"접수 완료", desc:"접수가 완료되었습니다. 심사 후 순차적으로 발송해 드립니다." },
+
+    /* 「신청 확인」 화면 (2026-09-14) — 접수 직전에 뜨는 확인 화면입니다.
+       노란 상자는 두 문단으로 나갑니다 : warn(공통) + 상품권/사은품 중 하나. */
+    confirm: {
+      title: "이벤트 신청 내역이 맞으신가요?",
+      warn:  "신청 후 출고 이후에는 변경하실 수 없으며, {{오기재로 오출고가 발생한 경우 비용이 발생될 수 있는 점}} 참고 부탁드립니다.",
+      warnCoupon: "{{상품권은 아래 번호로 발송됩니다.}} 번호 오기재 시 상품권이 다른 분께 발송되면 재발송이 어려우실 수 있습니다.",
+      warnGift:   "{{사은품은 아래 주소로 발송됩니다.}} 주소 오기재 시 반송되어 재발송까지 시간이 걸리고, 추가 배송비가 발생할 수 있습니다."
+    }
   },
 
   /* 상황이 생겼을 때만 화면에 뜨는 문구 전부 (빨간 글씨·팝업·완료 창 포함). */
@@ -5741,45 +5750,30 @@ function giftImgHint(item, label){
   if(!item) return "";
   const enc = encodeURIComponent(item);
 
-  const code = el("code", { style:"font-size:12px;background:#fff;border:1px solid var(--line);border-radius:5px;padding:3px 6px;word-break:break-all" },
-    item + "." + IMG_EXTS[0]);
-  const img  = el("img", { alt:"사은품 사진 미리보기",
-    style:"margin-top:8px;max-width:130px;border-radius:8px;border:1px solid var(--line);display:none" });
-  const bad  = el("p", { class:"note", style:"display:none;margin-top:4px" },
-    "아직 이 이름의 사진이 깃허브에 없습니다. ", el("b", {}, "gifts"), " 폴더에 위 이름 그대로 올려 주세요. (webp·png·jpg 다 됩니다)");
-  const good = el("p", { class:"note", style:"display:none;margin-top:4px;color:#1f7a45" },
-    "깃허브에 올라와 있습니다. 고객 화면에 이 사진이 나갑니다.");
-  const copy = el("button", { class:"btn ghost", type:"button", style:"white-space:nowrap",
-    onclick:() => { try { navigator.clipboard.writeText(code.textContent); } catch(e){} } }, "이름 복사");
+  /* 있으면 **그림만** 보여 줍니다. 파일 이름·복사 단추는 화면을 어지럽혀서 뺐습니다(2026-09-14). */
+  const img = el("img", { alt:item,
+    style:"max-width:132px;border-radius:8px;border:1px solid var(--line);display:none" });
 
-  /* 확장자를 하나씩 바꿔 가며 실제로 있는 파일을 찾습니다 */
+  /* 없을 때만 어떤 이름으로 올려야 하는지 한 줄로 알려 줍니다 */
+  const none = el("div", { style:"display:none;padding:14px 12px;border:1px dashed var(--line);border-radius:8px;background:#fff;text-align:center" },
+    el("div", { style:"font-size:12px;color:var(--sub);font-weight:700" }, "이미지 없음"),
+    el("div", { style:"font-size:11.5px;color:var(--sub);margin-top:5px;line-height:1.6;word-break:break-all" },
+      el("b", { style:"color:var(--ink,#2b2725)" }, item + ".png"), " 로 깃허브 ", el("b", {}, "gifts"), " 폴더에 올려 주세요"));
+
   let n = 0;
   const tryNext = () => {
-    if(n >= IMG_EXTS.length){
-      img.style.display = "none"; bad.style.display = "block"; good.style.display = "none";
-      code.textContent = item + "." + IMG_EXTS[0];
-      return;
-    }
+    if(n >= IMG_EXTS.length){ img.style.display = "none"; none.style.display = "block"; return; }
     img.src = "gifts/" + enc + "." + IMG_EXTS[n];
   };
   img.addEventListener("error", () => { n += 1; tryNext(); });
-  img.addEventListener("load",  () => {
-    img.style.display = "block"; bad.style.display = "none"; good.style.display = "block";
-    code.textContent = item + "." + IMG_EXTS[n];      // 실제로 찾은 형식으로 바꿔 보여 줍니다
-  });
+  img.addEventListener("load",  () => { img.style.display = "block"; none.style.display = "none"; });
   tryNext();
 
-  return el("div", { style:"margin-top:9px;padding:8px 10px;background:#faf8f6;border:1px solid var(--line);border-radius:8px" },
+  return el("div", { style:"margin-top:9px" },
     el("div", { style:"font-size:11px;color:var(--sub);margin-bottom:4px" },
-      "사진 파일 이름", label ? el("b", { style:"margin-left:5px" }, label) : ""),
-    el("div", { style:"display:flex;gap:6px;align-items:center;flex-wrap:wrap" }, code, copy),
-    img, bad, good);
+      "이미지", label ? el("b", { style:"margin-left:5px" }, label) : ""),
+    img, none);
 }
-
-/* ⚠️ 아래 두 함수는 예전에 「프로모션 사진 파일 이름」을 자동으로 지어 주던 것입니다.
-      2026-09-14 부터 **사은품 이름이 곧 파일 이름**이라 더 쓰지 않습니다.
-      부르는 곳이 남아 있어 아무 일도 안 하게 두었습니다. 나중에 정리해도 됩니다. */
-function syncImgName(r, change){ change(); }
 
 /* (옛 규칙) 사은품 사진명을 자동으로 지어 줍니다.
    담당자가 파일 이름을 고민하지 않도록 제품 코드와 시작일로 규칙을 정해 두었습니다.
@@ -5832,7 +5826,7 @@ function paneRule(){
             cfg.products.filter(x => x.ledger.trim()).map(x =>
               el("option", { value:x.ledger, ...(r.product === x.ledger ? { selected:"" } : {}) }, x.ledger)))),
         el("div", { class:"field" },
-          el("label", { for:"rl" + i }, "이 경우 줄 사은품"),
+          el("label", { for:"rl" + i }, "프로모션 사은품"),
           el("input", { id:"rl" + i, type:"text", value:r.label,
             oninput:e => { r.label = e.target.value; softRefresh(); } })),
         /* 사진 — 기본 사은품과 똑같은 규칙입니다 (2026-09-14).
@@ -6631,6 +6625,19 @@ const ALWAYS_GROUPS = [
   ["접수 완료", [
     ["완료 문구", () => cfg.form.done, "desc", true,
       "「참여 신청하기」를 누른 뒤 뜨는 완료 팝업 안",      "done",   "desc"]
+  ]],
+  /* 신청 확인 화면 (2026-09-14) — 접수 직전, 적은 내용을 되짚어 보여 주는 화면입니다.
+     노란 상자는 두 문단으로 나갑니다 : 공통 안내 + (상품권 / 사은품) 중 하나.
+     ⚠️ 상품권이면 주소 줄이 없고, 사은품이면 주소 줄이 붙습니다. */
+  ["신청 확인", [
+    ["화면 제목",      () => cfg.form.confirm, "title",      false,
+      "화면 맨 위 굵은 글씨",                                     "confirm", "title"],
+    ["노란 상자 1 — 공통", () => cfg.form.confirm, "warn",   true,
+      "노란 상자 첫 문단 · 상품권·사은품 모두에 나옴",            "confirm", "warn"],
+    ["노란 상자 2 — 상품권", () => cfg.form.confirm, "warnCoupon", true,
+      "노란 상자 둘째 문단 · 상품권(기프티콘)일 때만",            "confirm", "warnCoupon"],
+    ["노란 상자 2 — 사은품", () => cfg.form.confirm, "warnGift",   true,
+      "노란 상자 둘째 문단 · 사은품(배송)일 때만",                "confirm", "warnGift"]
   ]]
 ];
 
@@ -7015,6 +7022,15 @@ function fixNotices(c){
       되살리는 것은 **없으면 큰일 나는 칸**(아래 MUST)만입니다. */
 const MUST_FIELDS = ["이메일"];
 function fixFields(c){
+  /* 🔴 예전에 저장된 설정에는 「신청 확인」 문구가 없습니다.
+        채워 넣지 않으면 안내 문구 탭에서 칸이 비어 보이고 고칠 수 없습니다(2026-09-14). */
+  if(c && c.form){
+    const D = DEFAULTS.form.confirm;
+    if(!c.form.confirm || typeof c.form.confirm !== "object") c.form.confirm = clone(D);
+    else Object.keys(D).forEach(k => {
+      if(typeof c.form.confirm[k] !== "string" || !c.form.confirm[k].trim()) c.form.confirm[k] = D[k];
+    });
+  }
   const st = c && c.form && c.form.info;
   if(!st || !Array.isArray(st.fields)) return;
   const D = DEFAULTS.form.info.fields;

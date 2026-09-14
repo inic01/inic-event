@@ -204,6 +204,9 @@
     border-radius:10px;font-size:12.5px;color:#8a5a12;line-height:1.7}
   .ckwarn b{color:#6b4409}
   .ckwarn p{margin:0}
+  /* 노란 상자 안에서는 강조 글씨도 상자 색에 맞춥니다(까만 글씨면 튑니다) */
+  .ckwarn .hlk{font-size:inherit;color:#6b4409;font-weight:900}
+  .ckwarn .hl{font-size:inherit;color:#b03636;font-weight:900}
   .ckwarn p + p{margin-top:9px;padding-top:9px;border-top:1px solid #f0dcc0}
   .modal{position:fixed;inset:0;background:rgba(15,20,35,.5);display:none;align-items:center;justify-content:center;padding:24px;z-index:50}
   .modal.on{display:flex}
@@ -431,7 +434,7 @@
 
 <!-- ══════════ 최종확인 (2026-09-14 추가) ══════════ -->
 <div class="card hide" id="step-confirm">
-  <h2>이벤트 신청 내역이 맞으신가요?</h2>
+  <h2 id="ckTitle">이벤트 신청 내역이 맞으신가요?</h2>
   <!-- 🔴 안내 문구는 노란 상자 한 곳에 모읍니다 (2026-09-14 담당자 확정).
           회색 한 줄로 따로 두면 같은 말이 두 군데로 흩어져 아무도 안 읽습니다. -->
   <div class="ckwarn" id="ckWarn"></div>
@@ -665,6 +668,14 @@ function applyConfig(){
       g.type ?{type:g.type} :{},
       g.fee  ?{fee:g.fee}   :{});      // 착불 / 선불 (관리자 「사은품」 탭에서 정합니다)
   });
+  /* 신청 확인 화면 문구 — 설정(안내 문구 탭)에서 고친 값이 있으면 갈아 끼웁니다 (2026-09-14). */
+  if(CFG.confirm){
+    const c = CFG.confirm;
+    if(c.title)      CONFIRM.title      = c.title;
+    if(c.warn)       CONFIRM.warn       = c.warn;
+    if(c.warnCoupon) CONFIRM.warnCoupon = c.warnCoupon;
+    if(c.warnGift)   CONFIRM.warnGift   = c.warnGift;
+  }
   /* 사은품·기프티콘 발송 안내 문구 — 설정 화면에서 고친 값이 있으면 갈아 끼웁니다. */
   if(CFG.reward){
     const r=CFG.reward;
@@ -1987,6 +1998,15 @@ const CK_TYPE = { review:"포토리뷰 작성", coupang:"쿠팡 정품등록" };
 function ckEsc(v){ return String(v==null?"":v)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
+/* 신청 확인 화면 문구 — 설정에서 고칠 수 있습니다. 여기 값은 「못 읽었을 때」 쓰는 기본입니다.
+   {{중괄호 두 개}} 는 검은 굵은 글씨, [[대괄호 두 개]] 는 빨간 굵은 글씨로 나갑니다. */
+var CONFIRM = {
+  title: "이벤트 신청 내역이 맞으신가요?",
+  warn:  "신청 후 출고 이후에는 변경하실 수 없으며, {{오기재로 오출고가 발생한 경우 비용이 발생될 수 있는 점}} 참고 부탁드립니다.",
+  warnCoupon: "{{상품권은 아래 번호로 발송됩니다.}} 번호 오기재 시 상품권이 다른 분께 발송되면 재발송이 어려우실 수 있습니다.",
+  warnGift:   "{{사은품은 아래 주소로 발송됩니다.}} 주소 오기재 시 반송되어 재발송까지 시간이 걸리고, 추가 배송비가 발생할 수 있습니다."
+};
+
 function ckRow(k, v, sub, goStep, focusSel){
   return '<div class="ckrow"><span class="k">'+ckEsc(k)+'</span>'
        + '<span class="v">'+ckEsc(v)+(sub?'<small>'+ckEsc(sub)+'</small>':'')+'</span>'
@@ -2003,14 +2023,14 @@ function renderConfirm(){
   const addr = getAddress();
   const fee  = coupon ? "" : (feeOf(state.product)==="선불" ? "선불 · 배송비 없음" : "착불 · 배송비는 수령 시 결제");
 
-  /* 🔴 담당자 확정 문구입니다 (2026-09-14). 임의로 고치지 마세요.
-        첫 줄은 상품권·사은품 공통, 둘째 줄만 갈립니다. */
-  const WARN_COMMON =
-    "신청 후 출고 이후에는 변경하실 수 없으며, <b>오기재로 오출고가 발생한 경우 비용이 발생될 수 있는 점</b> 참고 부탁드립니다.";
-  const WARN_EACH = coupon
-    ? "<b>상품권은 아래 번호로 발송됩니다.</b> 번호 오기재 시 상품권이 다른 분께 발송되면 재발송이 어려우실 수 있습니다."
-    : "<b>사은품은 아래 주소로 발송됩니다.</b> 주소 오기재 시 반송되어 재발송까지 시간이 걸리고, 추가 배송비가 발생할 수 있습니다.";
-  $("#ckWarn").innerHTML = "<p>" + WARN_COMMON + "</p><p>" + WARN_EACH + "</p>";
+  /* 노란 상자 — 첫 문단은 공통, 둘째 문단만 상품권/사은품으로 갈립니다.
+     🔴 문구는 리포트 → 설정 → 안내 문구 → 「신청 확인」 에서 고치십시오. */
+  const each = coupon ? CONFIRM.warnCoupon : CONFIRM.warnGift;
+  $("#ckWarn").innerHTML =
+      (CONFIRM.warn ? "<p>" + rich(CONFIRM.warn) + "</p>" : "")
+    + (each          ? "<p>" + rich(each)          + "</p>" : "");
+  const ttl = document.getElementById("ckTitle");
+  if(ttl && CONFIRM.title) ttl.textContent = CONFIRM.title;
 
   let h = '<div class="ckgrp"><div class="gh">받으실 정보</div>'
         + ckRow("수령인", $("#name").value.trim(), "", "info", "#name")

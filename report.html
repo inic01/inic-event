@@ -6373,12 +6373,69 @@ function pvNoticeBody(shape, text, kakao, name){
   return pvLookupBody(null, { box:'<div class="notice pvhl" style="margin:0">' + first + rest + kb + '</div>' });
 }
 
+/* ── 신청 확인 화면 한 판 (2026-09-14) ──
+   접수 직전, 적어 주신 내용을 되짚어 보여 주는 화면입니다.
+   spot 으로 지금 고치는 자리에 노란 테두리를 칩니다.
+     title / warn(공통) / warnCoupon(상품권) / warnGift(사은품)                */
+function pvConfirmBody(spot){
+  const hl = k => (spot === k ? " pvhl" : "");
+  const C  = (cfg.form && cfg.form.confirm) || {};
+  /* 상품권 문구를 고치는 중이면 상품권 화면을, 아니면 사은품 화면을 보여 줍니다 */
+  const coupon = (spot === "warnCoupon");
+  const each = coupon ? C.warnCoupon : C.warnGift;
+  const row = (k, v, btn) =>
+    '<div class="ckrow"><span class="k">' + pvE(k) + '</span><span class="v">' + pvE(v) + '</span>'
+    + (btn ? '<button type="button" class="fix">수정</button>' : '') + '</div>';
+
+  return '<div class="wrap">'
+  + '<div class="card">'
+  +   '<h2 class="' + hl("title").trim() + '">' + pvE(C.title || "이벤트 신청 내역이 맞으신가요?") + '</h2>'
+  +   '<div class="ckwarn">'
+  +     '<p class="' + hl("warn").trim() + '">' + pvT(C.warn || "(공통 안내가 비어 있습니다)") + '</p>'
+  +     '<p class="' + hl(coupon ? "warnCoupon" : "warnGift").trim() + '">'
+  +       pvT(each || "(이 문구가 비어 있습니다)") + '</p>'
+  +   '</div>'
+  +   '<div class="ckgrp"><div class="gh">받으실 정보</div>'
+  +     row("수령인", "홍길동", true) + row("핸드폰", "010-1234-5678", true)
+  +     row("이메일", "hong@naver.com", true)
+  +     (coupon ? "" : row("주소", "경기 안양시 동안구 흥안대로 415 829호", true))
+  +   '</div>'
+  +   '<div class="ckgrp"><div class="gh">신청 내용</div>'
+  +     row("유형", "포토리뷰 작성", false) + row("제품", "무선청소기 맥스제로 i90", false)
+  +     row(coupon ? "상품권" : "사은품", coupon ? "네이버페이 10,000원" : "i90 스팀물걸레키트", false)
+  +   '</div>'
+  + '</div></div>';
+}
+
+/* ── 수기접수 「발송 문구」 (2026-09-14) ──
+   🔴 이건 **고객 화면이 아닙니다.** 상담사가 복사해서 카톡·문자로 보내는 글입니다.
+      그래서 폰 화면이 아니라 「보낸 메시지」 모양으로 보여 줍니다. */
+function pvManualBody(){
+  const t = String((cfg.form && cfg.form.manualGuide) || "").trim();
+  const filled = t
+    .split("{주소}").join("https://inic01.github.io/inic-event/")
+    .split("{조회정보}").join(
+      "· 성함 + 연락처 : 홍길동 / 010-1234-5678\n" +
+      "· 송장번호\n   - 무선청소기 맥스제로 i90 : 1234567890\n" +
+      "· 주문번호\n   - 무선청소기 맥스제로 i90 : 2026083181163561");
+  return '<div class="wrap"><div class="card">'
+  + '<h2>상담사가 고객에게 보내는 글</h2>'
+  + '<p class="desc">고객 화면이 아닙니다. 「이 문구 복사」를 눌러 카톡·문자로 보내는 글입니다.<br>'
+  +   '<b>{주소}</b> 와 <b>{조회정보}</b> 는 아래처럼 자동으로 채워집니다.</p>'
+  + '<div class="pvhl" style="margin-top:12px;padding:13px 15px;background:#fff;border:1px solid #e6e2de;'
+  +   'border-radius:12px;white-space:pre-wrap;line-height:1.85;font-size:13px">'
+  +   (filled ? pvE(filled) : '<span style="color:#b3aaa2">(문구가 비어 있습니다)</span>')
+  + '</div></div></div>';
+}
+
 function pvScreenDoc(kind, spot, o){
   o = o || {};
   let body, prog = 22;
   if(kind === "done"){ body = pvDoneBody(spot); prog = 100; }
   else if(kind === "notice"){ body = pvNoticeBody(o.shape, o.text, o.kakao, o.name);
     if(o.shape === "popup") prog = 100; }
+  else if(kind === "confirm"){ body = pvConfirmBody(spot); prog = 92; }
+  else if(kind === "manual"){ body = pvManualBody(); prog = 0; }
   else body = pvLookupBody(spot);
   return '<!doctype html><html lang="ko"><head><meta charset="utf-8">'
   + '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -6386,6 +6443,18 @@ function pvScreenDoc(kind, spot, o){
   + '\n.wrap{max-width:none;padding-bottom:20px}\n.modal{padding:16px;position:static;background:rgba(20,16,14,.42)}'
   + '\n.pvhl{outline:2px dashed #b26a00;outline-offset:5px;border-radius:8px;background:#fffaf0}'
   + '\n.vtab{text-align:center}'
+  /* 신청 확인 화면에서 쓰는 모양 — 접수폼과 같게 맞춥니다 */
+  + '\n.ckgrp{background:#fff;border:1px solid #ece8e4;border-radius:14px;overflow:hidden;margin-bottom:12px}'
+  + '\n.ckgrp .gh{padding:11px 15px;background:#faf8f6;border-bottom:1px solid #ece8e4;font-size:12px;font-weight:800;color:#8a827c}'
+  + '\n.ckrow{display:flex;align-items:flex-start;gap:12px;padding:13px 15px;border-bottom:1px solid #ece8e4}'
+  + '\n.ckrow:last-child{border-bottom:none}'
+  + '\n.ckrow .k{flex:0 0 62px;font-size:12.5px;color:#8a827c;font-weight:700;padding-top:2px}'
+  + '\n.ckrow .v{flex:1;font-size:15px;font-weight:800;line-height:1.45;word-break:break-all}'
+  + '\n.ckrow .fix{flex:0 0 auto;border:1px solid #ece8e4;background:#fff;color:#8a827c;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700}'
+  + '\n.ckwarn{margin:2px 2px 14px;padding:12px 13px;background:#fff8ef;border:1px solid #f0dcc0;border-radius:10px;font-size:12.5px;color:#8a5a12;line-height:1.7}'
+  + '\n.ckwarn p{margin:0}.ckwarn p + p{margin-top:9px;padding-top:9px;border-top:1px solid #f0dcc0}'
+  + '\n.ckwarn .hlk{font-size:inherit;color:#6b4409;font-weight:900}'
+  + '\n.ckwarn .hl{font-size:inherit;color:#b03636;font-weight:900}'
   + '\n</style></head><body>'
   + '<header class="hero"><img class="logo" src="' + PV_LOGO + '" alt="inic">'
   +   '<h1>' + pvE(cfg.survey.title) + '</h1>'

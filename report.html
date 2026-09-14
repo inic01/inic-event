@@ -1016,10 +1016,10 @@
     고친 내용은 <b>이 버튼을 눌러야</b> 서버에 남습니다. 이 버튼을 안 누르고 창을 닫으면 <b style="color:var(--bad)">전부 사라집니다.</b>
     항목에 붙는 <b>「고치는 중」</b>은 <b>그 칸이 열려 있다</b>는 표시일 뿐입니다 — 저장하면 칸이 닫히면서 함께 사라집니다.
   </p>
-  <details style="margin-top:10px">
-    <summary>서버에 저장될 내용 보기 (개발자용)</summary>
-    <pre class="mono" id="dump"></pre>
-  </details>
+  <!-- 「서버에 저장될 내용 보기(개발자용)」 상자는 뺐습니다 (2026-09-14).
+       담당자가 볼 일이 없고 화면만 어지럽혔습니다.
+       ⚠️ 안에 있던 #dump 는 softRefresh() 가 매번 채우던 곳입니다.
+          없어도 오류가 나지 않게 softRefresh() 에서 "있으면 채운다"로 바꿔 두었습니다. -->
 </div>
 
   <div id="admUsers" hidden>
@@ -6885,7 +6885,12 @@ function render(){
   softRefresh();
   fitAllAreas();
 }
-function softRefresh(){ drawSim(); $("#dump").textContent = JSON.stringify(cfg, null, 2); }
+function softRefresh(){
+  drawSim();
+  /* 개발자용 상자를 없앴으므로 있을 때만 채웁니다 (없으면 그냥 넘어갑니다) */
+  const d = $("#dump");
+  if(d) d.textContent = JSON.stringify(cfg, null, 2);
+}
 
 /* ── 리포트에 붙이는 부분 ───────────────────────────────────────
    화면 그리기는 위 코드가 그대로 하고, 여기서는

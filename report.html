@@ -5496,7 +5496,10 @@ const el = (t, a = {}, ...kids) => {
   const n = document.createElement(t);
   for(const k in a){
     if(k === "class") n.className = a[k];
-    else if(k.startsWith("on")) n.addEventListener(k.slice(2), a[k]);
+    /* 🔴 함수일 때만 붙입니다 (2026-09-14).
+          글자를 넘기면 브라우저가 오류를 내고 **화면 그리기가 그 자리에서 멈춥니다.**
+          사진을 넣은 줄부터 아래가 안 그려지고, 줄을 눌러도 안 열리던 원인이었습니다. */
+    else if(k.startsWith("on")) { if(typeof a[k] === "function") n.addEventListener(k.slice(2), a[k]); }
     else if(a[k] !== null && a[k] !== undefined) n.setAttribute(k, a[k]);
   }
   kids.flat().forEach(c => n.append(c?.nodeType ? c : document.createTextNode(c ?? "")));
@@ -5570,8 +5573,8 @@ function paneGift(){
                예전에는 접수폼 파일 안에 그림이 박혀 있어 담당자가 못 바꿨습니다. */
             ((p.codes || []).length > 1
               ? (p.codes || []).map(c =>
-                  giftImgField(p, c, ((p.giftEach || {})[c]) || c))
-              : giftImgField(p, "", ""))),
+                  giftImgHint(p, c, ((p.giftEach || {})[c]) || ""))
+              : giftImgHint(p, "", ""))),
           el("td", { class:"tight" },
             el("select", { "aria-label":"종류", onchange:e => { p.type = e.target.value; softRefresh(); } },
               el("option", { value:"gift",   ...(p.type === "gift"   ? { selected:"" } : {}) }, "사은품"),
@@ -5706,46 +5709,30 @@ function ledgerSrcNote(){
     list.slice(0, 20).map(x => x.name + "(" + x.n.toLocaleString() + ")").join(" · "));
 }
 
-/* 기본 사은품 사진명을 자동으로 지어 줍니다 (2026-09-14 추가).
-   프로모션과 규칙을 맞췄습니다 — 담당자가 파일 이름을 고민하지 않게.
-     gifts/gift-iv90.webp
-   ⚠️ 담당자가 직접 고친 이름은 건드리지 않습니다. */
-function autoGiftImgName(code){
-  const c = String(code || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return c ? "gifts/gift-" + c + ".webp" : "";
-}
-/* 사진 칸 하나 그리기 — 기본 사은품용.
-   codes 가 둘인 제품(음식물처리기)은 사은품이 코드마다 달라서 칸도 코드마다 따로 만듭니다. */
-function giftImgField(p, code, label){
-  const multi = !!code;
-  const get = () => multi ? ((p.imgEach || {})[code] || "") : (p.img || "");
-  const set = v => { if(multi){ p.imgEach = p.imgEach || {}; p.imgEach[code] = v; } else p.img = v; };
-  const auto = autoGiftImgName(multi ? code : ((p.codes || [])[0] || ""));
-  const cur  = get();
-  return el("div", { style:"margin-top:8px" },
-    el("div", { style:"font-size:11px;color:var(--sub);margin-bottom:3px" },
-      "사진 파일 이름", label ? el("b", { style:"margin-left:5px" }, label) : ""),
-    el("div", { style:"display:flex;gap:6px;align-items:center" },
-      el("input", { type:"text", value:cur, placeholder:"비워 두면 「이미지 준비 중」으로 나갑니다",
-        "aria-label":"사은품 사진 파일 이름",
-        oninput:e => { set(e.target.value); softRefresh(); } }),
-      auto && cur !== auto
-        ? el("button", { class:"sm", type:"button", style:"white-space:nowrap",
-            onclick:() => { set(auto); render(); } }, "이름 자동")
-        : ""),
-    cur
-      ? el("img", { src:cur, alt:"사은품 사진 미리보기",
-          style:"margin-top:8px;max-width:150px;border-radius:8px;border:1px solid var(--line);display:block",
-          onerror:"this.style.display='none';this.nextSibling&&(this.nextSibling.style.display='block')" })
-      : "",
-    cur
-      ? el("p", { class:"note", style:"display:none;color:var(--bad)" },
-          "이 이름의 사진이 아직 없습니다. 깃허브에 올렸는지, 이름이 맞는지 확인해 주세요.")
-      : "",
-    el("p", { class:"note", style:"margin-top:4px" },
-      cur
-        ? el("span", {}, "이 이름 그대로 사진을 만들어 깃허브 ", el("b", {}, "gifts"), " 폴더에 올리시면 됩니다.")
-        : el("span", {}, "「이름 자동」을 누르면 규칙에 맞는 이름이 채워집니다.")));
+/* 기본 사은품 사진 — 담당자가 파일 이름을 적을 필요가 없습니다 (2026-09-14).
+   🔴 **사은품 이름이 곧 파일 이름**입니다.
+        「튀김용바스켓 16L,16LS」  →  gifts/튀김용바스켓 16L,16LS.webp
+      적는 칸을 없앴습니다. 깃허브에 사은품 이름 그대로 올리기만 하면 됩니다.
+   ⚠️ 사은품 이름을 바꾸면 사진 파일 이름도 같이 바꿔 주셔야 합니다.
+   ⚠️ 접수폼은 webp → png → jpg 순서로 찾아봅니다. 셋 중 아무 형식이나 됩니다. */
+function giftImgHint(p, code, label){
+  const item = String(label || p.gift || "").trim();
+  if(!item) return "";
+  const enc = encodeURIComponent(item);
+  return el("div", { style:"margin-top:9px;padding:8px 10px;background:#faf8f6;border:1px solid var(--line);border-radius:8px" },
+    el("div", { style:"font-size:11px;color:var(--sub);margin-bottom:4px" },
+      "사진 파일 이름", code ? el("b", { style:"margin-left:5px" }, item) : ""),
+    el("div", { style:"display:flex;gap:6px;align-items:center;flex-wrap:wrap" },
+      el("code", { style:"font-size:12px;background:#fff;border:1px solid var(--line);border-radius:5px;padding:3px 6px;word-break:break-all" },
+        item + ".webp"),
+      el("button", { class:"btn ghost", type:"button", style:"white-space:nowrap",
+        onclick:() => { try { navigator.clipboard.writeText(item + ".webp"); } catch(e){} } }, "이름 복사")),
+    el("img", { src:"gifts/" + enc + ".webp", alt:"사은품 사진 미리보기",
+      style:"margin-top:8px;max-width:130px;border-radius:8px;border:1px solid var(--line);display:block",
+      onerror:e => { e.target.style.display = "none";
+                     const w = e.target.nextElementSibling; if(w) w.style.display = "block"; } }),
+    el("p", { class:"note", style:"display:none;margin-top:4px" },
+      "아직 이 이름의 사진이 깃허브에 없습니다. ", el("b", {}, "gifts"), " 폴더에 위 이름 그대로 올려 주세요. (png·jpg 도 됩니다)"));
 }
 
 /* 사은품 사진명을 자동으로 지어 줍니다.
@@ -5811,7 +5798,8 @@ function paneRule(){
           r.img
             ? el("img", { src:r.img, alt:"사은품 사진 미리보기",
                 style:"margin-top:8px;max-width:150px;border-radius:8px;border:1px solid var(--line);display:block",
-                onerror:"this.style.display='none';this.nextSibling&&(this.nextSibling.style.display='block')" })
+                onerror:e => { e.target.style.display = "none";
+                               const w = e.target.nextElementSibling; if(w) w.style.display = "block"; } })
             : "",
           el("p", { class:"note", style:"margin-top:4px" },
             r.img

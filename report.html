@@ -1160,6 +1160,8 @@
           <select id="dtStatus" style="padding:8px;width:100%;margin-top:4px"></select>
           <label style="font-size:12px;font-weight:800;color:var(--sub);display:block;margin-top:8px">처리상태 <span style="color:#c1121f">*</span></label>
           <select id="dtResult" style="padding:8px;width:100%;margin-top:4px"></select>
+          <div id="dtResultHint" style="display:none;font-size:11.5px;font-weight:800;color:#c1121f;margin-top:4px">
+            「기타」를 고르셨습니다 — 아래 <b>결과메모</b>에 무슨 일인지 꼭 적어 주세요.</div>
           <label style="font-size:12px;font-weight:800;color:var(--sub);display:block;margin-top:8px">결과메모</label>
           <textarea id="dtMemo" rows="3" placeholder="통화 내용·수정 약속 등 기록" style="padding:8px;resize:vertical;font-family:inherit;width:100%;box-sizing:border-box;margin-top:4px"></textarea>
           <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
@@ -2060,10 +2062,13 @@ function badRows(){
   }
   return out;
 }
-const CALL_STATES=["","부재중","통화완료(미수긍)","통화완료(수긍)","문자발송(통화X)","진행중(발송X)"];
-/* 처리상태 — 출고 승인을 누르려면 반드시 선택해야 한다 */
-const CALL_RESULTS=["","수정완료","리뷰 미수긍","리뷰삭제","리뷰확인완료","기타(결과메모 작성)"];
-const CALL_COLOR={"부재중":"wait","통화완료(미수긍)":"ineligible","통화완료(수긍)":"eligible"};
+/* 응대상태 — 고객에게 어떻게 닿았는지 (2026-09-14 담당자 확정) */
+const CALL_STATES=["","부재중","통화완료","문자 발송완료"];
+/* 처리상태 — 고객이 뭐라고 했는지. 출고 승인을 누르려면 반드시 선택해야 한다.
+   🔴 「기타」를 고르면 결과메모를 반드시 적어야 합니다 (왜 기타인지 안 남으면 나중에 알 수 없습니다). */
+const CALL_RESULTS=["","수정 동의","수정 미동의","삭제 동의","기타"];
+const CALL_MEMO_REQUIRED = "기타";        // 이걸 고르면 결과메모 필수
+const CALL_COLOR={"부재중":"wait","통화완료":"eligible","문자 발송완료":"wait"};
 function callBadge(e){const s=e.callStatus||"";
   if(!s)return '<span class="pill wait">미응대</span>';
   return `<span class="pill ${CALL_COLOR[s]||"wait"}">${s}</span>`;}
@@ -2235,6 +2240,7 @@ function openDetail(id, readOnly){
   $("#dtResult").innerHTML=CALL_RESULTS.map(o=>`<option value="${o}" ${o===(e.callResult||"")?"selected":""}>${o||"— 처리상태 선택 —"}</option>`).join("");
   syncApproveBtn();
   $("#dtMemo").value=e.callMemo||"";
+  syncApproveBtn();          /* 「기타」 안내·승인 단추 상태를 열 때 바로 맞춥니다 */
   $("#dtSaved").textContent="";
   $("#detailModal").style.display="flex";
 }
@@ -2268,12 +2274,21 @@ function syncApproveBtn(){
   const ok=!!sel.value;
   btn.disabled=!ok; btn.style.opacity=ok?"":"0.45"; btn.style.cursor=ok?"":"not-allowed";
   if(hint) hint.textContent=ok?"":"처리상태를 선택해야 승인할 수 있습니다";
+  /* 「기타」를 고르면 결과메모를 적어 달라고 그 자리에서 알려 줍니다 */
+  const rh=$("#dtResultHint");
+  if(rh) rh.style.display = (sel && sel.value===CALL_MEMO_REQUIRED) ? "block" : "none";
 }
 async function saveDetail(){
   if(!detailId)return;
   if($("#dtCallBox").style.display==="none")return;   // 부적합 아닌 건에서는 동작 안 함
+  const res=$("#dtResult").value, memo=$("#dtMemo").value.trim();
+  /* 🔴 「기타」는 결과메모가 없으면 저장하지 않습니다 */
+  if(res===CALL_MEMO_REQUIRED && !memo){
+    alert("처리상태가 「기타」일 때는 결과메모를 적어 주셔야 합니다.");
+    $("#dtMemo").focus(); return;
+  }
   const btn=$("#dtSave");btn.disabled=true;
-  await saveCall(detailId,{callStatus:$("#dtStatus").value,callResult:$("#dtResult").value,callMemo:$("#dtMemo").value.trim()});
+  await saveCall(detailId,{callStatus:$("#dtStatus").value,callResult:res,callMemo:memo});
   btn.disabled=false;$("#dtSaved").textContent="✔ 저장됨";
   if(curTab==="bad")renderBad();
 }
@@ -2284,6 +2299,10 @@ async function approveDetail(){
   if(!confirm("이 고객을 '출고 승인' 처리합니다. 적합(발송대상) 목록으로 이동합니다.\n계속할까요?"))return;
   const st=$("#dtStatus").value, res=$("#dtResult").value, memo=$("#dtMemo").value.trim();
   if(!res){alert("처리상태를 선택해 주세요.");return;}
+  if(res===CALL_MEMO_REQUIRED && !memo){
+    alert("처리상태가 「기타」일 때는 결과메모를 적어 주셔야 합니다.");
+    $("#dtMemo").focus(); return;
+  }
   await saveCall(id,{callStatus:st,callResult:res,callMemo:memo});
   closeDetail();await setOverride(id,true);
 }

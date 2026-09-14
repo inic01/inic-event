@@ -690,7 +690,7 @@
           <div class="field"><label>제품 <span class="req">*</span></label><select id="mProduct"></select></div>
           <div class="field full"><label>사은품/상품권 (제품 선택 시 자동)</label><select id="mGift"></select></div>
           <div class="field"><label>수령인(성함) <span class="req">*</span></label><input type="text" id="mName" placeholder="예) 홍길동"></div>
-          <div class="field"><label>연락처 <span class="req">*</span></label><input type="text" id="mPhone" placeholder="예) 010-1234-5678" oninput="fmtPhone(this)" maxlength="13"></div>
+          <div class="field"><label>연락처 <span class="req">*</span></label><input type="text" id="mPhone" placeholder="예) 010-1234-5678 · 0504-1234-5678(안심번호)" oninput="fmtPhone(this)" maxlength="14"></div>
           <div class="field"><label>주문번호</label><input type="text" id="mOrder" placeholder="예) 123456789"></div>
           <div class="field"><label>송장번호</label><input type="text" id="mInvoice" placeholder="원장에서 자동 기재"></div>
           <div class="field"><label>수량 <span style="font-weight:600;color:var(--sub)">(사은품 개수)</span></label>
@@ -947,16 +947,21 @@
         <div class="hint">구매일자를 기준으로 그 이전 원장을 지웁니다.</div>
         <div class="filters" style="margin-top:11px">
           <input type="date" id="purgeDate" style="font-size:13px">
-          <button id="purgeGo" class="sm">지우기</button>
+          <!-- 🔴 먼저 세어 보고, 몇 건인지 확인한 뒤에야 삭제할 수 있습니다 (2026-09-14).
+                  되돌릴 수 없는 작업이라 날짜를 잘못 고르면 큰일입니다. -->
+          <button id="purgeCheck" class="sm">대상 확인</button>
+          <button id="purgeGo" class="sm primary" disabled>삭제</button>
           <span id="purgeState" style="font-size:12.5px;font-weight:800"></span>
         </div>
+        <div id="purgeList" style="margin-top:10px"></div>
         <div class="care">지운 원장은 되돌릴 수 없습니다. 접수 기록은 지워지지 않습니다.</div>
       </div>
 
       <div class="panel">
         <div class="ph"><h3>사은품 명칭 최신화</h3>
           <a class="helplink" href="guide.html#giftname" target="_blank" rel="noopener">사용법</a></div>
-        <div class="hint">이름을 바꾸기 전에 접수된 건은 옛 이름을 갖고 있어, 사방넷 다운로드에 섞입니다.</div>
+        <div class="hint">이름을 바꾸기 전에 접수된 건은 옛 이름을 갖고 있어, 사방넷 다운로드에 섞입니다.
+          <b>프로모션으로 나간 사은품은 대상에서 빠집니다</b> — 일부러 다른 것을 보낸 것이라 바꾸면 기록이 틀어집니다.</div>
         <div class="filters" style="margin-top:11px">
           <button id="gfCheck" class="sm">대상 확인</button>
           <button id="gfApply" class="sm primary" disabled>이름 맞추기</button>
@@ -2504,29 +2509,73 @@ async function mFind(){
       그래서 고객에게 주문번호를 알려 드리면 안 됩니다 — 넣을 칸이 없습니다.
    ⚠️ 송장번호는 「어느 제품의 송장인지」가 같이 있어야 고객이 쓸 수 있습니다.
       합배송이면 한 송장에 여러 제품이 실리므로 제품별로 묶어서 적습니다. */
+/* ══════════ 발송 문구 (수기접수 → 고객에게 보내는 안내) ══════════
+   🔴 문구는 리포트 → 설정 → 안내 문구 → 「발송 문구」 에서 고칩니다 (2026-09-14).
+      아래 값은 **설정을 못 읽었을 때** 쓰는 기본입니다.
+   자리 표시 두 개 — 지우면 그 내용이 안 들어갑니다.
+      {주소}     → 접수폼 주소
+      {조회정보} → 성함+연락처 · 송장번호 · 주문번호 (있는 것만 줄줄이) */
+const MANUAL_GUIDE_DEFAULT =
+  "안녕하세요, 아이닉입니다.\n" +
+  "포토리뷰 이벤트는 아래 주소에서 직접 접수해 주시면 됩니다.\n\n" +
+  "{주소}\n\n" +
+  "구매 확인 단계에서 아래 세 가지 중 편하신 방법 하나로 조회해 주세요.\n" +
+  "{조회정보}\n\n" +
+  "리뷰 캡처 이미지를 함께 올려 주시면 접수가 완료됩니다.\n" +
+  "감사합니다.";
+
+let MANUAL_GUIDE_TPL = null;
+async function manualGuideTpl(){
+  if(MANUAL_GUIDE_TPL !== null) return MANUAL_GUIDE_TPL;
+  let t = "";
+  try{
+    const db = await initFirebase();
+    const d  = await db.collection(EVT_CFG_DOC[0]).doc(EVT_CFG_DOC[1]).get();
+    const v  = d.exists ? (d.data() || {}) : {};
+    const c  = v.json ? JSON.parse(v.json) : null;
+    t = String((c && c.form && c.form.manualGuide) || "").trim();
+  }catch(e){ console.warn("발송 문구를 읽지 못했습니다", e); }
+  MANUAL_GUIDE_TPL = t || MANUAL_GUIDE_DEFAULT;
+  return MANUAL_GUIDE_TPL;
+}
+
+/* 조회에 쓸 수 있는 것 세 가지를 모읍니다 — 있는 것만 나옵니다 */
+function mLookupInfo(){
+  if(!MFIND) return "";
+  const f = MFIND, r0 = f.rows[0] || {};
+  const out = [];
+
+  const nm = String(r0.name || "").trim();
+  const ph = String(r0.phone || r0.phone2 || "").trim();
+  if(nm && ph) out.push("· 성함 + 연락처 : " + nm + " / " + ph);
+  else if(ph)  out.push("· 연락처 : " + ph);
+
+  /* 송장번호·주문번호는 제품마다 다를 수 있어 제품 이름과 함께 적습니다 */
+  const invLines = [], ordLines = [];
+  f.groups.forEach(g => {
+    /* 후보가 2종인 행(음식물처리기)은 고객이 실제로 산 이름을 그대로 씁니다 */
+    const label = g.codes.length > 1 ? ([...g.raw][0] || mProdLabel(g)) : mProdLabel(g);
+    const iv = [...g.invs], od = [...g.ords];
+    if(iv.length) invLines.push("   - " + label + " : " + iv.join(", "));
+    if(od.length) ordLines.push("   - " + label + " : " + od.join(", "));
+  });
+  if(invLines.length) out.push("· 송장번호\n" + invLines.join("\n"));
+  if(ordLines.length) out.push("· 주문번호\n" + ordLines.join("\n"));
+
+  return out.join("\n") || "· 성함 + 연락처로 조회해 주세요.";
+}
+
 function mGuideText(){
   if(!MFIND) return "";
-  const lines = MFIND.groups.map(g => {
-    const i = [...g.invs], parts = [];
-    if(i.length) parts.push("송장번호 " + i.join(", "));
-    /* 고객이 보는 문구이므로 이름은 짧게.
-       후보가 2종인 행(음식물처리기)은 우리 코드명을 나열하면 길고 헷갈리므로
-       고객이 실제로 산 이름(원장 제품군)을 그대로 씁니다. */
-    const label = g.codes.length > 1 ? ([...g.raw][0] || mProdLabel(g)) : mProdLabel(g);
-    return "· " + label + " — " + (parts.join(" / ") || "번호 없음");
-  });
-  return "안녕하세요, 아이닉입니다.\n"
-    + "포토리뷰 이벤트는 아래 주소에서 직접 접수해 주시면 됩니다.\n\n"
-    + FORM_URL + "\n\n"
-    + "구매 확인 단계에서 「성함 + 연락처」를 넣으시면 조회됩니다.\n"
-    + "조회가 안 되시면 아래 송장번호로 조회해 주세요.\n"
-    + lines.join("\n") + "\n\n"
-    + "리뷰 캡처 이미지를 함께 올려 주시면 접수가 완료됩니다.\n"
-    + "감사합니다.";
+  const tpl = MANUAL_GUIDE_TPL || MANUAL_GUIDE_DEFAULT;
+  return tpl.split("{주소}").join(FORM_URL)
+            .split("{조회정보}").join(mLookupInfo());
 }
 
 function mRenderFind(){
   if(!MFIND){ $("#mFindResult").innerHTML = ""; return; }
+  /* 설정에서 고친 발송 문구를 한 번 읽어 둡니다 (읽고 나면 다시 그립니다) */
+  if(MANUAL_GUIDE_TPL === null){ manualGuideTpl().then(() => mRenderFind()); }
   const f = MFIND, r0 = f.rows[0] || {};
   const dates = [...new Set(f.rows.map(r => r.date).filter(Boolean))].sort();
 
@@ -2541,7 +2590,7 @@ function mRenderFind(){
 
   const card =
     `<div class="panel" style="margin-bottom:14px">
-       <h3>2단계 · 구매 내역</h3>
+       <h3>구매 내역</h3>
        <div style="line-height:1.9;font-size:13.5px;margin-top:6px">
          <span style="color:var(--sub);font-weight:700">수령인</span> <b>${admEsc(r0.name || "-")}</b>
          &nbsp;·&nbsp; <span style="color:var(--sub);font-weight:700">연락처</span> <b>${admEsc(r0.phone || "-")}</b>
@@ -2554,7 +2603,7 @@ function mRenderFind(){
   /* ── 3단계 · 안내 (문구를 그대로 보여 준다) ── */
   const guide =
     `<div class="panel" style="margin-bottom:14px;background:#eef6ee;border:1px solid #cfe3cf">
-       <h3 style="color:#2c6b3c">3단계 · 먼저 고객에게 안내하세요 ★</h3>
+       <h3 style="color:#2c6b3c">발송 문구</h3>
        <div class="hint" style="color:#3d6b48">
          아래 문구를 그대로 보내 드리면 <b>고객이 직접 접수</b>할 수 있습니다.
          직접 접수해야 <b>리뷰와 설문</b>이 남기 때문에, 가능하면 이 방법을 먼저 권해 주세요.
@@ -2598,7 +2647,7 @@ function mRenderFind(){
 
   const table =
     `<div class="panel">
-       <h3>4단계 · 고객이 못 하시는 경우에만 등록</h3>
+       <h3>수기접수</h3>
        <div class="hint">이미 접수된 제품은 버튼이 열리지 않습니다. <b>구매</b>는 구매하신 수량, <b>접수</b>는 이미 들어온 건수입니다.</div>
        <div class="tablewrap" style="margin-top:11px">
          <table class="data"><thead><tr>
@@ -2765,13 +2814,61 @@ function onTypeChange(){
   const cp = $("#mType").value === "coupang";
   $("#mSerialField").style.display = cp ? "block" : "none";
   $("#mImgReq").textContent = (cp && M_CTX.extra) ? "(필수 · 1장)" : "(선택 · 1장)";
+
+  /* 🔴 쿠팡 정품등록은 로켓배송 건만 받습니다 (2026-09-14).
+        판매처를 「쿠팡 로켓배송」으로 고정하고 고르지 못하게 잠급니다.
+        로켓배송은 고객DB에 구매정보가 없어 주문번호·송장번호를 알 수 없으므로
+        칸 자체를 감춥니다 — 비워 두면 될 칸을 억지로 채우게 되어 값이 틀어집니다. */
+  const srcField = $("#mSource").closest(".field");
+  const ordField = $("#mOrder").closest(".field");
+  const invField = $("#mInvoice").closest(".field");
+  if(cp){
+    mSetSource(COUPANG_SRC);
+    $("#mSource").disabled = true;
+    if(srcField) srcField.querySelector("label").innerHTML =
+      '판매처 <span style="font-weight:600;color:var(--sub)">(로켓배송 고정)</span>';
+    if(ordField) ordField.style.display = "none";
+    if(invField) invField.style.display = "none";
+    $("#mOrder").value = ""; $("#mInvoice").value = "";
+  }else{
+    $("#mSource").disabled = false;
+    if(srcField) srcField.querySelector("label").innerHTML =
+      '판매처 <span style="font-weight:600;color:var(--sub)">(원장에서 자동)</span>';
+    if(ordField) ordField.style.display = "";
+    if(invField) invField.style.display = "";
+  }
+}
+
+/* 쿠팡 정품등록의 판매처 — 목록에 없으면 만들어 넣습니다 */
+const COUPANG_SRC = "쿠팡 로켓배송";
+function mSetSource(name){
+  const sel = $("#mSource");
+  if(!sel) return;
+  if(![...sel.options].some(o => o.value === name)){
+    const o = document.createElement("option");
+    o.value = name; o.textContent = name;
+    sel.appendChild(o);
+  }
+  sel.value = name;
 }
 function onlyDigits(s){ return (s || "").replace(/\D/g, ""); }
+/* 🔴 안심번호(가상번호)도 받습니다 (2026-09-14).
+      0504-1234-5678 처럼 **12자리 · 앞이 4자리**입니다.
+      예전에는 11자리로 잘라 010 모양(3-4-4)으로만 만들어서 안심번호가 안 들어갔습니다.
+      050 으로 시작하고 12자리면 4-4-4 로, 나머지는 예전처럼 3-4-4 로 씁니다. */
 function fmtPhone(el){
-  var d = el.value.replace(/\D/g, "").slice(0, 11);
-  if(d.length >= 8) el.value = d.slice(0,3) + "-" + d.slice(3,7) + "-" + d.slice(7);
-  else if(d.length >= 4) el.value = d.slice(0,3) + "-" + d.slice(3);
-  else el.value = d;
+  var d = el.value.replace(/\D/g, "").slice(0, 12);
+  if(/^050/.test(d) && d.length > 11){            // 안심번호 12자리
+    el.value = d.slice(0,4) + "-" + d.slice(4,8) + "-" + d.slice(8);
+  } else if(/^050/.test(d) && d.length >= 9){     // 안심번호를 적는 중
+    el.value = d.slice(0,4) + "-" + d.slice(4,8) + "-" + d.slice(8);
+  } else if(/^050/.test(d) && d.length >= 5){
+    el.value = d.slice(0,4) + "-" + d.slice(4);
+  } else if(d.length >= 8){                       // 010 등 11자리
+    el.value = d.slice(0,3) + "-" + d.slice(3,7) + "-" + d.slice(7);
+  } else if(d.length >= 4){
+    el.value = d.slice(0,3) + "-" + d.slice(3);
+  } else el.value = d;
 }
 window.fmtPhone = fmtPhone;
 
@@ -2791,7 +2888,7 @@ function mOpenForm(ctx){
     lead = M_CTX.extra
       ? "<b>1대를 더 구매하신 경우에만</b> 등록하세요. 구매내역·시리얼번호 라벨 사진을 확인하고, <b>이미지를 반드시 올려</b> 근거를 남겨 주세요. 시리얼번호는 이미 등록된 것과 달라야 합니다."
       : "제품과 시리얼번호(S/N)를 넣어 주세요. 쿠팡 로켓배송은 고객DB에 구매정보가 없어 제품을 직접 고르셔야 합니다.";
-    $("#mSource").value = "쿠팡(일반배송)";
+    /* 판매처는 onTypeChange() 가 「쿠팡 로켓배송」으로 고정합니다 */
   }else if(M_CTX.free){
     title = "원장에 없는 구매 · 직접 등록";
     lead = "고객DB에 구매 내역이 없는 건입니다. <b>구매 증빙을 확인한 뒤</b>에만 등록하시고, 사유와 증빙 이미지를 남겨 주세요.";
@@ -3591,16 +3688,51 @@ async function odUpload(){
   }finally{ $("#odUpload").disabled=false; }
 }
 
-/* 옛 사은품 명칭을 현재 표 기준으로 맞추기 */
+/* 옛 사은품 명칭을 현재 표 기준으로 맞추기
+
+   🔴 프로모션으로 나간 사은품은 **옛 이름이 아닙니다** (2026-09-14).
+      판매처 예외 규칙(프로모션)에 걸린 건은 일부러 다른 사은품이 나간 것이라,
+      「이름 맞추기」를 하면 **실제로 보낸 것과 다른 이름으로 덮어써서 기록이 틀어집니다.**
+      그래서 프로모션 건은 대상에서 뺍니다. 두 가지로 걸러냅니다.
+        ① 접수 기록에 프로모션 이름이 적혀 있으면 (promoName)
+        ② 설정의 프로모션 규칙에 등록된 사은품 이름과 같으면                     */
 let gfTargets=[];
-function gfScan(){
+let PROMO_GIFT_NAMES = null;          // 프로모션으로 나가는 사은품 이름 모음
+
+async function promoGiftNames(){
+  if(PROMO_GIFT_NAMES) return PROMO_GIFT_NAMES;
+  const set = new Set();
+  try{
+    const db = await initFirebase();
+    const d  = await db.collection(EVT_CFG_DOC[0]).doc(EVT_CFG_DOC[1]).get();
+    const v  = d.exists ? (d.data() || {}) : {};
+    const c  = v.json ? JSON.parse(v.json) : null;
+    (c && Array.isArray(c.giftRules) ? c.giftRules : []).forEach(r=>{
+      const n = String((r && r.label) || "").trim();
+      if(n) set.add(n);
+    });
+  }catch(e){ console.warn("프로모션 사은품 목록을 읽지 못했습니다", e); }
+  PROMO_GIFT_NAMES = set;
+  return set;
+}
+
+async function gfScan(){
+  $("#gfCheck").disabled=true;
+  let promo;
+  try { promo = await promoGiftNames(); }
+  finally { $("#gfCheck").disabled=false; }
+
   gfTargets=ALL.filter(e=>{
     const list=PRODUCT_REWARD[e.product];
     if(!list||list.length!==1) return false;          // 택1 제품은 건드리지 않음
-    return e.giftItem && e.giftItem!==list[0][0];
+    if(!e.giftItem || e.giftItem===list[0][0]) return false;
+    /* 🔴 프로모션으로 나간 건은 그대로 둡니다 */
+    if(e.promoName) return false;
+    if(promo.has(String(e.giftItem).trim())) return false;
+    return true;
   }).map(e=>({id:e._id,from:e.giftItem,to:PRODUCT_REWARD[e.product][0][0],rw:PRODUCT_REWARD[e.product][0][1],name:e.name,product:e.product}));
   const box=$("#gfList");
-  if(!gfTargets.length){ box.innerHTML='<div class="empty">바꿀 건이 없습니다. 모두 최신 이름입니다.</div>'; $("#gfApply").disabled=true; $("#gfState").textContent=""; return; }
+  if(!gfTargets.length){ box.innerHTML='<div class="empty">바꿀 건이 없습니다. 모두 최신 이름입니다.<br><span style="font-size:12px">프로모션으로 나간 사은품은 옛 이름이 아니므로 여기 안 나옵니다.</span></div>'; $("#gfApply").disabled=true; $("#gfState").textContent=""; return; }
   const cnt={};gfTargets.forEach(t=>{const k=t.from+" → "+t.to;cnt[k]=(cnt[k]||0)+1;});
   box.innerHTML='<table class="mini">'+Object.entries(cnt).sort((a,b)=>b[1]-a[1])
     .map(([k,v])=>{const [f,t]=k.split(" → ");return `<tr><td style="color:var(--sub)">${f}</td><td>→ <b>${t}</b></td><td style="text-align:right">${v}건</td></tr>`;}).join("")+'</table>';
@@ -4816,14 +4948,64 @@ async function syncNow(){
   loadData();
 }
 
+/* 「대상 확인」에서 센 결과 — 이 날짜로 확인했을 때만 삭제가 열립니다 */
+let purgeChecked = null;
+
+function purgeReset(){
+  purgeChecked = null;
+  const b=$("#purgeGo"); if(b) b.disabled = true;
+  const l=$("#purgeList"); if(l) l.innerHTML = "";
+  const st=$("#purgeState"); if(st){ st.textContent=""; st.style.color="var(--sub)"; }
+}
+
+/* 🔴 세어만 봅니다. 아무것도 지우지 않습니다. */
+async function purgeCheck(){
+  const d=$("#purgeDate").value;
+  purgeReset();
+  if(!d){ $("#purgeState").textContent="날짜를 골라 주세요."; $("#purgeState").style.color="var(--bad,#c1121f)"; return; }
+  $("#purgeCheck").disabled=true; $("#purgeState").textContent="세는 중…";
+  let r;
+  try { r = await ordApi({action:"purge", before:d, dry:true}); }
+  finally { $("#purgeCheck").disabled=false; }
+  if(!r || !r.ok){
+    $("#purgeState").textContent = (r&&r.reason)==="date" ? "날짜 형식을 확인해 주세요."
+      : ((r&&r.reason)==="forbidden" ? "관리자만 할 수 있습니다." : ((r&&r.message)||"실패"));
+    $("#purgeState").style.color="var(--bad,#c1121f)";
+    return;
+  }
+  if(!r.removed){
+    $("#purgeState").textContent = "지울 것이 없습니다 — "+d+" 이전 구매분이 없습니다.";
+    $("#purgeState").style.color="var(--sub)";
+    return;
+  }
+  purgeChecked = d;
+  $("#purgeGo").disabled = false;
+  $("#purgeState").textContent = "삭제 대상 "+r.removed.toLocaleString()+"건";
+  $("#purgeState").style.color="var(--bad,#c1121f)";
+  $("#purgeList").innerHTML =
+    '<table class="mini">'
+    + '<tr><td style="color:var(--sub)">지울 구매 내역</td><td style="text-align:right"><b>'+r.removed.toLocaleString()+'건</b></td></tr>'
+    + '<tr><td style="color:var(--sub)">통째로 없어지는 고객</td><td style="text-align:right">'+r.deleted.toLocaleString()+'명</td></tr>'
+    + '<tr><td style="color:var(--sub)">남는 구매 내역</td><td style="text-align:right">'+r.kept.toLocaleString()+'건</td></tr>'
+    + '</table>'
+    + '<div class="care" style="margin-top:8px">아직 <b>아무것도 지우지 않았습니다.</b> 위 숫자가 맞으면 <b>삭제</b>를 누르세요.</div>';
+}
+
 async function purgeGo(){
   const d=$("#purgeDate").value;
   if(!d){ $("#purgeState").textContent="날짜를 골라 주세요."; return; }
+  /* 🔴 확인한 날짜와 다르면 막습니다 — 날짜를 바꾸고 그대로 누르는 사고를 막습니다 */
+  if(purgeChecked !== d){
+    $("#purgeState").textContent="날짜가 바뀌었습니다. 「대상 확인」을 다시 눌러 주세요.";
+    $("#purgeState").style.color="var(--bad,#c1121f)";
+    $("#purgeGo").disabled=true; purgeChecked=null;
+    return;
+  }
   if(!confirm("구매일자가 "+d+" 보다 이른 고객정보를 지웁니다.\n\n지운 고객은 접수폼에서 구매 확인이 안 되어 참여할 수 없게 됩니다.\n되돌릴 수 없습니다. 계속할까요?")) return;
   if(!confirm("한 번 더 확인합니다.\n정말 "+d+" 이전 구매분을 지울까요?")) return;
   $("#purgeGo").disabled=true; $("#purgeState").textContent="지우는 중…";
   const r = await ordApi({action:"purge", before:d});
-  $("#purgeGo").disabled=false;
+  purgeReset();
   if(!r.ok){
     $("#purgeState").textContent = r.reason==="date" ? "날짜 형식을 확인해 주세요."
       : (r.reason==="forbidden" ? "관리자만 할 수 있습니다." : (r.message||"실패"));
@@ -5046,6 +5228,8 @@ $("#mkSheetNow").addEventListener("click", mkSheetNow);
 $("#resyncBtn").addEventListener("click", resyncGo);
 $("#syncNow").addEventListener("click", syncNow);
 $("#purgeGo").addEventListener("click", purgeGo);
+$("#purgeCheck").addEventListener("click", purgeCheck);
+$("#purgeDate").addEventListener("change", purgeReset);
 const ordTab=document.querySelector('#tabs .tab[data-tab="orders"]');
 if(ordTab) ordTab.addEventListener("click", ()=>{ syncStatus(); mkRender(); });
 
@@ -5392,6 +5576,18 @@ const DEFAULTS = {
         { label:"주소",   type:"주소 검색", req:true, note:"사은품(착불)일 때만 보입니다" }
       ] },
     done:   { title:"접수 완료", desc:"접수가 완료되었습니다. 심사 후 순차적으로 발송해 드립니다." },
+
+    /* 수기접수 → 「발송 문구」 (2026-09-14)
+       상담사가 고객에게 그대로 보내는 안내입니다.
+       {주소} · {조회정보} 두 자리는 자동으로 채워집니다. 지우지 마세요. */
+    manualGuide:
+      "안녕하세요, 아이닉입니다.\n" +
+      "포토리뷰 이벤트는 아래 주소에서 직접 접수해 주시면 됩니다.\n\n" +
+      "{주소}\n\n" +
+      "구매 확인 단계에서 아래 세 가지 중 편하신 방법 하나로 조회해 주세요.\n" +
+      "{조회정보}\n\n" +
+      "리뷰 캡처 이미지를 함께 올려 주시면 접수가 완료됩니다.\n" +
+      "감사합니다.",
 
     /* 「신청 확인」 화면 (2026-09-14) — 접수 직전에 뜨는 확인 화면입니다.
        노란 상자는 두 문단으로 나갑니다 : warn(공통) + 상품권/사은품 중 하나. */
@@ -6626,6 +6822,12 @@ const ALWAYS_GROUPS = [
     ["완료 문구", () => cfg.form.done, "desc", true,
       "「참여 신청하기」를 누른 뒤 뜨는 완료 팝업 안",      "done",   "desc"]
   ]],
+  /* 수기접수 발송 문구 (2026-09-14) — 상담사가 고객에게 그대로 복사해서 보냅니다. */
+  ["수기접수", [
+    ["발송 문구", () => cfg.form, "manualGuide", true,
+      "고객검색·수기접수 → 조회 결과의 「발송 문구」 상자 · 「이 문구 복사」로 보냅니다",
+      "manual", "guide"]
+  ]],
   /* 신청 확인 화면 (2026-09-14) — 접수 직전, 적은 내용을 되짚어 보여 주는 화면입니다.
      노란 상자는 두 문단으로 나갑니다 : 공통 안내 + (상품권 / 사은품) 중 하나.
      ⚠️ 상품권이면 주소 줄이 없고, 사은품이면 주소 줄이 붙습니다. */
@@ -7035,6 +7237,9 @@ function fixFields(c){
     else Object.keys(D).forEach(k => {
       if(typeof c.form.confirm[k] !== "string" || !c.form.confirm[k].trim()) c.form.confirm[k] = D[k];
     });
+    /* 수기접수 발송 문구도 없으면 채웁니다 */
+    if(typeof c.form.manualGuide !== "string" || !c.form.manualGuide.trim())
+      c.form.manualGuide = DEFAULTS.form.manualGuide;
   }
   const st = c && c.form && c.form.info;
   if(!st || !Array.isArray(st.fields)) return;

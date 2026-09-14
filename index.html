@@ -203,6 +203,8 @@
   .ckwarn{margin:2px 2px 14px;padding:12px 13px;background:#fff8ef;border:1px solid #f0dcc0;
     border-radius:10px;font-size:12.5px;color:#8a5a12;line-height:1.7}
   .ckwarn b{color:#6b4409}
+  .ckwarn p{margin:0}
+  .ckwarn p + p{margin-top:9px;padding-top:9px;border-top:1px solid #f0dcc0}
   .modal{position:fixed;inset:0;background:rgba(15,20,35,.5);display:none;align-items:center;justify-content:center;padding:24px;z-index:50}
   .modal.on{display:flex}
   .box{background:#fff;border-radius:16px;max-width:400px;width:100%;padding:26px 22px;text-align:center}
@@ -429,8 +431,9 @@
 
 <!-- ══════════ 최종확인 (2026-09-14 추가) ══════════ -->
 <div class="card hide" id="step-confirm">
-  <h2>적어 주신 내용이 맞나요?</h2>
-  <p class="desc">신청하신 뒤에는 고치기 어렵습니다. 한 번만 확인해 주세요.</p>
+  <h2>이벤트 신청 내역이 맞으신가요?</h2>
+  <!-- 🔴 안내 문구는 노란 상자 한 곳에 모읍니다 (2026-09-14 담당자 확정).
+          회색 한 줄로 따로 두면 같은 말이 두 군데로 흩어져 아무도 안 읽습니다. -->
   <div class="ckwarn" id="ckWarn"></div>
   <div id="ckBody"></div>
 </div>
@@ -876,9 +879,12 @@ function promoFor(code){
    그래서 여기서 한 번만 바꿔 주면 화면·착불 안내·저장값이 모두 따라옵니다. */
 function giftOf(code){
   const hit = promoFor(code);
+  /* 🔴 사진은 **프로모션 사은품 이름**으로 찾습니다 (2026-09-14).
+        기본 사은품과 규칙이 같습니다 — gifts/<사은품 이름>.webp(png·jpg)
+        예전에는 규칙에 파일 이름을 따로 적었지만, 담당자가 두 군데를 관리해야 해서 없앴습니다. */
   if(hit) return { label:hit.label, type:hit.type==="coupon"?"coupon":"gift",
                    fee:(GIFTS[code]||{}).fee,               // 배송비는 제품 기준 (프로모션이어도 같음)
-                   promo:hit.name||"", img:hit.img||"" };   // 사진은 규칙에 적어 둔 파일
+                   promo:hit.name||"" };
   return GIFTS[code]||null;
 }
 /* 이 제품의 배송비 구분 — 「선불」이라고 적어 둔 제품만 선불, 나머지는 착불. */
@@ -1985,7 +1991,7 @@ function ckRow(k, v, sub, goStep, focusSel){
   return '<div class="ckrow"><span class="k">'+ckEsc(k)+'</span>'
        + '<span class="v">'+ckEsc(v)+(sub?'<small>'+ckEsc(sub)+'</small>':'')+'</span>'
        + (goStep ? '<button type="button" class="fix" data-step="'+goStep+'"'
-                 + (focusSel?' data-focus="'+focusSel+'"':'')+'>고치기</button>' : '')
+                 + (focusSel?' data-focus="'+focusSel+'"':'')+'>수정</button>' : '')
        + '</div>';
 }
 
@@ -1997,9 +2003,14 @@ function renderConfirm(){
   const addr = getAddress();
   const fee  = coupon ? "" : (feeOf(state.product)==="선불" ? "선불 · 배송비 없음" : "착불 · 배송비는 수령 시 결제");
 
-  $("#ckWarn").innerHTML = coupon
-    ? "<b>상품권은 아래 번호로 갑니다.</b><br>번호가 틀리면 다른 분께 가고, 되찾을 수 없습니다."
-    : "<b>사은품은 아래 주소로 갑니다.</b><br>주소가 틀리면 되돌아오고, 다시 보내 드리는 데 시간이 걸립니다.";
+  /* 🔴 담당자 확정 문구입니다 (2026-09-14). 임의로 고치지 마세요.
+        첫 줄은 상품권·사은품 공통, 둘째 줄만 갈립니다. */
+  const WARN_COMMON =
+    "신청 후 출고 이후에는 변경하실 수 없으며, <b>오기재로 오출고가 발생한 경우 비용이 발생될 수 있는 점</b> 참고 부탁드립니다.";
+  const WARN_EACH = coupon
+    ? "<b>상품권은 아래 번호로 발송됩니다.</b> 번호 오기재 시 상품권이 다른 분께 발송되면 재발송이 어려우실 수 있습니다."
+    : "<b>사은품은 아래 주소로 발송됩니다.</b> 주소 오기재 시 반송되어 재발송까지 시간이 걸리고, 추가 배송비가 발생할 수 있습니다.";
+  $("#ckWarn").innerHTML = "<p>" + WARN_COMMON + "</p><p>" + WARN_EACH + "</p>";
 
   let h = '<div class="ckgrp"><div class="gh">받으실 정보</div>'
         + ckRow("수령인", $("#name").value.trim(), "", "info", "#name")
@@ -2009,9 +2020,12 @@ function renderConfirm(){
   if(rw === "gift") h += ckRow("주소", addr, "", "info", "#addrRoad");
   h += '</div>';
 
+  /* 🔴 「신청 내용」에는 수정 단추를 두지 않습니다 (2026-09-14 담당자 요청).
+        유형·제품은 앞 단계에서 정해지는 값이라, 여기서 되돌리면 앞서 고른 사은품·설문이
+        함께 초기화되어 고객이 처음부터 다시 해야 합니다. */
   h += '<div class="ckgrp"><div class="gh">신청 내용</div>'
-     + ckRow("유형", CK_TYPE[state.type] || state.type, "", "type", "")
-     + ckRow("제품", prodNameOf(state.product) || "-", "", "product", "")
+     + ckRow("유형", CK_TYPE[state.type] || state.type, "", "", "")
+     + ckRow("제품", prodNameOf(state.product) || "-", "", "", "")
      + ckRow(coupon ? "상품권" : "사은품", gift || "-", fee, "", "")
      + '</div>';
 

@@ -1575,7 +1575,10 @@ function renderTableAll(){
   const all=filteredAll(),rows=slice(all,"all");
   $("#count").textContent="총 "+all.length+"건";
   $("#tableAll thead").innerHTML=headHtml(COLS);
-  $("#tableAll tbody").innerHTML=rows.map(e=>rowHtml(COLS,e)).join("");
+  /* 전체 탭도 행을 누르면 상세가 열립니다 (2026-09-14 담당자 요청).
+     부적합·확인필요와 같은 상세 화면이고, 적합 건에는 안내와 재심사 단추만 나옵니다. */
+  $("#tableAll tbody").innerHTML=rows.map(e=>rowHtml(COLS,e,
+    ` class="clickrow" onclick="openDetail('${e._id}')"`)).join("");
   $("#emptyAll").style.display=all.length?"none":"block";pager("#pagerAll",all.length,"all");
 }
 

@@ -7001,6 +7001,46 @@ function openNoticePreview(title, name, text, kakao, key){
     { shape, text, kakao, name });
 }
 
+/* ══════════ 문구 전체 내려받기 (2026-09-14) ══════════
+   지금 화면에 있는 문구를 **한 파일로** 뽑습니다. 점검·검토용입니다.
+   ⚠️ 저장 버튼을 안 누른 상태의 값(지금 고치고 있는 값)이 그대로 나옵니다.
+   ⚠️ 엑셀에서 한글이 깨지지 않게 파일 맨 앞에 BOM 을 붙입니다. */
+function noticeExportRows(){
+  const rows = [["구분", "이름", "어디에 나오는지", "문구", "카카오 상담 버튼"]];
+  ALWAYS_GROUPS.forEach(([scr, list]) => {
+    list.forEach(([lab, get, key, , where]) => {
+      const o = get() || {};
+      rows.push(["항상 적혀 있는 글", scr + " · " + lab, where, String(o[key] || ""), ""]);
+    });
+  });
+  NOTICE_GROUPS.forEach(([title, items]) => {
+    items.forEach(([k, t, when]) => {
+      const n = (cfg.notices || {})[k] || {};
+      rows.push([String(title).replace(/^[①-⑨]\s*/, ""), t, when,
+                 String(n.t || ""), n.k ? "켜짐" : "꺼짐"]);
+    });
+  });
+  return rows;
+}
+
+function noticeExport(){
+  const rows = noticeExportRows();
+  const cell = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const csv  = "\uFEFF" + rows.map(r => r.map(cell).join(",")).join("\r\n");
+  const d = new Date(), p2 = n => String(n).padStart(2, "0");
+  const name = "안내문구_" + d.getFullYear() + p2(d.getMonth()+1) + p2(d.getDate()) + ".csv";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type:"text/csv;charset=utf-8" }));
+  a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  const m = document.getElementById("ntExportMsg");
+  if(m){ m.textContent = "✔ " + (rows.length - 1) + "개 문구를 내려받았습니다 — " + name;
+         setTimeout(() => { m.textContent = ""; }, 6000); }
+}
+
+/* 검사에서 값을 확인할 수 있게 밖으로 내어 둡니다 (화면 동작에는 영향 없음) */
+window.noticeExportRows = () => noticeExportRows();
+
 function paneNotice(){
   const total = NOTICE_GROUPS.reduce((n, g) => n + g[1].length, 0);
   const always = ALWAYS_GROUPS.reduce((n, g) => n + g[1].length, 0);
@@ -7016,7 +7056,14 @@ function paneNotice(){
       el("br"),
       "글씨를 강조하고 싶으시면 ", el("b", {}, "[[대괄호 두 개]]"), " 는 ",
       el("span", { style:"color:var(--bad);font-weight:800" }, "빨간 굵은 글씨"), ", ",
-      el("b", {}, "{{중괄호 두 개}}"), " 는 ", el("b", {}, "검은 굵은 글씨"), " 로 나갑니다.")
+      el("b", {}, "{{중괄호 두 개}}"), " 는 ", el("b", {}, "검은 굵은 글씨"), " 로 나갑니다."),
+    /* 지금 화면의 문구를 한 파일로 뽑습니다 — 여럿이 같이 검토할 때 씁니다 */
+    el("div", { class:"row", style:"margin:4px 0 14px;gap:8px;align-items:center;flex-wrap:wrap" },
+      el("button", { class:"btn", type:"button", onclick:noticeExport }, "📄 문구 전체 내려받기"),
+      el("span", { class:"note", style:"margin:0" },
+        "지금 화면의 문구 ", el("b", {}, String(total + always) + "개"), " 를 엑셀로 받습니다. ",
+        "저장을 안 누르셨어도 ", el("b", {}, "지금 고치고 계신 값"), " 그대로 나옵니다."),
+      el("span", { id:"ntExportMsg", style:"font-size:12.5px;font-weight:800;color:var(--ok)" }))
   ];
 
   /* ── ① 항상 적혀 있는 글 ── */

@@ -7064,8 +7064,193 @@ function noticeExport(){
          setTimeout(() => { m.textContent = ""; }, 6000); }
 }
 
+/* ══════════ 문구 불러오기 (2026-09-15) ══════════
+   「문구 전체 내려받기」로 받은 파일을 고쳐서 **한 번에 되돌려 넣습니다.**
+   문구를 열여섯 군데 손으로 붙여 넣다 보면 반드시 한두 개를 빠뜨립니다.
+
+   🔴 안전장치
+     · **미리보기 먼저.** 무엇이 바뀌는지 다 보여 드리고, 「적용」을 누르셔야 들어갑니다.
+     · **저장은 따로.** 적용해도 화면만 바뀝니다. 맨 아래 「저장」을 눌러야 서버에 갑니다.
+     · **빈 문구는 건너뜁니다.** 실수로 칸을 통째로 비우는 일이 없게 합니다.
+     · **못 찾은 이름은 알려 드립니다.** 이름을 고쳐 쓰신 파일이면 그 줄만 빠집니다.
+   ⚠️ 이름이 같은 칸이 네 쌍 있습니다(창 제목·조회 중 오류 등).
+      그래서 **「구분」과 「이름」을 함께** 봐야 어느 칸인지 정해집니다. */
+
+const NT_SEP = "\u0001";
+const ntKeyOf = (gubun, name) =>
+  String(gubun || "").replace(/^[①-⑨]\s*/, "").trim() + NT_SEP + String(name || "").trim();
+
+/* 지금 화면의 모든 칸을 「구분+이름 → 넣는 방법」 으로 모읍니다 */
+function noticeSlots(){
+  const map = new Map();
+  ALWAYS_GROUPS.forEach(([scr, list]) => {
+    list.forEach(([lab, get, key]) => {
+      map.set(ntKeyOf("항상 적혀 있는 글", scr + " · " + lab), {
+        get: () => String((get() || {})[key] || ""),
+        set: v => { const o = get(); if(o) o[key] = v; },
+        kakao: null                               // 항상 적혀 있는 글에는 카카오 스위치가 없습니다
+      });
+    });
+  });
+  NOTICE_GROUPS.forEach(([title, items]) => {
+    items.forEach(([k, name]) => {
+      map.set(ntKeyOf(title, name), {
+        get: () => String(((cfg.notices || {})[k] || {}).t || ""),
+        set: v => { cfg.notices = cfg.notices || {};
+                    cfg.notices[k] = cfg.notices[k] || {}; cfg.notices[k].t = v; },
+        kakao: v => { cfg.notices = cfg.notices || {};
+                      cfg.notices[k] = cfg.notices[k] || {}; cfg.notices[k].k = v; },
+        kakaoNow: () => !!((cfg.notices || {})[k] || {}).k
+      });
+    });
+  });
+  return map;
+}
+
+/* 엑셀에서 저장한 CSV 를 읽습니다 — 따옴표 안의 줄바꿈·쉼표까지 제대로 봅니다 */
+function ntParseCsv(text){
+  const t = String(text).replace(/^\uFEFF/, "");
+  const rows = []; let row = [], cell = "", q = false;
+  for(let i = 0; i < t.length; i++){
+    const c = t[i];
+    if(q){
+      if(c === '"'){ if(t[i+1] === '"'){ cell += '"'; i++; } else q = false; }
+      else cell += c;
+    }else{
+      if(c === '"') q = true;
+      else if(c === ","){ row.push(cell); cell = ""; }
+      else if(c === "\r"){ /* 무시 */ }
+      else if(c === "\n"){ row.push(cell); cell = ""; rows.push(row); row = []; }
+      else cell += c;
+    }
+  }
+  if(cell || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+
+let NT_PLAN = null;          // 미리보기에서 만든 「바꿀 목록」
+
+function ntPickFile(){
+  const f = document.getElementById("ntFile");
+  if(f){ f.value = ""; f.click(); }
+}
+
+function ntRead(ev){
+  const file = ev.target.files && ev.target.files[0];
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = () => { try{ ntPlan(String(r.result), file.name); }
+                     catch(e){ ntMsg("파일을 읽지 못했습니다 — " + (e.message || e), true); } };
+  r.onerror = () => ntMsg("파일을 읽지 못했습니다.", true);
+  r.readAsText(file, "utf-8");
+}
+
+function ntMsg(t, bad){
+  const m = document.getElementById("ntImportMsg");
+  if(!m) return;
+  m.textContent = t;
+  m.style.color = bad ? "var(--bad,#c0392b)" : "var(--ok)";
+}
+
+function ntPlan(text, fname){
+  const rows = ntParseCsv(text);
+  if(rows.length < 2) return ntMsg("빈 파일입니다.", true);
+  const head = rows[0].map(x => String(x).trim());
+  const iG = head.indexOf("구분"), iN = head.indexOf("이름"),
+        iT = head.indexOf("문구"), iK = head.indexOf("카카오 상담 버튼");
+  if(iG < 0 || iN < 0 || iT < 0)
+    return ntMsg("머리글이 다릅니다. 「문구 전체 내려받기」로 받은 파일을 고쳐서 넣어 주세요.", true);
+
+  const slots = noticeSlots();
+  const change = [], same = [], miss = [], empty = [];
+  rows.slice(1).forEach(r => {
+    if(!r || !String(r[iN] || "").trim()) return;
+    const key  = ntKeyOf(r[iG], r[iN]);
+    const slot = slots.get(key);
+    const name = String(r[iG] || "").replace(/^[①-⑨]\s*/, "").trim() + " · " + String(r[iN]).trim();
+    if(!slot){ miss.push(name); return; }
+    const now  = slot.get();
+    const next = String(r[iT] == null ? "" : r[iT]);
+    /* 🔴 빈 문구는 건너뜁니다 — 실수로 칸을 통째로 비우는 일이 없게 합니다 */
+    if(!next.trim()){ empty.push(name); return; }
+    const kNext = iK >= 0 ? String(r[iK] || "").trim() : "";
+    const kNow  = slot.kakaoNow ? slot.kakaoNow() : null;
+    const kWant = kNext === "켜짐" ? true : kNext === "꺼짐" ? false : null;
+    const kDiff = slot.kakao && kWant !== null && kWant !== kNow;
+    if(next === now && !kDiff){ same.push(name); return; }
+    change.push({ key, name, now, next, kWant: kDiff ? kWant : null, kNow });
+  });
+
+  NT_PLAN = change;
+  ntRenderPlan(fname, change, same, miss, empty);
+}
+
+function ntRenderPlan(fname, change, same, miss, empty){
+  const box = document.getElementById("ntImportBox");
+  if(!box) return;
+  box.replaceChildren();
+  const cut = t => t.length > 90 ? t.slice(0, 90) + "…" : t;
+
+  box.append(el("div", { style:"font-size:13px;font-weight:800;margin-bottom:8px" },
+    fname + " — 바뀔 문구 ", el("span", { style:"color:var(--bad,#c0392b)" }, change.length + "개"),
+    " · 그대로 " + same.length + "개"
+    + (miss.length ? " · 못 찾은 이름 " + miss.length + "개" : "")
+    + (empty.length ? " · 비어 있어 건너뜀 " + empty.length + "개" : "")));
+
+  if(miss.length)
+    box.append(el("div", { class:"care warn", style:"margin:0 0 8px" },
+      "이름을 못 찾아 건너뛴 줄 : " + miss.join(" / ") + " — 「구분」이나 「이름」을 고쳐 쓰셨는지 확인해 주세요."));
+  if(empty.length)
+    box.append(el("div", { class:"care", style:"margin:0 0 8px" },
+      "문구가 비어 있어 건너뛴 줄 : " + empty.join(" / ") + " — 칸을 비우려면 화면에서 직접 지워 주세요."));
+
+  if(!change.length){
+    box.append(el("p", { class:"note", style:"margin:0" }, "바뀌는 문구가 없습니다."));
+    const go = document.getElementById("ntApply"); if(go) go.disabled = true;
+    return;
+  }
+
+  const tbl = el("table", { class:"data", style:"font-size:12.5px" },
+    el("thead", {}, el("tr", {},
+      el("th", { style:"width:190px" }, "어느 칸"), el("th", {}, "지금"), el("th", {}, "바뀔 내용"))),
+    el("tbody", {}, change.map(c => el("tr", {},
+      el("td", {}, el("b", {}, c.name),
+        c.kWant !== null ? el("div", { style:"font-size:11.5px;color:var(--sub)" },
+          "카카오 버튼 " + (c.kNow ? "켜짐" : "꺼짐") + " → " + (c.kWant ? "켜짐" : "꺼짐")) : ""),
+      el("td", { style:"color:var(--bad,#c0392b)" }, cut(c.now) || "(비어 있음)"),
+      el("td", { style:"color:var(--ok)" }, cut(c.next))))));
+  box.append(el("div", { class:"tablewrap" }, tbl));
+  box.append(el("p", { class:"note", style:"margin:8px 0 0" },
+    "「적용」을 눌러도 ", el("b", {}, "화면만"), " 바뀝니다. 맨 아래 ",
+    el("b", {}, "저장"), " 을 누르셔야 서버에 들어갑니다."));
+
+  const go = document.getElementById("ntApply");
+  if(go) go.disabled = false;
+  ntMsg("");
+}
+
+function ntApply(){
+  if(!NT_PLAN || !NT_PLAN.length) return;
+  const slots = noticeSlots();
+  let n = 0;
+  NT_PLAN.forEach(c => {
+    const slot = slots.get(c.key); if(!slot) return;
+    slot.set(c.next);
+    if(c.kWant !== null && slot.kakao) slot.kakao(c.kWant);
+    n++;
+  });
+  NT_PLAN = null;
+  const go = document.getElementById("ntApply"); if(go) go.disabled = true;
+  const box = document.getElementById("ntImportBox"); if(box) box.replaceChildren();
+  render();
+  ntMsg("✔ " + n + "개를 화면에 넣었습니다. 맨 아래 「저장」을 눌러 주세요.");
+}
+
 /* 검사에서 값을 확인할 수 있게 밖으로 내어 둡니다 (화면 동작에는 영향 없음) */
 window.noticeExportRows = () => noticeExportRows();
+window.noticeImport = { plan: (t, f) => ntPlan(t, f || "검사.csv"),
+                        apply: () => ntApply(),
+                        peek: () => NT_PLAN };
 
 function paneNotice(){
   const total = NOTICE_GROUPS.reduce((n, g) => n + g[1].length, 0);
@@ -7086,10 +7271,18 @@ function paneNotice(){
     /* 지금 화면의 문구를 한 파일로 뽑습니다 — 여럿이 같이 검토할 때 씁니다 */
     el("div", { class:"row", style:"margin:4px 0 14px;gap:8px;align-items:center;flex-wrap:wrap" },
       el("button", { class:"btn", type:"button", onclick:noticeExport }, "📄 문구 전체 내려받기"),
-      el("span", { class:"note", style:"margin:0" },
-        "지금 화면의 문구 ", el("b", {}, String(total + always) + "개"), " 를 엑셀로 받습니다. ",
-        "저장을 안 누르셨어도 ", el("b", {}, "지금 고치고 계신 값"), " 그대로 나옵니다."),
-      el("span", { id:"ntExportMsg", style:"font-size:12.5px;font-weight:800;color:var(--ok)" }))
+      el("button", { class:"btn", type:"button", onclick:ntPickFile }, "📥 문구 불러오기"),
+      el("input", { type:"file", id:"ntFile", accept:".csv,text/csv",
+                    style:"display:none", onchange:ntRead }),
+      el("button", { class:"btn primary", type:"button", id:"ntApply", disabled:"", onclick:ntApply }, "적용"),
+      el("span", { id:"ntImportMsg", style:"font-size:12.5px;font-weight:800;color:var(--ok)" }),
+      el("span", { id:"ntExportMsg", style:"font-size:12.5px;font-weight:800;color:var(--ok)" })),
+    el("p", { class:"note", style:"margin:-8px 0 12px" },
+      "지금 화면의 문구 ", el("b", {}, String(total + always) + "개"), " 를 엑셀로 받고, ",
+      "고쳐서 ", el("b", {}, "한 번에 되돌려 넣을"), " 수 있습니다. ",
+      "불러오면 ", el("b", {}, "무엇이 바뀌는지 먼저 보여 드리고"), ", 「적용」을 누르셔야 들어갑니다. ",
+      "적용해도 화면만 바뀌니 맨 아래 ", el("b", {}, "저장"), " 을 꼭 눌러 주세요."),
+    el("div", { id:"ntImportBox", style:"margin:0 0 14px" })
   ];
 
   /* ── ① 항상 적혀 있는 글 ── */

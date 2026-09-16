@@ -1551,7 +1551,10 @@ $("#file").addEventListener("change",async e=>{
   catch(err){ console.warn("리사이즈 실패 → 원본 사용",err); out=f; }   // 절대 막지 않음
   if(out.size>HARD_MAX_BYTES){
     state.file=null; e.target.value=""; resetDropInner(); $("#filename").textContent="";
-    alert(fill(MSGT("fileTooBig","사진 용량이 너무 큽니다 (○○).\n다른 사진으로 시도하시거나, 화면을 캡처해서 올려주세요."),[fmtBytes(out.size)]));
+    /* 🔴 2026-09-15 — alert 로는 카카오 상담 버튼을 넣을 수 없어 팝업으로 바꿨습니다.
+          설정에서 이 문구의 카카오 버튼을 켜 두시면 팝업 안에 함께 나옵니다. */
+    showNotice("fileTooBig", "사진 용량이 너무 큽니다 (○○).\n다른 사진으로 시도하시거나, 화면을 캡처해서 올려주세요.",
+               [fmtBytes(out.size)], "사진을 올리지 못했습니다");
     return;
   }
   state.file=out;
@@ -1578,7 +1581,10 @@ $("#buyFile").addEventListener("change",async e=>{
   catch(err){ console.warn("리사이즈 실패 → 원본 사용",err); out=f; }
   if(out.size>HARD_MAX_BYTES){
     state.buyFile=null; e.target.value=""; resetBuyDrop(); $("#buyFilename").textContent="";
-    alert(fill(MSGT("fileTooBig","사진 용량이 너무 큽니다 (○○).\n다른 사진으로 시도하시거나, 화면을 캡처해서 올려주세요."),[fmtBytes(out.size)]));
+    /* 🔴 2026-09-15 — alert 로는 카카오 상담 버튼을 넣을 수 없어 팝업으로 바꿨습니다.
+          설정에서 이 문구의 카카오 버튼을 켜 두시면 팝업 안에 함께 나옵니다. */
+    showNotice("fileTooBig", "사진 용량이 너무 큽니다 (○○).\n다른 사진으로 시도하시거나, 화면을 캡처해서 올려주세요.",
+               [fmtBytes(out.size)], "사진을 올리지 못했습니다");
     return;
   }
   state.buyFile=out;
@@ -2184,7 +2190,7 @@ async function submit(){
     } else {
       const res=await submitViaApi(entry,state.file);
       if(res&&res.dup){ showDup(res.dup,review); resetBtn(); return; }
-      if(!res||!res.ok){ alert(apiErrMsg(res&&res.reason)); resetBtn(); return; }
+      if(!res||!res.ok){ showApiErr(res&&res.reason); resetBtn(); return; }
       /* 수량은 창구가 원장 기준으로 다시 계산한 값을 쓴다 */
       entry.giftQty=res.giftQty||entry.giftQty;
       entry.buyQty=res.buyQty||entry.buyQty;
@@ -2194,16 +2200,21 @@ async function submit(){
       if(state.product) state.usedByCode[state.product]=(res.usedBefore||0)+(res.giftQty||1);
       showDone(entry,false);
     }
-  }catch(err){console.error(err);alert(uploadErrMsg(err));resetBtn();}
+  }catch(err){console.error(err);showUploadErr(err);resetBtn();}
 }
 /* 업로드 실패 원인별 한국어 안내 (영어 원문·개발자 메모 노출 방지) */
-function uploadErrMsg(err){
+/* 사진을 못 올렸을 때 — 어떤 이유인지 가려 설정의 문구를 씁니다.
+   🔴 2026-09-15 — alert 로는 카카오 상담 버튼을 못 넣어 팝업으로 바꿨습니다. */
+function showUploadErr(err){
   const s=((err&&(err.code||err.name))||"")+" "+((err&&err.message)||String(err||""));
   if(/retry-limit-exceeded|canceled|network|Network|timeout|deadline/i.test(s))
-    return MSGT("netFail","네트워크가 불안정해 사진 전송이 중단되었습니다.\nWi-Fi 연결 후 다시 시도해 주세요.");
+    return showNotice("netFail","네트워크가 불안정해 사진 전송이 중단되었습니다.\nWi-Fi 연결 후 다시 시도해 주세요.",
+                      [], "사진을 올리지 못했습니다");
   if(/unauthorized|permission|denied|forbidden|quota-exceeded|payload|too large|entity-too-large/i.test(s))
-    return MSGT("uploadFail","사진을 저장하지 못했습니다. 용량이 크거나 형식이 맞지 않을 수 있습니다.\n다른 사진으로 다시 시도해 주세요.");
-  return "접수 중 오류가 발생했습니다.\n\n잠시 후 다시 시도해 주세요. 계속 실패하면 고객센터로 문의해 주세요.";
+    return showNotice("uploadFail","사진을 저장하지 못했습니다. 용량이 크거나 형식이 맞지 않을 수 있습니다.\n다른 사진으로 다시 시도해 주세요.",
+                      [], "사진을 올리지 못했습니다");
+  /* 그 밖의 오류는 ⑦ 묶음의 「접수 중 오류」 문구를 그대로 씁니다 */
+  return showNotice(API_ERR_ELSE[0], API_ERR_ELSE[1]);
 }
 function resetBtn(){const b=$("#submitBtn");b.disabled=false;b.textContent="접수 신청";}
 function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅";
@@ -2328,6 +2339,13 @@ function continueEntry(){
   showStep();
 }
 window.continueEntry=continueEntry;
+/* 검사 스크립트용 — 담당자가 저장하신 설정을 넣고 화면이 어떻게 나오는지 확인합니다.
+   ⚠️ 고객 화면 동작에는 아무 영향이 없습니다. 리포트의 window.EVTCFG 와 같은 용도입니다. */
+window.__EVT_TEST = {
+  setCfg(c){ CFG = c; try{ applyConfig(); }catch(e){ console.warn(e); } },
+  notice: (k,d,v,t) => showNotice(k,d,v,t),
+  apiErr: r => showApiErr(r)
+};
 function resetForm(){
   state.type=null;state.category="주방가전";state.file=null;state.buyFile=null;
   clearLookup(); state.doneCodes=[]; state.vTab="np";
@@ -2387,14 +2405,39 @@ async function submitViaApi(e,file){
   }
   return await eventApi({action:"submitEntry",token:state.token||"",entry:e});
 }
-/* 창구가 돌려준 사유별 한국어 안내 (영어 원문·개발자 메모 노출 방지) */
-function apiErrMsg(reason){
-  if(reason==="rate")    return "접수 시도가 너무 잦습니다.\n\n잠시 후 다시 시도해 주세요.";
-  if(reason==="token")   return "구매 확인이 만료되었습니다.\n\n처음 화면에서 구매 내역을 다시 조회한 뒤 접수해 주세요.";
-  if(reason==="product") return "조회하신 구매 내역에 없는 제품입니다.\n\n구매 내역을 다시 조회해 주세요.";
-  if(reason==="input")   return "입력하신 정보를 다시 확인해 주세요.";
-  if(reason==="origin")  return "접수는 아이닉 공식 접수폼에서만 가능합니다.";
-  return "접수 중 오류가 발생했습니다.\n\n잠시 후 다시 시도해 주세요. 계속 실패하면 고객센터로 문의해 주세요.";
+/* 창구가 돌려준 사유별 안내 — 설정 「⑦ 참여 신청하기를 눌렀는데 서버가 막았을 때」 를 씁니다.
+
+   🔴 2026-09-15 수정 — 예전에는 여기에 문장을 **직접 적어 두고** alert 로 띄웠습니다.
+      그래서 담당자가 설정에서 이 여섯 개를 아무리 고치고 저장해도
+      **고객 화면은 하나도 안 바뀌었습니다.** (고객센터 안내도 안 나갔습니다)
+   🔴 alert 로는 {{굵게}} 같은 표시도, 카카오 상담 버튼도 넣을 수 없습니다.
+      그래서 다른 안내와 같은 **팝업**으로 띄웁니다. 설정 화면의 미리보기와도 모양이 같아집니다. */
+const API_ERR = {
+  rate:    ["submitRate",      "접수 시도가 너무 잦습니다.\n잠시 후 다시 시도해 주세요."],
+  token:   ["tokenExpired",    "구매 확인이 만료되었습니다.\n처음 화면에서 구매 내역을 다시 조회한 뒤 접수해 주세요."],
+  product: ["productMismatch", "조회하신 구매 내역에 없는 제품입니다.\n구매 내역을 다시 조회해 주세요."],
+  input:   ["inputInvalid",    "입력하신 정보를 다시 확인해 주세요."],
+  origin:  ["originBlocked",   "접수는 아이닉 공식 접수폼에서만 가능합니다."]
+};
+const API_ERR_ELSE = ["submitErr",
+  "접수 중 오류가 발생했습니다.\n잠시 후 다시 시도해 주세요. 계속 실패하면 상담사에게 문의해 주세요."];
+
+/* 설정의 안내 문구 하나를 팝업으로 띄웁니다 (2026-09-15 신설).
+   ⚠️ 접수가 **안 된** 상태이므로 창을 닫아도 폼을 비우지 않습니다.
+      state.lastModal 을 "err" 로 두면 닫을 때 단추만 되살아납니다. */
+function showNotice(key, dflt, vals, title){
+  $("#box").className="box dup"; $("#mIcon").textContent="⚠️";
+  $("#mTitle").textContent = title || "접수하지 못했습니다";
+  state.lastModal="err";
+  $("#mDesc").innerHTML=rich(fill(MSGT(key, dflt), vals||[]));
+  /* 설정에서 그 문구의 카카오 상담 버튼을 켜 두셨으면 함께 붙입니다 */
+  $("#mKv").innerHTML = MSGK(key, false) ? ivKakao() : "";
+  const more=$("#mMore"); if(more) more.classList.add("hide");
+  $("#modal").classList.add("on");
+}
+function showApiErr(reason){
+  const [key, dflt] = API_ERR[reason] || API_ERR_ELSE;
+  showNotice(key, dflt);
 }
 
 if(!DEMO_MODE)$("#demoBadge").style.display="none";

@@ -394,6 +394,8 @@
         <div id="dropInner"><div style="font-size:30px">📷</div>
           <div style="margin-top:6px" id="dropText">여기를 눌러 캡처 이미지를 등록</div><span class="upbtn">파일 선택</span></div>
       </label>
+      <!-- 🔴 올리신 캡처를 나란히 보여 주는 줄 (2026-09-22 · 최대 3장) -->
+      <div id="shotBox" style="display:none;gap:8px;margin-top:10px"></div>
       <div class="filename" id="filename"></div>
       <div class="err" id="err-file">이미지를 등록해 주세요.</div>
     </div></div>
@@ -509,21 +511,28 @@ function richPlain(t){ return esc(t).replace(/\n/g,"<br>")
   .replace(/\{\{([^}]+)\}\}/g,'<b>$1</b>'); }
 
 /* 설정에 그 문구가 있으면 그 글을, 없으면 코드에 적힌 기본 글을 씁니다. */
-/* 🔴 예약발송 안내 (2026-09-22) — 품절이라 나중에 보내는 **사은품**일 때만 나갑니다.
-      ○○ 자리에 서버가 알려 준 시점(예: 10월 중순)이 들어갑니다.
+/* 🔴 예약발송 안내 (2026-09-22 담당자 요청 · 같은 날 2차 수정)
+      품절이라 나중에 보내는 **사은품**일 때 나갑니다.
+      ⚠️ 1차에서는 기존 문구 **아래에 주황 상자로 덧붙였습니다.** 그러면 한 화면에서
+         「평균 1주일 이내」와 「10월 중순」을 동시에 말하게 됩니다.
+         그래서 이제는 기존 문구를 **안 쓰고 이 문구로 갈아끼웁니다**(완료 팝업·참여 조회 모두).
+      문구는 안내 문구 탭 ⑧ 「사은품 · 예약발송일 때」(doneGiftReserve) 에서 고칩니다.
+      {{○○}} 자리에 서버가 알려 준 시점(예: 10월 중순)이 들어갑니다.
       ⚠️ 상품권에는 안 나갑니다. 서버가 아예 시점을 안 보냅니다. */
-let RESERVE_NOTE = "신청하신 사은품은 예약발송으로 {{○○}} 입고 예정입니다.\n"
-                 + "입고되는 대로 순차적으로 발송해 드리겠습니다.";
+const RESERVE_DFLT = "신청하신 사은품은 예약발송으로 {{○○}} 입고 예정입니다.\n"
+                   + "입고되는 대로 순차적으로 발송해 드리겠습니다.";
+/* 🔴 담당자가 제품만 체크하고 **시점을 안 적으셨을 때** ○○ 자리에 넣을 말 (2026-09-22 2차).
+      예전에는 이때 기존 문구(「평균 1주일 이내」)가 나갔습니다. 품절이라 몇 주 뒤에
+      나갈 건에 1주일을 약속하는 것이라, 이 기능을 만든 이유 자체가 무너집니다. */
+const RESERVE_TBD = "추후";
 
-/* 예약발송 안내 상자 — 완료 팝업과 참여 조회에서 같은 모양으로 씁니다 */
-function reserveBox(at, small){
-  if(!at) return "";
-  const pad = small ? "9px 11px" : "11px 13px";
-  const fs  = small ? "12px" : "13px";
-  return '<div style="margin:' + (small ? "8px 0 0" : "2px 0 12px") + ';padding:' + pad
-    + ';background:#fff7e6;border:1px solid #f0e0c0;border-radius:10px;font-size:' + fs
-    + ';color:#8a5a12;line-height:1.65;text-align:left;font-weight:700">\ud83d\udce6 '
-    + rich(fill(RESERVE_NOTE, [at])) + '</div>';
+/* 출고일자를 「2026년 9월 25일에」 모양으로 바꿉니다 (2026-09-22).
+   ⚠️ 예전에 손으로 발송 처리한 건은 날짜가 안 남아 있습니다. 그때는 「이미」를 씁니다
+      — 「신청하신 사은품이 이미 출고되었습니다」 가 되도록. */
+function shipWhen(ymd){
+  const m = String(ymd || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return "이미";
+  return m[1] + "년 " + Number(m[2]) + "월 " + Number(m[3]) + "일에";
 }
 
 function MSGT(key, fallback){
@@ -581,8 +590,9 @@ function applyConfig(){
     const el=document.getElementById(id); if(!el) return;
     const t=MSGT(ERR_KEY[id],""); if(t) el.innerHTML=rich(t);   // 줄바꿈·강조 그대로
   });
-  /* 카카오 채널 주소 */
+  /* 카카오 채널 주소 — 메인 하나만 씁니다 (2026-09-22). 옛 카테고리별 값도 읽어는 둡니다. */
   if(CFG.kakao) Object.keys(CFG.kakao).forEach(c=>{ if(CFG.kakao[c]) KAKAO_CHANNELS[c]=CFG.kakao[c]; });
+  if(typeof CFG.kakaoMain==="string"){ KAKAO_MAIN=CFG.kakaoMain.trim(); KAKAO_SET=true; }
   /* 구매 확인 화면에 늘 적혀 있는 두 글 */
   const d=document.querySelector("#step-invoice > .desc");
   if(d && CFG.lookup && CFG.lookup.desc) d.innerHTML=richPlain(CFG.lookup.desc);
@@ -686,9 +696,8 @@ function applyConfig(){
       g.fee  ?{fee:g.fee}   :{});      // 착불 / 선불 (관리자 「사은품」 탭에서 정합니다)
   });
   /* 신청 확인 화면 문구 — 설정(안내 문구 탭)에서 고친 값이 있으면 갈아 끼웁니다 (2026-09-14). */
-  /* 예약발송 안내 틀 — 설정(안내 문구 → 접수 완료 · 예약발송 안내)에서 고친 값 (2026-09-22) */
-  if(CFG.reserve && typeof CFG.reserve.reserveNote === "string" && CFG.reserve.reserveNote.trim())
-    RESERVE_NOTE = CFG.reserve.reserveNote;
+  /* 🔴 예약발송 문구는 이제 안내 문구 탭 ⑧ 「사은품 · 예약발송일 때」에서 읽습니다.
+        MSGT("doneGiftReserve") 가 알아서 가져오므로 여기서 따로 받을 것이 없습니다. */
   if(CFG.confirm){
     const c = CFG.confirm;
     if(c.title)      CONFIRM.title      = c.title;
@@ -743,13 +752,32 @@ const BUY_EXAMPLE="examples/coupang_buy_guide.webp";
 const PICK_GROUPS=[["iFD01-H","iFD01-F"]];
 function siblingsOf(code){ const g=PICK_GROUPS.find(x=>x.includes(code)); return g?g.slice():[code]; }
 
-/* 아이닉 카카오톡 채널 — 중복 접수 시 접수한 카테고리에 맞는 채널로 안내 */
+/* 🔴 아이닉 카카오톡 채널 — 메인 채널 하나로 통일 (2026-09-22 담당자 결정)
+      예전에는 접수한 카테고리에 맞는 채널 4곳으로 갈라 보냈습니다.
+      채널마다 알림을 따로 봐야 해서 묻히는 건이 생기고, 링크 4개를 계속 관리해야 했습니다.
+   ⚠️ 카테고리별 주소는 **지우지 않았습니다**(아래 KAKAO_CHANNELS).
+      나중에 다시 나누실 일이 생기면 kakaoUrl() 한 곳만 되돌리면 됩니다. */
+const KAKAO_MAIN_DFLT="https://pf.kakao.com/_ZxaExfT";
+let KAKAO_MAIN=KAKAO_MAIN_DFLT;
 const KAKAO_CHANNELS={
   "생활가전":"http://pf.kakao.com/_PQANG",
   "주방가전":"http://pf.kakao.com/_xeQANG",
   "계절가전":"http://pf.kakao.com/_PWgmG",
   "이미용가전":"http://pf.kakao.com/_TCjVn"
 };
+/* 어느 화면에서든 이 하나만 씁니다. 관리자 「카카오」 탭에서 고치실 수 있습니다. */
+/* ⚠️ 담당자가 주소를 **일부러 비우면** 버튼이 안 나가야 합니다(채널을 닫았을 때).
+      설정을 아직 못 읽었을 때만 기본값을 씁니다. */
+let KAKAO_SET=false;
+function kakaoUrl(){ return KAKAO_SET ? String(KAKAO_MAIN||"").trim() : KAKAO_MAIN_DFLT; }
+/* 카카오 상담 버튼 한 개 — 모양을 한 군데서만 정합니다. */
+function kakaoBtn(big){
+  const u=kakaoUrl(); if(!u) return "";
+  const pad = big ? "10px 16px" : "9px 15px";
+  return '<div style="margin-top:'+(big?"10px":"9px")+'"><a href="'+u+'" target="_blank" rel="noopener" '
+    + 'style="display:inline-block;background:#FEE500;color:#191600;font-weight:800;padding:'+pad
+    + ';border-radius:8px;text-decoration:none">💬 아이닉 카카오톡 채널로 문의하기</a></div>';
+}
 
 /* 제품 목록 — img 에 이미지 URL/데이터URL 넣으면 카드에 표시됩니다(없으면 '이미지 준비중'). */
 const PRODUCTS={
@@ -962,6 +990,7 @@ let COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 발
 
 const state={type:null,category:"주방가전",product:null,file:null,serialPrefix:"",
   vTab:"np",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
+  files:[],          // 포토리뷰 캡처 여러 장 (2026-09-22) — state.file 은 그중 첫 장
   srcByCode:{},buyByCode:{},        // 원장의 판매처·구매일자 (프로모션 판단용)
   invNo:"",ordNo:"",autoName:"",autoPhone:"",token:"",
   consent:{},esurvey:{},esurveyInit:false,survey:{},surveyFor:null,giftChoice:null};
@@ -1267,6 +1296,12 @@ function renderFileField(){
     ? '<b>본인이 작성한 리뷰 화면</b>을 캡처해 등록해 주세요. <b>별점·후기 내용·첨부하신 사진</b>이 함께 보여야 합니다.<br><span style="color:#c0392b">※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.</span>'
     : '<b>제품에 부착된 시리얼번호(S/N) 라벨</b>이 또렷하게 보이게 촬영해 등록해 주세요.<br>사진을 먼저 올리신 뒤, 사진을 보면서 아래에 번호를 입력하시면 편합니다.<br><span style="color:#c0392b">※ 라벨이 보이지 않는 사진이거나 입력하신 S/N과 다른 경우 지급 대상에서 제외됩니다.</span>';
   if(dt) dt.textContent = review ? "여기를 눌러 캡처 이미지를 등록" : "여기를 눌러 사진을 등록";
+  /* 🔴 포토리뷰만 여러 장 (2026-09-22). 정품등록 S/N 라벨은 1장 그대로입니다. */
+  const fi=$("#file");
+  if(fi){ if(review) fi.setAttribute("multiple",""); else fi.removeAttribute("multiple"); }
+  if(hint && review) hint.innerHTML += '<br><b style="color:#2c6b3c">※ 글과 사진이 한 화면에 안 들어가면 '
+    + MAX_SHOTS + '장까지 나눠 올리실 수 있습니다.</b>';
+  renderShots();
   // 포토리뷰는 제품에 맞는 캡처 예시를 볼 수 있게 버튼 노출
   const ip=$("#exInline");
   if(ip){
@@ -1515,12 +1550,15 @@ function qtyPickHtml(rw){
   const n=leftQty(), unit=(rw==="gift")?"사은품":"기프티콘";
   /* 선불 제품은 배송비를 안 받으므로 배송비 문장 자체를 빼야 합니다. */
   const showFee = (rw==="gift") && !isPrepaid(state.product);
-  const feeAll  = showFee ? " 배송비는 <b>한 번만</b> 발생합니다." : "";
-  const feeSplit= showFee ? ' <span style="color:#c0392b">접수 건별로 별도 발송되며, <b>배송비(착불)가 각각 부과</b>되는 점 안내드립니다.</span>' : "";
+  /* 🔴 2026-09-22 — 「합배송이 된다」는 걸 고객이 바로 알 수 있게 제목을 고쳤습니다.
+        A제품을 여러 개 사신 분은 합배송이 되고, A·B 서로 다른 제품은 합배송이 안 됩니다
+        (제품이 다르면 접수 자체가 따로 되므로). 그래서 「나눠서」는 수령자가 다를 때만입니다. */
+  const feeAll  = showFee ? " 배송비(착불)는 <b>한 번만</b> 발생합니다." : "";
+  const feeSplit= showFee ? ' <span style="color:#c0392b">건별로 발송되어 <b>배송비(착불)가 각각 발생</b>합니다.</span>' : "";
   return '<div class="consent" id="qtyPick"><div class="ctitle">'+unit+' 수량 선택<span class="ctag must">필수</span></div>'
-    +'<div class="notice" style="margin:6px 0 4px">'+((state.usedQty||0)>0?('구매하신 수량 <b>'+state.buyQty+'개</b> 중 <b>'+n+'개</b>가 남아 있습니다.'):('구매하신 수량이 <b>'+n+'개</b>로 확인되었습니다.'))+' 받으실 방법을 선택해 주세요.</div>'
-    +'<label class="radio"><input type="radio" name="qtym" value="all"><span><b>'+unit+' '+n+'개를 한 번에 받기</b> — 지금 올리신 리뷰 1건으로 접수하고 '+n+'개를 함께 보내드립니다.'+feeAll+'</span></label>'
-    +'<label class="radio"><input type="radio" name="qtym" value="split"><span><b>나눠서 접수하기</b> — 각각 다른 주소로 수령을 희망하시는 경우, 먼저 1건 접수 후 추가로 접수해 주세요.'+feeSplit+'</span></label>'
+    +'<div class="notice" style="margin:6px 0 4px">'+((state.usedQty||0)>0?('구매하신 수량 <b>'+state.buyQty+'개</b> 중 <b>'+n+'개</b>가 남아 있습니다.'):('구매하신 수량이 <b>'+n+'개</b>로 확인되었습니다.'))+' 받으실 방법을 선택해 주세요.'+'</div>'
+    +'<label class="radio"><input type="radio" name="qtym" value="all"><span><b>'+unit+' '+n+'개를 한 번에 받기 (합배송)</b> — 리뷰 1건으로 접수하고 <b>'+n+'개를 한 번에 묶어서</b> 보내드립니다.'+feeAll+'</span></label>'
+    +'<label class="radio"><input type="radio" name="qtym" value="split"><span><b>나눠서 접수하기 (수령자가 다를 때)</b> — <b>받으실 분이 서로 다른 경우에만</b> 선택해 주세요. 먼저 1건 접수하신 뒤 추가로 접수해 주시면 됩니다.'+feeSplit+'</span></label>'
     +'<div class="err" id="err-qty">받으실 방법을 선택해 주세요.</div></div>';
 }
 function bindQtyPick(){
@@ -1540,7 +1578,50 @@ function bindQtyPick(){
    포토리뷰 캡처는 글자가 커서 1536px면 충분하고, S/N 라벨은 작은 글씨라 2048px로 여유를 둡니다. */
 const IMG_LIMIT={review:{max:1536,q:0.85},coupang:{max:2048,q:0.9}};
 const HARD_MAX_BYTES=12*1024*1024;   // AI 심사 요청 상한(20MB) 역산 — base64로 약 1.33배 부풀기 때문
+
+/* 🔴 포토리뷰 캡처 여러 장 (2026-09-22 담당자 요청)
+      리뷰를 길게 쓰신 분은 글과 사진이 한 화면에 안 들어와, 글 캡처만 올리면
+      「사진 없음」으로 부적합이 났습니다. 그래서 3장까지 받습니다.
+      ⚠️ 쿠팡 정품등록(S/N 라벨)은 1장 그대로입니다. 여러 장은 오히려 대조를 헷갈리게 합니다. */
+const MAX_SHOTS = 3;
+function maxShots(){ return state.type === "coupang" ? 1 : MAX_SHOTS; }
+
+/* 🔴 한 장당 목표 용량 (2026-09-22)
+      3장을 합쳐도 AI 심사 상한에 한참 못 미치게 잡습니다.
+      실제로는 1차(1536px)에서 400KB 안팎이라 여기 걸릴 일이 거의 없습니다. */
+const SHOT_TARGET_BYTES = 3 * 1024 * 1024;
+/* 될 때까지 줄이는 단계. 위에서부터 차례로 내려갑니다.
+   ⚠️ 예전에는 **한 번만** 줄여 보고 그래도 크면 접수를 막았습니다.
+      「용량 때문에 안 올라가요」 문의가 여기서 났습니다(2026-09-22 담당자 확인). */
+const SHRINK_STEPS = [
+  { max:1536, q:0.85 }, { max:1280, q:0.72 }, { max:1024, q:0.62 }, { max:800, q:0.50 }
+];
 function fmtBytes(n){return n>=1048576?(n/1048576).toFixed(1)+"MB":Math.max(1,Math.round(n/1024))+"KB";}
+
+/* 목표 용량 밑으로 내려갈 때까지 단계를 낮추며 다시 줄입니다.
+   ⚠️ 한 단계라도 성공하면 그 결과를 씁니다. 전부 실패해야 null 을 돌려줍니다
+      (그때만 그 한 장을 빼고, 접수 자체는 그대로 진행합니다). */
+async function shrinkHard(file, firstStep){
+  let best = null;
+  const steps = SHRINK_STEPS.slice(firstStep || 0);
+  for(const st of steps){
+    let out;
+    try{ out = await shrinkImage(file, st.max, st.q); }
+    catch(err){ console.warn("리사이즈 실패", st, err); continue; }
+    best = out;
+    if(out.size <= SHOT_TARGET_BYTES) return out;   // 목표 안으로 들어왔으면 끝
+  }
+  /* 네 단계를 다 내려도 목표를 못 넘었지만, 줄이기 자체는 됐다면 그 값을 씁니다.
+     상한(HARD_MAX_BYTES)만 안 넘으면 접수에는 문제가 없습니다. */
+  if(best && best.size <= HARD_MAX_BYTES) return best;
+  /* 🔴 여기까지 왔다는 건 이 기기에서 **줄이기 자체가 안 된다**는 뜻입니다
+        (createImageBitmap 이 없는 옛 카카오/네이버 인앱 브라우저, HEIC 해독 불가 등).
+        네 단계가 전부 같은 이유로 실패하므로 다시 해도 소용없습니다.
+     ⚠️ 그렇다고 접수를 막으면 그 고객은 **영영 접수를 못 합니다.**
+        예전 코드처럼 원본을 그대로 올립니다 — 접수는 절대 막지 않습니다. */
+  if(file && file.size <= HARD_MAX_BYTES) return file;
+  return null;
+}
 async function shrinkImage(file,maxSide,quality){
   let bmp;
   try{ bmp=await createImageBitmap(file,{imageOrientation:"from-image"}); }  // 폰 사진 회전정보 반영
@@ -1552,7 +1633,15 @@ async function shrinkImage(file,maxSide,quality){
   const ctx=cv.getContext("2d"); ctx.drawImage(bmp,0,0,cw,ch); bmp.close&&bmp.close();
   // 크기가 그대로여도 항상 다시 인코딩한다 — 회전정보를 그림에 굽고(EXIF 제거),
   // HEIC 등 어떤 형식이든 JPEG로 통일해 심사 단계에서 형식 문제가 안 생기게.
-  const blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",quality));
+  /* ⚠️ 일부 인앱 브라우저는 toBlob 콜백을 영영 안 부릅니다.
+        그러면 「이미지 준비 중…」에서 화면이 멈춥니다. 8초를 못 넘게 막습니다(2026-09-22). */
+  const blob=await new Promise(r=>{
+    let done=false;
+    const fin=b=>{ if(!done){ done=true; r(b); } };
+    const t=setTimeout(()=>fin(null),8000);
+    try{ cv.toBlob(b=>{ clearTimeout(t); fin(b); },"image/jpeg",quality); }
+    catch(_){ clearTimeout(t); fin(null); }
+  });
   if(!blob) throw new Error("이미지 변환 실패");
   const base=(file.name||"capture").replace(/\.[^.]+$/,"");
   return new File([blob],base+".jpg",{type:"image/jpeg"});
@@ -1560,28 +1649,103 @@ async function shrinkImage(file,maxSide,quality){
 function resetDropInner(){
   $("#dropInner").innerHTML='<div style="font-size:30px">📷</div><div style="margin-top:6px" id="dropText">여기를 눌러 캡처 이미지를 등록</div><span class="upbtn">파일 선택</span>';
 }
-let lastPreviewUrl=null;
+
+/* ══════════ 캡처 이미지 (포토리뷰 최대 3장 · 정품등록 1장) ══════════
+   🔴 2026-09-22 — 예전에는 1장뿐이었습니다. state.file 하나에 담았고,
+      화면도 그림 한 장만 보여 줬습니다. 이제 state.files(배열)로 다룹니다.
+   ⚠️ state.file 은 **첫 장**을 가리키도록 계속 맞춰 둡니다.
+      다른 곳(검사·초기화·접수)이 아직 그 이름을 보고 있기 때문입니다. */
+let shotUrls=[];
+function syncShots(){
+  state.files = Array.isArray(state.files) ? state.files.slice(0, maxShots()) : [];
+  state.file  = state.files[0] || null;      // 옛 이름 호환
+}
+function renderShots(){
+  syncShots();
+  shotUrls.forEach(u=>URL.revokeObjectURL(u)); shotUrls=[];
+  const box=$("#shotBox"); const fn=$("#filename");
+  const n=state.files.length, lim=maxShots();
+  if(!n){ resetDropInner(); if(box) box.innerHTML=""; if(fn) fn.textContent=""; return; }
+
+  /* 드롭 자리에는 「더 올리기」만 남깁니다. 그림은 아래 줄에 나란히 보여 줍니다. */
+  /* ⚠️ 다 채웠을 때 「바꾸기」라고 적으면, 눌러도 아무 일이 안 나서 고객이 답답해집니다
+        (자리가 없어 새 사진을 못 담습니다). 무엇을 해야 하는지 그대로 적습니다. */
+  $("#dropInner").innerHTML = (n<lim)
+    ? '<div style="font-size:24px">📷</div><div style="margin-top:5px;font-size:13.5px">여기를 눌러 '
+      + (lim-n) + '장 더 올리기</div><span class="upbtn">파일 선택</span>'
+    : '<div style="font-size:24px">✅</div><div style="margin-top:5px;font-size:13.5px">'
+      + lim + '장을 모두 올리셨습니다<br><span style="font-size:12.5px;color:#8b837b">'
+      + '바꾸시려면 사진의 ✕ 를 눌러 한 장 빼고 다시 올려 주세요</span></div>';
+
+  if(box){
+    box.innerHTML = state.files.map((f,i)=>{
+      const u=URL.createObjectURL(f); shotUrls.push(u);
+      return '<div style="position:relative;flex:1 1 0;min-width:0">'
+        + '<img src="'+u+'" style="width:100%;height:96px;object-fit:cover;border:1px solid #e0dad3;border-radius:9px;background:#f4f2f0">'
+        + '<button type="button" aria-label="'+(i+1)+'번째 사진 빼기" onclick="dropShot('+i+')" '
+        + 'style="position:absolute;top:4px;right:4px;width:22px;height:22px;border:0;border-radius:50%;'
+        + 'background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:22px;padding:0;cursor:pointer">✕</button>'
+        + '<div style="position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.55);color:#fff;'
+        + 'font-size:11px;padding:1px 6px;border-radius:9px">'+(i+1)+'</div></div>';
+    }).join("");
+    box.style.display = "flex";
+  }
+  if(fn){
+    const tot=state.files.reduce((a,f)=>a+f.size,0);
+    fn.textContent = "📎 " + n + "장 · " + fmtBytes(tot)
+      + (n<lim ? "  ("+(lim-n)+"장 더 올리실 수 있습니다)" : "");
+  }
+}
+function dropShot(i){
+  syncShots();
+  state.files.splice(i,1);
+  const fi=$("#file"); if(fi) fi.value="";
+  /* ⚠️ 마지막 장을 빼면 안내가 기본값으로 돌아갑니다.
+        정품등록 단계에서 리뷰 문구가 뜨지 않도록 그 단계 문구로 다시 그립니다(2026-09-22). */
+  if(!state.files.length && typeof renderFileField === "function") renderFileField();
+  else renderShots();
+}
+window.dropShot=dropShot;
+
 $("#file").addEventListener("change",async e=>{
-  const f=e.target.files[0]; if(!f) return;
+  const picked=[...(e.target.files||[])]; if(!picked.length) return;
   hideErr("err-file");
-  $("#dropInner").innerHTML='<div style="font-size:26px">⏳</div><div style="margin-top:6px">이미지 준비 중…</div>';
-  const cfg=IMG_LIMIT[state.type==="coupang"?"coupang":"review"];
-  let out=f;
-  try{ out=await shrinkImage(f,cfg.max,cfg.q); }
-  catch(err){ console.warn("리사이즈 실패 → 원본 사용",err); out=f; }   // 절대 막지 않음
-  if(out.size>HARD_MAX_BYTES){
-    state.file=null; e.target.value=""; resetDropInner(); $("#filename").textContent="";
-    /* 🔴 2026-09-15 — alert 로는 카카오 상담 버튼을 넣을 수 없어 팝업으로 바꿨습니다.
-          설정에서 이 문구의 카카오 버튼을 켜 두시면 팝업 안에 함께 나옵니다. */
-    showNotice("fileTooBig", "사진 용량이 너무 큽니다 (○○).\n다른 사진으로 시도하시거나, 화면을 캡처해서 올려주세요.",
-               [fmtBytes(out.size)], "사진을 올리지 못했습니다");
+  syncShots();
+  const lim=maxShots();
+  /* 정품등록(1장)은 새로 고른 것으로 갈아치웁니다. 포토리뷰는 이어서 담습니다. */
+  if(lim===1) state.files=[];
+  const room=lim-state.files.length;
+  const over=picked.length-room;
+  const use=picked.slice(0,Math.max(0,room));
+  e.target.value="";
+  if(!use.length){
+    renderShots();
+    showNotice("fileTooMany",
+      "캡처는 {{○○장}}까지 올리실 수 있습니다.\n바꾸시려면 올리신 사진의 ✕ 를 눌러 한 장 빼고 다시 올려 주세요.",
+      [lim], "사진은 "+lim+"장까지입니다");
     return;
   }
-  state.file=out;
-  if(lastPreviewUrl)URL.revokeObjectURL(lastPreviewUrl);
-  lastPreviewUrl=URL.createObjectURL(out);
-  $("#dropInner").innerHTML=`<img class="preview" src="${lastPreviewUrl}"><div style="margin-top:8px"><span class="upbtn">다른 이미지로 변경</span></div>`;
-  $("#filename").textContent="📎 "+(f.name||"이미지")+" · "+fmtBytes(out.size)+(out!==f?` (원본 ${fmtBytes(f.size)}에서 줄임)`:"");
+
+  $("#dropInner").innerHTML='<div style="font-size:26px">⏳</div><div style="margin-top:6px">이미지 준비 중…</div>';
+  /* 🔴 될 때까지 줄입니다 (2026-09-22). 예전에는 한 번만 줄여 보고 크면 접수를 막았습니다. */
+  const failed=[];
+  for(const f of use){
+    const out=await shrinkHard(f,0);
+    if(out) state.files.push(out);
+    else    failed.push(f.name||"이미지");
+  }
+  renderShots();
+
+  /* 🔴 한 장이 실패해도 접수를 막지 않습니다. 그 장만 빼고 알려 드립니다. */
+  if(failed.length){
+    showNotice("fileTooBig",
+      "○○ 은(는) 이 기기에서 처리하지 못했습니다.\n다른 사진으로 바꾸시거나, 나머지 사진으로 접수해 주세요.",
+      [failed.join(" · ")], "사진 일부를 올리지 못했습니다");
+  } else if(over>0){
+    showNotice("fileTooMany",
+      "캡처는 {{○○장}}까지 올리실 수 있습니다.\n먼저 고르신 사진만 담았습니다.",
+      [lim], "사진은 "+lim+"장까지입니다");
+  }
 });
 
 /* 구매내역 캡처 — 리뷰 캡처와 완전히 다른 사진이라 칸도 따로 씁니다.
@@ -1662,12 +1826,7 @@ function ivSwitch(tab){
   const rest=[["ord","주문번호로 조회하기"],["inv","송장번호로 조회하기"],["np","성함+연락처로 조회하기"]].filter(x=>x[0]!==tab);
   return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+rest.map(x=>B(x[0],x[1])).join("")+'</div>';
 }
-function ivKakao(){
-  /* 구매 확인 단계라 아직 어떤 제품인지 모릅니다.
-     그래서 관리자 화면에서 정한 「기본 채널」로 보냅니다(안 정했으면 생활가전). */
-  const url=KAKAO_CHANNELS[(CFG&&CFG.kakaoDefault)||"생활가전"]||KAKAO_CHANNELS["생활가전"]||"";
-  return url?`<div style="margin-top:9px"><a href="${url}" target="_blank" rel="noopener" style="display:inline-block;background:#FEE500;color:#191600;font-weight:800;padding:9px 15px;border-radius:8px;text-decoration:none">💬 상담사 문의하기</a></div>`:"";
-}
+function ivKakao(){ return kakaoBtn(false); }   /* 메인 채널 하나 (2026-09-22) */
 /* 여러 달치 원장을 나눠 올리면 같은 행이 쌓일 수 있어 ref 로 중복 제거 */
 function dedupRows(rows){
   const seen=new Set(), out=[];
@@ -1988,24 +2147,50 @@ async function lookupParticipation(){
     box.innerHTML=`<div class="cpempty" style="border-style:solid;color:var(--ink)"><b>${name}</b> 님 · 참여 ${list.length}건</div>`+
       list.map(e=>{const st=custStatus(e);const tp=e.type==="coupang"?"쿠팡 정품등록":"포토리뷰";
         let h=`<div class="cpcard"><b>${prodNameOf(e.product)}</b> · ${tp}<span class="cpbadge ${st.cls}">${st.label}</span>`;
-        const url=KAKAO_CHANNELS[e.category]||"";
-        const kakao=url?`<div style="margin-top:6px"><a href="${url}" target="_blank" rel="noopener" class="cpkakao">💬 상담사 문의하기</a></div>`:"";
+        /* 🔴 메인 채널 하나 (2026-09-22) — 예전에는 제품군별로 갈라 보냈습니다. */
+        const url=kakaoUrl();
+        const kakao=url?`<div style="margin-top:6px"><a href="${url}" target="_blank" rel="noopener" class="cpkakao">💬 아이닉 카카오톡 채널로 문의하기</a></div>`:"";
         if(st.consult){
           // 검수 지연·부적합 등 상담이 필요한 건
           h+=`<div style="${MSG}">`
             +rich(MSGT("checkConsult","리뷰 검수가 진행 중입니다. 첨부 이미지를 확인하기 어렵거나 중복 참여, 구매 정보 확인이 어려운 경우 이벤트 참여 검수가 지연될 수 있습니다. 처리가 지연되는 경우 아래 채널을 통해 문의해 주세요."))
             +(MSGK("checkConsult",true)?kakao:"")+`</div>`;
+        } else if(st.cls==="ship"){
+          /* 🔴 발송 완료 (2026-09-22 담당자 요청)
+                예전에는 「발송 완료」 딱지만 뜨고 아래에 아무 글도 없었습니다.
+                「그래서 언제 오느냐」는 문의가 그대로 상담으로 갔습니다.
+             ⚠️ 송장번호는 여전히 안 보여 줍니다 — 송장을 하나씩 찍어보는 걸 막기 위해
+                서버가 아예 안 내려보냅니다. 날짜만 보여 줍니다.
+             ⚠️ 예전에 손으로 발송 처리한 건은 날짜가 없어 「이미 출고되었습니다」로 나갑니다. */
+          /* 🔴 상품권은 택배가 아니라 알림톡으로 갑니다. 문구를 갈라 씁니다 (2026-09-22 2차). */
+          const cpn=e.rewardType==="coupon";
+          const what=cpn?"기프티콘":"사은품";
+          const sKey=cpn?"checkShippedCoupon":"checkShipped";
+          const sDfl=cpn
+            ? "신청하신 ○○이 {{○○}} 발송되었습니다.\n문자(알림톡)로 보내 드린 번호를 확인해 주세요.\n못 받으셨거나 번호가 안 보이시면 아래 채널을 통해 문의해 주세요."
+            : "신청하신 ○○이 {{○○}} 출고되었습니다.\n택배사 사정에 따라 수령까지 1~3일 정도 걸릴 수 있습니다.\n배송 조회가 필요하시면 아래 채널을 통해 문의해 주세요.";
+          h+=`<div style="${MSG}">`
+            +MSGH(sKey, sDfl, [what, shipWhen(e.shippedYmd)])
+            +(MSGK(sKey,true)?kakao:"")+`</div>`;
         } else if(st.cls==="wait"){
           // 정상 접수 · 아직 미발송
           const ev=e.type==="coupang"?"쿠팡 로켓배송 정품등록":"포토리뷰 이벤트";
           const what=e.rewardType==="coupon"?"기프티콘":"사은품";
+          /* 🔴 예약발송 제품이면 초록 문구를 **갈아끼웁니다** (2026-09-22 2차).
+                1차에서는 아래에 주황 상자로 덧붙였는데, 그러면 한 화면에서
+                「일주일 이내」와 「10월 중순」을 동시에 말하게 됩니다.
+                완료 팝업과 똑같은 문구가 나가도록 맞췄습니다. */
+          const cpn2=e.rewardType==="coupon";
+          const rsvAt=cpn2?"":String(e.reserveAt||"").trim();
+          const rsvOn=!cpn2 && (e.reserved===true || !!rsvAt);
+          /* ⚠️ 상담 버튼 스위치도 **그 문구의 것**을 봐야 합니다.
+                예전에는 예약발송 문구를 쓰면서 checkWait 의 스위치를 봤습니다(2026-09-22 2차 수정). */
+          const wKey=rsvOn?"doneGiftReserve":"checkWait";
           h+=`<div style="${MSG}">`
-            +MSGH("checkWait","○○에 정상 참여되었습니다.\n○○은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.",[ev,what])
-            /* 🔴 예약발송 제품이면 여기에도 안내합니다 (2026-09-22).
-                  접수한 **뒤에** 품절이 나서 지정된 건은 완료 팝업에 아무것도 안 나갔으므로,
-                  고객이 조회하셨을 때 여기서라도 알려 드려야 합니다. */
-            +reserveBox(e.reserveAt, true)
-            +(MSGK("checkWait",true)?kakao:"")+`</div>`;
+            +(rsvOn
+              ? MSGH("doneGiftReserve", RESERVE_DFLT, [rsvAt || RESERVE_TBD])
+              : MSGH("checkWait","○○에 정상 참여되었습니다.\n○○은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.",[ev,what]))
+            +(MSGK(wKey,true)?kakao:"")+`</div>`;
         }
         return h+`</div>`;}).join("");
   }catch(err){box.innerHTML='<div class="cpempty">'+rich(MSGT("checkErr","조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."))+'</div>';}
@@ -2212,7 +2397,7 @@ async function submit(){
       if(used+want>cap){ showDup({...(hit||{type:"phone"}),used,cap},review); resetBtn(); return; }
       demoStore.push(entry); showDone(entry,true);
     } else {
-      const res=await submitViaApi(entry,state.file);
+      const res=await submitViaApi(entry, (state.files && state.files.length) ? state.files : (state.file?[state.file]:[]));
       if(res&&res.dup){ showDup(res.dup,review); resetBtn(); return; }
       if(!res||!res.ok){ showApiErr(res&&res.reason); resetBtn(); return; }
       /* 수량은 창구가 원장 기준으로 다시 계산한 값을 쓴다 */
@@ -2223,6 +2408,7 @@ async function submit(){
       if(res.shipFee) entry.shipFee=res.shipFee;      // 착불/선불도 창구가 정한 값을 따른다
       /* 예약발송 제품이면 「언제 들어오는지」 — 완료 팝업에 씁니다 (2026-09-22) */
       entry.reserveAt=res.reserveAt||"";
+      entry.reserved=res.reserved===true;   // 시점을 안 적어 두셔도 예약발송인 건 (2026-09-22 2차)
       if(state.product) state.usedByCode[state.product]=(res.usedBefore||0)+(res.giftQty||1);
       showDone(entry,false);
     }
@@ -2261,7 +2447,18 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
   const dFall = prepaid ? MSGT(dKey.replace(/Pre$/,""), dHead + "○○ 발송됩니다.") : (dHead + "○○ 발송됩니다.");
   const pre   = MSGT(dKey, dFall);
   /* 줄바꿈·강조를 다른 문구와 똑같이 씁니다(2026-09-09 — 예전에는 글자만 넣어 한 줄로 붙었습니다). */
-  $("#mDesc").innerHTML=rich(fill(pre,[rlabel]))+(demo?" ※ 데모라 실제 저장은 안 됩니다.":"");
+  /* 🔴 예약발송 제품이면 위 여섯 문구 대신 예약발송 문구를 씁니다 (2026-09-22 2차).
+        서버가 상품권 건에는 시점도 reserved 도 안 보냅니다.
+        {{○○}} 안의 ○○ 가 시점으로 바뀌고, rich() 가 그 부분을 굵게 표시합니다. */
+  /* 상품권에는 절대 안 씁니다 — 서버도 안 보내지만 화면에서도 한 번 더 막습니다. */
+  const rsvAt = coupon ? "" : String(e.reserveAt || "").trim();
+  /* 🔴 시점을 안 적어 두셔도 **예약발송이면** 예약발송 문구를 씁니다 (2026-09-22 2차).
+        서버가 reserved 로 알려 줍니다. 옛 서버(reserved 를 안 보냄)와도 맞물리도록
+        시점이 있으면 그것만으로도 예약발송으로 봅니다. */
+  const rsvOn = !coupon && (e.reserved === true || !!rsvAt);
+  const body  = rsvOn ? fill(MSGT("doneGiftReserve", RESERVE_DFLT), [rsvAt || RESERVE_TBD])
+                      : fill(pre, [rlabel]);
+  $("#mDesc").innerHTML=rich(body)+(demo?" ※ 데모라 실제 저장은 안 됩니다.":"");
   const prod=(PRODUCTS[e.category]||[]).find(p=>p.code===e.product);
   const pname=(prod&&prod.name)||e.productName||e.product;
   const unit=e.rewardType==="coupon"?"기프티콘":"사은품";
@@ -2281,20 +2478,15 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
         ?`<br><span style="color:#c0392b">`+rich(MSGT("doneLeftShip","※ 접수 건마다 따로 발송되어 배송비(착불)가 각각 부과됩니다."))+`</span>`
         :"")+`</div>`;
   }
-  /* 🔴 예약발송 제품이면 서버가 「언제 들어오는지」를 보내 줍니다 (2026-09-22).
-        상품권에는 안 옵니다 — 서버가 아예 안 보냅니다. */
-  let kv=head + reserveBox(e.reserveAt)
+  let kv=head
     +`<div><b>유형</b> ${review?"포토리뷰 이벤트":"쿠팡·로켓배송 정품 등록"}</div>`
     +`<div><b>제품</b> ${pname}</div>`
     +(e.giftItem?`<div><b>${e.rewardType==="coupon"?"상품권":"사은품"}</b> ${e.giftItem}${q>1?` · ${q}개`:""}</div>`:``)
     +(e.orderNo?`<div><b>주문번호</b> ${esc(e.orderNo)}</div>`:``)
     +`<div><b>수령인</b> ${e.name}</div><div><b>연락처</b> ${e.phone}</div>`;
-  /* 설정 「접수폼 → 접수 완료 · 완료 문구」 — 유형·사은품과 상관없는 공통 안내를
-     팝업 맨 아래에 붙입니다. 예: 「접수일로부터 1~2일 내 순차 출고」
-     ⚠️ 예전에는 이 칸이 화면 어디에도 안 나와서, 저장해도 바뀌지 않았습니다(2026-09-08 발견). */
-  const doneNote = (CFG && CFG.done && CFG.done.desc) ? String(CFG.done.desc).trim() : "";
-  if(doneNote) kv += '<div style="margin-top:12px;padding:11px 13px;background:#f7f9fc;'
-    + 'border-radius:9px;font-size:12.5px;color:#6b6560;line-height:1.6">'+rich(doneNote)+'</div>';
+  /* 🔴 2026-09-22 — 팝업 맨 아래 회색 상자(「완료 문구」)를 없앴습니다 (담당자 요청).
+        위 문구와 같은 말이 반복되어 고객이 헷갈렸습니다.
+        ⚠️ 서버에 저장된 옛 글(form.done.desc)은 남아 있지만 이제 아무 데도 안 씁니다. */
   $("#mKv").innerHTML=kv;
   /* 접수한 만큼 참여 이력에 반영 — 이어서 신청 화면에서 남은 수량이 정확해진다 */
   /* ⚠️ 형제 코드도 같이 올립니다. 안 그러면 「이어서 신청」에서 밀폐키친홀더 → 활성탄필터로
@@ -2330,28 +2522,30 @@ function showDup(dup,review){$("#box").className="box dup";$("#mIcon").textConte
   const askDflt = state.type==="coupang"
     ? "{{2대 이상}} 구매하셔서 추가로 등록하셔야 하거나, 등록하신 적이 없는데 이 안내가 보이시면 아래 {{○○ 카카오톡 채널}}로 문의해 주세요.\n[[중복접수를 방지하기 위해 아이닉 상담사에게 수기접수를 요청해 주세요.]]"
     : "구매하신 수량보다 {{더 많이}} 참여하셔야 하는 사정이 있으시면, 아래 {{○○ 카카오톡 채널}}로 문의해 주세요.\n[[중복접수를 방지하기 위해 아이닉 상담사에게 포토리뷰 수기접수 요청해 주세요.]]";
-  const url=KAKAO_CHANNELS[cat]||"";
+  /* 🔴 메인 채널 하나 (2026-09-22) — 예전에는 「생활가전 카카오톡 채널로」처럼
+        제품군 이름이 버튼에 박혀 있었습니다. */
+  const url=kakaoUrl();
   $("#mDesc").textContent="";
   const more=$("#mMore"); if(more) more.classList.add("hide");
-  const kakao = url
-    ? `<div style="margin-top:10px"><a href="${url}" target="_blank" rel="noopener" style="display:inline-block;background:#FEE500;color:#191600;font-weight:800;padding:10px 16px;border-radius:8px;text-decoration:none">💬 ${cat} 카카오톡 채널로 문의하기</a></div>`
+  const kakao = url ? kakaoBtn(true)
     : `<div style="margin-top:6px;font-size:12px;color:#b26a00">`
       +rich(MSGT("dupNoKakao","※ 카카오톡 채널 문의 링크는 준비되는 대로 안내됩니다."))+`</div>`;
   $("#mKv").innerHTML=
       `<div style="margin:2px 0 12px;padding:11px 13px;background:#fdecec;border:1px solid #f3c6c6;border-radius:10px;font-size:13.5px;font-weight:700;color:#b23b3b;line-height:1.5">중복 사유 : 동일 제품으로 ${rich(reason)}</div>`
     + `<div><b>제품</b> ${prod}</div>`
     + `<div style="margin-top:12px;padding:11px 13px;background:#fff7e6;border:1px solid #f0e0c0;border-radius:9px;font-size:13px;line-height:1.6">`
-      +rich(fill(MSGT(askKey, askDflt),[cat]))
+      +rich(fill(MSGT(askKey, askDflt),["아이닉"]))   /* ○○ = 아이닉 (2026-09-22 메인 채널 통일) */
       +(MSGK(askKey,true)?kakao:"")+`</div>`;
   $("#modal").classList.add("on");}
 /* 이어서 신청 — 조회 결과·개인정보·동의는 그대로 두고 제품/설문/사진만 다시 받는다 */
 function continueEntry(){
   $("#modal").classList.remove("on");
   if(state.product && !state.doneCodes.includes(state.product)) state.doneCodes.push(state.product);
-  state.file=null; state.buyFile=null; state.survey={}; state.surveyFor=null; state.infoFor=null;
+  state.file=null; state.files=[]; state.buyFile=null; state.survey={}; state.surveyFor=null; state.infoFor=null;
   state.giftChoice=null; state.qtyMode=null;
   const fi=$("#file"); if(fi) fi.value="";
   resetDropInner(); const fn=$("#filename"); if(fn) fn.textContent="";
+  const sb=$("#shotBox"); if(sb){ sb.innerHTML=""; sb.style.display="none"; }
   // 다 쓴 제품은 목록에서 빼서 다시 못 고르게 한다
   state.prodCodes=state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-(state.usedByCode[c]||0))>0);
   if(state.prodCodes.length>1){ state.product=null; state.buyQty=1; state.usedQty=0; }   // 제품 선택 단계로
@@ -2375,7 +2569,7 @@ window.__EVT_TEST = {
   apiErr: r => showApiErr(r)
 };
 function resetForm(){
-  state.type=null;state.category="주방가전";state.file=null;state.buyFile=null;
+  state.type=null;state.category="주방가전";state.file=null;state.files=[];state.buyFile=null;
   clearLookup(); state.doneCodes=[]; state.vTab="np";
   ["#vName","#vPhone","#vOrd","#vInv"].forEach(s=>{const el=$(s);if(el)el.value="";});
   {const b=$("#invResult");if(b)b.innerHTML="";}
@@ -2392,6 +2586,7 @@ function resetForm(){
   document.querySelectorAll(".type").forEach(x=>x.classList.remove("on"));
   const di=$("#dropInner"); if(di) di.innerHTML='<div style="font-size:30px">📷</div><div style="margin-top:6px" id="dropText">여기를 눌러 이미지를 등록</div><span class="upbtn">파일 선택</span>';
   const fn=$("#filename"); if(fn) fn.textContent="";
+  const sb2=$("#shotBox"); if(sb2){ sb2.innerHTML=""; sb2.style.display="none"; }
   const more=$("#mMore"); if(more) more.classList.add("hide");
   resetBtn(); current=0; showStep();
 }
@@ -2413,7 +2608,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
      브라우저에서 값을 고쳐 보내도 소용이 없다.
    ─ 사진은 올리기만 하고 주소는 읽지 않는다(Storage 읽기 잠금).
      주소는 창구가 만들어 접수 데이터에 붙인다. */
-async function submitViaApi(e,file){
+async function submitViaApi(e,files){
   const btn=$("#submitBtn");
   /* 사진 한 장을 올리고 저장 위치를 돌려준다. 쿠팡 정품등록은 두 장이라 두 번 부른다. */
   const upload=async (f,label)=>{
@@ -2425,10 +2620,22 @@ async function submitViaApi(e,file){
     await task;
     return path;
   };
-  if(file || state.buyFile){
+  /* 🔴 포토리뷰 캡처가 여러 장이 됐습니다 (2026-09-22).
+        imagePaths = 올린 순서대로 전부 · imagePath = 그중 첫 장.
+        ⚠️ imagePath 를 계속 채워 둡니다. 리포트·AI 심사·예전 데이터가 아직 그 이름을 봅니다. */
+  const list=(Array.isArray(files)?files:(files?[files]:[])).slice(0, maxShots());
+  if(list.length || state.buyFile){
     await initFirebase();
     if(state.buyFile) e.buyImagePath=await upload(state.buyFile,"구매내역 캡처");
-    if(file)          e.imagePath   =await upload(file, state.type==="coupang"?"S/N 사진":"리뷰 캡처");
+    if(list.length){
+      const lab = state.type==="coupang" ? "S/N 사진" : "리뷰 캡처";
+      const paths=[];
+      for(let i=0;i<list.length;i++){
+        paths.push(await upload(list[i], list.length>1 ? (lab+" "+(i+1)+"/"+list.length) : lab));
+      }
+      e.imagePath  = paths[0];
+      e.imagePaths = paths;
+    }
     btn.textContent="접수 처리 중…";
   }
   return await eventApi({action:"submitEntry",token:state.token||"",entry:e});

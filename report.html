@@ -602,6 +602,7 @@
     <div class="hint">품절 등으로 나중에 발송할 <b>제품을 지정</b>하세요. 지정한 제품의 적격 건은 사은품/상품권 발송목록에서 빠지고 아래 예약발송 목록으로 모입니다. <b>재고가 입고되면 위에서 해당 제품 체크를 해제</b>하세요 → 그 건들이 사은품/상품권 발송목록(적합)으로 이동해 거기서 일괄출고하면 됩니다.</div>
     <div class="panel" style="margin-bottom:14px">
       <h3>예약발송 제품 지정</h3>
+      <div class="hint" style="margin:0 0 10px">여기서는 <b>제품과 입고 시점</b>만 정합니다. 고객에게 나갈 <b>문장</b>은 <b>안내 문구 탭 → ⑧ 접수 완료 → 「사은품 · 예약발송일 때」</b> 에서 고치세요.</div>
       <div class="chkgrid" id="reserveConfig"></div>
       <button id="saveReserve" class="primary sm">저장</button><span class="msg" id="reserveMsg" style="margin-left:8px"></span>
     </div>
@@ -1110,10 +1111,20 @@
 <div id="imgModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:260;align-items:center;justify-content:center;padding:20px" onclick="if(event.target.id==='imgModal')closeImg()">
   <div style="background:#fff;padding:12px;border-radius:14px;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;gap:8px">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <span style="font-weight:800;font-size:13px">리뷰 이미지</span>
+      <span style="font-weight:800;font-size:13px" id="imgModalTitle">리뷰 이미지</span>
       <button class="sm" onclick="closeImg()">닫기 ✕</button>
     </div>
-    <img id="imgModalImg" alt="리뷰 이미지" style="max-width:86vw;max-height:78vh;object-fit:contain;border-radius:8px;background:#f4f2f0">
+    <!-- 🔴 포토리뷰 캡처가 여러 장이 됐습니다 (2026-09-22). 화살표로 넘겨 봅니다.
+         ⚠️ 1장짜리(예전 건)면 화살표·썸네일이 아예 안 보입니다. -->
+    <div style="position:relative;display:flex;align-items:center;justify-content:center">
+      <img id="imgModalImg" alt="리뷰 이미지" style="max-width:86vw;max-height:74vh;object-fit:contain;border-radius:8px;background:#f4f2f0">
+      <button id="imgPrev" onclick="imgGo(-1)" aria-label="이전 사진"
+        style="display:none;position:absolute;left:6px;width:38px;height:38px;border:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:19px;cursor:pointer">‹</button>
+      <button id="imgNext" onclick="imgGo(1)" aria-label="다음 사진"
+        style="display:none;position:absolute;right:6px;width:38px;height:38px;border:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:19px;cursor:pointer">›</button>
+      <div id="imgPos" style="display:none;position:absolute;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;padding:3px 11px;border-radius:20px"></div>
+    </div>
+    <div id="imgThumbs" style="display:none;gap:8px"></div>
     <a id="imgModalOpen" href="#" target="_blank" class="img" style="font-size:12px;text-align:right">새 탭에서 원본 열기 ↗</a>
   </div>
 </div>
@@ -1133,6 +1144,8 @@
         <!-- 🔴 사진 제목(2026-09-10) — 첫 사진에는 제목이 아예 없어서 무슨 사진인지 알 수 없었습니다. -->
         <div id="dtImgTitle" class="shotlbl"></div>
         <img id="dtImg" alt="리뷰 이미지" style="width:100%;max-height:360px;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#f4f2f0;cursor:zoom-in" onclick="openImg(this.src)">
+        <!-- 🔴 캡처가 여러 장일 때만 보이는 작은 그림 줄 (2026-09-22) -->
+        <div id="dtShots" style="display:none;gap:8px;margin-top:8px"></div>
         <div id="dtNoImg" style="display:none;padding:26px;text-align:center;color:var(--sub);border:1px dashed var(--line);border-radius:10px">첨부 이미지 없음</div>
         <a id="dtImgOpen" href="#" target="_blank" class="img" style="display:block;font-size:12px;text-align:right;margin-top:6px">새 탭에서 원본 열기 ↗</a>
         <!-- 쿠팡 정품등록은 사진이 둘입니다 — 위는 S/N 라벨 사진, 아래가 구매내역 캡처. -->
@@ -1559,9 +1572,41 @@ function pager(navId,total,key){
   el.innerHTML=h;
 }
 window.__page=(key,n)=>{pageState[key]=n;renderActiveTab();};
-function openImg(url){$("#imgModalImg").src=url;$("#imgModalOpen").href=url;$("#imgModal").style.display="flex";}
-function closeImg(){$("#imgModal").style.display="none";$("#imgModalImg").src="";}
-window.openImg=openImg;window.closeImg=closeImg;
+/* 🔴 사진 보기 — 한 장이든 여러 장이든 같은 창을 씁니다 (2026-09-22).
+      openImg("주소")          → 예전처럼 한 장
+      openImg(["주소1","주소2"]) → 화살표로 넘겨 보기
+   ⚠️ 예전 접수 건은 사진이 1장뿐이라 화살표·썸네일이 안 보입니다. 정상입니다. */
+let imgList=[], imgAt=0;
+function imgDraw(){
+  const u=imgList[imgAt]||"";
+  $("#imgModalImg").src=u; $("#imgModalOpen").href=u;
+  const many=imgList.length>1;
+  $("#imgModalTitle").textContent = many ? ("리뷰 이미지 · "+imgList.length+"장") : "리뷰 이미지";
+  const pv=$("#imgPrev"), nx=$("#imgNext"), ps=$("#imgPos"), tb=$("#imgThumbs");
+  pv.style.display=many?"":"none"; nx.style.display=many?"":"none";
+  ps.style.display=many?"":"none"; ps.textContent=(imgAt+1)+" / "+imgList.length;
+  pv.disabled=imgAt===0; nx.disabled=imgAt===imgList.length-1;
+  pv.style.opacity=imgAt===0?".25":"1"; nx.style.opacity=imgAt===imgList.length-1?".25":"1";
+  tb.style.display=many?"flex":"none"; tb.innerHTML="";
+  if(many) imgList.forEach((u2,i)=>{
+    const d=document.createElement("img"); d.src=u2; d.alt=(i+1)+"번째 사진";
+    d.style.cssText="width:74px;height:56px;object-fit:cover;border-radius:7px;cursor:pointer;background:#f4f2f0;border:2px solid "+(i===imgAt?"#3f3939":"#e6e1db");
+    d.onclick=()=>{imgAt=i;imgDraw();}; tb.appendChild(d);
+  });
+}
+function imgGo(n){ imgAt=Math.min(imgList.length-1,Math.max(0,imgAt+n)); imgDraw(); }
+function openImg(u){
+  imgList=(Array.isArray(u)?u:[u]).map(x=>String(x||"")).filter(Boolean);
+  if(!imgList.length) return;
+  imgAt=0; imgDraw(); $("#imgModal").style.display="flex";
+}
+function closeImg(){$("#imgModal").style.display="none";$("#imgModalImg").src="";imgList=[];imgAt=0;}
+window.openImg=openImg;window.closeImg=closeImg;window.imgGo=imgGo;
+/* 여러 장일 때 키보드 ← → 로도 넘깁니다 */
+document.addEventListener("keydown",e=>{
+  if($("#imgModal").style.display!=="flex"||imgList.length<2)return;
+  if(e.key==="ArrowLeft")imgGo(-1); else if(e.key==="ArrowRight")imgGo(1);
+});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeImg();if(typeof closeDetail==="function")closeDetail();}});
 function slice(rows,key){return rows.slice((pageState[key]-1)*PAGE_SIZE,pageState[key]*PAGE_SIZE);}
 
@@ -1836,16 +1881,39 @@ function teamInelig(rw){return ALL.filter(e=>e.rewardType===rw&&(shipStatus(e)==
 /* 수기접수 증빙 이미지는 manualImageUrl 에 있습니다.
    AI 심사 판정(재심사 버튼 등)은 imageUrl 만 보므로 그대로 둡니다. */
 function imgUrlOf(e){ return e.imageUrl || e.manualImageUrl || ""; }
-function imgBtn(e){const u=imgUrlOf(e);return u?`<button class="imgbtn" onclick="event.stopPropagation();openImg('${u}')">이미지</button>`:"-";}
-/* AI 별점·사진 판정 셀 (심사된 포토리뷰만) */
+/* 🔴 포토리뷰 캡처 여러 장 (2026-09-22). 예전 건에는 imageUrls 가 없어 한 장짜리 배열이 됩니다. */
+function imgUrlsOf(e){
+  const many = Array.isArray(e.imageUrls) ? e.imageUrls.map(x=>String(x||"")).filter(Boolean) : [];
+  if(many.length) return many;
+  const one = imgUrlOf(e);
+  return one ? [one] : [];
+}
+/* 단추 글씨는 장수와 상관없이 「이미지」 그대로입니다 — 누르면 있는 만큼 보여 줍니다. */
+function imgBtn(e){
+  const us=imgUrlsOf(e);
+  if(!us.length) return "-";
+  const j=JSON.stringify(us).replace(/"/g,"&quot;");
+  return `<button class="imgbtn" onclick="event.stopPropagation();openImg(${j})">이미지</button>`;
+}
+/* AI 별점·사진 판정 셀 (심사된 포토리뷰만)
+   🔴 2026-09-22 — 캡처가 여러 장이 되면서, AI 가 **몇 번째 장에서 봤는지**를 같이 적습니다.
+      상담사가 부적합 건에 전화할 때 「어느 사진을 보고 말씀드리면 되는지」가 바로 보입니다.
+   ⚠️ 1장짜리(예전 건)에는 안 붙습니다. 굳이 「1번째」라고 적을 이유가 없습니다. */
+function shotNo(e, n){
+  if(!(Number(e.aiShotCount) > 1)) return "";
+  if(!Number.isInteger(n) || n < 1) return "";
+  return ` <span class="sb">${n}번째</span>`;
+}
 function ratingCell(e){
   if(e.aiPersonalRating==null && e.aiRatingPass===undefined) return "-";
   const ok=!!e.aiRatingPass; const rt=(e.aiPersonalRating!=null?e.aiPersonalRating+"점":"?");
-  return `<span class="pill ${ok?'eligible':'ineligible'}">${rt} ${ok?'통과':'미달'}</span>`;
+  return `<span class="pill ${ok?'eligible':'ineligible'}">${rt} ${ok?'통과':'미달'}</span>`
+       + shotNo(e, e.aiRatingShot);
 }
 function photoCell(e){
   if(e.aiPhotoPass===undefined) return "-";
-  return `<span class="pill ${e.aiPhotoPass?'eligible':'ineligible'}">${e.aiPhotoPass?'통과':'실패'}</span>`;
+  return `<span class="pill ${e.aiPhotoPass?'eligible':'ineligible'}">${e.aiPhotoPass?'통과':'실패'}</span>`
+       + shotNo(e, e.aiPhotoShot);
 }
 function eligCheck(e){
   if(e.overrideEligible) return `<span class="pill reserved">수동승인</span> <button class="sm" onclick="event.stopPropagation();setOverride('${e._id}',false)">취소</button>`;
@@ -1945,7 +2013,7 @@ function syncReAllButtons(){
 }
 /* 표에 들어갈 재심사 버튼 (쿨다운이면 잠금 + 남은 초 표시) */
 function reJudgeBtn(e){
-  if(!((e.type==="review"||e.type==="coupang")&&e.imageUrl))return "-";
+  if(!((e.type==="review"||e.type==="coupang")&&imgUrlsOf(e).length))return "-";
   const left=cdLeft(reJudgeUntil.get(e._id));
   return left
     ? `<button class="sm" disabled style="opacity:.55">${left}초</button>`
@@ -1970,7 +2038,7 @@ window.reJudge=reJudge;
 function reJudgeTargets(){
   return ALL.filter(e=>(shipStatus(e)==="review"||shipStatus(e)==="pending")
     && !e.overrideEligible
-    && (e.type==="review"||e.type==="coupang") && e.imageUrl
+    && (e.type==="review"||e.type==="coupang") && imgUrlsOf(e).length
     && !cdLeft(reJudgeUntil.get(e._id)));
 }
 /* 확인필요는 이제 'AI 심사 실패' 전용이라 사은품·상품권을 나눌 이유가 없다.
@@ -2217,7 +2285,7 @@ function openDetail(id, readOnly){
     }else pc.style.display="none";
   }
   if(!isBad){
-    const canRe=(e.type==="review"||e.type==="coupang")&&e.imageUrl&&st==="review";
+    const canRe=(e.type==="review"||e.type==="coupang")&&imgUrlsOf(e).length&&st==="review";
     $("#dtReJudge").style.display = canRe ? "" : "none";
     $("#dtManualBox").style.display = st==="review" ? "" : "none";
     if(st==="review"){
@@ -2239,9 +2307,26 @@ function openDetail(id, readOnly){
 
   const img=$("#dtImg");
   const _iu=imgUrlOf(e);
+  /* 🔴 여러 장이면 아래 썸네일로 골라 봅니다 (2026-09-22). */
+  const _us=imgUrlsOf(e);
   if(_iu){img.src=_iu;img.style.display="";$("#dtNoImg").style.display="none";
-    $("#dtImgOpen").href=_iu;$("#dtImgOpen").style.display="";}
+    $("#dtImgOpen").href=_iu;$("#dtImgOpen").style.display="";
+    img.onclick=()=>openImg(_us);}
   else{img.style.display="none";img.src="";$("#dtNoImg").style.display="";$("#dtImgOpen").style.display="none";}
+  {
+    const tw=$("#dtShots");
+    if(tw){
+      tw.innerHTML=""; tw.style.display=_us.length>1?"flex":"none";
+      _us.forEach((u2,i)=>{
+        const t=document.createElement("img"); t.src=u2; t.alt=(i+1)+"번째 캡처";
+        t.style.cssText="width:70px;height:54px;object-fit:cover;border-radius:7px;cursor:pointer;background:#f4f2f0;border:2px solid "+(i===0?"#3f3939":"#e6e1db");
+        t.onclick=()=>{ img.src=u2; $("#dtImgOpen").href=u2;
+          [...tw.children].forEach((c,k)=>c.style.borderColor=(k===i?"#3f3939":"#e6e1db"));
+          img.onclick=()=>{ openImg(_us); imgAt=i; imgDraw(); }; };
+        tw.appendChild(t);
+      });
+    }
+  }
   /* 쿠팡 정품등록의 구매내역 캡처 — 있는 건에만 보입니다. */
   const _bu=e.buyImageUrl||"";
   const bw=$("#dtBuyWrap");
@@ -2255,7 +2340,20 @@ function openDetail(id, readOnly){
            : e.manual           ? "증빙 이미지"
            :                      "리뷰 캡처";
   const it=$("#dtImgTitle");
-  if(it) it.innerHTML = (_bu?`<span class="no">1</span>`:"")+`<span><span class="tt">${t1}</span></span>`;
+  if(it){
+    /* 🔴 AI 가 몇 번째 장에서 무엇을 봤는지 (2026-09-22) */
+    let seen = "";
+    if(_us.length>1){
+      const bits=[];
+      if(Number.isInteger(e.aiPhotoShot))  bits.push(e.aiPhotoShot+"번째에서 제품 사진");
+      if(Number.isInteger(e.aiRatingShot)) bits.push(e.aiRatingShot+"번째에서 별점"
+        + (e.aiPersonalRating!=null?" "+e.aiPersonalRating+"점":""));
+      seen = bits.length ? ` <span class="sb">· AI는 ${bits.join(" · ")} 확인</span>` : "";
+    }
+    it.innerHTML = (_bu?`<span class="no">1</span>`:"")+`<span><span class="tt">${t1}</span>`
+      + (_us.length>1?` <span class="sb">${_us.length}장 · 아래에서 골라 보세요</span>`:"")
+      + seen + `</span>`;
+  }
   const bt=$("#dtBuyTitle");
   if(bt) bt.innerHTML = `<span class="no">2</span><span><span class="tt">구매내역 캡처</span>`
                       + ` <span class="sb">쿠팡 주문목록 화면</span></span>`;
@@ -3155,7 +3253,7 @@ function exportAllRows(){
   return filteredAll().map(e=>({"접수일시":fmtDate(e._date),"유형":TYPE_LABEL[e.type]||e.type,"심사":STATUS_META[shipStatus(e)][0],"출고":SHIP_META[shipStateOf(e)][0],
     "카테고리":e.category||"","제품":e.product||"","보상종류":REWARD_LABEL[e.rewardType]||"","사은품/상품권":e.giftItem||"","판매처":e.source||"",
     "담당자":e.agent||"","주문번호":e.orderNo||"","S/N":e.serial||"","수령인":e.name||"","연락처":e.phone||"","주소":e.address||"",
-    "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"","이미지URL":imgUrlOf(e),"구매내역이미지URL":e.buyImageUrl||"","문서ID":e._id||""}));
+    "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"","이미지URL":imgUrlsOf(e).join(" "),"구매내역이미지URL":e.buyImageUrl||"","문서ID":e._id||""}));
 }
 const DL_ORDER=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["사은품",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주소",e=>e.address||""],["주문번호",e=>e.orderNo||""],["판매처",e=>e.source||""],["문서ID",e=>e._id||""]];
 const DL_ACCT=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["상품권",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["판매처",e=>e.source||""],["문서ID",e=>e._id||""]];
@@ -3915,11 +4013,17 @@ function phExt(url){
   const m = /\.(jpe?g|png|webp|gif|heic)/i.exec(String(url || ""));
   return m ? ("." + m[1].toLowerCase()) : ".jpg";
 }
-/* 성함_주문번호_판매처.jpg — 빈 칸은 「없음」으로 채웁니다 */
-function phName(e){
-  return [phSafe(e.name) || "이름없음",
-          phSafe(e.orderNo) || "주문번호없음",
-          phSafe(e.source) || "판매처없음"].join("_") + phExt(imgUrlOf(e));
+/* 성함_주문번호_판매처.jpg — 빈 칸은 「없음」으로 채웁니다
+   🔴 2026-09-22 — 캡처가 여러 장이 됐습니다. 한 고객의 2·3번째 장은 뒤에 번호를 붙입니다.
+      s = { e:접수건, url:사진주소, i:몇 번째(0부터), n:총 장수 } */
+function phName(s){
+  const e = s.e || s;
+  const u = s.url || imgUrlOf(e);
+  const base = [phSafe(e.name) || "이름없음",
+                phSafe(e.orderNo) || "주문번호없음",
+                phSafe(e.source) || "판매처없음"].join("_");
+  const no = (s.n > 1) ? ("_" + (s.i + 1)) : "";
+  return base + no + phExt(u);
 }
 
 function phZipWriter(){
@@ -3966,7 +4070,7 @@ function phZipWriter(){
 function phFillProducts(){
   const sel = $("#phProduct"); if(!sel || sel.dataset.filled) return;
   const set = new Set();
-  ALL.forEach(e => { if(e.type==="review" && imgUrlOf(e) && e.product) set.add(e.product); });
+  ALL.forEach(e => { if(e.type==="review" && imgUrlsOf(e).length && e.product) set.add(e.product); });
   const list = [...set].sort();
   sel.innerHTML = '<option value="">제품 전체</option>'
     + list.map(p => `<option value="${cnEsc(p)}">${cnEsc(p)}</option>`).join("");
@@ -3984,9 +4088,13 @@ function phPick(){
   const from = ($("#phFrom").value || ""), to = ($("#phTo").value || "");
   const ymd = d => { const p=n=>String(n).padStart(2,"0");
     return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); };
-  return ALL.filter(e => {
+  /* 🔴 2026-09-22 — 캡처가 여러 장이 됐습니다.
+        예전에는 **첫 장만** 받았습니다. 그런데 이번 변경의 이유가 바로
+        「제품 사진이 1번째 장에 없을 수 있다」는 것이라, 첫 장만 받으면
+        정작 필요한 제품 사진을 놓칩니다. 그래서 장별로 펼쳐서 전부 받습니다. */
+  const hit = ALL.filter(e => {
     if(e.type !== "review") return false;              /* 리뷰 사진만 */
-    if(!imgUrlOf(e)) return false;
+    if(!imgUrlsOf(e).length) return false;
     const a = mkAnsOf(e);
     if(a.photo !== "동의") return false;               /* 🔴 동의하신 분만 */
     if(prod && e.product !== prod) return false;
@@ -3997,6 +4105,12 @@ function phPick(){
     if(to   && s > to)   return false;
     return true;
   });
+  const out = [];
+  hit.forEach(e => {
+    const us = imgUrlsOf(e);
+    us.forEach((u, i) => out.push({ e, url:u, i, n:us.length }));
+  });
+  return out;
 }
 
 /* ── 화면 ───────────────────────────────────────────────────────────── */
@@ -4012,7 +4126,8 @@ function phCountGo(){
   }
   /* 제품별로 몇 장인지도 보여 드립니다 */
   const per = {};
-  phList.forEach(e => { per[e.product || "(제품없음)"] = (per[e.product||"(제품없음)"]||0) + 1; });
+  phList.forEach(s2 => { const pk = (s2.e && s2.e.product) || "(제품없음)";
+    per[pk] = (per[pk] || 0) + 1; });
   const rows = Object.entries(per).sort((a,b) => b[1]-a[1])
     .map(([k,v]) => `<tr><td>${cnEsc(k)}</td><td>${v}장</td></tr>`).join("");
   const way = window.showSaveFilePicker ? "한 파일로 받습니다"
@@ -4028,16 +4143,17 @@ function phProgress(done, total){
 }
 
 /* 사진 한 장 가져오기 */
-async function phFetch(e){
-  const url = imgUrlOf(e);
+async function phFetch(s){
+  const url = s.url || imgUrlOf(s);
   const r = await fetch(url);
   if(!r.ok) throw new Error("HTTP " + r.status);
   return new Uint8Array(await r.arrayBuffer());
 }
 
 /* 압축 안에서 쓸 이름 — 제품 전체를 고르셨으면 제품별 폴더로 나눕니다 */
-function phPathOf(e, byFolder, used){
-  let p = phName(e);
+function phPathOf(s, byFolder, used){
+  const e = s.e || s;
+  let p = phName(s);
   if(byFolder) p = (phSafe(e.product) || "제품없음") + "/" + p;
   const c = (used.get(p) || 0) + 1;
   used.set(p, c);
@@ -4092,13 +4208,13 @@ async function phStream(base, byFolder, total, failed){
   for(let i = 0; i < phList.length; i += PH_PARALLEL){
     if(phStopped) break;
     const group = phList.slice(i, i + PH_PARALLEL);
-    const got = await Promise.all(group.map(async e => {
-      try { return { e, data: await phFetch(e) }; }
-      catch (err) { failed.push(phName(e)); return null; }
+    const got = await Promise.all(group.map(async sh => {
+      try { return { sh, data: await phFetch(sh) }; }
+      catch (err) { failed.push(phName(sh)); return null; }
     }));
     for(const g of got){
       if(!g) { done++; continue; }
-      for(const part of zip.add(phPathOf(g.e, byFolder, used), g.data)) await w.write(part);
+      for(const part of zip.add(phPathOf(g.sh, byFolder, used), g.data)) await w.write(part);
       done++;
     }
     phProgress(done, total);
@@ -4121,11 +4237,11 @@ async function phBatches(base, byFolder, total, failed){
     for(let i = 0; i < groups[gi].length; i += PH_PARALLEL){
       if(phStopped) break;
       const chunk = groups[gi].slice(i, i + PH_PARALLEL);
-      const got = await Promise.all(chunk.map(async e => {
-        try { return { e, data: await phFetch(e) }; }
-        catch (err) { failed.push(phName(e)); return null; }
+      const got = await Promise.all(chunk.map(async sh => {
+        try { return { sh, data: await phFetch(sh) }; }
+        catch (err) { failed.push(phName(sh)); return null; }
       }));
-      got.forEach(g => { if(g) parts.push(...zip.add(phPathOf(g.e, byFolder, used), g.data)); done++; });
+      got.forEach(g => { if(g) parts.push(...zip.add(phPathOf(g.sh, byFolder, used), g.data)); done++; });
       phProgress(done, total);
     }
     parts.push(...zip.end());
@@ -5801,6 +5917,12 @@ const DEFAULTS = {
        착불 문구에서 배송비 이야기만 빠진 문장입니다. 처음 열 때 착불 문구를 그대로 옮겨 드립니다. */
     doneReviewGiftPre:  { t:"리뷰 심사(별점·사진 자동 확인) 후 사은품이 발송됩니다.", k:false },
     doneCoupangGiftPre: { t:"정품등록 심사(시리얼번호 자동 대조) 후 사은품이 발송됩니다.", k:false },
+    /* 🔴 예약발송 (2026-09-22 담당자 요청) — 품절이라 나중에 보내는 **사은품**일 때.
+          이때는 위 여섯 문구 대신 **이것만** 나갑니다(「평균 1주일 이내」가 거짓말이 되므로).
+          {{○○}} 자리에 「예약발송」 탭에서 제품마다 적어 두신 시점이 들어갑니다.
+          ⚠️ 상품권에는 안 나갑니다. 서버가 아예 시점을 안 보냅니다.
+          ⚠️ 착불 안내가 필요하시면 이 문장 안에 직접 적으시면 됩니다(칸을 더 만들지 않았습니다). */
+    doneGiftReserve: { t:"신청하신 사은품은 예약발송으로 {{○○}} 입고 예정입니다.\n입고되는 대로 순차적으로 발송해 드리겠습니다.", k:true },
     doneMulti:    { t:"○○ 고객님, 이벤트 참여가 완료되었습니다.\n신청하신 {{○○}} {{○○개}}가 구매 수량에 맞게 발송될 예정입니다.", k:false },
     doneLeft:     { t:"○○ 고객님, 구매 수량 {{○○개}} 중 {{○○개}}가 접수되었습니다.\n남은 {{○○개}}는 리뷰를 추가로 남기신 뒤 아래 버튼으로 이어서 접수해 주세요.", k:false },
     doneLeftShip: { t:"※ 접수 건마다 따로 발송되어 배송비(착불)가 각각 부과됩니다.", k:false },
@@ -5811,10 +5933,20 @@ const DEFAULTS = {
     checkErr:     { t:"조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", k:false },
     checkNone:    { t:"{{○○}} 님으로 참여하신 내역이 없습니다.\n포토리뷰 이벤트 또는 쿠팡 로켓배송 정품등록 여부 선택 후 다음을 눌러 접수 부탁드립니다.", k:false },
     checkConsult: { t:"리뷰 검수가 진행 중입니다. 첨부 이미지를 확인하기 어렵거나 중복 참여, 구매 정보 확인이 어려운 경우 이벤트 참여 검수가 지연될 수 있습니다. 처리가 지연되는 경우 아래 채널을 통해 문의해 주세요.", k:true },
-    checkWait:    { t:"○○에 정상 참여되었습니다.\n○○은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.", k:true }
+    checkWait:    { t:"○○에 정상 참여되었습니다.\n○○은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.", k:true },
+    /* 🔴 발송 완료 (2026-09-22 담당자 요청) — 예전에는 「발송 완료」 딱지만 뜨고
+          아래에 아무 글도 안 나왔습니다. 「그래서 언제 오느냐」는 문의를 줄이려고 넣었습니다.
+          첫 ○○ = 사은품/기프티콘 · {{○○}} = 출고일자(예: 2026년 9월 25일에)
+          ⚠️ 예전에 손으로 발송 처리한 건은 날짜가 안 남아 있어 「이미」로 나갑니다. */
+    checkShipped: { t:"신청하신 ○○이 {{○○}} 출고되었습니다.\n택배사 사정에 따라 수령까지 1~3일 정도 걸릴 수 있습니다.\n배송 조회가 필요하시면 아래 채널을 통해 문의해 주세요.", k:true },
+    /* 🔴 상품권은 택배로 안 갑니다 — 알림톡으로 바로 갑니다 (2026-09-22 2차 점검에서 발견).
+          사은품 문구를 같이 쓰면 「택배사 사정」「배송 조회」가 기프티콘 고객에게 나갑니다. */
+    checkShippedCoupon: { t:"신청하신 ○○이 {{○○}} 발송되었습니다.\n문자(알림톡)로 보내 드린 번호를 확인해 주세요.\n못 받으셨거나 번호가 안 보이시면 아래 채널을 통해 문의해 주세요.", k:true }
   },
-  /* 제품을 아직 모를 때(구매 확인 단계 등) 보낼 채널 */
+  /* 제품을 아직 모를 때(구매 확인 단계 등) 보낼 채널 — 지금은 안 씁니다(2026-09-22) */
   kakaoDefault: "생활가전",
+  /* 🔴 메인 카카오 채널 (2026-09-22) — 모든 화면이 이 하나만 씁니다. */
+  kakaoMain: "https://pf.kakao.com/_ZxaExfT",
   kakao: {
     "생활가전":"http://pf.kakao.com/_PQANG",
     "주방가전":"http://pf.kakao.com/_xeQANG",
@@ -6383,40 +6515,29 @@ function pvLookupBody(spot, ex){
   + '</div></div>';
 }
 
-/* ── 접수 완료 팝업 한 판 ──
-   ⚠️ 「완료 문구」는 팝업 맨 아래 회색 상자로 붙습니다(2026-09-08 연결). */
+/* ── 접수 완료 팝업 한 판 ── */
 const DONE_BODY_KEYS = ["doneReviewGift","doneReviewGiftPre","doneReviewCoupon",
-                        "doneCoupangGift","doneCoupangGiftPre","doneCoupangCoupon"];
+                        "doneCoupangGift","doneCoupangGiftPre","doneCoupangCoupon",
+                        "doneGiftReserve"];
 function pvDoneBody(spot){
   const hl = k => (spot === k ? " pvhl" : "");
-  const D  = (cfg.form && cfg.form.done) || {};
   const nt = k => { const o = (cfg.notices || {})[k]; return (o && o.t) || ""; };
-  const note = String(D.desc || "").trim();
-  const noteBox = note
-    ? '<div class="' + hl("desc").trim() + '" style="margin-top:12px;padding:11px 13px;'
-      + 'background:#f7f9fc;border-radius:9px;font-size:12.5px;color:#6b6560;line-height:1.6">'
-      + pvT(note) + '</div>'
-    : '<div class="' + hl("desc").trim() + '" style="margin-top:12px;padding:11px 13px;'
-      + 'border:1px dashed #e6e2de;border-radius:9px;font-size:12.5px;color:#b3aaa2">'
-      + '(완료 문구가 비어 있어 이 자리에는 아무것도 안 나옵니다)</div>';
+  /* 🔴 2026-09-22 — 팝업 맨 아래 회색 상자(「완료 문구」)를 없앴습니다. */
   return '<div class="wrap"><div class="card"><h2>참여 신청</h2>'
   +   '<p class="desc">마지막 단계까지 채우고 「참여 신청하기」를 누른 뒤 뜨는 화면입니다.</p></div></div>'
   + '<div class="modal on"><div class="box">'
   +   '<div class="icon">✅</div>'
   +   '<h3>' + pvE(nt("doneTitle") || "참여가 접수되었습니다") + '</h3>'
-  /* 지금 고치고 있는 문구가 「제목 밑 한 줄」 여섯 가지 중 하나면 그것을 보여 줍니다.
-     아니면 대표로 「포토리뷰 · 사은품(착불)」 문구를 씁니다. */
-  +   '<p class="' + hl(spot).trim() + '">' + pvT((nt(DONE_BODY_KEYS.includes(spot) ? spot : "doneReviewGift")
-        || "리뷰 심사(별점·사진 자동 확인) 후 ○○ 발송됩니다.")
-        .replace("○○", /Coupon$/.test(spot) ? "기프티콘(상품권)이" : "사은품이")) + '</p>'
-  /* 🔴 예약발송 안내를 고치실 때는 그 상자를 보여 드립니다 (2026-09-22).
-        실제 화면에서도 여기, 접수 내용 바로 위에 붙습니다. */
-  +   (spot === "reserve"
-        ? '<div class="pvhl" style="margin:2px 0 12px;padding:11px 13px;background:#fff7e6;'
-          + 'border:1px solid #f0e0c0;border-radius:10px;font-size:12.5px;color:#8a5a12;'
-          + 'line-height:1.65;text-align:left;font-weight:700">\ud83d\udce6 '
-          + pvT(String((cfg.form && cfg.form.reserveNote) || "").replace("\u25cb\u25cb", "10\uc6d4 \uc911\uc21c")) + '</div>'
-        : '')
+  /* 지금 고치고 있는 문구가 「제목 밑 한 줄」 일곱 가지 중 하나면 그것을 보여 줍니다.
+     아니면 대표로 「포토리뷰 · 사은품(착불)」 문구를 씁니다.
+     🔴 예약발송 문구만 ○○ 가 아니라 {{○○}} 안에 시점이 들어갑니다 (2026-09-22). */
+  +   '<p class="' + hl(spot).trim() + '">' + pvT(
+        spot === "doneGiftReserve"
+          ? (nt("doneGiftReserve") || "신청하신 사은품은 예약발송으로 {{○○}} 입고 예정입니다.")
+              .replace("{{○○}}", "{{10월 중순}}")
+          : (nt(DONE_BODY_KEYS.includes(spot) ? spot : "doneReviewGift")
+              || "리뷰 심사(별점·사진 자동 확인) 후 ○○ 발송됩니다.")
+              .replace("○○", /Coupon$/.test(spot) ? "기프티콘(상품권)이" : "사은품이")) + '</p>'
   +   '<div class="kv">'
   +     '<div><b>유형</b> 포토리뷰 이벤트</div>'
   +     '<div><b>제품</b> 무선청소기 맥스제로 i90</div>'
@@ -6424,7 +6545,6 @@ function pvDoneBody(spot){
   +     '<div><b>주문번호</b> 2026090112345678</div>'
   +     '<div><b>수령인</b> 홍길동</div>'
   +     '<div><b>연락처</b> 010-1234-5678</div>'
-  +     noteBox
   +   '</div>'
   +   '<button type="button">확인</button>'
   + '</div></div>';
@@ -6985,6 +7105,10 @@ const NOTICE_GROUPS = [
     ["doneCoupangGift",  "쿠팡 정품등록 · 사은품(착불)일 때",  "제목 밑 한 줄"],
     ["doneCoupangGiftPre","쿠팡 정품등록 · 사은품(선불)일 때", "제목 밑 한 줄 · 가습기 iH12처럼 선불로 나가는 제품"],
     ["doneCoupangCoupon","쿠팡 정품등록 · 상품권일 때",        "제목 밑 한 줄"],
+    /* 🔴 2026-09-22 — 「접수 완료」 묶음에 따로 있던 예약발송 안내를 여기로 합쳤습니다.
+          예약발송이면 위 여섯 문구 대신 이 문구가 제목 밑에 나갑니다. */
+    ["doneGiftReserve","사은품 · 예약발송일 때",
+      "제목 밑 한 줄 · 위 문구 대신 이것만 나갑니다 · {{○○}} 자리에 「예약발송」 탭에서 적으신 입고 시점"],
     ["doneMulti",    "여러 개 한 번에",   "2개 이상을 한 번에 접수했을 때"],
     ["doneLeft",     "남은 수량이 있을 때","산 수량보다 적게 접수했을 때"],
     ["doneLeftShip", "착불 주의",        "위 문구 아래 · 사은품(착불)일 때만"]
@@ -6995,7 +7119,10 @@ const NOTICE_GROUPS = [
     ["checkErr",     "조회 중 오류",       "서버가 응답하지 못했을 때"],
     ["checkNone",    "참여 내역 없음",     "그 이름으로 접수된 게 없을 때"],
     ["checkConsult", "검수 지연·상담 필요", "부적합 처리됐거나 확인이 어려운 건일 때"],
-    ["checkWait",    "정상 접수 · 발송 대기","심사를 통과했고 아직 발송 전일 때"]
+    ["checkWait",    "정상 접수 · 발송 대기","심사를 통과했고 아직 발송 전일 때"],
+    /* 🔴 2026-09-22 — 예전에는 「발송 완료」 딱지만 뜨고 설명이 없었습니다 */
+    ["checkShipped", "발송 완료 · 사은품",  "이미 출고된 사은품 건 · {{○○}} 자리에 출고일자가 들어갑니다"],
+    ["checkShippedCoupon","발송 완료 · 상품권","이미 발송된 기프티콘 건 · 택배가 아니라 알림톡으로 갑니다"]
   ]]
 ];
 
@@ -7014,15 +7141,12 @@ const ALWAYS_GROUPS = [
     ["주의 문구", () => cfg.form.lookup, "tip",  true,
       "조회 칸 위 · 회색 안내 상자 (긴 주의사항)",        "lookup", "tip"]
   ]],
-  ["접수 완료", [
-    ["완료 문구", () => cfg.form.done, "desc", true,
-      "「참여 신청하기」를 누른 뒤 뜨는 완료 팝업 안",      "done",   "desc"],
-    /* 🔴 예약발송 안내 (2026-09-22) — 품절이라 나중에 보내는 **사은품**일 때만 나갑니다.
-          시점은 「예약발송」 탭에서 제품마다 적습니다. 여기서는 **문장만** 정합니다. */
-    ["예약발송 안내", () => cfg.form, "reserveNote", true,
-      "예약발송으로 지정한 제품을 접수했을 때 · 완료 팝업과 참여 조회 · ○○ 자리에 「예약발송」 탭에서 적으신 시점",
-      "done", "reserve"]
-  ]],
+  /* 🔴 2026-09-22 — 「접수 완료」 묶음을 통째로 없앴습니다 (담당자 요청).
+        · 「완료 문구」 — 팝업 맨 아래 회색 상자. 위 문구와 같은 말이 반복되어 삭제했습니다.
+          ⚠️ 서버에 저장된 옛 글은 남아 있지만, 접수폼에서 그 글을 꺼내 쓰는 코드를 같이
+             없앴으므로 고객 화면에는 안 나옵니다. 따로 비우실 필요 없습니다.
+        · 「예약발송 안내」 — ⑧ 접수 완료 묶음의 「사은품 · 예약발송일 때」로 옮겼습니다.
+          저장해 두셨던 글은 fixNotices 가 자동으로 옮겨 드립니다. */
   /* 수기접수 발송 문구 (2026-09-14) — 상담사가 고객에게 그대로 복사해서 보냅니다. */
   ["수기접수", [
     ["발송 문구", () => cfg.form, "manualGuide", true,
@@ -7421,34 +7545,28 @@ function paneNotice(){
     })));
   });
 
-  out.push(el("h3", { class:"gtitle" }, "카카오 채널 주소 — 어느 채널로 보낼지"));
+  /* 🔴 2026-09-22 — 메인 채널 하나로 통일했습니다 (담당자 결정).
+        예전에는 제품군에 따라 4곳으로 갈라 보냈습니다. 채널마다 알림을 따로 봐야 해서
+        묻히는 건이 생기고, 링크 4개를 계속 관리해야 했습니다.
+     ⚠️ 카테고리별 주소(cfg.kakao)는 **지우지 않았습니다.** 저장된 값 그대로 남아 있고,
+        화면에서만 감췄습니다. 다시 나누실 일이 생기면 이 자리를 되돌리면 됩니다. */
+  out.push(el("h3", { class:"gtitle" }, "카카오 채널 주소"));
   out.push(el("p", { class:"hint" },
-    el("b", {}, "상담 버튼"), "을 켠 문구 아래에 노란 「💬 상담사 문의하기」 버튼이 붙습니다. ",
-    "누르면 아래 규칙대로 채널이 정해집니다."));
+    el("b", {}, "상담 버튼"), "을 켠 문구 아래에 노란 ",
+    el("b", {}, "「💬 아이닉 카카오톡 채널로 문의하기」"), " 버튼이 붙습니다. ",
+    "모든 화면이 ", el("b", {}, "아래 주소 하나"), "만 씁니다."));
   out.push(el("div", { class:"stack", style:"margin-bottom:12px" },
     el("div", { class:"ncard" },
-      el("div", { style:"font-weight:800;font-size:13.5px;margin-bottom:6px" }, "채널이 정해지는 규칙"),
-      el("p", { class:"hint", style:"margin:0 0 10px" },
-        "① 고객이 ", el("b", {}, "제품을 고른 뒤"), " 나오는 문구 → 그 제품의 ", el("b", {}, "카테고리 채널"), "로 갑니다.",
-        el("br"),
-        "② ", el("b", {}, "구매 확인 단계"), "처럼 아직 제품을 모를 때 나오는 문구 → 아래 ",
-        el("b", {}, "기본 채널"), "로 갑니다. (조회가 안 되는 고객이 여기 걸립니다)"),
       el("div", { class:"field" },
-        el("label", { for:"kkDef" }, "기본 채널 — 제품을 아직 모를 때"),
-        el("select", { id:"kkDef",
-          onchange:e => { cfg.kakaoDefault = e.target.value; softRefresh(); } },
-          CATS.map(c => el("option", { value:c,
-            ...((cfg.kakaoDefault || "생활가전") === c ? { selected:"" } : {}) }, c)))),
+        el("label", { for:"kkMain" }, "아이닉 메인 카카오 채널 주소"),
+        el("input", { type:"text", class:"mono", id:"kkMain",
+          value: (typeof cfg.kakaoMain === "string" ? cfg.kakaoMain : "") || DEFAULTS.kakaoMain,
+          placeholder:"https://pf.kakao.com/...", "aria-label":"메인 카카오 채널 주소",
+          oninput:e => { cfg.kakaoMain = e.target.value; softRefresh(); } })),
       el("p", { class:"hint", style:"margin:8px 0 0" },
-        "⚠️ 지금 접수폼은 ", el("b", {}, "제품과 상관없이 늘 「생활가전」"), " 채널만 씁니다. ",
-        "이 설정을 접수폼이 읽어 쓰게 하는 작업은 아직입니다."))));
-  out.push(el("div", { class:"tablewrap" }, el("table", {},
-    el("thead", {}, el("tr", {}, el("th", {}, "카테고리"), el("th", {}, "채널 주소"))),
-    el("tbody", {}, CATS.map(c => el("tr", {},
-      el("td", { class:"tight" }, el("b", {}, c)),
-      el("td", {}, el("input", { type:"text", class:"mono", value:cfg.kakao[c] || "",
-        placeholder:"http://pf.kakao.com/...", "aria-label":c + " 채널 주소",
-        oninput:e => { cfg.kakao[c] = e.target.value; softRefresh(); } }))))))));
+        "쓰이는 곳 — ", el("b", {}, "구매 확인 · 중복 접수 팝업 · 참여 조회 · 접수 오류 팝업"), " 네 군데입니다.",
+        el("br"),
+        "비워 두시면 버튼 대신 위 ", el("b", {}, "「채널 주소가 비었을 때」"), " 문구가 나갑니다."))));
 
   return out;
 }
@@ -7644,6 +7762,15 @@ function fixNotices(c){
      처음 열 때는 착불 문구를 그대로 옮겨 오되, 거기 적힌 배송비 문장 한 줄만 빼 드립니다.
      ⚠️ 옮겨 오는 것은 딱 한 번뿐입니다. 그 뒤로는 두 문구가 서로 상관없이 따로 갑니다
         — 착불 문구를 고쳐도 선불 문구는 그대로입니다(그래야 문장을 바꿔도 안 깨집니다). */
+  /* 🔴 예약발송 안내를 ⑧ 묶음으로 옮깁니다 (2026-09-22).
+        예전에는 「접수 완료 · 예약발송 안내」 칸(form.reserveNote)에 저장돼 있었습니다.
+        그 칸을 없앴으므로, 적어 두신 글을 새 칸으로 한 번만 옮겨 드립니다.
+        ⚠️ 옮겨 온 뒤에는 새 칸만 씁니다. 옛 값은 그대로 두되 아무 데도 안 쓰입니다. */
+  if(!N.doneGiftReserve || typeof N.doneGiftReserve !== "object"){
+    const old3 = c.form && typeof c.form.reserveNote === "string" ? c.form.reserveNote.trim() : "";
+    if(old3) N.doneGiftReserve = { t: old3, k:false };
+  }
+
   const FEE_LINE = /\s*배송비는 착불로 발생합니다\.?/g;
   [["doneReviewGift","doneReviewGiftPre"],["doneCoupangGift","doneCoupangGiftPre"]].forEach(([a,pre])=>{
     if(N[pre] && typeof N[pre] === "object") return;          // 이미 있으면 손대지 않습니다
@@ -7673,6 +7800,10 @@ function fixNotices(c){
       되살리는 것은 **없으면 큰일 나는 칸**(아래 MUST)만입니다. */
 const MUST_FIELDS = ["이메일"];
 function fixFields(c){
+  /* 🔴 메인 카카오 채널 (2026-09-22) — 옛 설정에는 이 칸이 아예 없습니다.
+        채워 두지 않으면 화면에는 기본값이 보이는데 **저장은 안 되는** 상태가 됩니다.
+     ⚠️ 담당자가 **일부러 비운** 값(빈 문자열)은 그대로 둡니다 — 채널을 닫으실 수 있어야 합니다. */
+  if(c && typeof c.kakaoMain !== "string") c.kakaoMain = DEFAULTS.kakaoMain;
   /* 🔴 예전에 저장된 설정에는 「신청 확인」 문구가 없습니다.
         채워 넣지 않으면 안내 문구 탭에서 칸이 비어 보이고 고칠 수 없습니다(2026-09-14). */
   if(c && c.form){
@@ -7684,9 +7815,9 @@ function fixFields(c){
     /* 수기접수 발송 문구도 없으면 채웁니다 */
     if(typeof c.form.manualGuide !== "string" || !c.form.manualGuide.trim())
       c.form.manualGuide = DEFAULTS.form.manualGuide;
-    /* 예약발송 안내도 없으면 채웁니다 (2026-09-22 신설) */
-    if(typeof c.form.reserveNote !== "string" || !c.form.reserveNote.trim())
-      c.form.reserveNote = DEFAULTS.form.reserveNote;
+    /* 🔴 2026-09-22 2차 — 예약발송 문장은 안내 문구(notices.doneGiftReserve)로 옮겼습니다.
+          여기서 다시 만들어 두면 쓰지도 않는 값이 계속 저장됩니다. 그래서 뺐습니다.
+          ⚠️ 예전에 저장해 두신 값은 fixNotices 가 먼저 읽어서 옮깁니다(순서 중요). */
   }
   const st = c && c.form && c.form.info;
   if(!st || !Array.isArray(st.fields)) return;

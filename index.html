@@ -509,6 +509,23 @@ function richPlain(t){ return esc(t).replace(/\n/g,"<br>")
   .replace(/\{\{([^}]+)\}\}/g,'<b>$1</b>'); }
 
 /* 설정에 그 문구가 있으면 그 글을, 없으면 코드에 적힌 기본 글을 씁니다. */
+/* 🔴 예약발송 안내 (2026-09-22) — 품절이라 나중에 보내는 **사은품**일 때만 나갑니다.
+      ○○ 자리에 서버가 알려 준 시점(예: 10월 중순)이 들어갑니다.
+      ⚠️ 상품권에는 안 나갑니다. 서버가 아예 시점을 안 보냅니다. */
+let RESERVE_NOTE = "신청하신 사은품은 예약발송으로 {{○○}} 입고 예정입니다.\n"
+                 + "입고되는 대로 순차적으로 발송해 드리겠습니다.";
+
+/* 예약발송 안내 상자 — 완료 팝업과 참여 조회에서 같은 모양으로 씁니다 */
+function reserveBox(at, small){
+  if(!at) return "";
+  const pad = small ? "9px 11px" : "11px 13px";
+  const fs  = small ? "12px" : "13px";
+  return '<div style="margin:' + (small ? "8px 0 0" : "2px 0 12px") + ';padding:' + pad
+    + ';background:#fff7e6;border:1px solid #f0e0c0;border-radius:10px;font-size:' + fs
+    + ';color:#8a5a12;line-height:1.65;text-align:left;font-weight:700">\ud83d\udce6 '
+    + rich(fill(RESERVE_NOTE, [at])) + '</div>';
+}
+
 function MSGT(key, fallback){
   const n = CFG && CFG.notices && CFG.notices[key];
   const t = n && typeof n.t === "string" ? n.t.trim() : "";
@@ -669,6 +686,9 @@ function applyConfig(){
       g.fee  ?{fee:g.fee}   :{});      // 착불 / 선불 (관리자 「사은품」 탭에서 정합니다)
   });
   /* 신청 확인 화면 문구 — 설정(안내 문구 탭)에서 고친 값이 있으면 갈아 끼웁니다 (2026-09-14). */
+  /* 예약발송 안내 틀 — 설정(안내 문구 → 접수 완료 · 예약발송 안내)에서 고친 값 (2026-09-22) */
+  if(CFG.reserve && typeof CFG.reserve.reserveNote === "string" && CFG.reserve.reserveNote.trim())
+    RESERVE_NOTE = CFG.reserve.reserveNote;
   if(CFG.confirm){
     const c = CFG.confirm;
     if(c.title)      CONFIRM.title      = c.title;
@@ -1981,6 +2001,10 @@ async function lookupParticipation(){
           const what=e.rewardType==="coupon"?"기프티콘":"사은품";
           h+=`<div style="${MSG}">`
             +MSGH("checkWait","○○에 정상 참여되었습니다.\n○○은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.",[ev,what])
+            /* 🔴 예약발송 제품이면 여기에도 안내합니다 (2026-09-22).
+                  접수한 **뒤에** 품절이 나서 지정된 건은 완료 팝업에 아무것도 안 나갔으므로,
+                  고객이 조회하셨을 때 여기서라도 알려 드려야 합니다. */
+            +reserveBox(e.reserveAt, true)
             +(MSGK("checkWait",true)?kakao:"")+`</div>`;
         }
         return h+`</div>`;}).join("");
@@ -2197,6 +2221,8 @@ async function submit(){
       entry.usedBefore=res.usedBefore||0;
       if(res.orderNo) entry.orderNo=res.orderNo;      // 주문번호는 창구가 원장에서 채워 준다
       if(res.shipFee) entry.shipFee=res.shipFee;      // 착불/선불도 창구가 정한 값을 따른다
+      /* 예약발송 제품이면 「언제 들어오는지」 — 완료 팝업에 씁니다 (2026-09-22) */
+      entry.reserveAt=res.reserveAt||"";
       if(state.product) state.usedByCode[state.product]=(res.usedBefore||0)+(res.giftQty||1);
       showDone(entry,false);
     }
@@ -2255,7 +2281,9 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
         ?`<br><span style="color:#c0392b">`+rich(MSGT("doneLeftShip","※ 접수 건마다 따로 발송되어 배송비(착불)가 각각 부과됩니다."))+`</span>`
         :"")+`</div>`;
   }
-  let kv=head
+  /* 🔴 예약발송 제품이면 서버가 「언제 들어오는지」를 보내 줍니다 (2026-09-22).
+        상품권에는 안 옵니다 — 서버가 아예 안 보냅니다. */
+  let kv=head + reserveBox(e.reserveAt)
     +`<div><b>유형</b> ${review?"포토리뷰 이벤트":"쿠팡·로켓배송 정품 등록"}</div>`
     +`<div><b>제품</b> ${pname}</div>`
     +(e.giftItem?`<div><b>${e.rewardType==="coupon"?"상품권":"사은품"}</b> ${e.giftItem}${q>1?` · ${q}개`:""}</div>`:``)

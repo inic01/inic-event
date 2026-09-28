@@ -752,7 +752,7 @@
 
     <div class="row" style="gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
       <button class="subtab2 active" data-od="src">원장 가져오기</button>
-      <button class="subtab2" data-od="mk" id="odTabMk">마케팅 🔒</button>
+      <button class="subtab2" data-od="mk" id="odTabMk">마케팅 · 사진 내려받기 🔒</button>
       <button class="subtab2" data-od="tool" id="odTabTool">정리·도구 🔒</button>
       <a class="guidelink" href="guide.html" target="_blank" rel="noopener">📘 사용설명서</a>
     </div>
@@ -815,8 +815,10 @@
       </div>
 
       <!-- 사진 내려받기 (2026-09-10 신규) -->
+      <!-- 🔴 2026-09-23 — 관리자 권한이 있는 담당자도 이 메뉴를 못 찾았습니다.
+           탭 이름과 제목에 「사진」을 넣어 눈에 띄게 했습니다. -->
       <div class="panel" style="margin-bottom:14px" id="phPanel">
-        <div class="ph"><h3>리뷰 사진 내려받기</h3>
+        <div class="ph"><h3>📷 리뷰 사진 내려받기 <span style="font-weight:600;font-size:12.5px;color:var(--sub)">— 마케팅 활용 동의 고객</span></h3>
           <a class="helplink" href="guide.html#photos" target="_blank" rel="noopener">사용법</a></div>
         <div class="hint">
           <b>사진·리뷰 마케팅 활용에 동의하신 분</b>의 사진만 받습니다.
@@ -1906,6 +1908,12 @@ function shotNo(e, n){
 }
 function ratingCell(e){
   if(e.aiPersonalRating==null && e.aiRatingPass===undefined) return "-";
+  /* 🔴 2026-09-23 — 별점을 못 읽었는데 그 판매처는 별점이 필수가 아니면 「미확인」입니다.
+        부적합이 아니라 **그냥 안 본 것**이라, 빨간 「미달」과 헷갈리지 않게 회색으로 둡니다. */
+  if(e.aiPersonalRating==null && e.aiRatingRequired===false){
+    return `<span class="pill">미확인</span>`
+         + `<span class="sb"> ${e.aiSource ? cnEsc(e.aiSource) : "판매처"} — 별점 안 봄</span>`;
+  }
   const ok=!!e.aiRatingPass; const rt=(e.aiPersonalRating!=null?e.aiPersonalRating+"점":"?");
   return `<span class="pill ${ok?'eligible':'ineligible'}">${rt} ${ok?'통과':'미달'}</span>`
        + shotNo(e, e.aiRatingShot);
@@ -3253,7 +3261,12 @@ function exportAllRows(){
   return filteredAll().map(e=>({"접수일시":fmtDate(e._date),"유형":TYPE_LABEL[e.type]||e.type,"심사":STATUS_META[shipStatus(e)][0],"출고":SHIP_META[shipStateOf(e)][0],
     "카테고리":e.category||"","제품":e.product||"","보상종류":REWARD_LABEL[e.rewardType]||"","사은품/상품권":e.giftItem||"","판매처":e.source||"",
     "담당자":e.agent||"","주문번호":e.orderNo||"","S/N":e.serial||"","수령인":e.name||"","연락처":e.phone||"","주소":e.address||"",
-    "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"","이미지URL":imgUrlsOf(e).join(" "),"구매내역이미지URL":e.buyImageUrl||"","문서ID":e._id||""}));
+    "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"",
+    /* 🔴 2026-09-23 — 예전에는 주소 3개를 한 칸에 띄어쓰기로 이어 넣었습니다.
+       그러면 엑셀에서 클릭이 안 되고, 복사해도 3개가 통째로 붙어 나와 안 열립니다.
+       한 칸에 주소 하나씩 나눕니다. 1장짜리는 「이미지URL」에만 들어갑니다. */
+    "이미지URL":imgUrlsOf(e)[0]||"","이미지URL2":imgUrlsOf(e)[1]||"","이미지URL3":imgUrlsOf(e)[2]||"",
+    "구매내역이미지URL":e.buyImageUrl||"","문서ID":e._id||""}));
 }
 const DL_ORDER=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["사은품",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주소",e=>e.address||""],["주문번호",e=>e.orderNo||""],["판매처",e=>e.source||""],["문서ID",e=>e._id||""]];
 const DL_ACCT=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["상품권",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["판매처",e=>e.source||""],["문서ID",e=>e._id||""]];
@@ -5947,6 +5960,13 @@ const DEFAULTS = {
   kakaoDefault: "생활가전",
   /* 🔴 메인 카카오 채널 (2026-09-22) — 모든 화면이 이 하나만 씁니다. */
   kakaoMain: "https://pf.kakao.com/_ZxaExfT",
+  /* 🔴 별점을 「필수」로 보는 판매처 (2026-09-23 담당자 결정)
+        스마트스토어는 리뷰 화면에 별점이 **반드시** 나옵니다. 안 보이면 일부러 가린 것이라
+        부적합으로 봅니다. 다른 쇼핑몰은 화면 구조상 안 나올 수 있어 고객 잘못이 아닙니다.
+     ⚠️ 별점이 **보이는데 1~2점**이면 판매처와 상관없이 부적합입니다.
+     ⚠️ 쉼표로 여러 개. 「스마트스토어」 한 단어면 원장의
+        「풀필먼트(스마트스토어)」「스타배송(스마트스토어)」도 함께 걸립니다. */
+  ratingSrcs: "스마트스토어",
   kakao: {
     "생활가전":"http://pf.kakao.com/_PQANG",
     "주방가전":"http://pf.kakao.com/_xeQANG",
@@ -7568,6 +7588,28 @@ function paneNotice(){
         el("br"),
         "비워 두시면 버튼 대신 위 ", el("b", {}, "「채널 주소가 비었을 때」"), " 문구가 나갑니다."))));
 
+  /* 🔴 별점 판매처 (2026-09-23 담당자 결정) */
+  out.push(el("h3", { class:"gtitle" }, "AI 심사 — 별점을 꼭 봐야 하는 판매처"));
+  out.push(el("div", { class:"stack", style:"margin-bottom:12px" },
+    el("div", { class:"ncard" },
+      el("div", { class:"field" },
+        el("label", { for:"ratSrc" }, "별점이 캡처에 안 보이면 부적합으로 볼 판매처"),
+        el("input", { type:"text", id:"ratSrc",
+          value: (typeof cfg.ratingSrcs === "string" ? cfg.ratingSrcs : DEFAULTS.ratingSrcs),
+          placeholder:"스마트스토어", "aria-label":"별점 필수 판매처",
+          oninput:e => { cfg.ratingSrcs = e.target.value; softRefresh(); } })),
+      el("p", { class:"hint", style:"margin:8px 0 0" },
+        el("b", {}, "여기 적힌 판매처"), " — 별점이 캡처에 안 보이면 ",
+        el("b", { style:"color:#c0392b" }, "부적합"), ". (스마트스토어는 리뷰 화면에 별점이 반드시 나오므로, ",
+        "안 보이면 일부러 가린 것으로 봅니다)", el("br"),
+        el("b", {}, "그 밖의 판매처"), " — 별점이 안 보여도 ",
+        el("b", { style:"color:#2c6b3c" }, "통과"), ". (쇼핑몰 화면 구조상 안 나올 수 있어 고객 잘못이 아닙니다)", el("br"), el("br"),
+        "⚠️ ", el("b", {}, "별점이 보이는데 1~2점이면 판매처와 상관없이 부적합"), "입니다.", el("br"),
+        "쉼표로 여러 개 적으실 수 있습니다. ",
+        el("b", {}, "「스마트스토어」"), " 한 단어면 원장의 ",
+        el("b", {}, "「풀필먼트(스마트스토어)」「스타배송(스마트스토어)」"), " 도 함께 걸립니다.", el("br"),
+        "비워 두시면 ", el("b", {}, "어느 판매처도 별점을 필수로 보지 않습니다"), "."))));
+
   return out;
 }
 
@@ -7804,6 +7846,10 @@ function fixFields(c){
         채워 두지 않으면 화면에는 기본값이 보이는데 **저장은 안 되는** 상태가 됩니다.
      ⚠️ 담당자가 **일부러 비운** 값(빈 문자열)은 그대로 둡니다 — 채널을 닫으실 수 있어야 합니다. */
   if(c && typeof c.kakaoMain !== "string") c.kakaoMain = DEFAULTS.kakaoMain;
+  /* 🔴 별점 판매처 (2026-09-23) — 옛 설정에는 이 칸이 없습니다.
+     ⚠️ 담당자가 **일부러 비운** 값(빈 문자열)은 그대로 둡니다
+        — 그러면 어느 판매처도 별점을 필수로 보지 않게 됩니다. */
+  if(c && typeof c.ratingSrcs !== "string") c.ratingSrcs = DEFAULTS.ratingSrcs;
   /* 🔴 예전에 저장된 설정에는 「신청 확인」 문구가 없습니다.
         채워 넣지 않으면 안내 문구 탭에서 칸이 비어 보이고 고칠 수 없습니다(2026-09-14). */
   if(c && c.form){

@@ -2209,7 +2209,7 @@ async function lookupParticipation(){
         if(st.consult){
           // 검수 지연·부적합 등 상담이 필요한 건
           h+=`<div style="${MSG}">`
-            +rich(MSGT("checkConsult","리뷰 검수가 진행 중입니다. 첨부 이미지를 확인하기 어렵거나 중복 참여, 구매 정보 확인이 어려운 경우 이벤트 참여 검수가 지연될 수 있습니다. 처리가 지연되는 경우 아래 채널을 통해 문의해 주세요."))
+            +rich(MSGT("checkConsult","리뷰 검수가 진행 중입니다. 첨부 이미지를 확인하기 어렵거나 중복 참여, 구매 정보 확인이 어려운 경우 이벤트 참여 검수가 지연될 수 있습니다. 처리가 지연되는 경우 아래 채널을 통해 ‘채팅상담’을 선택하여 문의해 주세요."))
             +(MSGK("checkConsult",true)?kakao:"")+`</div>`;
         } else if(st.cls==="ship"){
           /* 🔴 발송 완료 (2026-09-22 담당자 요청)
@@ -2223,8 +2223,8 @@ async function lookupParticipation(){
           const what=cpn?"기프티콘":"사은품";
           const sKey=cpn?"checkShippedCoupon":"checkShipped";
           const sDfl=cpn
-            ? "신청하신 ○○이 {{○○}} 발송되었습니다.\n문자(알림톡)로 보내 드린 번호를 확인해 주세요.\n못 받으셨거나 번호가 안 보이시면 아래 채널을 통해 문의해 주세요."
-            : "신청하신 ○○이 {{○○}} 출고되었습니다.\n택배사 사정에 따라 수령까지 1~3일 정도 걸릴 수 있습니다.\n배송 조회가 필요하시면 아래 채널을 통해 문의해 주세요.";
+            ? "신청하신 ○○이 {{○○}} 발송되었습니다.\n문자(알림톡)로 보내 드린 번호를 확인해 주세요.\n못 받으셨거나 번호가 안 보이시면 아래 채널을 통해 ‘채팅상담’을 선택하여 문의해 주세요."
+            : "신청하신 ○○이 {{○○}} 출고되었습니다.\n택배사 사정에 따라 수령까지 1~3일 정도 걸릴 수 있습니다.\n배송 조회가 필요하시면 아래 채널을 통해 ‘채팅상담’을 선택하여 문의해 주세요.";
           h+=`<div style="${MSG}">`
             +MSGH(sKey, sDfl, [what, shipWhen(e.shippedYmd)])
             +(MSGK(sKey,true)?kakao:"")+`</div>`;

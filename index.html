@@ -170,6 +170,9 @@
   .radio.sel{border-color:var(--brand);background:#f5f2ee}
   .radio input{margin-top:1px;width:17px;height:17px;flex:0 0 auto;accent-color:var(--brand)}
   .radio .cons{display:block;font-size:11px;color:var(--sub);margin-top:1px}
+  /* 수량 선택 — 제목 아래 붙는 설명줄 (2026-09-28 합배송) */
+  .radio .qsub{display:block;font-size:11.5px;color:var(--sub);margin-top:2px;line-height:1.6}
+  .radio .qsub b{color:var(--ink)}
   .chk{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5;cursor:pointer;margin-top:8px}
   .chk input{margin-top:2px;width:17px;height:17px;flex:0 0 auto;accent-color:var(--brand)}
   .err{color:var(--bad);font-size:12px;margin-top:8px;display:none}
@@ -693,7 +696,8 @@ function applyConfig(){
     GIFTS[c]=Object.assign({},cur,
       g.label?{label:g.label}:{},
       g.type ?{type:g.type} :{},
-      g.fee  ?{fee:g.fee}   :{});      // 착불 / 선불 (관리자 「사은품」 탭에서 정합니다)
+      g.fee  ?{fee:g.fee}   :{},       // 착불 / 선불 (관리자 「사은품」 탭에서 정합니다)
+      (Number(g.box)>=1) ? {box:Number(g.box)} : {});   // 합배송 — 한 상자에 몇 개까지 (2026-09-28)
   });
   /* 신청 확인 화면 문구 — 설정(안내 문구 탭)에서 고친 값이 있으면 갈아 끼웁니다 (2026-09-14). */
   /* 🔴 예약발송 문구는 이제 안내 문구 탭 ⑧ 「사은품 · 예약발송일 때」에서 읽습니다.
@@ -949,6 +953,30 @@ function giftOf(code){
 /* 이 제품의 배송비 구분 — 「선불」이라고 적어 둔 제품만 선불, 나머지는 착불. */
 function feeOf(code){ return ((GIFTS[code]||{}).fee==="선불") ? "선불" : "착불"; }
 function isPrepaid(code){ return feeOf(code)==="선불"; }
+
+/* ══════════ 합배송 — 한 상자에 몇 개까지 (2026-09-23 담당자 결정) ══════════
+   🔴 왜 필요한가 — 예전에는 「배송비(착불)는 **한 번만** 발생합니다」라고 약속했습니다.
+      그런데 부피 때문에 창고가 두 박스로 보내면 착불이 **두 번** 나갑니다.
+      약속과 다른 돈을 고객이 내게 되어, 그대로 두면 바로 클레임이 납니다.
+      그래서 **접수하는 그 자리에서** 상자 수와 배송비 횟수를 정확히 알려 드립니다.
+   ⚠️ 관리자 「사은품」 탭에서 사은품마다 정합니다. 못 읽었으면 1(1개씩)로 봅니다.
+   ⚠️ 리포트(report.html)의 boxSplit 과 계산이 **똑같아야** 합니다. 한쪽만 고치지 마세요. */
+function boxCapOf(code){
+  /* 🔴 값이 아예 없으면 0 을 돌려줍니다 = 「모른다」.
+        설정을 못 읽었거나 설정에 없는 코드일 때인데, 이때는 **나누지 않고**
+        예전 문구를 그대로 씁니다. 발주 엑셀도 같은 경우에 안 나누므로,
+        고객에게 한 말과 실제 발송이 어긋나지 않습니다.
+        ※ 담당자가 「안 정함」으로 둔 사은품은 창구가 1 을 내려보냅니다(=합배송 불가). */
+  const n = Number((GIFTS[code]||{}).box);
+  return (n >= 1) ? n : 0;
+}
+function boxSplit(qty, cap){
+  const n = Math.max(1, Number(qty)||1), c = Number(cap)||0;
+  if(c < 1) return [n];          // 상한을 모르면(설정을 못 읽었을 때) 나누지 않습니다 — 예전 그대로
+  const out = []; let left = n;
+  while(left > 0){ const k = Math.min(c, left); out.push(k); left -= k; }
+  return out;
+}
 function rewardType(type,code){
   const g=giftOf(code); if(!g) return "gift";
   if(g.choice){ return (state.giftChoice!=null && g.options[state.giftChoice])?g.options[state.giftChoice].type:"gift"; }
@@ -1550,15 +1578,43 @@ function qtyPickHtml(rw){
   const n=leftQty(), unit=(rw==="gift")?"사은품":"기프티콘";
   /* 선불 제품은 배송비를 안 받으므로 배송비 문장 자체를 빼야 합니다. */
   const showFee = (rw==="gift") && !isPrepaid(state.product);
-  /* 🔴 2026-09-22 — 「합배송이 된다」는 걸 고객이 바로 알 수 있게 제목을 고쳤습니다.
-        A제품을 여러 개 사신 분은 합배송이 되고, A·B 서로 다른 제품은 합배송이 안 됩니다
-        (제품이 다르면 접수 자체가 따로 되므로). 그래서 「나눠서」는 수령자가 다를 때만입니다. */
-  const feeAll  = showFee ? " 배송비(착불)는 <b>한 번만</b> 발생합니다." : "";
-  const feeSplit= showFee ? ' <span style="color:#c0392b">건별로 발송되어 <b>배송비(착불)가 각각 발생</b>합니다.</span>' : "";
+  /* 🔴 2026-09-28 과장님·담당자 확정 문구 (프로토타입 ㉯ 「합친 안」)
+        ① 동사를 「접수하기」로 맞춥니다 — 이 칸은 원래 **접수 방법**을 고르는 자리입니다.
+        ② 제목에 상태를 박습니다 — (합배송) / (배송은 각각)
+        ③ 착불 횟수는 **숫자로 세지 않고** 「각각」·「상자마다」로 말합니다.
+           숫자를 안 세니 틀릴 일이 없고, 고객은 배송비가 여러 번인 것을 압니다.
+        ⚠️ 금액은 적지 않습니다 — 택배비가 바뀌면 화면이 거짓말을 합니다.
+        ⚠️ 고르는 칸 수는 그대로 둘입니다 — 접수가 더 번거로워지면 안 됩니다.
+        ⚠️ 상한을 모르면(cap 0) 예전처럼 「합배송」으로 말합니다. 발주 엑셀도 그때는 안 나눕니다. */
+  const cap   = (rw==="gift") ? boxCapOf(state.product) : 0;      /* 상품권은 배송이 없습니다 */
+  const parts = (cap >= 1) ? boxSplit(n, cap) : [n];
+  const many  = parts.length > 1;
+  const S = t => '<span class="qsub">'+t+'</span>';               /* 제목 아래 작은 설명줄 */
+  const RED = t => '<span style="color:#c0392b">'+t+'</span>';
+  let allHead;
+  if(rw !== "gift"){                       /* 기프티콘 — 배송이 없습니다 */
+    allHead = '<b>한 번에 접수하기</b>'
+      + S('리뷰 1건으로 접수하고 기프티콘 <b>'+n+'개</b>를 보내드립니다.');
+  } else if(cap === 1){                    /* 합배송 불가 사은품 */
+    allHead = '<b>한 번에 접수하기</b> (배송은 각각)'
+      + S('이 사은품은 합배송이 되지 않아 <b>각각 발송</b>'
+          + (showFee ? '되며, '+RED('배송비(착불)도 <b>각각 발생</b>합니다.') : '됩니다.'));
+  } else if(many){                         /* 합배송은 되지만 상한을 넘게 사신 경우 */
+    allHead = '<b>한 번에 접수하기 (합배송)</b>'
+      + S('한 상자에 <b>'+cap+'개</b>까지 담겨 <b>'+parts.length+'개 상자</b>로 나눠 '
+          + (showFee ? '보내드리며, '+RED('배송비(착불)는 <b>상자마다</b> 발생합니다.') : '보내드립니다.'));
+  } else {                                 /* 한 상자로 나갑니다 */
+    allHead = '<b>한 번에 접수하기 (합배송)</b>'
+      + S(unit+' <b>'+n+'개</b>를 <b>한 상자에 묶어</b> 보내드립니다.'
+          + (showFee ? ' 배송비(착불)도 <b>한 번만</b> 발생합니다.' : ''));
+  }
+  const splitHead = '<b>주소를 나눠서 접수하기</b>'
+    + S('<b>받으실 분이 서로 다른 경우에만</b> 선택해 주세요. 먼저 1건 접수하신 뒤 추가로 접수해 주시면 됩니다.'
+        + (showFee ? ' '+RED('건별로 발송되어 <b>배송비(착불)가 각각 발생</b>합니다.') : ''));
   return '<div class="consent" id="qtyPick"><div class="ctitle">'+unit+' 수량 선택<span class="ctag must">필수</span></div>'
     +'<div class="notice" style="margin:6px 0 4px">'+((state.usedQty||0)>0?('구매하신 수량 <b>'+state.buyQty+'개</b> 중 <b>'+n+'개</b>가 남아 있습니다.'):('구매하신 수량이 <b>'+n+'개</b>로 확인되었습니다.'))+' 받으실 방법을 선택해 주세요.'+'</div>'
-    +'<label class="radio"><input type="radio" name="qtym" value="all"><span><b>'+unit+' '+n+'개를 한 번에 받기 (합배송)</b> — 리뷰 1건으로 접수하고 <b>'+n+'개를 한 번에 묶어서</b> 보내드립니다.'+feeAll+'</span></label>'
-    +'<label class="radio"><input type="radio" name="qtym" value="split"><span><b>나눠서 접수하기 (수령자가 다를 때)</b> — <b>받으실 분이 서로 다른 경우에만</b> 선택해 주세요. 먼저 1건 접수하신 뒤 추가로 접수해 주시면 됩니다.'+feeSplit+'</span></label>'
+    +'<label class="radio"><input type="radio" name="qtym" value="all"><span>'+allHead+'</span></label>'
+    +'<label class="radio"><input type="radio" name="qtym" value="split"><span>'+splitHead+'</span></label>'
     +'<div class="err" id="err-qty">받으실 방법을 선택해 주세요.</div></div>';
 }
 function bindQtyPick(){

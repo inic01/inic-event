@@ -1284,6 +1284,21 @@ const pageState={all:1,order:1,acct:1,reserve:1,cs:1,bad:1};
 const TYPE_LABEL={review:"포토리뷰",coupang:"쿠팡 정품등록"};
 const REWARD_LABEL={gift:"사은품",coupon:"상품권"};
 let PRODREWARD={}, SOURCES=[], PNAME={}, dupIds=new Set(), dupReasonMap={};
+/* ══════════ 합배송 (2026-09-23 담당자 결정) ══════════
+   사은품 코드 → **한 상자에 담기는 수량**. 관리자 「사은품」 탭에서 정합니다.
+   🔴 왜 필요한가 — 접수폼이 「배송비(착불)는 한 번만 발생합니다」라고 약속하는데,
+      창고가 부피 때문에 두 박스로 보내면 착불이 두 번 나갑니다. **약속과 다른 돈**을 고객이 냅니다.
+      그래서 상자가 몇 개로 나뉘는지를 **미리 정해 두고** 안내와 발주를 맞춥니다.
+   ⚠️ 못 읽었으면(BOXCAP_OK=false) **나누지 않습니다.** 잘못 나누는 것보다 예전 그대로가 안전합니다. */
+let BOXCAP={}, BOXCAP_OK=false;
+/* 수량을 상자로 나눕니다 — 접수폼(index.html)의 같은 이름 함수와 계산이 **똑같아야** 합니다 */
+function boxSplit(qty, cap){
+  const n=Math.max(1,Number(qty)||1), c=Number(cap)||0;
+  if(c<1) return [n];            // 상한을 모르면(설정을 못 읽었을 때) 나누지 않습니다 — 예전 그대로
+  const out=[]; let left=n;
+  while(left>0){ const k=Math.min(c,left); out.push(k); left-=k; }
+  return out;
+}
 
 function shipStatus(e){
   if(!e.manual && dupIds.has(e._id))return "ineligible";   // 중복 참여 → 부적합
@@ -1466,6 +1481,20 @@ async function loadData(){
     try{const cfg=await db.collection(CONFIG_DOC[0]).doc(CONFIG_DOC[1]).get();reserveProducts=new Set((cfg.exists&&cfg.data().reserveProducts)||[]);
       reserveNote=(cfg.exists&&cfg.data().reserveNote)||{};
       const t=cfg.exists&&cfg.data().reserveUpdatedAt;reserveSavedAt=t&&t.toDate?t.toDate():null;}catch(_){reserveProducts=new Set();}
+    /* 🔴 합배송 설정 (2026-09-23) — 발주 엑셀이 이 값으로 줄을 끊습니다.
+          ⚠️ 관리자 탭의 cfg 는 **그 탭을 열어야만** 채워집니다. 일괄출고는 다른 탭에서 하므로
+             여기서 따로 읽어 둡니다. 못 읽으면 나누지 않습니다(예전 그대로 — 더 안전한 쪽). */
+    try{
+      const d2=await db.collection(EVT_CFG_DOC[0]).doc(EVT_CFG_DOC[1]).get();
+      const raw=(d2.exists&&d2.data().json)?JSON.parse(d2.data().json):null;
+      const m={};
+      (raw&&Array.isArray(raw.products)?raw.products:[]).forEach(p2=>{
+        if(!p2||p2.type==="coupon")return;
+        const n=Number(p2.box), c=(n>=1)?n:1;
+        (Array.isArray(p2.codes)?p2.codes:[]).forEach(c2=>{ if(c2) m[c2]=c; });
+      });
+      BOXCAP=m; BOXCAP_OK=true;
+    }catch(e){ console.warn("합배송 설정을 못 읽었습니다 — 줄을 나누지 않습니다", e); BOXCAP={}; BOXCAP_OK=false; }
     $("#asof").textContent="기준 "+new Date().toLocaleString("ko-KR")+" · 총 "+ALL.length+"건";
     buildCatalog();renderManualSelects();renderReserveConfig();renderActiveTab();
     /* 마케팅 활용 인원도 같이 다시 셉니다.
@@ -3305,11 +3334,24 @@ function aggShipRows(items,feeLabel){
     const orders=[...new Set(grp.map(x=>x.orderNo).filter(Boolean))].join(", ");
     // 수량 = 접수 건들의 사은품 수량 합계 (구매 수량 2개 이상을 한 번에 신청한 건은 giftQty 가 2 이상)
     const qsum=grp.reduce((n,x)=>n+Math.max(1,parseInt(x.giftQty,10)||1),0);
-    const row={"사이트":"사은품","제품군":e.giftItem||"","수량":qsum,"이름":e.name||"",
-      "전화번호1":e.phone||"","전화번호2":"","주소":(e.rewardType==="gift")?(e.address||""):"","배송메세지":"",
-      "운송장번호":"","주문번호":orders,"사방넷":""};
-    row[feeLabel]="";  // 마지막 칸 헤더 = 착불/선불
-    rows.push(row);
+    /* 🔴 합배송 (2026-09-23) — 한 상자에 담기는 수량만큼 **줄을 끊습니다.**
+          예전에는 수량을 합치기만 해서, 5개짜리가 한 줄 「수량 5」로 나갔습니다.
+          부피 때문에 못 담으면 창고가 매번 판단해야 했고, 고객에게 안내한
+          「배송비 한 번」과 실제가 어긋났습니다.
+       ⚠️ 상품권은 배송이 없으므로 나누지 않습니다.
+       ⚠️ 접수 기록은 그대로 1건입니다. 나누는 것은 **이 엑셀뿐**입니다. */
+    /* 🔴 설정에 없는 코드는 **안 나눕니다**(0 = 모른다). 접수폼도 같은 경우에
+          「한 번에 묶어서」라고 말하므로, 말과 실제가 어긋나지 않습니다. */
+    const capRaw = Number(BOXCAP[e.product]);
+    const cap = (BOXCAP_OK && e.rewardType==="gift" && capRaw >= 1) ? capRaw : 0;
+    const parts = (cap >= 1) ? boxSplit(qsum, cap) : [qsum];
+    parts.forEach(q=>{
+      const row={"사이트":"사은품","제품군":e.giftItem||"","수량":q,"이름":e.name||"",
+        "전화번호1":e.phone||"","전화번호2":"","주소":(e.rewardType==="gift")?(e.address||""):"","배송메세지":"",
+        "운송장번호":"","주문번호":orders,"사방넷":""};
+      row[feeLabel]="";  // 마지막 칸 헤더 = 착불/선불
+      rows.push(row);
+    });
   });
   return {rows,flat};
 }
@@ -6017,6 +6059,25 @@ let editRow = null;                 // 지금 고치고 있는 줄 번호
 /* 제품군 이름 맞추기 — 서버(ordersApi)와 같은 방식입니다 */
 const pKey = v => String(v==null?"":v).replace(/\s/g,"").replace(/（/g,"(").replace(/）/g,")").toLowerCase();
 
+/* ══════════ 합배송 (2026-09-23 담당자 결정) ══════════
+   같은 제품을 여러 개 사신 고객에게 **한 상자에 몇 개까지** 담을지 사은품마다 정합니다.
+   🔴 왜 필요한가 — 지금 접수폼은 「배송비(착불)는 **한 번만** 발생합니다」라고 약속합니다.
+      창고가 부피 때문에 두 박스로 보내면 착불이 두 번 나갑니다. **약속과 다른 돈**을 고객이 냅니다.
+      그래서 상자가 몇 개로 나뉘는지를 **접수 시점에 정확히 알려 드리려고** 만든 값입니다.
+   ⚠️ 이 값 하나가 세 곳에서 같이 쓰입니다 — ① 고객 안내 문구 ② 발주 엑셀 줄 나누기 ③ 이 표.
+      한 곳만 고치면 안내와 실제가 어긋납니다.                                        */
+const BOX_OPTS = [
+  { v:1, t:"합배송 불가" }, { v:2, t:"합배송 2개" },
+  { v:3, t:"합배송 3개" },  { v:5, t:"합배송 5개" }
+];
+/* 아직 안 정하신 제품 — 동작은 「합배송 불가」와 같지만, 화면에서는 구분해 보여 줍니다
+   (일부러 불가로 정하신 것과 그냥 안 정하신 것을 담당자가 구분할 수 있어야 합니다) */
+function boxUnset(p){ return !(Number(p && p.box) >= 1); }
+/* 실제로 쓰이는 값 — 안 정했으면 1개씩 */
+function boxCapOf(p){ const n = Number(p && p.box); return (n >= 1) ? n : 1; }
+function boxText(v){ const f = BOX_OPTS.find(o => o.v === Number(v)); return f ? f.t : Number(v) + "개"; }
+/* ⚠️ boxSplit 은 위쪽 스크립트에 있습니다 — 발주 엑셀과 **같은 함수**를 써야 하기 때문입니다. */
+
 function paneGift(){
   const names = cfg.products.map(p => p.ledger.trim());
   /* ⚠️ 예전에는 코드에 박아 둔 옛 목록과 「정확히 같은가」로 비교했습니다.
@@ -6084,7 +6145,22 @@ function paneGift(){
                 el("div", { style:"font-size:11px;color:var(--sub);margin-top:3px" },
                   p.shipFee === "선불"
                     ? "고객 화면에서 배송비 안내가 나가지 않습니다."
-                    : "고객이 착불 발송에 동의해야 접수됩니다."))) ]
+                    : "고객이 착불 발송에 동의해야 접수됩니다."))),
+          /* 🔴 합배송 (2026-09-23) — 같은 제품을 여러 개 사신 고객에게 한 상자에 몇 개까지 담을지.
+                ⚠️ 이 값이 고객 화면 문구와 발주 엑셀 줄 나누기에 **같이** 쓰입니다.
+                   안 정하시면(빈 값) 합배송 불가(1개씩)로 봅니다 — 화면에 노란 줄로 알려 드립니다. */
+          el("td", { class:"tight" }, p.type === "coupon"
+            ? el("span", { style:"color:var(--sub)" }, "해당 없음")
+            : el("div", {},
+                el("select", { "aria-label":"합배송",
+                  onchange:e => { p.box = e.target.value === "" ? "" : Number(e.target.value); softRefresh(); } },
+                  el("option", { value:"", ...(boxUnset(p) ? { selected:"" } : {}) }, "— 안 정함 —"),
+                  ...BOX_OPTS.map(o => el("option", { value:String(o.v),
+                    ...(Number(p.box) === o.v ? { selected:"" } : {}) }, o.t))),
+                el("div", { style:"font-size:11px;color:var(--sub);margin-top:3px" },
+                  boxUnset(p) ? "안 정하시면 1개씩 따로 나갑니다."
+                  : Number(p.box) === 1 ? "1개씩 따로 발송 · 배송비도 각각"
+                  : "한 상자에 " + Number(p.box) + "개까지"))) ]
       : [ el("td", {},
             el("span", { style:"font-weight:700" }, p.ledger || el("span", { style:"color:var(--bad)" }, "(제품군 없음)")),
             dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : "",
@@ -6104,7 +6180,15 @@ function paneGift(){
             ? el("span", { style:"color:var(--sub)" }, "-")
             : el("span", { class:"pill", style: p.shipFee === "선불"
                 ? "background:#e9f0fb;color:#2f6df6" : "background:#f2eeea;color:#6b625b" },
-                p.shipFee === "선불" ? "선불" : "착불")) ];
+                p.shipFee === "선불" ? "선불" : "착불")),
+          /* 합배송 (2026-09-23) */
+          el("td", { class:"tight" }, (!p.gift || p.type === "coupon")
+            ? el("span", { style:"color:var(--sub)" }, "-")
+            : boxUnset(p)
+              ? el("span", { class:"pill", style:"background:#fff3cf;color:#8a6a10" }, "안 정함")
+              : el("span", { class:"pill", style: Number(p.box) === 1
+                  ? "background:#fdecec;color:#b03030" : "background:#e8f5ea;color:#2c6b3c" },
+                  boxText(p.box))) ];
 
     return el("tr", { class: on ? "editing" : "", style:"cursor:pointer",
       onclick:e => {
@@ -6133,10 +6217,25 @@ function paneGift(){
       el("br", {}),
       "사은품을 비워 두면 ", el("b", {}, "이벤트 대상 아님"), " 이 됩니다 — 원장에는 있지만 이벤트를 안 하는 제품입니다. ",
       "제품만 먼저 등록해 두고 나중에 수정으로 채우셔도 됩니다."),
+    /* 🔴 합배송을 아직 안 정한 사은품 알림 (2026-09-23)
+          안 정하면 1개씩 따로 나갑니다 = 착불비가 개수만큼. 빠뜨리시면 안 되는 값이라 눈에 띄게 둡니다. */
+    (function(){
+      const un = cfg.products.filter(p => p && p.gift && p.type !== "coupon" && boxUnset(p));
+      if(!un.length) return el("div", { class:"hint",
+        style:"background:#e8f5ea;border:1px solid #c3e3ca;border-radius:9px;padding:9px 12px;margin:0 0 11px;color:#2c6b3c;font-weight:700" },
+        "✅ 모든 사은품의 합배송을 정하셨습니다.");
+      return el("div", { class:"hint",
+        style:"background:#fff3cf;border:1px solid #e6cf8a;border-radius:9px;padding:10px 12px;margin:0 0 11px;color:#8a6a10;font-weight:700" },
+        "⚠️ 합배송을 아직 안 정하신 사은품이 " + un.length + "개 있습니다 — 지금은 ",
+        el("b", {}, "1개씩 따로(착불도 각각)"), " 나갑니다. ",
+        el("span", { style:"font-weight:600" }, un.map(p => p.gift).join(" · ")));
+    })(),
     el("div", { class:"tablewrap" },
       el("table", {},
         el("thead", {}, el("tr", {},
-          el("th", {}, "제품군"), el("th", {}, "카테고리"), el("th", {}, "사은품"), el("th", {}, "종류"), el("th", {}, "배송비"), el("th", {}, ""))),
+          el("th", {}, "제품군"), el("th", {}, "카테고리"), el("th", {}, "사은품"), el("th", {}, "종류"), el("th", {}, "배송비"),
+          /* 🔴 합배송 (2026-09-23) — 한 상자에 몇 개까지 담기는지. 고객 안내 문구와 발주 엑셀이 이 값을 씁니다. */
+          el("th", {}, "합배송"), el("th", {}, ""))),
         el("tbody", {}, rows))),
     el("div", { class:"row", style:"margin-top:14px" },
       el("button", { class:"btn", type:"button", onclick:() => {

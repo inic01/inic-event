@@ -490,6 +490,25 @@
   #evtCfg summary:hover{color:var(--ink)}
   #evtCfg pre{margin:0; padding:0 15px 15px; overflow-x:auto; font-size:11.5px; line-height:1.65; color:var(--sub)}
 
+  /* ── 부적합 운영 (2026-09-29) ── */
+  .opill{display:inline-block;font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;white-space:nowrap}
+  .opill.g{background:#f4f1ec;color:#6b625c} .opill.ok{background:#e9f8ef;color:#12703d} .opill.y{background:#fdf3e2;color:#8a5a12}
+  .opill.r{background:#fdecee;color:#b3252a} .opill.rr{background:#c0392b;color:#fff} .opill.bl{background:#eaf1fb;color:#1f4e8c}
+  .due{font-weight:700} .due.over{color:#b3252a}
+  tr.other td{background:#fffcf4}
+  .opsbox{border:1.5px solid #ecd29a;background:#fffaf0;border-radius:12px;margin-bottom:12px;overflow:hidden}
+  .opsbox.zero{border-color:#cdeedb;background:#f6fcf8}
+  .opshead{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:10px 13px;cursor:pointer}
+  .opshead b{font-size:13.5px} .opshead .big{color:#b3252a} .opsbox.zero .opshead .big{color:var(--ok)}
+  .opshead .sd{font-size:12px;color:#8a6a3a}
+  .opsbody{padding:0 13px 13px}
+  .ocards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 12px}
+  .ocard{border:1px solid var(--line);border-radius:11px;padding:11px 13px;background:#fff}
+  .ocard .k{font-size:11.5px;color:var(--sub);font-weight:700} .ocard .v{font-size:21px;font-weight:900;margin-top:2px;font-variant-numeric:tabular-nums}
+  .ocard.al{border-color:#f0c9c9;background:#fff7f7} .ocard.al .v{color:#b3252a}
+  .ocard.wt{border-color:#ecd29a;background:#fffaf0} .ocard.wt .v{color:#8a5a12}
+  .rbar{height:9px;border-radius:5px;background:#f0ece8;overflow:hidden;min-width:60px} .rbar i{display:block;height:100%;background:var(--brand,#3f3939)}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -574,17 +593,24 @@
 
   <!-- 부적합 (아웃콜 응대) -->
   <section class="page" id="page-bad">
-    <div class="hint">심사에서 <b>부적합</b>으로 판정된 고객을 한 곳에 모았습니다. 전화 응대(아웃콜) 후 <b>응대상태·결과</b>를 기록하고, 수정에 응하면 <b>출고 승인</b>을 누르세요. (AI가 애매·오류로 판정 못한 건은 각 사은품/상품권 탭의 '확인필요'에 있습니다.)</div>
+    <div class="hint">심사에서 <b>부적합</b>으로 판정된 고객을 한 곳에 모았습니다. 전화 응대(아웃콜) 후 <b>응대상태·처리상태</b>를 기록하고, 수정에 응하면 <b>출고 승인</b>을 누르세요. (AI가 애매·오류로 판정 못한 건은 각 사은품/상품권 탭의 '확인필요'에 있습니다.)<br>
+      <b>경과</b>는 접수일부터 달력 날짜로 센 기다린 시간, <b>기한일</b>은 영업일 3일째(주말·공휴일 제외)입니다. 쿠팡 정품등록은 행을 눌러 <b>S/N 정정</b>을 할 수 있습니다.</div>
+    <!-- 조장에게만 보이는 인콜 확인 상자 -->
+    <div id="badPanelA"></div>
+    <div id="badUnassigned" style="display:none;margin:0 0 10px;padding:9px 13px;border:1.5px solid #f0c9c9;background:#fff7f7;color:#b3252a;border-radius:10px;font-size:12.5px;line-height:1.6"></div>
     <div class="filters">
       <select id="bfReward"><option value="">보상 전체</option><option value="gift">사은품</option><option value="coupon">상품권</option></select>
       <select id="bfReason"><option value="">사유 전체</option><option value="notcap">리뷰 캡처·S/N 사진 아님</option><option value="ratingunread">별점 미확인</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="snmismatch">S/N 불일치</option><option value="snunread">S/N 미확인</option><option value="dup">중복 참여</option></select>
       <select id="bfAgent"><option value="">담당자 전체</option><option value="__none__">미지정</option></select>
-      <select id="bfSort"><option value="date">접수일 순</option><option value="agent">담당자 순</option></select>
+      <select id="bfSort"><option value="wait">경과 긴 순 (오래 기다린 고객부터)</option><option value="due">기한일 순</option><option value="date">접수일 순</option><option value="agent">담당자 순</option></select>
       <input type="text" id="bfSearch" placeholder="이름·연락처·제품 검색">
       <span id="bCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span>
       <span style="flex:1"></span>
+      <span id="bAutoState" style="font-size:12.5px;font-weight:700"></span>
+      <button id="bAutoBtn" class="sm">⚡ 지금 배분</button>
       <button id="dlBad" class="sm">부적합 목록 다운로드</button>
     </div>
+    <div id="bSearchNote" style="display:none;font-size:12.5px;background:#fffaf0;border:1px solid #f0dfbf;color:#8a5a12;border-radius:9px;padding:8px 12px;margin:-2px 0 10px"></div>
     <div class="filters" id="bAssignBar" style="display:none;background:#fff7e6;border:1px solid #f0e0c0;border-radius:9px;padding:9px 11px">
       <b id="bSelCount" style="font-size:12.5px"></b>
       <input id="bAssignTo" list="agentNames" placeholder="상담사 이름 (고르거나 입력)" autocomplete="off" style="min-width:200px">
@@ -995,6 +1021,7 @@
         <button class="tab" role="tab" aria-selected="false" data-t="form">접수폼</button>
         <button class="tab" role="tab" aria-selected="false" data-t="notice">안내 문구</button>
         <button class="tab" role="tab" aria-selected="false" data-t="users">사용자</button>
+        <button class="tab" role="tab" aria-selected="false" data-t="badops">부적합 운영</button>
       </div>
   </div>
 <div class="cols" id="cols">
@@ -1038,6 +1065,8 @@
        ⚠️ 안에 있던 #dump 는 softRefresh() 가 매번 채우던 곳입니다.
           없어도 오류가 나지 않게 softRefresh() 에서 "있으면 채운다"로 바꿔 두었습니다. -->
 </div>
+
+  <div id="admRep" hidden></div>
 
   <div id="admUsers" hidden>
     <div class="panel">
@@ -1131,6 +1160,17 @@
   </div>
 </div>
 
+<!-- 인콜 접수 (상담사 전용) — 고르는 것 없이 버튼 하나 -->
+<div id="opsPop" style="display:none;position:fixed;inset:0;background:rgba(43,39,37,.38);z-index:230;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;border-radius:14px;padding:20px 22px;max-width:440px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.2)">
+    <div style="font-size:16px;font-weight:900;margin-bottom:6px">인콜 접수</div>
+    <div id="opsPopWho" style="font-size:12.5px;color:#5c5551;line-height:1.7;margin-bottom:10px"></div>
+    <div style="font-size:12px;border-radius:9px;padding:8px 11px;margin:0 0 14px;line-height:1.6;background:#fffaf0;border:1px solid #f0dfbf;color:#8a5a12">🟡 조장님 확인 목록에 올라갑니다. 이 건은 <b>처리건에서 빠집니다.</b></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button id="opsPopNo" class="sm">취소</button><button id="opsPopOk" class="sm primary">인콜 접수</button></div>
+  </div>
+</div>
+<div id="opsToast" style="position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#2b2725;color:#fff;font-size:12.5px;font-weight:700;padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .25s;z-index:260;max-width:92vw;text-align:center;pointer-events:none"></div>
+
 <!-- 부적합 상세 (아웃콜 응대 기록) -->
 <div id="detailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:210;align-items:center;justify-content:center;padding:20px" onclick="if(event.target.id==='detailModal')closeDetail()">
   <div style="background:#fff;border-radius:14px;width:min(860px,94vw);max-height:92vh;overflow:auto;padding:18px 20px">
@@ -1177,9 +1217,19 @@
         <!-- 부적합(아웃콜) 전용 : 응대 기록 + 출고 승인 -->
         <div id="dtCallBox">
           <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
-          <label style="font-size:12px;font-weight:800;color:var(--sub);display:block">담당자 <span style="font-weight:600">(고르거나 직접 입력)</span></label>
-          <input id="dtAgent" list="agentNames" placeholder="상담사 이름" autocomplete="off"
-                 style="padding:8px;width:100%;margin-top:4px;box-sizing:border-box">
+          <!-- 🔴 S/N 정정 (2026-09-29) — 쿠팡 정품등록 부적합 건에만 보입니다.
+               고객이 오타를 냈거나 AI 가 못 읽은 번호를 상담사가 사진을 보고 고칩니다. AI 는 다시 돌리지 않습니다. -->
+          <div id="dtSnFix" style="display:none;margin-bottom:10px;padding:11px 12px;border:1px solid #f0dfbf;background:#fffaf0;border-radius:10px">
+            <div style="font-size:12.5px;font-weight:800;margin-bottom:5px">S/N 정정 <span style="font-weight:600;color:var(--sub)">— 왼쪽 사진의 번호를 보고 적어 주세요</span></div>
+            <div id="dtSnFixInfo" style="font-size:12px;line-height:1.7;margin-bottom:8px"></div>
+            <div style="display:flex;gap:6px">
+              <input id="dtSnFixIn" placeholder="사진에 적힌 번호" autocomplete="off" style="flex:1;padding:8px;font-family:ui-monospace,Menlo,monospace;text-transform:uppercase;min-width:0">
+              <button id="dtSnFixBtn" class="sm primary" onclick="snFix()">정정</button>
+            </div>
+            <div id="dtSnFixMsg" style="font-size:12px;font-weight:700;margin-top:7px;line-height:1.65"></div>
+          </div>
+          <label style="font-size:12px;font-weight:800;color:var(--sub);display:block">담당자</label>
+          <div id="dtAgentWrap" style="margin-top:4px"></div>
           <label style="font-size:12px;font-weight:800;color:var(--sub);display:block;margin-top:8px">응대상태</label>
           <select id="dtStatus" style="padding:8px;width:100%;margin-top:4px"></select>
           <label style="font-size:12px;font-weight:800;color:var(--sub);display:block;margin-top:8px">처리상태 <span style="color:#c1121f">*</span></label>
@@ -1345,7 +1395,8 @@ function aiChecklist(e){
   const inp = chkEsc(e.serial || "(미입력)");
   let rows = "";
   /* ① S/N 라벨 사진 */
-  if(!snJudged(e))                  rows += chkRow("na","S/N 라벨","판독 안 함",`고객 입력 ${inp}`);
+  if(e.snFixed)                     rows += chkRow("yes","S/N 라벨","정정됨",`고객 입력 ${chkEsc(e.snFixedFrom||"(미입력)")} → ${inp} · ${chkEsc(e.snFixedBy||"")} 확인`);
+  else if(!snJudged(e))             rows += chkRow("na","S/N 라벨","판독 안 함",`고객 입력 ${inp}`);
   else if(e.aiSerialPhoto===false)  rows += chkRow("no","S/N 라벨","라벨 사진이 아님",`고객 입력 ${inp}`);
   else if(e.aiSerialMatch===true)   rows += chkRow("yes","S/N 라벨","일치",`고객 입력 ${inp} · 사진 ${chkEsc(e.aiSerialInImage||e.serial||"-")}`);
   else if(e.aiSerialMatch===false)  rows += chkRow("no","S/N 라벨","불일치",`고객 입력 ${inp} · 사진 ${chkEsc(e.aiSerialInImage||"-")}`);
@@ -1373,7 +1424,7 @@ const REASON_RULES=[
   {key:"dup",      label:"중복 참여",       hit:e=>!e.manual&&dupIds.has(e._id), text:e=>dupReasonMap[e._id]||"중복 참여"},
   /* solo: 이 사유가 걸리면 단독 표시. 애초에 리뷰 캡처가 아니면 '사진 없음·별점 미달'은 의미가 없음 */
   {key:"notcap",   label:"캡처·사진 아님",  solo:true,
-                   hit:e=>e.aiReviewCapture===false||e.aiSerialPhoto===false,
+                   hit:e=>e.aiReviewCapture===false||(e.aiSerialPhoto===false&&!e.snFixed),
                                                                                  text:e=>e.type==="coupang"?"S/N 라벨 사진 아님":"리뷰 캡처 아님"},
   /* 구매내역 캡처(쿠팡 정품등록의 두 번째 사진) 판독 결과 — 셋 다 부적합 사유 */
   {key:"buynotcap",label:"구매내역 화면 아님", hit:e=>e.aiBuyCapture===false,     text:()=>"구매내역 캡처 아님"},
@@ -1383,9 +1434,9 @@ const REASON_RULES=[
   {key:"abuse",    label:"욕설·비방",       hit:e=>e.aiAbuseFree===false,        text:()=>"욕설·비방"},
   {key:"wrongprod",label:"다른 제품 리뷰",  hit:e=>e.aiProductMatch===false,     text:()=>"다른 제품 리뷰"},
   {key:"photo",    label:"사진 없음",       hit:e=>e.aiPhotoPass===false,        text:()=>"사진 없음"},
-  {key:"snmismatch",label:"S/N 불일치",     hit:e=>e.aiSerialMatch===false,      text:()=>"S/N 불일치"},
+  {key:"snmismatch",label:"S/N 불일치",     hit:e=>e.aiSerialMatch===false&&!e.snFixed, text:()=>"S/N 불일치"},
   /* 라벨 사진은 맞는데 글자를 못 읽음 → 대조 불가 → 부적합(재촬영 안내) */
-  {key:"snunread", label:"S/N 미확인",      hit:e=>e.type==="coupang"&&e.aiSerialPhoto!==false&&e.aiSerialInImage===null&&e.aiSerialMatch!==true,
+  {key:"snunread", label:"S/N 미확인",      hit:e=>e.type==="coupang"&&!e.snFixed&&e.aiSerialPhoto!==false&&e.aiSerialInImage===null&&e.aiSerialMatch!==true,
                                                                                  text:()=>"S/N 미확인 (라벨 판독 불가)"},
   /* 리뷰 화면은 맞는데 별점이 캡처에 안 잡힘 → 조건 확인 불가 → 부적합 */
   {key:"ratingunread",label:"별점 미확인",  hit:e=>e.type==="review"&&e.aiRatingPass===false&&e.aiPersonalRating==null&&shipStatus(e)!=="review",
@@ -1558,7 +1609,7 @@ function computeDups(){
       const nm    = String(e.name||"").trim(), addr = String(e.address||"").trim();
       return { prod, phone, nm, addr,
                kP: prod+"|"+phone, kNA: prod+"|"+nm+"|"+addr,
-               kS: String(e.serial||"").trim().toLowerCase(),
+               kS: snKey(e.serial),
                cap: Math.max(1, parseInt(e.buyQty,10) || 1),
                q:   Math.max(1, parseInt(e.giftQty,10) || 1) };
     };
@@ -2011,8 +2062,17 @@ window.setShipState=setShipState;
 async function setOverride(id,val){
   try{
     const db=await initFirebase();
-    await db.collection(COLLECTION).doc(id).update({overrideEligible:val});
-    const e=ALL.find(x=>x._id===id);if(e)e.overrideEligible=val;
+    const F=firebase.firestore.FieldValue;
+    /* 🔴 승인한 사람·시각을 남깁니다(2026-09-29) — 월별 처리 리포트의 「완료」 기준이 출고 승인이기 때문입니다.
+          승인을 취소하면 기록도 같이 지웁니다. */
+    const at=firebase.firestore.Timestamp.now(), by=(ME&&ME.name)||"", byUid=(ME&&ME.uid)||"";
+    await db.collection(COLLECTION).doc(id).update(val
+      ? {overrideEligible:true, approvedAt:at, approvedBy:by, approvedByUid:byUid}
+      : {overrideEligible:false, approvedAt:F.delete(), approvedBy:F.delete(), approvedByUid:F.delete()});
+    const e=ALL.find(x=>x._id===id);
+    if(e){ e.overrideEligible=val;
+      if(val){ e.approvedAt=at; e.approvedBy=by; e.approvedByUid=byUid; }
+      else { delete e.approvedAt; delete e.approvedBy; delete e.approvedByUid; } }
     renderActiveTab();
   }catch(err){alert("출고 승인 처리 실패: "+(err.message||err));}
 }
@@ -2186,59 +2246,100 @@ function badBase(){
 }
 function badRows(){
   const rw=$("#bfReward").value, rs=$("#bfReason").value, q=$("#bfSearch").value;
-  const ag=($("#bfAgent")&&$("#bfAgent").value)||"", sort=($("#bfSort")&&$("#bfSort").value)||"date";
+  const ag=($("#bfAgent")&&$("#bfAgent").value)||"", sort=($("#bfSort")&&$("#bfSort").value)||"wait";
+  /* 🔴 검색어가 있으면 담당자 필터를 무시하고 전체에서 찾습니다 (2026-09-29).
+        상담사 화면은 처음에 「나」로 걸려 있어서, 다른 사람 건을 검색해도 안 나왔습니다.
+        인콜 전화는 남의 건일 수 있으므로 검색은 언제나 전체에서 합니다. */
+  const searching=!!String(q||"").trim();
+  const me=opsMe();
   const out=badBase().filter(e=>{
     if(rw&&e.rewardType!==rw)return false;
     if(rs&&badReasonType(e)!==rs)return false;
-    if(ag==="__none__" && e.agent)return false;
-    if(ag && ag!=="__none__" && e.agent!==ag)return false;
+    if(!searching){
+      if(ag==="__me__"){ if(e.agent!==me)return false; }
+      else if(ag==="__none__"){ if(e.agent)return false; }
+      else if(ag && e.agent!==ag)return false;
+    }
     if(!matchSearch(e,q))return false;
     return true;
   });
+  const t=e=>e._date?e._date.getTime():0;
   if(sort==="agent"){
     /* 미지정이 먼저 오게 — 배정해야 할 것이 위로 */
     out.sort((a,b)=>{
       const x=a.agent||"", y=b.agent||"";
-      if(x===y) return (b._date?.getTime()||0)-(a._date?.getTime()||0);
+      if(x===y) return t(a)-t(b);
       if(!x) return -1;
       if(!y) return 1;
-      return x.localeCompare(y);
+      return x.localeCompare(y,"ko");
     });
+  } else if(sort==="due"){
+    out.sort((a,b)=>(a._date?dueIdxOf(a._date):0)-(b._date?dueIdxOf(b._date):0)||t(a)-t(b));
+  } else if(sort==="date"){
+    out.sort((a,b)=>t(b)-t(a));
+  } else {
+    out.sort((a,b)=>t(a)-t(b));            /* 경과 긴 순 = 접수가 오래된 것부터 */
   }
   return out;
 }
-/* 응대상태 — 고객에게 어떻게 닿았는지 (2026-09-14 담당자 확정) */
-const CALL_STATES=["","부재중","통화완료","문자 발송완료"];
+/* 응대상태 — 고객에게 어떻게 닿았는지 (2026-09-14 담당자 확정)
+   🔴 「문자 발송완료」는 없앴습니다(2026-09-29) — 연락이 닿았느냐가 아니라 어떻게 처리했느냐라서 처리상태로 옮겼습니다.
+      옛 건에 이미 저장된 값은 그대로 보입니다. */
+const CALL_STATES=["","부재중","통화완료"];
 /* 처리상태 — 고객이 뭐라고 했는지. 출고 승인을 누르려면 반드시 선택해야 한다.
    🔴 「기타」를 고르면 결과메모를 반드시 적어야 합니다 (왜 기타인지 안 남으면 나중에 알 수 없습니다). */
-const CALL_RESULTS=["","수정 동의","수정 미동의","삭제 동의","기타"];
+const CALL_RESULTS=["","수정 동의","수정 미동의","삭제 동의","문자발송","기타"];
 const CALL_MEMO_REQUIRED = "기타";        // 이걸 고르면 결과메모 필수
 const CALL_COLOR={"부재중":"wait","통화완료":"eligible","문자 발송완료":"wait"};
 function callBadge(e){const s=e.callStatus||"";
   if(!s)return '<span class="pill wait">미응대</span>';
   return `<span class="pill ${CALL_COLOR[s]||"wait"}">${s}</span>`;}
-const BAD_COLS=[
-  ["<input type='checkbox' id='bChkAll'>",e=>`<input type="checkbox" class="bchk" data-id="${e._id}" onclick="event.stopPropagation()">`],
-  ["접수일자",e=>fmtDate(e._date)],
-  ["담당자",e=>'<input class="bagent" data-id="'+e._id+'" list="agentNames" value="'+admEsc(e.agent||"")+'"'
-    +' placeholder="미지정" autocomplete="off" onclick="event.stopPropagation()"'
-    +' title="상담사를 고르거나 직접 입력하세요"'
-    +' style="width:118px;padding:5px 7px;border:1px solid '+(e.agent?"var(--line)":"#e6c98a")+';border-radius:7px;'
-    +'font-size:12.5px;font-weight:700;background:'+(e.agent?"#fff":"#fff7e6")+'">'],
-  ["수령인",e=>e.name||"-"],
-  ["연락처",e=>cell(e,"phone")],
-  ["사은품/상품권",e=>e.giftItem||"-"],
-  ["사유",e=>reasonOf(e)||"-"],
-  ["이미지",e=>imgBtn(e)],
-  ["응대상태",e=>callBadge(e)],["처리상태",e=>e.callResult||"-","wrapcell"],
-  ["출고승인",e=>`<button class="sm primary" onclick="event.stopPropagation();setOverride('${e._id}',true)">출고 승인</button>`]];
+/* 경과 · 기한일 칸 */
+function elapsedHtml(e){
+  const n=Math.max(0,waitDaysOf(e));
+  return n>=3?'<span class="opill rr">D+3 이상</span>':n===2?'<span class="opill y">D+2</span>':'<span class="opill g">D+'+n+'</span>';
+}
+function waitDaysOf(e){ return e._date ? opsTodayIdx()-kstIdx(e._date) : 0; }
+function dueHtml(e){
+  if(!e._date) return "-";
+  const di=dueIdxOf(e._date), over=opsTodayIdx()>di;
+  return '<span class="due'+(over?" over":"")+'">'+fmtIdx(di)+(over?" ⚠":"")+'</span>';
+}
+function badCols(){
+  const cols=[];
+  if(opsCanMove()) cols.push(["<input type='checkbox' id='bChkAll'>",e=>`<input type="checkbox" class="bchk" data-id="${e._id}" onclick="event.stopPropagation()">`]);
+  cols.push(
+    ["접수일자",e=>fmtDate(e._date)],
+    ["경과",e=>elapsedHtml(e)],
+    ["기한일",e=>dueHtml(e)],
+    ["담당자",e=>opsAgentSel(e)+opsAgentTag(e)],
+    ["수령인",e=>e.name||"-"],
+    ["연락처",e=>cell(e,"phone")],
+    ["사은품/상품권",e=>e.giftItem||"-"],
+    ["사유",e=>reasonOf(e)||"-"],
+    ["이미지",e=>imgBtn(e)],
+    ["응대상태",e=>callBadge(e)],["처리상태",e=>e.callResult||"-","wrapcell"],
+    ["출고승인",e=>`<button class="sm primary" onclick="event.stopPropagation();setOverride('${e._id}',true)">출고 승인</button>`]);
+  return cols;
+}
 function renderBad(){
   refreshAgentFilter();
   const all=badRows(),rows=slice(all,"bad");
+  const cols=badCols();
   $("#bCount").textContent="총 "+all.length+"건";
-  $("#tableBad thead").innerHTML="<tr>"+BAD_COLS.map(c=>`<th>${c[0]}</th>`).join("")+"</tr>";
-  $("#tableBad tbody").innerHTML=rows.map(e=>`<tr class="clickrow" onclick="openDetail('${e._id}')">`+BAD_COLS.map(c=>`<td>${c[1](e)}</td>`).join("")+"</tr>").join("");
-  $("#emptyBad").style.display=all.length?"none":"block";pager("#pagerBad",all.length,"bad");
+  $("#tableBad thead").innerHTML="<tr>"+cols.map(c=>`<th>${c[0]}</th>`).join("")+"</tr>";
+  $("#tableBad tbody").innerHTML=rows.map(e=>`<tr class="clickrow${e.agent&&e.agent!==opsMe()&&$("#bfSearch").value.trim()?" other":""}" onclick="openDetail('${e._id}')">`+cols.map(c=>`<td>${c[1](e)}</td>`).join("")+"</tr>").join("");
+  const searching=!!$("#bfSearch").value.trim();
+  const em=$("#emptyBad");
+  em.textContent=searching?"「"+$("#bfSearch").value.trim()+"」(으)로 찾은 건이 없습니다.":"이 조건에 맞는 부적합 건이 없습니다.";
+  em.style.display=all.length?"none":"block";pager("#pagerBad",all.length,"bad");
+  /* 미배정 경고 · 지금 배분 · 일괄 배정 상자는 역할에 맞게 */
+  const un=badBase().filter(e=>!e.agent).length;
+  const w=$("#badUnassigned");
+  if(w){ w.style.display=un?"":"none"; w.innerHTML="⚠️ 아직 배정되지 않은 건 <b>"+un+"건</b>"+(opsCanMove()?" — 오른쪽 <b>⚡ 지금 배분</b>을 누르면 나눠집니다":""); }
+  const ab=$("#bAutoBtn"); if(ab) ab.style.display=opsCanMove()?"":"none";
+  if(!opsCanMove()) $("#bAutoState").textContent="";
+  renderPanelA();
   badBindChecks();
 }
 async function saveCall(id,obj){
@@ -2308,6 +2409,7 @@ function openDetail(id, readOnly){
   $("#dtReason").style.color = isBad ? "var(--bad,#c0392b)" : "var(--sub)";
 
   $("#dtCallBox").style.display = (isBad && !RO) ? "" : "none";
+  snFillBox(e, e.type==="coupang" && isBad && !RO);      /* S/N 정정 상자 — 쿠팡 정품등록 부적합 건에만 */
   $("#dtInfoBox").style.display = (isBad && !RO) ? "none" : "";
   if(isBad && RO){
     /* 전체 탭에서 부적합 건을 연 경우 — 내용만 보여 주고 기록은 못 하게 합니다 */
@@ -2410,9 +2512,12 @@ function openDetail(id, readOnly){
       +(e.aiBuyErrorDetail?`<div style="color:var(--sub);margin-top:4px">원인: ${esc(String(e.aiBuyErrorDetail).slice(0,180))}</div>`:"");
     if(brow&&bcell){ bcell.innerHTML=lines; brow.style.display=""; }
   } else if(brow){ brow.style.display="none"; if(bcell) bcell.innerHTML="-"; }
-  $("#dtAgent").value = e.agent || "";
-  $("#dtStatus").innerHTML=CALL_STATES.map(o=>`<option value="${o}" ${o===(e.callStatus||"")?"selected":""}>${o||"— 응대상태 선택 —"}</option>`).join("");
-  $("#dtResult").innerHTML=CALL_RESULTS.map(o=>`<option value="${o}" ${o===(e.callResult||"")?"selected":""}>${o||"— 처리상태 선택 —"}</option>`).join("");
+  opsFillDetailAgent();
+  /* 옛 건에 이미 저장된 값(예: 「문자 발송완료」)이 목록에서 사라지지 않게 그 건에만 남겨 둡니다 */
+  const _stL=CALL_STATES.includes(e.callStatus||"")?CALL_STATES:CALL_STATES.concat([e.callStatus]);
+  const _rsL=CALL_RESULTS.includes(e.callResult||"")?CALL_RESULTS:CALL_RESULTS.concat([e.callResult]);
+  $("#dtStatus").innerHTML=_stL.map(o=>`<option value="${o}" ${o===(e.callStatus||"")?"selected":""}>${o||"— 응대상태 선택 —"}</option>`).join("");
+  $("#dtResult").innerHTML=_rsL.map(o=>`<option value="${o}" ${o===(e.callResult||"")?"selected":""}>${o||"— 처리상태 선택 —"}</option>`).join("");
   syncApproveBtn();
   $("#dtMemo").value=e.callMemo||"";
   syncApproveBtn();          /* 「기타」 안내·승인 단추 상태를 열 때 바로 맞춥니다 */
@@ -4343,7 +4448,7 @@ $$(".subtab").forEach(t=>t.addEventListener("click",()=>{const sub=t.dataset.sub
 $("#rSearch").addEventListener("input",reset("reserve",renderReserve));
 ["#bfReward","#bfReason"].forEach(s=>$(s).addEventListener("change",reset("bad",renderBad)));
 $("#bfSearch").addEventListener("input",reset("bad",renderBad));
-const DL_BAD=[["접수일시",e=>fmtDate(e._date)],["담당자",e=>e.agent||""],["보상",e=>REWARD_LABEL[e.rewardType]||""],["제품",e=>e.product||""],["사은품/상품권",e=>e.giftItem||""],["사유",e=>reasonOf(e)],["응대상태",e=>e.callStatus||""],["처리상태",e=>e.callResult||""],["결과메모",e=>e.callMemo||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["주소",e=>e.address||""],["문서ID",e=>e._id||""]];
+const DL_BAD=[["접수일시",e=>fmtDate(e._date)],["경과(일)",e=>waitDaysOf(e)],["기한일",e=>e._date?idxYmd(dueIdxOf(e._date)):""],["담당자",e=>e.agent||""],["인콜",e=>e.inCall===true?(e.inCallOk===true?"인콜(확인)":"인콜(확인 전)"):""],["보상",e=>REWARD_LABEL[e.rewardType]||""],["제품",e=>e.product||""],["사은품/상품권",e=>e.giftItem||""],["사유",e=>reasonOf(e)],["응대상태",e=>e.callStatus||""],["처리상태",e=>e.callResult||""],["결과메모",e=>e.callMemo||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["주소",e=>e.address||""],["문서ID",e=>e._id||""]];
 $("#dlBad").addEventListener("click",()=>dlPlain(badRows(),DL_BAD,"아이닉_부적합_아웃콜목록"));
 $("#csBtn").addEventListener("click",reset("cs",renderCS));
 $("#csSearch").addEventListener("input",reset("cs",renderCS));
@@ -4626,6 +4731,7 @@ function finishEnter(){
   applyTabsForRole();
   applyDownloadsForRole();
   const ma=$("#mAgent"); if(ma) ma.value = ME.name || "";     // 수기접수 담당자 = 로그인한 사람
+  opsFilterInit=false; loadBadOps();                          // 부적합 운영 설정(조장 표시·배분 명단·고정 규칙)
   loadStaff();
   /* 마케팅·정리도구 소탭은 고객 이메일·연락처가 그대로 나가므로 관리자만 봅니다(2026-09-10). */
   const _m = ME.role==="master";
@@ -4657,7 +4763,7 @@ function scheduleNightLogout(){
 async function doLogout(msg){
   clearTimeout(nightTimer); clearInterval(claimTimer);
   try{ await firebase.auth().signOut(); }catch(_){}
-  ME=null; window._db=null; ALL=[];
+  ME=null; window._db=null; ALL=[]; OPS={members:[],leaders:[],fixed:Object.assign({},OPS_FIXED_DFLT),loaded:false}; opsFilterInit=false;
   $("#mainWrap").style.visibility="hidden";
   $("#whoBox").style.display="none";
   $$("#tabs .tab").forEach(t=>{ t.style.display = t.dataset.tab==="admin" ? "none" : ""; });
@@ -4680,7 +4786,7 @@ async function admRender(){
   const r = await admApi({action:"list"}, true);
   if(!r.ok){ box.innerHTML='<div class="empty">'+admEsc(agMsg(r.reason))+'</div>'; return; }
   box.innerHTML='<table class="data"><thead><tr>'
-    +'<th>이름</th><th>이메일</th><th>역할</th><th>상태</th><th>마지막 접속</th><th>관리</th>'
+    +'<th>이름</th><th>이메일</th><th>역할</th><th title="조장으로 지정하면 부적합 탭 맨 위에 인콜 확인 상자가 보이고, 담당자를 창 없이 바꿀 수 있습니다">조장</th><th title="끄면 자동 배분에서 건너뜁니다 (휴가 등)">배분 받음</th><th>상태</th><th>마지막 접속</th><th>관리</th>'
     +'</tr></thead><tbody>'
     + r.list.map(u=>{
         const state = !u.active ? '<span style="color:#c1121f;font-weight:700">중지</span>'
@@ -4690,6 +4796,8 @@ async function admRender(){
         return '<tr><td>'+(me?'<b>마스터 계정</b>':admEsc(u.name))+'</td>'
           +'<td>'+admEsc(u.email)+'</td>'
           +'<td>'+(me?'<b>'+admEsc(ROLE_LABEL[u.role]||"")+'</b>':roleSelectHtml(u.uid,u.role))+'</td>'
+          +'<td style="text-align:center">'+(u.role==="agent"?'<input type="checkbox" data-opsl="'+u.uid+'"'+((OPS.leaders||[]).includes(u.uid)?" checked":"")+'>':'-')+'</td>'
+          +'<td style="text-align:center">'+(u.role==="agent"?'<input type="checkbox" data-opsm="'+u.uid+'" data-n="'+admEsc(u.name)+'"'+(((OPS.members||[]).find(m=>m.uid===u.uid)||{on:true}).on!==false?" checked":"")+'>':'-')+'</td>'
           +'<td>'+state+'</td>'
           +'<td>'+(u.lastLoginAt?new Date(u.lastLoginAt).toLocaleString("ko-KR"):"-")+'</td>'
           +'<td style="white-space:nowrap">'
@@ -4702,6 +4810,18 @@ async function admRender(){
   box.querySelectorAll("button[data-a]").forEach(b=>b.addEventListener("click",()=>admAct(b.dataset)));
   box.querySelectorAll("select[data-a]").forEach(sel=>sel.addEventListener("change",()=>
     admAct({a:"role", u:sel.dataset.u, v:sel.value})));
+  box.querySelectorAll("input[data-opsl]").forEach(c=>c.addEventListener("change",async()=>{
+    c.disabled=true;
+    try{ await opsSetLeader(c.dataset.opsl, c.checked); }
+    catch(err){ c.checked=!c.checked; alert("조장 표시를 저장하지 못했습니다: "+(err.message||err)); }
+    c.disabled=false;
+  }));
+  box.querySelectorAll("input[data-opsm]").forEach(c=>c.addEventListener("change",async()=>{
+    c.disabled=true;
+    try{ await opsSetMember(c.dataset.opsm, c.checked); }
+    catch(err){ c.checked=!c.checked; alert("배분 설정을 저장하지 못했습니다: "+(err.message||err)); }
+    c.disabled=false;
+  }));
   loadStaff();          // 사람이 늘거나 빠지면 담당자 명단도 같이 갱신
   lgLoad();
 }
@@ -4880,12 +5000,114 @@ async function admReadFile(f){
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   담당자 배정 — 부적합(아웃콜) · 수기접수
+   담당자 배정 · 인콜 · 조장 확인 — 부적합(아웃콜) · 수기접수   (2026-09-29 개편)
    상담사 명단은 로그인 창구(adminApi)에서 받아옵니다.
+
+   ▣ 누가 무엇을 하나
+     · 상담사 : 본인 앞으로만 바꿀 수 있습니다. 남의 건을 내 앞으로 → [인콜 접수] 버튼 하나.
+                조장 확인 목록에 올라가고, 이 건은 「처리건」에서 빠집니다.
+     · 조장·관리자 : 창 없이 바로 바꿉니다 = 업무 조정 (처리건에 셈).
+     · 조장 : 부적합 탭 맨 위에 「인콜 확인」 상자가 보입니다. [확인] 한 번.
+     · QA·발주·회계 : 볼 수만 있습니다.
+   ▣ 조장은 시스템 역할이 아니라 「상담사 + 조장 표시」입니다.
+     표시는 eventConfig/badOps 의 leaders(uid 목록)에 있습니다. 관리자 탭 → 사용자 목록에서 켭니다.
+     (adminApi 를 고치지 않으려는 선택입니다 — 역할 종류가 늘면 로그인 창구도 고쳐야 합니다.)
    ══════════════════════════════════════════════════════════════════════ */
 let STAFF = [], AGENTS = [], badSel = new Set();
 
-/* 담당자 배정 대상은 **상담사만** 입니다. */
+const OPS_DOC = ["eventConfig", "badOps"];
+const OPS_DEL = { __del: 1 };                    // 「이 칸을 지운다」 표시
+const OPS_FIXED_DFLT = { on:true, srcs:"스마트스토어", maxRating:2, agentName:"김지현" };
+let OPS = { members:[], leaders:[], fixed:Object.assign({}, OPS_FIXED_DFLT), loaded:false };
+let opsFilterInit = false;
+const opsUI = { open:true, view:"wait" };
+
+/* ── 날짜 : 경과(달력일)와 기한일(영업일 D+3) ──
+   경과 = 접수일부터 달력 날짜 (주말·공휴일 포함) — 고객이 기다린 시간
+   기한 = 영업일 D+3 (주말·공휴일 제외)            — 우리가 처리해야 하는 날
+   ⚠️ 공휴일은 코드에 박아 둔 목록입니다. 2027년 12월까지이며, 그 뒤는 주말만 뺍니다.
+      임시공휴일이 생기면 아래 목록에 날짜를 한 줄 더하세요. */
+const OPS_HOLIDAYS = [
+  "2026-01-01","2026-02-16","2026-02-17","2026-02-18","2026-03-01","2026-03-02","2026-05-01","2026-05-05",
+  "2026-05-24","2026-05-25","2026-06-03","2026-06-06","2026-07-17","2026-08-15","2026-08-17",
+  "2026-09-24","2026-09-25","2026-09-26","2026-10-03","2026-10-05","2026-10-09","2026-12-25",
+  "2027-01-01","2027-02-06","2027-02-07","2027-02-08","2027-02-09","2027-03-01","2027-05-01","2027-05-03",
+  "2027-05-05","2027-05-13","2027-06-06","2027-07-17","2027-07-19","2027-08-15","2027-08-16",
+  "2027-09-14","2027-09-15","2027-09-16","2027-10-03","2027-10-04","2027-10-09","2027-10-11",
+  "2027-12-25","2027-12-27"
+];
+const DAY_MS = 86400000;
+const WD_KO = ["일","월","화","수","목","금","토"];
+const kstIdx = d => Math.floor((d.getTime() + 9*3600000) / DAY_MS);          // 한국 날짜 번호
+const idxYmd = i => new Date(i * DAY_MS).toISOString().slice(0, 10);
+function isOffIdx(i){
+  const w = new Date(i * DAY_MS).getUTCDay();
+  return w === 0 || w === 6 || OPS_HOLIDAYS.includes(idxYmd(i));
+}
+function dueIdxOf(d, n){
+  let i = kstIdx(d), left = (n == null ? 3 : n);
+  while(left > 0){ i++; if(!isOffIdx(i)) left--; }
+  return i;
+}
+function fmtIdx(i){ const k = new Date(i * DAY_MS); return (k.getUTCMonth()+1) + "/" + k.getUTCDate() + "(" + WD_KO[k.getUTCDay()] + ")"; }
+const opsTodayIdx = () => kstIdx(new Date());
+const opsYmOf = d => d ? new Date(d.getTime() + 9*3600000).toISOString().slice(0, 7) : "";
+const opsMonthOf = e => e.assignMonth || opsYmOf(e._date);
+const tsDate = v => !v ? null : (v.toDate ? v.toDate() : (v instanceof Date ? v : (typeof v === "number" ? new Date(v) : null)));
+function opsMD(d){ if(!d) return "-"; const k = new Date(d.getTime() + 9*3600000); return (k.getUTCMonth()+1) + "/" + k.getUTCDate() + " " + String(k.getUTCHours()).padStart(2,"0") + ":" + String(k.getUTCMinutes()).padStart(2,"0"); }
+
+/* ── 누구인가 ── */
+function opsMe(){ return (ME && ME.name) || ""; }
+function opsRole(){
+  const r = (ME && ME.role) || "agent";
+  if(r === "master") return "master";
+  if(r === "agent")  return (OPS.leaders || []).includes(ME && ME.uid) ? "lead" : "agent";
+  return "other";
+}
+const opsCanMove = () => ["master","lead"].includes(opsRole());
+function opsIsLeaderName(n){ const a = AGENTS.find(x => x.name === n); return !!(a && (OPS.leaders || []).includes(a.uid)); }
+
+/* ── 설정 읽기·쓰기 (eventConfig/badOps) ── */
+async function loadBadOps(){
+  try{
+    const db = await initFirebase();
+    const d = await db.collection(OPS_DOC[0]).doc(OPS_DOC[1]).get();
+    const v = d.exists ? d.data() : {};
+    OPS = {
+      members: Array.isArray(v.members) ? v.members : [],
+      leaders: Array.isArray(v.leaders) ? v.leaders : [],
+      fixed:   Object.assign({}, OPS_FIXED_DFLT, v.fixed || {}),
+      loaded:  true
+    };
+  }catch(err){ console.warn("부적합 운영 설정을 못 읽었습니다(기본값으로 동작)", err); OPS.loaded = true; }
+  try{ if(curTab === "bad") renderBad(); }catch(_){}
+}
+async function opsSaveCfg(part){
+  const db = await initFirebase();
+  await db.collection(OPS_DOC[0]).doc(OPS_DOC[1]).set(
+    Object.assign({}, part, { updatedAt: firebase.firestore.FieldValue.serverTimestamp(), by: opsMe() }), { merge:true });
+}
+/* 서버(자동 배분)는 상담사 명단을 adminApi 에서 못 받으므로, 여기서 한 부 적어 둡니다. 관리자가 열 때 맞춥니다. */
+async function opsSyncMembers(){
+  if(!ME || ME.role !== "master" || !AGENTS.length) return;
+  const prev = new Map((OPS.members || []).map(m => [m.uid, m]));
+  const next = AGENTS.map(a => ({ uid:a.uid, name:a.name, on: prev.has(a.uid) ? prev.get(a.uid).on !== false : true }));
+  const sig = l => JSON.stringify(l.map(m => [m.uid, m.name, m.on !== false]).sort());
+  if(sig(next) === sig(OPS.members || [])) return;
+  try{ await opsSaveCfg({ members:next }); OPS.members = next; }
+  catch(err){ console.warn("배분 명단을 저장하지 못했습니다", err); }
+}
+async function opsSetMember(uid, on){
+  await opsSyncMembers();                                   // 명단이 통째로 있어야 서버가 빠진 사람을 놓치지 않습니다
+  const list = (OPS.members || []).map(m => m.uid === uid ? Object.assign({}, m, { on }) : m);
+  await opsSaveCfg({ members:list }); OPS.members = list;
+}
+async function opsSetLeader(uid, on){
+  const s = new Set(OPS.leaders || []); if(on) s.add(uid); else s.delete(uid);
+  const list = [...s];
+  await opsSaveCfg({ leaders:list }); OPS.leaders = list;
+}
+
 async function loadStaff(){
   const r = await admApi({action:"staff"}, true);
   STAFF  = (r && r.ok && r.list) ? r.list : [];
@@ -4893,12 +5115,195 @@ async function loadStaff(){
   const dl=$("#agentNames");
   if(dl) dl.innerHTML = AGENTS.map(x=>'<option value="'+admEsc(x.name)+'">').join("");
   refreshAgentFilter();
+  opsSyncMembers();
+}
+
+/* ── 자동 배분 : 고를 사람 정하기 (서버 index.js 의 pickAgent 와 똑같아야 합니다) ──
+   ① 고정 규칙 : 판매처에 지정한 말이 들어가고 별점이 기준 이하 → 지정한 사람 (그 사람이 배분 받음 상태일 때만)
+   ② 나머지 : 이번 달에 가장 적게 받은 사람부터. 같으면 접수번호로 갈라 한 사람만 몰리지 않게 합니다. */
+const srcKeyOf = v => String(v == null ? "" : v).replace(/\s/g,"").replace(/（/g,"(").replace(/）/g,")").toLowerCase();
+function opsHash(s){ let h = 0; for(const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+function opsMembersOn(){
+  let m = (OPS.members || []).filter(x => x && x.name && x.on !== false);
+  if(AGENTS.length) m = m.filter(x => AGENTS.some(a => a.uid === x.uid || a.name === x.name));
+  if(m.length) return m;
+  if(!(OPS.members || []).length) return AGENTS.map(a => ({ uid:a.uid, name:a.name, on:true }));   // 명단을 아직 저장 안 했으면 상담사 전원
+  return [];
+}
+function opsCounts(ym){
+  const c = {};
+  ALL.forEach(e => { if(e.agent && !e.manual && e.assignMonth === ym) c[e.agent] = (c[e.agent] || 0) + 1; });
+  return c;
+}
+function opsPick(e, members, counts){
+  if(!members.length) return null;
+  const fx = OPS.fixed || {};
+  if(fx.on !== false && fx.agentName){
+    const rt = (typeof e.aiPersonalRating === "number") ? e.aiPersonalRating : null;
+    const words = String(fx.srcs || "").split(",").map(srcKeyOf).filter(Boolean);
+    const sk = srcKeyOf(e.source || e.aiSource);
+    const mx = Number(fx.maxRating) || 2;
+    if(rt !== null && rt >= 1 && rt <= mx && sk && words.some(w => sk.includes(w))){
+      const m = members.find(x => x.name === fx.agentName);
+      if(m) return { m, kind:"fixed" };
+    }
+  }
+  let best = Infinity, cands = [];
+  members.forEach(m => { const c = counts[m.name] || 0; if(c < best){ best = c; cands = [m]; } else if(c === best) cands.push(m); });
+  cands.sort((a, b) => String(a.name).localeCompare(String(b.name), "ko"));
+  return { m: cands[opsHash(e._id) % cands.length], kind:"auto" };
+}
+
+/* ── 저장 : 화면(ALL)과 창고를 같이 고칩니다 ── */
+async function opsWrite(e, fields, logItem){
+  const db = await initFirebase(), F = firebase.firestore.FieldValue;
+  const remote = {};
+  Object.keys(fields).forEach(k => { remote[k] = (fields[k] === OPS_DEL) ? F.delete() : fields[k]; });
+  if(logItem) remote.agentLog = F.arrayUnion(logItem);
+  await db.collection(COLLECTION).doc(e._id).update(remote);
+  Object.keys(fields).forEach(k => { if(fields[k] === OPS_DEL) delete e[k]; else e[k] = fields[k]; });
+  if(logItem) e.agentLog = (e.agentLog || []).concat([logItem]);
+}
+const opsNow = () => firebase.firestore.Timestamp.now();
+
+/* 처음 배정하는 필드 (agent0 = 맨 처음 담당자) */
+function opsFirstFields(e, name, kind){
+  const f = { agent:name, agentUid:agentUidOf(name) };
+  if(!e.agent0) f.agent0 = name;
+  if(!e.assignKind) f.assignKind = kind;
+  if(!e.assignMonth){ f.assignMonth = opsYmOf(new Date()); f.assignedAt = opsNow(); }
+  if(e.noAutoAssign) f.noAutoAssign = OPS_DEL;
+  return f;
+}
+
+/* 조장·관리자 : 창 없이 바로 = 업무 조정 */
+async function opsMove(e, val){
+  const from = e.agent || "";
+  let f;
+  if(!val){ f = { agent:"", agentUid:"", noAutoAssign:true }; }       // 일부러 비운 건은 자동 배분이 다시 채우지 않습니다
+  else    { f = opsFirstFields(e, val, "manual"); }
+  if(e.inCall){ f.inCall = false; f.inCallOk = false; }               // 조장이 옮겼으면 인콜 표시는 거둡니다
+  await opsWrite(e, f, { atMs:Date.now(), from, to:val, by:opsMe(), kind: from ? "move" : "assign" });
+}
+
+/* 상담사 : 인콜 접수 (조장 확인 목록에 올라감) */
+async function opsIncall(e, to){
+  const pending = (e.inCall === true && e.inCallOk === false);
+  const from = pending ? (e.inCallFrom || e.agent || "") : (e.agent || "");
+  const f = { agent:to, agentUid:agentUidOf(to), inCall:true, inCallFrom:from, inCallBy:opsMe(),
+              inCallAt:opsNow(), inCallOk:false, inCallOkBy:OPS_DEL, inCallOkAt:OPS_DEL };
+  await opsWrite(e, f, { atMs:Date.now(), from:e.agent || "", to, by:opsMe(), kind:"in" });
+}
+
+/* 조장 : [확인] — 숫자는 안 바뀌고 「확인했다」는 표시만 남습니다 */
+async function opsConfirm(ids){
+  const db = await initFirebase();
+  const at = opsNow(), me = opsMe();
+  for(let i = 0; i < ids.length; i += 400){
+    const batch = db.batch();
+    ids.slice(i, i + 400).forEach(id => batch.update(db.collection(COLLECTION).doc(id), { inCallOk:true, inCallOkBy:me, inCallOkAt:at }));
+    await batch.commit();
+  }
+  ids.forEach(id => { const e = ALL.find(x => x._id === id); if(e) Object.assign(e, { inCallOk:true, inCallOkBy:me, inCallOkAt:at }); });
+}
+
+/* 담당자 칸 : 「누가 바꿀 수 있나」를 여기서 정합니다 */
+function opsAgentSel(e){
+  const role = opsRole(), me = opsMe(), cur = e.agent || "";
+  const style = 'style="width:132px;padding:5px 7px;border:1px solid '+(cur?"var(--line)":"#e6c98a")+';border-radius:7px;font-size:12.5px;font-weight:700;background:'+(cur?"#fff":"#fff7e6")+'"';
+  if(role === "other") return cur ? admEsc(cur) : '<span style="color:var(--sub)">미지정</span>';
+  const opt = (v, t, s) => '<option value="'+admEsc(v)+'"'+(s?" selected":"")+'>'+admEsc(t)+'</option>';
+  let h;
+  if(role === "agent"){
+    if(cur === me) return '<select class="agsel" data-id="'+e._id+'" disabled '+style+'>'+opt(me, me+" (나)", true)+'</select>';
+    h = (cur ? opt(cur, cur, true) : opt("", "— 미지정 —", true)) + opt(me, me+" (나)", false);
+  } else {
+    const names = AGENTS.map(a => a.name).sort((a, b) => a.localeCompare(b, "ko"));
+    const list = []; if(me && names.includes(me)) list.push(me);
+    names.forEach(n => { if(n !== me) list.push(n); });
+    if(cur && !list.includes(cur)) list.push(cur);
+    h = list.map(n => opt(n, n + (n === me ? " (나)" : opsIsLeaderName(n) ? " · 조장" : ""), n === cur)).join("") + opt("", "— 미지정 —", !cur);
+  }
+  return '<select class="agsel" data-id="'+e._id+'" onclick="event.stopPropagation()" '+style+'>'+h+'</select>';
+}
+function opsAgentTag(e){
+  let t = "";
+  if(e.inCall === true) t = e.inCallOk === true ? ' <span class="opill bl">인콜</span>' : ' <span class="opill y">인콜 · 확인 전</span>';
+  if(e.assignKind === "fixed" && e.agent && e.agent === e.agent0) t += ' <span title="네이버 1~2점 — 고정 배분" style="font-size:11px">🔒</span>';
+  return t;
+}
+
+let opsPend = null;
+async function opsChangeAgent(id, val, selEl){
+  const e = ALL.find(x => x._id === id); if(!e) return;
+  const role = opsRole(), me = opsMe(), cur = e.agent || "";
+  val = String(val || "").trim();
+  const back = () => { if(selEl) selEl.value = cur; };
+  if(val === cur) return;
+  if(role === "other"){ back(); return; }
+  if(role === "agent"){
+    if(val !== me){ back(); return; }                    // 상담사는 본인 앞으로만
+    if(!cur){                                            // 주인이 없던 건을 내가 가져감 — 뺏는 게 아니므로 창 없이
+      try{ await opsWrite(e, opsFirstFields(e, me, "manual"), { atMs:Date.now(), from:"", to:me, by:me, kind:"assign" }); }
+      catch(err){ alert("담당자 저장 실패: "+(err.message||err)); back(); }
+      renderBad(); return;
+    }
+    opsPend = { id, to:val, selEl };
+    $("#opsPopWho").innerHTML = '<b>'+admEsc(e.name||"(이름없음)")+'</b> 님 건의 담당자를 바꿉니다.<br><b>'+admEsc(cur)+'</b> → <b>'+admEsc(val)+' (나)</b>';
+    $("#opsPop").style.display = "flex"; return;
+  }
+  try{ await opsMove(e, val); }
+  catch(err){ alert("담당자 저장 실패: "+(err.message||err)); back(); return; }
+  renderBad();
+}
+function opsPopClose(){ $("#opsPop").style.display = "none"; if(opsPend && opsPend.selEl) opsPend.selEl.value = (ALL.find(x=>x._id===opsPend.id)||{}).agent || ""; opsPend = null; }
+async function opsPopOk(){
+  const p = opsPend; if(!p) return;
+  const e = ALL.find(x => x._id === p.id);
+  $("#opsPop").style.display = "none"; opsPend = null;
+  if(!e) return;
+  try{ await opsIncall(e, p.to); }
+  catch(err){ alert("인콜 접수 저장 실패: "+(err.message||err)); }
+  renderBad();
+  opsToast("인콜로 접수했습니다 — 조장님 확인 목록에 올라갑니다");
+}
+let opsToastT = null;
+function opsToast(t){
+  const el = $("#opsToast"); if(!el) return;
+  el.textContent = t; el.style.opacity = "1";
+  clearTimeout(opsToastT); opsToastT = setTimeout(() => { el.style.opacity = "0"; }, 2600);
+}
+
+/* ⚡ 지금 배분 : 주인 없는 건만 나눕니다 (평소에는 서버가 접수 즉시 나눕니다) */
+async function opsAutoAssign(){
+  if(!opsCanMove()) return;
+  const st = $("#bAutoState");
+  const todo = badBase().filter(e => !e.agent);
+  if(!todo.length){ st.textContent = "미배정 건이 없습니다 — 접수되면 바로 나눠집니다"; return; }
+  const members = opsMembersOn();
+  if(!members.length){ st.textContent = "배분 받는 상담사가 없습니다 — 관리자 탭 → 사용자 목록에서 「배분 받음」을 켜 주세요"; return; }
+  if(!confirm("주인 없는 부적합 "+todo.length+"건을 나눕니다.\n(이미 담당자가 있는 건은 건드리지 않습니다) 계속할까요?")) return;
+  $("#bAutoBtn").disabled = true; st.textContent = "나누는 중…";
+  const counts = opsCounts(opsYmOf(new Date()));
+  let done = 0;
+  for(const e of todo.slice().sort((a, b) => (a._date?.getTime()||0) - (b._date?.getTime()||0))){
+    const p = opsPick(e, members, counts); if(!p) break;
+    try{
+      const f = opsFirstFields(e, p.m.name, p.kind);
+      f.assignKind = p.kind; f.assignMonth = e.assignMonth || opsYmOf(new Date());
+      await opsWrite(e, f, { atMs:Date.now(), from:"", to:p.m.name, by:opsMe(), kind:"assign" });
+      counts[p.m.name] = (counts[p.m.name] || 0) + 1; done++;
+    }catch(err){ console.warn(err); }
+  }
+  $("#bAutoBtn").disabled = false;
+  st.textContent = "✔ "+done+"건을 나눴습니다";
+  renderBad();
 }
 
 /* 담당자 필터 — 이름 옆에 아직 남아 있는 건수를 함께 보여준다 */
 function refreshAgentFilter(){
   const sel=$("#bfAgent"); if(!sel) return;
-  const cur=sel.value;
+  const role=opsRole(), me=opsMe(), canMe=(role==="agent"||role==="lead");
   const base=badBase();
   const cnt={}; let none=0;
   base.forEach(e=>{
@@ -4906,13 +5311,80 @@ function refreshAgentFilter(){
     if(!a) none++; else cnt[a]=(cnt[a]||0)+1;
   });
   const names=[...new Set([...AGENTS.map(x=>x.name), ...Object.keys(cnt)])]
-    .filter(Boolean).sort((a,b)=>a.localeCompare(b));
-  sel.innerHTML='<option value="">담당자 전체 ('+base.length+')</option>'
+    .filter(Boolean).sort((a,b)=>a.localeCompare(b,"ko"));
+  const others=names.filter(n=>!(canMe && n===me));
+  const cur=sel.value;
+  sel.innerHTML=(canMe?'<option value="__me__">나 · '+admEsc(me)+' ('+(cnt[me]||0)+')</option>':'')
+    +'<option value="">담당자 전체 ('+base.length+')</option>'
     +'<option value="__none__">미지정 ('+none+')</option>'
-    + names.map(n=>'<option value="'+admEsc(n)+'">'+admEsc(n)+' ('+(cnt[n]||0)+')</option>').join("");
-  sel.value=cur;
-  if(sel.value!==cur) sel.value="";      // 없어진 이름이면 전체로
+    +(others.length?'<option disabled>──────────</option>':'')
+    + others.map(n=>'<option value="'+admEsc(n)+'">'+admEsc(n)+(opsIsLeaderName(n)?" · 조장":"")+' ('+(cnt[n]||0)+')</option>').join("");
+  if(!opsFilterInit && ME){ sel.value = canMe ? "__me__" : ""; opsFilterInit = true; }
+  else { sel.value=cur; if(sel.value!==cur) sel.value=""; }      // 없어진 이름이면 전체로
+  /* 검색 중에는 담당자와 상관없이 전체에서 찾습니다 (다른 사람 건을 검색해도 안 걸리던 문제) */
+  const searching=!!String(($("#bfSearch")||{}).value||"").trim();
+  sel.disabled=searching;
+  sel.style.borderStyle=searching?"dashed":""; sel.style.background=searching?"#fffaf0":"";
+  const note=$("#bSearchNote");
+  if(note){
+    note.style.display=searching?"block":"none";
+    const lab = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent.replace(/\s*\(\d+\)\s*$/,"") : "";
+    note.innerHTML="🔍 검색은 <b>담당자와 상관없이 전체</b>에서 찾습니다. 검색어를 지우면 다시 <b>「"+admEsc(lab)+"」</b> 목록으로 돌아갑니다.";
+  }
 }
+
+/* ── 조장 확인 상자 (조장에게만) ── */
+function renderPanelA(){
+  const box=$("#badPanelA"); if(!box) return;
+  if(opsRole()!=="lead"){ box.innerHTML=""; return; }
+  const inc=ALL.filter(e=>e.inCall===true).sort((a,b)=>(tsDate(b.inCallAt)?.getTime()||0)-(tsDate(a.inCallAt)?.getTime()||0));
+  const wait=inc.filter(e=>e.inCallOk!==true), ok=inc.filter(e=>e.inCallOk===true);
+  const n=wait.length;
+  const now=e=>e.overrideEligible?'<span class="opill ok">출고 승인'+(e.approvedAt?" "+opsMD(tsDate(e.approvedAt)).split(" ")[0]:"")+'</span>':'<span class="opill g">처리 중</span>';
+  const row=(e,isWait)=>{
+    const chg=admEsc(e.inCallFrom||"?")+' → <b>'+admEsc(e.agent||"?")+'</b>';
+    const cust='<b>'+admEsc(e.name||"(이름없음)")+'</b> <span style="color:var(--sub);font-size:11.5px">'+admEsc(e.giftItem||"")+'</span>';
+    return isWait
+      ? '<tr><td><input type="checkbox" class="opsSel" data-id="'+e._id+'"></td><td>'+opsMD(tsDate(e.inCallAt))+'</td><td>'+cust+'</td><td>'+chg+'</td><td>'+now(e)+'</td>'
+        +'<td><button class="sm primary" data-ops="ok" data-id="'+e._id+'">확인</button></td></tr>'
+      : '<tr style="color:#6b625c"><td></td><td>'+opsMD(tsDate(e.inCallAt))+'</td><td>'+cust+'</td><td>'+chg+'</td><td>'+now(e)+'</td>'
+        +'<td><b style="color:var(--ink)">✓ 확인</b> <span style="color:var(--sub);font-size:11.5px">'+admEsc(e.inCallOkBy||"")+' · '+opsMD(tsDate(e.inCallOkAt))+'</span></td></tr>';
+  };
+  const list=(opsUI.view==="wait"?wait:ok).slice(0,100);
+  const bodyT = list.length
+    ? '<div class="tablewrap"><table class="data"><thead><tr><th>'+(opsUI.view==="wait"?'<input type="checkbox" id="opsSelAll" title="전체 선택">':'')+'</th>'
+      +'<th>접수한 때</th><th>고객</th><th>담당자 변경</th><th>지금</th><th></th></tr></thead><tbody>'+list.map(e=>row(e,opsUI.view==="wait")).join("")+'</tbody></table></div>'
+    : '<div class="empty" style="display:block;border:1px solid var(--line);border-radius:10px">'+(opsUI.view==="wait"?"✅ 확인할 건이 없습니다.":"아직 없습니다.")+'</div>';
+  box.innerHTML='<div class="opsbox'+(n?"":" zero")+'">'
+    +'<div class="opshead" data-ops="toggle"><span>'+(n?"🟡":"✅")+'</span><b>상담사 인콜 접수 — 조장 확인 전 <span class="big">'+n+'건</span></b>'
+    +'<span class="sd">'+(n?"인콜로 가져간 게 맞으면 [확인]":"확인할 건이 없습니다")+'</span><span style="flex:1"></span>'
+    +'<button class="sm" data-ops="toggle">'+(opsUI.open?"접기 ▴":"펼치기 ▾")+'</button></div>'
+    +(opsUI.open?'<div class="opsbody"><div class="filters" style="margin-bottom:8px">'
+      +'<button class="sm'+(opsUI.view==="wait"?" primary":"")+'" data-ops="view" data-v="wait">확인 전 ('+wait.length+')</button>'
+      +'<button class="sm'+(opsUI.view==="ok"?" primary":"")+'" data-ops="view" data-v="ok">확인 끝 ('+ok.length+')</button><span style="flex:1"></span>'
+      +(opsUI.view==="wait"&&wait.length?'<button class="sm primary" data-ops="bulk">선택한 건 한꺼번에 확인</button>':'')+'</div>'+bodyT+'</div>':'')
+    +'</div>';
+}
+document.addEventListener("click", async ev=>{
+  const el=ev.target.closest("[data-ops]"); if(!el) return;
+  const a=el.dataset.ops;
+  if(a==="toggle"){ opsUI.open=!opsUI.open; renderPanelA(); return; }
+  if(a==="view"){ opsUI.view=el.dataset.v; renderPanelA(); return; }
+  if(a==="ok"){ el.disabled=true; try{ await opsConfirm([el.dataset.id]); opsToast("확인했습니다"); }catch(err){ alert("확인 저장 실패: "+(err.message||err)); } renderBad(); return; }
+  if(a==="bulk"){
+    const ids=[...document.querySelectorAll("#badPanelA .opsSel:checked")].map(x=>x.dataset.id);
+    if(!ids.length){ opsToast("왼쪽 네모 칸으로 먼저 고르세요 (맨 위 칸 = 전체 선택)"); return; }
+    try{ await opsConfirm(ids); opsToast(ids.length+"건 확인했습니다"); }catch(err){ alert("확인 저장 실패: "+(err.message||err)); }
+    renderBad();
+  }
+});
+document.addEventListener("change", ev=>{
+  const t=ev.target;
+  if(t && t.id==="opsSelAll"){ document.querySelectorAll("#badPanelA .opsSel").forEach(c=>c.checked=t.checked); return; }
+  if(t && t.classList && t.classList.contains("agsel") && t.dataset.id){
+    opsChangeAgent(t.dataset.id, t.value, t).then(()=>{ if(detailId===t.dataset.id) opsFillDetailAgent(); });
+  }
+});
 
 /* ── 담당자 칸 — 화살표로 고르는 것도, 직접 타이핑도 되는 칸 ──
    상담사 명단만 보여줍니다. 명단에 없는 이름도 그냥 적으면 저장됩니다. */
@@ -5028,24 +5500,11 @@ function badSelSync(){
   const n=badSel.size, bar=$("#bAssignBar");
   if(!bar) return;
   const msg=$("#bAssignState").textContent;
-  bar.style.display=(n||msg)?"":"none";
+  bar.style.display=(opsCanMove() && (n||msg))?"":"none";
   $("#bSelCount").textContent = n ? (n+"건 선택됨") : "";
 }
 
 function badBindChecks(){
-  comboCleanup();
-  /* 목록에서 바로 담당자 지정 */
-  $$("#tableBad .bagent").forEach(inp=>{
-    comboAttach(inp);
-    inp.addEventListener("click", e=>e.stopPropagation());
-    inp.addEventListener("change", async ()=>{
-      const name=String(inp.value||"").trim();
-      inp.disabled=true;
-      const ok=await saveEntryFields(inp.dataset.id,{agent:name, agentUid:agentUidOf(name)});
-      inp.disabled=false;
-      if(ok) renderBad();
-    });
-  });
   $$("#tableBad .bchk").forEach(c=>{
     c.checked = badSel.has(c.dataset.id);
     c.addEventListener("change",()=>{
@@ -5070,7 +5529,9 @@ function badBindChecks(){
   badSelSync();
 }
 
+/* 선택한 건 일괄 배정 — 조장·관리자 전용, 창 없이 바로 (업무 조정) */
 async function badAssign(){
+  if(!opsCanMove()) return;
   const name=String($("#bAssignTo").value||"").trim();
   if(!name){ $("#bAssignState").textContent="담당자 이름을 고르거나 입력해 주세요."; badSelSync(); return; }
   const ids=[...badSel];
@@ -5078,8 +5539,8 @@ async function badAssign(){
   $("#bAssignGo").disabled=true; $("#bAssignState").textContent="배정 중…"; badSelSync();
   let done=0;
   for(const id of ids){
-    const ok=await saveEntryFields(id,{agent:name, agentUid:agentUidOf(name)});
-    if(ok) done++;
+    const e=ALL.find(x=>x._id===id); if(!e||e.agent===name){ continue; }
+    try{ await opsMove(e,name); done++; }catch(err){ console.warn(err); }
   }
   badSel.clear();
   $("#bAssignGo").disabled=false;
@@ -5088,7 +5549,13 @@ async function badAssign(){
   badSelSync();
 }
 
-comboAttach($("#dtAgent"));
+/* 상세 창의 담당자 칸 */
+function opsFillDetailAgent(){
+  const w=$("#dtAgentWrap"); if(!w||!detailId) return;
+  const e=ALL.find(x=>x._id===detailId); if(!e) return;
+  w.innerHTML=opsAgentSel(e)+opsAgentTag(e);
+}
+
 comboAttach($("#bAssignTo"));
 const badTab=document.querySelector('#tabs .tab[data-tab="bad"]');
 if(badTab) badTab.addEventListener("click", loadStaff);
@@ -5096,12 +5563,211 @@ $("#bAssignGo").addEventListener("click", badAssign);
 $("#bAssignClear").addEventListener("click", ()=>{ badSel.clear(); $("#bAssignState").textContent=""; renderBad(); });
 $("#bfAgent").addEventListener("change", reset("bad",renderBad));
 $("#bfSort").addEventListener("change", reset("bad",renderBad));
-$("#dtAgent").addEventListener("change", async ()=>{
+$("#bAutoBtn").addEventListener("click", opsAutoAssign);
+$("#opsPopNo").addEventListener("click", opsPopClose);
+$("#opsPopOk").addEventListener("click", opsPopOk);
+
+/* ══════════════════════════════════════════════════════════════════════
+   S/N 정정 (쿠팡 정품등록) — 2026-09-29
+   고객은 사진을 올리고 번호도 직접 적습니다. 사진과 번호가 다르면 AI 가 부적합으로 냅니다.
+   오타 때문이면 상담사가 사진을 보고 맞는 번호로 고칩니다.
+
+   ▣ 정정하면 AI 를 다시 돌리지 않습니다 — 사람이 사진을 직접 보고 확인한 것이기 때문입니다.
+   ▣ 정정한 번호가 이미 접수된 번호면 정정하지 않고 「중복접수」로 알려 줍니다.
+     (같은 번호가 두 번 등록되면 사은품·상품권이 두 번 나갑니다)
+   ▣ 번호를 고쳐도 구매내역 캡처가 부적합이면 부적합으로 남습니다(번호만 통과).
+   ▣ 누가 언제 무엇을 무엇으로 고쳤는지 snFixed* 칸에 남습니다.
+   ⚠️ snKey 는 eventApi.js 의 snKey 와 계산이 똑같아야 합니다. 한쪽만 고치지 마세요.
+   ══════════════════════════════════════════════════════════════════════ */
+const snKey = v => String(v == null ? "" : v).toUpperCase().replace(/[\s\-_.]/g, "").replace(/O/g, "0").replace(/I/g, "1");
+
+/* 같은 번호로 이미 접수된 다른 건 (대소문자·공백·하이픈·O/0·I/1 차이는 같은 번호로 봅니다) */
+function snFindDups(id, key){
+  if(!key) return [];
+  return ALL.filter(x => x._id !== id && x.type === "coupang" && (
+    (x.serialKey && x.serialKey === key) || (x.serial && snKey(x.serial) === key)));
+}
+
+/* 번호가 통과했다고 치고, 구매내역 캡처까지 봐서 이 건의 새 상태를 정합니다 (심사 함수 mergeVerdict 와 같은 순서) */
+function snStatusAfterFix(e){
+  const hasBuy = !!(e.buyImagePath || e.buyImageUrl);
+  if(!hasBuy) return "eligible";
+  if(!buyJudged(e)) return "review";                   // 구매내역을 AI 가 본 적이 없으면 사람이 확인
+  if(e.aiBuyCapture === false || e.aiBuyDelivered === false || e.aiBuyProductMatch === false) return "ineligible";
+  if(e.aiBuyDelivered == null || e.aiBuyProductMatch == null) return "review";
+  return "eligible";
+}
+
+function snFillBox(e, show){
+  const box = $("#dtSnFix"); if(!box) return;
+  box.style.display = show ? "" : "none";
+  if(!show) return;
+  const esc = chkEsc;
+  const bits = [];
+  bits.push('고객 입력 <b style="'+MONO+'">'+esc(e.snFixed ? (e.snFixedFrom || "(미입력)") : (e.serial || "(미입력)"))+'</b>');
+  if(e.aiSerialInImage) bits.push('AI가 사진에서 읽은 값 <b style="'+MONO+'">'+esc(e.aiSerialInImage)+'</b>');
+  else if(e.aiSerialPhoto !== false && e.aiSerialInImage === null) bits.push('AI는 사진의 번호를 <b>읽지 못했습니다</b>');
+  let info = bits.join(" · ");
+  if(e.aiSerialPhoto === false) info += '<div style="color:var(--bad,#c0392b);font-weight:800;margin-top:3px">AI는 S/N 라벨 사진이 아니라고 봤습니다 — 왼쪽 사진을 직접 확인하세요.</div>';
+  if(e.snFixed) info += '<div style="color:var(--ok,#12a150);font-weight:800;margin-top:3px">이미 정정한 건입니다 : '+esc(e.snFixedFrom||"(미입력)")+' → '+esc(e.serial||"")+' ('+esc(e.snFixedBy||"")+' · '+opsMD(tsDate(e.snFixedAt))+')</div>';
+  $("#dtSnFixInfo").innerHTML = info;
+  $("#dtSnFixIn").value = "";
+  $("#dtSnFixMsg").innerHTML = "";
+}
+
+async function snFix(){
   if(!detailId) return;
-  const name=String($("#dtAgent").value||"").trim();
-  await saveEntryFields(detailId,{agent:name, agentUid:agentUidOf(name)});
-  renderBad();
-});
+  const id = detailId, e = ALL.find(x => x._id === id); if(!e) return;
+  const msg = $("#dtSnFixMsg");
+  const raw = String($("#dtSnFixIn").value || "").trim().toUpperCase();
+  const key = snKey(raw);
+  if(raw.length < 4){ msg.innerHTML = '<span style="color:var(--bad,#c0392b)">사진에 적힌 번호를 입력해 주세요.</span>'; return; }
+  /* ① 이미 접수된 번호인가 — 그렇다면 정정하지 않습니다 */
+  const dups = snFindDups(id, key);
+  if(dups.length){
+    const d = dups.slice().sort((a, b) => (a._date?.getTime()||0) - (b._date?.getTime()||0))[0];
+    msg.innerHTML = '<div style="color:var(--bad,#c0392b);font-weight:800">🚫 중복접수입니다 — 이미 접수된 번호라 정정하지 않았습니다.</div>'
+      + '<div style="color:var(--ink);font-weight:600">먼저 접수한 분 : <b>'+chkEsc(d.name||"(이름없음)")+'</b> · '+fmtDate(d._date)+' 접수 · '
+      + '<span style="'+MONO+'">'+chkEsc(d.serial||"")+'</span> · '+STATUS_META[shipStatus(d)][0]+(d.shipped||d.shipState==="shipped"?" · 출고완료":"")
+      + (dups.length>1?' (외 '+(dups.length-1)+'건)':'')+'</div>'
+      + '<div style="color:var(--sub);font-weight:600">고객께는 「이미 등록된 제품입니다」로 안내해 주세요.</div>';
+    return;
+  }
+  const ns = snStatusAfterFix(e);
+  const same = snKey(e.serial) === key && !e.snFixed;
+  const tail = ns === "eligible" ? "적합(발송대상)으로 이동합니다."
+             : ns === "review"   ? "구매내역을 사람이 확인해야 해서 「확인필요」로 이동합니다."
+             :                     "다만 구매내역 캡처가 부적합이라 부적합 목록에 남습니다.";
+  if(!confirm((same ? "S/N 확인 완료로 처리합니다." : "S/N 를 정정합니다.\n"+(e.serial||"(미입력)")+" → "+raw)
+      + "\n\n사진의 번호를 직접 확인하셨나요? AI 심사는 다시 하지 않습니다.\n"+tail)) return;
+  const btn = $("#dtSnFixBtn"); btn.disabled = true; msg.textContent = "저장 중…";
+  const patch = { serial:raw, serialKey:key, status:ns, snFixed:true, snFixedFrom:(e.snFixed ? e.snFixedFrom : (e.serial || "")),
+                  snFixedBy:opsMe(), snFixedByUid:(ME && ME.uid) || "", snFixedAt:opsNow() };
+  const ok = await saveEntryFields(id, patch);
+  btn.disabled = false;
+  if(!ok){ msg.textContent = ""; return; }
+  computeDups();
+  if(ns === "ineligible"){
+    /* 부적합이 남았으므로 창을 다시 그려 정정 기록을 보여 줍니다 */
+    openDetail(id); renderActiveTab();
+    $("#dtSnFixMsg").innerHTML = '<span style="color:var(--ok,#12a150);font-weight:800">✔ S/N 를 정정했습니다.</span> <span style="color:var(--sub)">구매내역 캡처가 부적합이라 부적합 목록에 남습니다.</span>';
+  } else {
+    closeDetail(); renderActiveTab();
+    opsToast(ns === "eligible" ? "S/N 정정 완료 — 적합(발송대상)으로 이동했습니다" : "S/N 정정 완료 — 확인필요로 이동했습니다");
+  }
+}
+window.snFix = snFix;
+
+/* ══════════════════════════════════════════════════════════════════════
+   관리자 탭 → 「부적합 운영」 : 고정 배분 규칙 + 월별 처리 리포트   (2026-09-29)
+   ▣ 리포트는 관리자만 봅니다(조장도 못 봅니다).
+   ▣ 월 기준 = 배정된 달. 다음 달에 출고 승인해도 배정된 달에 잡힙니다.
+   ▣ 처리건 = 출고 승인까지 끝낸 건 중 인콜이 아닌 것 (아웃콜로 끝낸 건)
+   ▣ 인콜은 조장 확인 전이라도 인콜로 셉니다 — 처리건·셈에 넣는 건에서 뺍니다.
+   ══════════════════════════════════════════════════════════════════════ */
+let repMonth = "";
+function opsReportTarget(ym){
+  return ALL.filter(e => !e.manual && e.agent && shipStatus(e) === "ineligible" && opsMonthOf(e) === ym);
+}
+function opsReportRows(ym){
+  const T = opsReportTarget(ym);
+  const names = [...new Set([...AGENTS.map(a => a.name), ...T.map(e => e.agent), ...T.map(e => e.inCallFrom).filter(Boolean)])]
+    .filter(Boolean).sort((a, b) => a.localeCompare(b, "ko"));
+  const today = opsTodayIdx();
+  return names.map(a => {
+    const held = T.filter(e => e.agent === a);
+    const inc  = held.filter(e => e.inCall === true).length;
+    const gone = T.filter(e => e.inCall === true && e.inCallFrom === a && e.agent !== a).length;
+    const own  = held.length + gone;
+    const cnt  = own - inc;
+    const done = held.filter(e => e.overrideEligible === true && e.inCall !== true);
+    const mine = done.length;
+    const fix  = T.filter(e => e.assignKind === "fixed" && e.agent0 === a).length;
+    const days = done.map(e => { const ap = tsDate(e.approvedAt); return (ap && e._date) ? (kstIdx(ap) - kstIdx(e._date)) : null; }).filter(x => x !== null);
+    const avg  = days.length ? Math.round(days.reduce((s, x) => s + x, 0) / days.length * 10) / 10 : null;
+    const over = held.filter(e => {
+      if(e.inCall === true || !e._date) return false;
+      const di = dueIdxOf(e._date);
+      const ap = e.overrideEligible ? tsDate(e.approvedAt) : null;
+      return e.overrideEligible ? (ap ? kstIdx(ap) > di : false) : today > di;
+    }).length;
+    return { a, lead:opsIsLeaderName(a), own, inc, cnt, mine, gone, fix, avg, over, rate: cnt > 0 ? Math.round(mine / cnt * 100) : 0 };
+  }).filter(r => r.own || r.inc || r.gone);
+}
+function opsReportMonths(){
+  const s = new Set([opsYmOf(new Date())]);
+  ALL.forEach(e => { if(!e.manual && e.agent && shipStatus(e) === "ineligible"){ const m = opsMonthOf(e); if(m) s.add(m); } });
+  return [...s].sort().reverse();
+}
+const opsCard = (k, v, cls) => '<div class="ocard'+(cls?" "+cls:"")+'"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>';
+
+function renderOpsAdmin(){
+  const box = $("#admRep"); if(!box) return;
+  const months = opsReportMonths();
+  if(!repMonth || !months.includes(repMonth)) repMonth = months[0];
+  const rows = opsReportRows(repMonth);
+  const sum = k => rows.reduce((s, r) => s + r[k], 0);
+  const max = Math.max(1, ...rows.map(r => r.mine));
+  const waitAll = ALL.filter(e => e.inCall === true && e.inCallOk !== true).length;
+  const cntRows = rows.filter(r => r.cnt > 0);
+  const avgRate = cntRows.length ? Math.round(cntRows.reduce((s, r) => s + r.rate, 0) / cntRows.length) : 0;
+  const fx = OPS.fixed || {};
+  const opt = (v, t, s) => '<option value="'+admEsc(v)+'"'+(s?" selected":"")+'>'+admEsc(t)+'</option>';
+  box.innerHTML =
+    '<div class="panel"><h3>고정 배분 규칙</h3>'
+    +'<div class="hint" style="margin:0 0 8px">접수되는 순간 부적합 건을 <b>자동으로 나눕니다.</b> 아래 규칙에 걸리는 건은 정해 둔 사람에게 고정되고, 나머지는 <b>이번 달에 가장 적게 받은 분부터</b> 돌아갑니다.<br>'
+    +'휴가인 분은 <b>사용자 목록의 「배분 받음」</b>을 꺼 두세요. 이미 배정된 건은 건드리지 않습니다.</div>'
+    +'<div class="filters"><label style="font-weight:700;font-size:12.5px"><input type="checkbox" id="fxOn"'+(fx.on!==false?" checked":"")+'> 고정 규칙 사용</label>'
+    +'<span style="font-size:12.5px">판매처에</span><input id="fxSrcs" value="'+admEsc(fx.srcs||"")+'" style="max-width:190px" placeholder="예: 스마트스토어">'
+    +'<span style="font-size:12.5px">이(가) 들어가고 별점이</span><input id="fxMax" type="number" min="1" max="5" value="'+admEsc(fx.maxRating||2)+'" style="max-width:60px">'
+    +'<span style="font-size:12.5px">점 이하이면</span>'
+    +'<select id="fxAgent">'+AGENTS.map(a => opt(a.name, a.name, a.name === fx.agentName)).join("") + (fx.agentName && !AGENTS.some(a => a.name === fx.agentName) ? opt(fx.agentName, fx.agentName, true) : "") +'</select>'
+    +'<span style="font-size:12.5px">에게 고정</span>'
+    +'<button class="sm primary" id="fxSave">저장</button><span id="fxState" style="font-size:12.5px;font-weight:800"></span></div>'
+    +'<div class="hint" style="margin:8px 0 0">판매처 말은 부분만 맞아도 걸립니다 — 「스마트스토어」 하나로 스마트스토어 · 풀필먼트(스마트스토어) · 스타배송(스마트스토어)가 모두 잡힙니다.</div></div>'
+    +'<div class="panel"><h3>월별 처리 리포트 <span style="color:var(--sub);font-weight:600;font-size:12px">(관리자만 볼 수 있습니다)</span></h3>'
+    +'<div class="filters"><select id="repMonthSel">'+months.map(m => opt(m, m.slice(0,4)+"년 "+(+m.slice(5))+"월", m === repMonth)).join("")+'</select>'
+    +'<span class="opill ok">관리자 — 전체 담당자</span><span style="flex:1"></span><button class="sm" id="repXl">엑셀로 받기</button></div>'
+    +'<div class="ocards">'
+    + opsCard("처리건 (아웃콜)", sum("mine")+"건")
+    + opsCard("인콜 (실적 제외)", sum("inc")+"건")
+    + opsCard("기한 넘긴 건", sum("over")+"건", "al")
+    + opsCard("평균 처리율", avgRate+"%")
+    + opsCard("고정 배분", sum("fix")+"건")
+    + opsCard("조장 확인 전 인콜", waitAll+"건", waitAll ? "wt" : "")
+    +'</div>'
+    +(rows.length
+      ? '<div class="tablewrap"><table class="data"><thead><tr><th>담당자</th><th class="num">처리건</th><th class="num" style="width:130px">비중</th>'
+        +'<th class="num">배정 건</th><th class="num">인콜<br><span style="font-weight:600;color:var(--sub)">(빼는 건)</span></th><th class="num">셈에 넣는 건</th>'
+        +'<th class="num">처리율</th><th class="num">남이 가져감</th><th class="num">고정 배분</th><th class="num">평균 소요</th><th class="num">기한 초과</th></tr></thead><tbody>'
+        + rows.map(r => '<tr><td><b>'+admEsc(r.a)+'</b>'+(r.lead?' <span style="color:var(--sub);font-size:11.5px">조장</span>':'')+'</td>'
+          +'<td class="num"><b style="font-size:14px">'+r.mine+'</b></td>'
+          +'<td class="num"><div class="rbar"><i style="width:'+Math.round(r.mine / max * 100)+'%"></i></div></td>'
+          +'<td class="num">'+r.own+'</td><td class="num">'+(r.inc?'<span class="opill bl">−'+r.inc+'</span>':'-')+'</td>'
+          +'<td class="num">'+r.cnt+'</td><td class="num"><b>'+r.rate+'%</b></td>'
+          +'<td class="num">'+(r.gone?'<span class="opill r">'+r.gone+'</span>':'-')+'</td>'
+          +'<td class="num">'+(r.fix||"-")+'</td><td class="num">'+(r.avg===null?"-":r.avg+"일")+'</td>'
+          +'<td class="num">'+(r.over?'<span class="opill r">'+r.over+'</span>':'-')+'</td></tr>').join("")
+        +'</tbody></table></div>'
+      : '<div class="empty" style="display:block">이 달에 배정된 부적합 건이 없습니다.</div>')
+    +'<div class="hint" style="margin-top:10px"><b>처리건</b> = 아웃콜로 돌아서 출고 승인까지 끝낸 건 (주 숫자). <b>인콜</b>은 따로 세고 실적에는 넣지 않습니다. '
+    +'<b>남이 가져감</b>이 많으면 배정받고 손을 안 댄 것입니다. 달 기준은 <b>배정된 달</b>입니다(다음 달에 승인해도 배정된 달에 잡힙니다).</div></div>';
+  const ms = $("#repMonthSel"); if(ms) ms.addEventListener("change", () => { repMonth = ms.value; renderOpsAdmin(); });
+  const xl = $("#repXl"); if(xl) xl.addEventListener("click", () => {
+    if(!rows.length){ alert("대상 데이터가 없습니다."); return; }
+    const cols = [["담당자",r=>r.a],["처리건",r=>r.mine],["배정 건",r=>r.own],["인콜",r=>r.inc],["셈에 넣는 건",r=>r.cnt],["처리율(%)",r=>r.rate],
+                  ["남이 가져감",r=>r.gone],["고정 배분",r=>r.fix],["평균 소요(일)",r=>r.avg===null?"":r.avg],["기한 초과",r=>r.over]];
+    dlPlain(rows, cols, "아이닉_부적합_월별처리_" + repMonth);
+  });
+  const fs = $("#fxSave"); if(fs) fs.addEventListener("click", async () => {
+    const st = $("#fxState");
+    const v = { on: $("#fxOn").checked, srcs: $("#fxSrcs").value.trim(), maxRating: Math.max(1, Math.min(5, parseInt($("#fxMax").value, 10) || 2)), agentName: $("#fxAgent").value };
+    st.textContent = "저장 중…";
+    try{ await opsSaveCfg({ fixed:v }); OPS.fixed = v; st.style.color = "var(--ok)"; st.textContent = "✔ 저장했습니다 — 다음 접수부터 적용됩니다"; }
+    catch(err){ st.style.color = "var(--bad)"; st.textContent = "저장하지 못했습니다: " + (err.message || err); }
+  });
+}
+
 
 /* ══════════════════════════════════════════════════════════════════════
    고객DB — 구글 시트 동기화 · 구매일자 기준 파기
@@ -7802,7 +8468,7 @@ function softRefresh(){
    탭 전환 · 저장 · 불러오기만 리포트 쪽과 연결합니다.            */
 let SAVED = null;                    // 서버에서 마지막으로 읽어온 값
 
-function showUsers(on){
+function showUsers(on, kind){
   /* ⚠️ 탭 줄(.tabs)은 #evtCfg 안에 있습니다.
      #evtCfg 를 숨기면 탭까지 같이 사라지므로, 내용만 껐다 켭니다.
      .cols 는 display:grid 라서 hidden 속성이 안 먹습니다 — style.display 로 끕니다. */
@@ -7813,14 +8479,17 @@ function showUsers(on){
   show(document.querySelector("#evtCfg .save"), !on);
   show(document.querySelector("#evtCfg details"), !on);
   const u = document.getElementById("admUsers");
-  if(u) u.hidden = !on;
+  if(u) u.hidden = !(on && kind !== "rep");
+  const rp = document.getElementById("admRep");
+  if(rp) rp.hidden = !(on && kind === "rep");
 }
 
 document.querySelectorAll("#evtCfg .tab").forEach(b =>
   b.addEventListener("click", () => {
     document.querySelectorAll("#evtCfg .tab").forEach(x =>
       x.setAttribute("aria-selected", String(x === b)));
-    if(b.dataset.t === "users"){ showUsers(true); return; }
+    if(b.dataset.t === "users"){ showUsers(true, "users"); return; }
+    if(b.dataset.t === "badops"){ showUsers(true, "rep"); try{ renderOpsAdmin(); }catch(err){ console.error(err); } return; }
     showUsers(false);
     tab = b.dataset.t; sel = null; editRow = null; render();
   }));

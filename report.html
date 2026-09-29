@@ -740,8 +740,8 @@
               <button type="button" id="mImgDel" class="sm" style="display:none">이미지 빼기</button>
               <span id="mImgState" style="font-size:12.5px;font-weight:800"></span>
             </div>
-            <div class="hint" style="margin-top:6px">쿠팡 정품등록은 <b>구매내역 또는 시리얼번호 라벨</b> 사진을 받아 두세요.
-              큰 사진은 자동으로 줄여서 올립니다. <b>AI 심사에는 들어가지 않고 보관용으로만</b> 남습니다.</div>
+            <div class="hint" style="margin-top:6px">쿠팡 정품등록은 <b>구매내역 사진</b>을 받아 업로드해주세요.
+              <b>AI 심사에는 들어가지 않고 보관용으로만</b> 남습니다.</div>
             <img id="mImgPrev" style="display:none;max-width:260px;margin-top:8px;border-radius:8px;border:1px solid var(--line)">
           </div>
           <div class="field"><label>배송구분(사은품)</label>
@@ -3214,7 +3214,7 @@ function mOpenForm(ctx){
     if(MCFIND){ $("#mName").value = MCFIND.name; $("#mPhone").value = MCFIND.phone; }
     lead = M_CTX.extra
       ? "<b>1대를 더 구매하신 경우에만</b> 등록하세요. 구매내역·시리얼번호 라벨 사진을 확인하고, <b>이미지를 반드시 올려</b> 근거를 남겨 주세요. 시리얼번호는 이미 등록된 것과 달라야 합니다."
-      : "제품과 시리얼번호(S/N)를 넣어 주세요. 쿠팡 로켓배송은 고객DB에 구매정보가 없어 제품을 직접 고르셔야 합니다.";
+      : "제품과 시리얼번호(S/N)를 입력하여 접수해주세요. 정품등록은 2개이상 접수시 각각 접수해주세요.";
     /* 판매처는 onTypeChange() 가 「쿠팡 로켓배송」으로 고정합니다 */
   }else if(M_CTX.free){
     title = "원장에 없는 구매 · 직접 등록";
@@ -3268,7 +3268,7 @@ function mQtyRule(){
   const q = $("#mQty"), h = $("#mQtyHint"); if(!q) return;
   const max = mQtyLimit(), canEdit = max >= 2;
   q.value = 1; q.min = 1; q.max = max; q.disabled = !canEdit;
-  q.style.background = canEdit ? "" : "#faf8f6";
+  q.style.background = canEdit ? "" : "#ece8e3"; q.style.color = canEdit ? "" : "#8a8580"; q.style.cursor = canEdit ? "" : "not-allowed"; q.readOnly = !canEdit;
   if(h) h.textContent = canEdit
     ? "(고객이 한 번에 받겠다고 할 때만 · 최대 " + max + "개 · 각각 받으면 따로 접수)"
     : (M_CTX.type === "coupang" ? "(1개 고정 · 여러 대는 한 대씩 따로 접수)" : "(1개 고정)");

@@ -595,7 +595,7 @@
   <section class="page" id="page-bad">
     <div class="hint">심사에서 <b>부적합</b>으로 판정된 고객을 한 곳에 모았습니다. 전화 응대(아웃콜) 후 <b>응대상태·처리상태</b>를 기록하고, 수정에 응하면 <b>출고 승인</b>을 누르세요. (AI가 애매·오류로 판정 못한 건은 각 사은품/상품권 탭의 '확인필요'에 있습니다.)<br>
       <b>경과</b>는 접수일부터 달력 날짜로 센 기다린 시간, <b>기한일</b>은 영업일 3일째(주말·공휴일 제외)입니다. 쿠팡 정품등록은 행을 눌러 <b>S/N 정정</b>을 할 수 있습니다.</div>
-    <!-- 조장에게만 보이는 인콜 확인 상자 -->
+    <!-- 조장 · 관리자에게만 보이는 인콜 확인 상자 -->
     <div id="badPanelA"></div>
     <div id="badUnassigned" style="display:none;margin:0 0 10px;padding:9px 13px;border:1.5px solid #f0c9c9;background:#fff7f7;color:#b3252a;border-radius:10px;font-size:12.5px;line-height:1.6"></div>
     <div class="filters">
@@ -5352,10 +5352,10 @@ function refreshAgentFilter(){
   }
 }
 
-/* ── 조장 확인 상자 (조장에게만) ── */
+/* ── 조장 확인 상자 (조장 · 관리자에게만) ── */
 function renderPanelA(){
   const box=$("#badPanelA"); if(!box) return;
-  if(opsRole()!=="lead"){ box.innerHTML=""; return; }
+  if(!opsCanMove()){ box.innerHTML=""; return; }          // 조장과 관리자에게만 보입니다
   const inc=ALL.filter(e=>e.inCall===true).sort((a,b)=>(tsDate(b.inCallAt)?.getTime()||0)-(tsDate(a.inCallAt)?.getTime()||0));
   const wait=inc.filter(e=>e.inCallOk!==true), ok=inc.filter(e=>e.inCallOk===true);
   const n=wait.length;

@@ -1215,6 +1215,8 @@
         <div class="dtrow"><b>배송구분</b><span id="dtFee">-</span></div>
         <div class="dtrow"><b>주소</b><span id="dtAddr">-</span></div>
         <div class="dtrow" id="dtStateRow"><b>상태</b><span id="dtState">-</span></div>
+        <div class="dtrow" id="dtApvByRow" style="display:none"><b>담당자</b><span id="dtApvBy">-</span></div>
+        <div class="dtrow" id="dtApvAtRow" style="display:none"><b>출고승인일시</b><span id="dtApvAt">-</span></div>
         <div class="dtrow" id="dtReasonRow"><b id="dtReasonLabel">부적합 사유</b><span id="dtReason" style="color:var(--bad,#c0392b)">-</span></div>
 
         <!-- 부적합(아웃콜) 전용 : 응대 기록 + 출고 승인 -->
@@ -2018,9 +2020,12 @@ function reasonCell(e){
   const det=(e.aiErrorDetail||e.aiBuyErrorDetail)?String(e.aiErrorDetail||e.aiBuyErrorDetail).slice(0,180):"";
   return det ? `${base}<div style="font-size:11px;color:var(--sub);margin-top:3px;white-space:normal">원인: ${det.replace(/</g,"&lt;")}</div>` : base;
 }
-const ELIG_ORDER=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["검수",e=>eligCheck(e)],["배송구분",e=>shipFeeBadge(e)],["사은품",e=>e.giftItem||"-","wrapcell"],
+/* 담당자 칸 = 출고 승인 버튼을 누른 상담사 (승인 뒤 정정이 필요할 때 누가 눌렀는지 찾기 위함). 2026-09-29 이전 승인은 기록이 없어 「-」 */
+const apvBy=e=>e.overrideEligible?(e.approvedBy||"-"):"-";
+const apvAt=e=>e.overrideEligible&&e.approvedAt?opsMD(tsDate(e.approvedAt)):"-";
+const ELIG_ORDER=[["접수일자",e=>fmtDate(e._date)],["담당자",apvBy],TYPE_COL,["검수",e=>eligCheck(e)],["배송구분",e=>shipFeeBadge(e)],["사은품",e=>e.giftItem||"-","wrapcell"],
   SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
-const ELIG_ACCT=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>e.giftItem||"-","wrapcell"],
+const ELIG_ACCT=[["접수일자",e=>fmtDate(e._date)],["담당자",apvBy],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>e.giftItem||"-","wrapcell"],
   SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
 /* 확인필요 = 재심사 담당. 재심사 누르면 결과에 따라 적합/부적합으로 자동 이동 */
 const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>e.product||"-"],SN_COL,
@@ -2080,6 +2085,21 @@ async function setOverride(id,val){
   }catch(err){alert("출고 승인 처리 실패: "+(err.message||err));}
 }
 window.setOverride=setOverride;
+/* 🔴 [출고 승인] 누르기 전 확인 (2026-09-29)
+   ① 오클릭 방지 : 「출고 승인하시겠습니까?」
+   ② 본인 담당이 아닌 건을 상담사가 승인하려 하면 막고 안내합니다 — 담당자를 본인으로 바꾼 뒤 누르게 합니다.
+      (조장·관리자는 담당자를 정하는 사람이라 이 잠금에서 뺍니다. 확인창은 똑같이 뜹니다.) */
+function approveGuard(id){
+  const e=ALL.find(x=>x._id===id); if(!e) return true;
+  if(opsRole()==="agent" && !e.manual){
+    const me=opsMe();
+    if(!e.agent){ alert("아직 담당자가 없는 건입니다.\n\n담당자를 본인으로 선택한 뒤 [출고 승인]을 눌러 주세요."); return false; }
+    if(e.agent!==me){ alert("이 건의 담당자는 「"+e.agent+"」 님입니다.\n\n본인이 처리하는 건이면 담당자를 본인으로 선택한 뒤 [출고 승인]을 눌러 주세요."); return false; }
+  }
+  return confirm("출고 승인하시겠습니까?\n\n"+(e.name||"(이름없음)")+(e.giftItem?" · "+e.giftItem:""));
+}
+async function approveClick(id){ if(!approveGuard(id)) return; await setOverride(id,true); }
+window.approveClick=approveClick;
 /* ── 재심사 쿨다운 ──────────────────────────────
    심사 결과가 오기 전에 또 누르면 AI 호출만 중복돼 비용·할당량을 태웁니다.
    한 번 누르면 60초간 잠그고 남은 초를 버튼에 표시합니다. */
@@ -2322,7 +2342,7 @@ function badCols(){
     ["사유",e=>reasonOf(e)||"-"],
     ["이미지",e=>imgBtn(e)],
     ["응대상태",e=>callBadge(e)],["처리상태",e=>e.callResult||"-","wrapcell"],
-    ["출고승인",e=>`<button class="sm primary" onclick="event.stopPropagation();setOverride('${e._id}',true)">출고 승인</button>`]);
+    ["출고승인",e=>`<button class="sm primary" onclick="event.stopPropagation();approveClick('${e._id}')">출고 승인</button>`]);
   return cols;
 }
 function renderBad(){
@@ -2364,6 +2384,10 @@ function openDetail(id, readOnly){
   $("#dtReward").textContent=(REWARD_LABEL[e.rewardType]||"사은품/상품권")+" : "+(e.giftItem||"-");
   $("#dtProduct").textContent=e.product||"-";
   $("#dtSource").textContent=e.source||"-";
+  /* 출고 승인 버튼을 누른 기록이 있을 때만 보입니다 (담당자 = 누른 상담사) */
+  const hasApv=!!(e.approvedAt||e.approvedBy);
+  $("#dtApvByRow").style.display=hasApv?"":"none"; $("#dtApvAtRow").style.display=(hasApv&&e.approvedAt)?"":"none";
+  if(hasApv){ $("#dtApvBy").textContent=e.approvedBy||e.agent||"-"; $("#dtApvAt").textContent=e.approvedAt?fmtDate(tsDate(e.approvedAt)):"-"; }
   $("#dtOrder").textContent=e.orderNo||"-";
   $("#dtFee").innerHTML=shipFeeBadge(e);
   /* 🔴 AI 심사 체크리스트가 보이는 건은 S/N 판정이 그 안에 들어갑니다(2026-09-10).
@@ -2543,7 +2567,7 @@ async function manualVerdict(v){
   try{
     const db=await initFirebase();
     const patch = v==="eligible"
-      ? {overrideEligible:true, manualVerdict:"eligible", manualReason:"", manualJudgedAt:firebase.firestore.FieldValue.serverTimestamp(), reJudge:false}
+      ? {overrideEligible:true, manualVerdict:"eligible", manualReason:"", manualJudgedAt:firebase.firestore.FieldValue.serverTimestamp(), reJudge:false, approvedAt:firebase.firestore.Timestamp.now(), approvedBy:(ME&&ME.name)||"", approvedByUid:(ME&&ME.uid)||""}
       : {status:"ineligible", overrideEligible:false, manualVerdict:"ineligible", manualReason:reason, manualJudgedAt:firebase.firestore.FieldValue.serverTimestamp(), reJudge:false};
     await db.collection(COLLECTION).doc(id).update(patch);
     const x=ALL.find(y=>y._id===id); if(x)Object.assign(x,patch,{manualJudgedAt:new Date()});
@@ -2587,6 +2611,7 @@ async function approveDetail(){
     alert("처리상태가 「기타」일 때는 결과메모를 적어 주셔야 합니다.");
     $("#dtMemo").focus(); return;
   }
+  if(!approveGuard(id)) return;            // 출고 승인 확인창 · 본인 담당 확인
   await saveCall(id,{callStatus:st,callResult:res,callMemo:memo});
   closeDetail();await setOverride(id,true);
 }
@@ -5369,19 +5394,16 @@ function renderPanelA(){
       : '<tr style="color:#6b625c"><td></td><td>'+opsMD(tsDate(e.inCallAt))+'</td><td>'+cust+'</td><td>'+chg+'</td><td>'+now(e)+'</td>'
         +'<td><b style="color:var(--ink)">✓ 확인</b> <span style="color:var(--sub);font-size:11.5px">'+admEsc(e.inCallOkBy||"")+' · '+opsMD(tsDate(e.inCallOkAt))+'</span></td></tr>';
   };
-  const list=(opsUI.view==="wait"?wait:ok).slice(0,100);
-  const bodyT = list.length
-    ? '<div class="tablewrap"><table class="data"><thead><tr><th>'+(opsUI.view==="wait"?'<input type="checkbox" id="opsSelAll" title="전체 선택">':'')+'</th>'
-      +'<th>접수한 때</th><th>고객</th><th>담당자 변경</th><th>지금</th><th></th></tr></thead><tbody>'+list.map(e=>row(e,opsUI.view==="wait")).join("")+'</tbody></table></div>'
-    : '<div class="empty" style="display:block;border:1px solid var(--line);border-radius:10px">'+(opsUI.view==="wait"?"✅ 확인할 건이 없습니다.":"아직 없습니다.")+'</div>';
+  /* 확인하면 목록에서 사라집니다 — 「확인 끝」 목록은 두지 않습니다(누가 언제 확인했는지는 각 건에 기록으로만 남습니다) */
+  const list=wait.slice(0,100);
+  const bodyT = '<div class="tablewrap"><table class="data"><thead><tr><th><input type="checkbox" id="opsSelAll" title="전체 선택"></th>'
+      +'<th>접수한 때</th><th>고객</th><th>담당자 변경</th><th>지금</th><th></th></tr></thead><tbody>'+list.map(e=>row(e,true)).join("")+'</tbody></table></div>';
   box.innerHTML='<div class="opsbox'+(n?"":" zero")+'">'
-    +'<div class="opshead" data-ops="toggle"><span>'+(n?"🟡":"✅")+'</span><b>상담사 인콜 접수 — 조장 확인 전 <span class="big">'+n+'건</span></b>'
+    +'<div class="opshead"'+(n?' data-ops="toggle"':'')+'><span>'+(n?"🟡":"✅")+'</span><b>상담사 인콜 접수 — 조장 확인 전 <span class="big">'+n+'건</span></b>'
     +'<span class="sd">'+(n?"인콜로 가져간 게 맞으면 [확인]":"확인할 건이 없습니다")+'</span><span style="flex:1"></span>'
-    +'<button class="sm" data-ops="toggle">'+(opsUI.open?"접기 ▴":"펼치기 ▾")+'</button></div>'
-    +(opsUI.open?'<div class="opsbody"><div class="filters" style="margin-bottom:8px">'
-      +'<button class="sm'+(opsUI.view==="wait"?" primary":"")+'" data-ops="view" data-v="wait">확인 전 ('+wait.length+')</button>'
-      +'<button class="sm'+(opsUI.view==="ok"?" primary":"")+'" data-ops="view" data-v="ok">확인 끝 ('+ok.length+')</button><span style="flex:1"></span>'
-      +(opsUI.view==="wait"&&wait.length?'<button class="sm primary" data-ops="bulk">선택한 건 한꺼번에 확인</button>':'')+'</div>'+bodyT+'</div>':'')
+    +(n?'<button class="sm" data-ops="toggle">'+(opsUI.open?"접기 ▴":"펼치기 ▾")+'</button>':'')+'</div>'
+    +(n&&opsUI.open?'<div class="opsbody"><div class="filters" style="margin-bottom:8px"><span style="flex:1"></span>'
+      +'<button class="sm primary" data-ops="bulk">선택한 건 한꺼번에 확인</button></div>'+bodyT+'</div>':'')
     +'</div>';
 }
 document.addEventListener("click", async ev=>{

@@ -4776,8 +4776,14 @@ async function doLogout(msg){
 /* ══════════ 관리자 탭 ══════════ */
 
 function roleSelectHtml(uid, cur){
+  /* 「조장」은 상담사 역할(agent)에 조장 표시를 얹은 것입니다 — 서버(adminApi)에는 상담사로 저장됩니다 */
+  const isLead = cur === "agent" && (OPS.leaders || []).includes(uid);
+  const keys = ROLE_KEYS.concat(["leader"]);
   return '<select class="sm" data-a="role" data-u="'+uid+'">'
-    + ROLE_KEYS.map(k=>'<option value="'+k+'"'+(k===cur?' selected':'')+'>'+ROLE_LABEL[k]+'</option>').join("")
+    + keys.map(k=>{
+        const on = k === "leader" ? isLead : (k === cur && !(k === "agent" && isLead));
+        return '<option value="'+k+'"'+(on?' selected':'')+'>'+(k==="leader"?"조장":ROLE_LABEL[k])+'</option>';
+      }).join("")
     + '</select>';
 }
 
@@ -4788,7 +4794,7 @@ async function admRender(){
   const r = await admApi({action:"list"}, true);
   if(!r.ok){ box.innerHTML='<div class="empty">'+admEsc(agMsg(r.reason))+'</div>'; return; }
   box.innerHTML='<table class="data"><thead><tr>'
-    +'<th>이름</th><th>이메일</th><th>역할</th><th title="조장으로 지정하면 부적합 탭 맨 위에 인콜 확인 상자가 보이고, 담당자를 창 없이 바꿀 수 있습니다">조장</th><th title="끄면 자동 배분에서 건너뜁니다 (휴가 등)">배분 받음</th><th>상태</th><th>마지막 접속</th><th>관리</th>'
+    +'<th>이름</th><th>이메일</th><th>역할</th><th>상태</th><th>마지막 접속</th><th>관리</th>'
     +'</tr></thead><tbody>'
     + r.list.map(u=>{
         const state = !u.active ? '<span style="color:#c1121f;font-weight:700">중지</span>'
@@ -4798,8 +4804,6 @@ async function admRender(){
         return '<tr><td>'+(me?'<b>마스터 계정</b>':admEsc(u.name))+'</td>'
           +'<td>'+admEsc(u.email)+'</td>'
           +'<td>'+(me?'<b>'+admEsc(ROLE_LABEL[u.role]||"")+'</b>':roleSelectHtml(u.uid,u.role))+'</td>'
-          +'<td style="text-align:center">'+(u.role==="agent"?'<input type="checkbox" data-opsl="'+u.uid+'"'+((OPS.leaders||[]).includes(u.uid)?" checked":"")+'>':'-')+'</td>'
-          +'<td style="text-align:center">'+(u.role==="agent"?'<input type="checkbox" data-opsm="'+u.uid+'" data-n="'+admEsc(u.name)+'"'+(((OPS.members||[]).find(m=>m.uid===u.uid)||{on:true}).on!==false?" checked":"")+'>':'-')+'</td>'
           +'<td>'+state+'</td>'
           +'<td>'+(u.lastLoginAt?new Date(u.lastLoginAt).toLocaleString("ko-KR"):"-")+'</td>'
           +'<td style="white-space:nowrap">'
@@ -4812,18 +4816,6 @@ async function admRender(){
   box.querySelectorAll("button[data-a]").forEach(b=>b.addEventListener("click",()=>admAct(b.dataset)));
   box.querySelectorAll("select[data-a]").forEach(sel=>sel.addEventListener("change",()=>
     admAct({a:"role", u:sel.dataset.u, v:sel.value})));
-  box.querySelectorAll("input[data-opsl]").forEach(c=>c.addEventListener("change",async()=>{
-    c.disabled=true;
-    try{ await opsSetLeader(c.dataset.opsl, c.checked); }
-    catch(err){ c.checked=!c.checked; alert("조장 표시를 저장하지 못했습니다: "+(err.message||err)); }
-    c.disabled=false;
-  }));
-  box.querySelectorAll("input[data-opsm]").forEach(c=>c.addEventListener("change",async()=>{
-    c.disabled=true;
-    try{ await opsSetMember(c.dataset.opsm, c.checked); }
-    catch(err){ c.checked=!c.checked; alert("배분 설정을 저장하지 못했습니다: "+(err.message||err)); }
-    c.disabled=false;
-  }));
   loadStaff();          // 사람이 늘거나 빠지면 담당자 명단도 같이 갱신
   lgLoad();
 }
@@ -4929,9 +4921,15 @@ async function admAct(d){
     if(r.ok) admShowPassword(d.n, r.email, r.tempPassword); else admNotice(agMsg(r.reason),"bad");
   }
   else if(d.a==="role"){
-    const r=await admApi({action:"setRole", uid, role:d.v}, true);
+    const toLead = d.v === "leader", realRole = toLead ? "agent" : d.v;
+    const r=await admApi({action:"setRole", uid, role:realRole}, true);
     if(!r.ok) admNotice(agMsg(r.reason),"bad");
-    else admNotice("역할을 <b>"+admEsc(ROLE_LABEL[d.v]||"")+"</b> 로 바꿨습니다. 본인은 다음 로그인부터 적용됩니다.");
+    else{
+      /* 조장 표시는 부적합 운영 설정에 따로 적어 둡니다 (조장 ↔ 다른 역할 모두) */
+      const was = (OPS.leaders || []).includes(uid);
+      if(toLead !== was){ try{ await opsSetLeader(uid, toLead); }catch(err){ admNotice("조장 표시를 저장하지 못했습니다: "+(err.message||err),"bad"); } }
+      admNotice("역할을 <b>"+(toLead?"조장":admEsc(ROLE_LABEL[d.v]||""))+"</b> 로 바꿨습니다. 본인은 다음 로그인부터 적용됩니다.");
+    }
   }
   else if(d.a==="act"){
     const r=await admApi({action:"setActive", uid, active:d.v==="1"}, true);
@@ -5095,8 +5093,8 @@ async function opsSaveCfg(part){
 async function opsSyncMembers(){
   if(!ME || ME.role !== "master" || !AGENTS.length) return;
   const prev = new Map((OPS.members || []).map(m => [m.uid, m]));
-  const next = AGENTS.map(a => ({ uid:a.uid, name:a.name, on: prev.has(a.uid) ? prev.get(a.uid).on !== false : true }));
-  const sig = l => JSON.stringify(l.map(m => [m.uid, m.name, m.on !== false]).sort());
+  const next = AGENTS.map(a => ({ uid:a.uid, name:a.name, on: prev.has(a.uid) ? prev.get(a.uid).on !== false : true, lead:(OPS.leaders || []).includes(a.uid) }));
+  const sig = l => JSON.stringify(l.map(m => [m.uid, m.name, m.on !== false, m.lead === true]).sort());
   if(sig(next) === sig(OPS.members || [])) return;
   try{ await opsSaveCfg({ members:next }); OPS.members = next; }
   catch(err){ console.warn("배분 명단을 저장하지 못했습니다", err); }
@@ -5110,6 +5108,7 @@ async function opsSetLeader(uid, on){
   const s = new Set(OPS.leaders || []); if(on) s.add(uid); else s.delete(uid);
   const list = [...s];
   await opsSaveCfg({ leaders:list }); OPS.leaders = list;
+  await opsSyncMembers();                                   // 서버가 읽는 명단에도 조장 표시를 맞춥니다
 }
 
 async function loadStaff(){
@@ -5131,7 +5130,7 @@ function opsMembersOn(){
   let m = (OPS.members || []).filter(x => x && x.name && x.on !== false);
   if(AGENTS.length) m = m.filter(x => AGENTS.some(a => a.uid === x.uid || a.name === x.name));
   if(m.length) return m;
-  if(!(OPS.members || []).length) return AGENTS.map(a => ({ uid:a.uid, name:a.name, on:true }));   // 명단을 아직 저장 안 했으면 상담사 전원
+  if(!(OPS.members || []).length) return AGENTS.map(a => ({ uid:a.uid, name:a.name, on:true, lead:(OPS.leaders || []).includes(a.uid) }));   // 명단을 아직 저장 안 했으면 상담사 전원
   return [];
 }
 function opsCounts(ym){
@@ -5159,8 +5158,11 @@ function opsPick(e, members, counts){
       }
     }
   }
+  /* 조장은 일반 배분에서 뺍니다 (고정 규칙에 지정된 경우에만 받습니다) */
+  const pool = members.filter(m => !(m.lead === true || (OPS.leaders || []).includes(m.uid)));
+  if(!pool.length) return null;
   let best = Infinity, cands = [];
-  members.forEach(m => { const c = counts[m.name] || 0; if(c < best){ best = c; cands = [m]; } else if(c === best) cands.push(m); });
+  pool.forEach(m => { const c = counts[m.name] || 0; if(c < best){ best = c; cands = [m]; } else if(c === best) cands.push(m); });
   cands.sort((a, b) => String(a.name).localeCompare(String(b.name), "ko"));
   return { m: cands[opsHash(e._id) % cands.length], kind:"auto" };
 }
@@ -5738,7 +5740,11 @@ function renderOpsAdmin(){
     + fxAll.map(n => '<label style="font-size:12.5px;font-weight:700;white-space:nowrap"><input type="checkbox" class="fxA" value="'+admEsc(n)+'"'+(fxN.includes(n)?" checked":"")+'> '+admEsc(n)+'</label>').join("")
     +'</span><span style="font-size:12.5px">에게 고정 <span style="color:var(--sub)">(여러 명이면 이번 달에 적게 받은 분부터)</span></span>'
     +'<button class="sm primary" id="fxSave">저장</button><span id="fxState" style="font-size:12.5px;font-weight:800"></span></div>'
-    +'<div class="hint" style="margin:8px 0 0">판매처 말은 부분만 맞아도 걸립니다 — 「스마트스토어」 하나로 스마트스토어 · 풀필먼트(스마트스토어) · 스타배송(스마트스토어)가 모두 잡힙니다.</div></div>'
+    +'<div class="hint" style="margin:8px 0 0">판매처 말은 부분만 맞아도 걸립니다 — 「스마트스토어」 하나로 스마트스토어 · 풀필먼트(스마트스토어) · 스타배송(스마트스토어)가 모두 잡힙니다.</div>'
+    +'<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line,#eee)"><b style="font-size:12.5px">배분에서 잠시 뺄 분 (휴가 등)</b> <span style="font-size:12px;color:var(--sub)">체크하면 자동 배분에서 건너뜁니다. 조장은 일반 배분을 받지 않습니다.</span>'
+    +'<div id="vacBox" style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px">'
+    + AGENTS.filter(a => !(OPS.leaders || []).includes(a.uid)).map(a => { const mm = (OPS.members || []).find(x => x.uid === a.uid); return '<label style="font-size:12.5px;font-weight:700;white-space:nowrap"><input type="checkbox" class="vacA" value="'+admEsc(a.uid)+'"'+((mm && mm.on === false)?" checked":"")+'> '+admEsc(a.name)+'</label>'; }).join("")
+    +'</div><span id="vacState" style="font-size:12.5px;font-weight:800"></span></div></div>'
     +'<div class="panel"><h3>월별 처리 리포트 <span style="color:var(--sub);font-weight:600;font-size:12px">(관리자만 볼 수 있습니다)</span></h3>'
     +'<div class="filters"><select id="repMonthSel">'+months.map(m => opt(m, m.slice(0,4)+"년 "+(+m.slice(5))+"월", m === repMonth)).join("")+'</select>'
     +'<span class="opill ok">관리자 — 전체 담당자</span><span style="flex:1"></span><button class="sm" id="repXl">엑셀로 받기</button></div>'
@@ -5773,6 +5779,12 @@ function renderOpsAdmin(){
                   ["남이 가져감",r=>r.gone],["고정 배분",r=>r.fix],["평균 소요(일)",r=>r.avg===null?"":r.avg],["기한 초과",r=>r.over]];
     dlPlain(rows, cols, "아이닉_부적합_월별처리_" + repMonth);
   });
+  box.querySelectorAll("#vacBox .vacA").forEach(c => c.addEventListener("change", async () => {
+    const st = $("#vacState"); c.disabled = true;
+    try{ await opsSetMember(c.value, !c.checked); st.style.color = "var(--ok)"; st.textContent = "✔ 저장했습니다"; }
+    catch(err){ c.checked = !c.checked; st.style.color = "var(--bad)"; st.textContent = "저장하지 못했습니다: " + (err.message || err); }
+    c.disabled = false;
+  }));
   const fs = $("#fxSave"); if(fs) fs.addEventListener("click", async () => {
     const st = $("#fxState");
     const v = { on: $("#fxOn").checked, srcs: $("#fxSrcs").value.trim(), maxRating: Math.max(1, Math.min(5, parseInt($("#fxMax").value, 10) || 2)), agentNames: [...document.querySelectorAll("#fxAgents .fxA:checked")].map(x => x.value) };

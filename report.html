@@ -1205,6 +1205,7 @@
         <div class="dtchk" id="dtChkBox" style="display:none"></div>
         <div class="dtrow"><b>사은품/상품권</b><span id="dtReward">-</span></div>
         <div class="dtrow"><b>제품</b><span id="dtProduct">-</span></div>
+        <div class="dtrow"><b>구매처</b><span id="dtSource">-</span></div>
         <div class="dtrow"><b>주문번호</b><span id="dtOrder">-</span></div>
         <div class="dtrow" id="dtSnRow" style="display:none"><b>S/N</b><span id="dtSn">-</span></div>
         <!-- 구매내역 AI 판독 요약 — 사진 아래 상자와 같은 내용을 오른쪽에서도 바로 보이게. -->
@@ -2360,6 +2361,7 @@ function openDetail(id, readOnly){
   $("#dtMeta").innerHTML="접수 "+fmtDate(e._date)+" · "+cell(e,"phone");
   $("#dtReward").textContent=(REWARD_LABEL[e.rewardType]||"사은품/상품권")+" : "+(e.giftItem||"-");
   $("#dtProduct").textContent=e.product||"-";
+  $("#dtSource").textContent=e.source||"-";
   $("#dtOrder").textContent=e.orderNo||"-";
   $("#dtFee").innerHTML=shipFeeBadge(e);
   /* 🔴 AI 심사 체크리스트가 보이는 건은 S/N 판정이 그 안에 들어갑니다(2026-09-10).
@@ -5017,7 +5019,9 @@ let STAFF = [], AGENTS = [], badSel = new Set();
 
 const OPS_DOC = ["eventConfig", "badOps"];
 const OPS_DEL = { __del: 1 };                    // 「이 칸을 지운다」 표시
-const OPS_FIXED_DFLT = { on:true, srcs:"스마트스토어", maxRating:2, agentName:"김지현" };
+const OPS_FIXED_DFLT = { on:true, srcs:"스마트스토어", maxRating:2, agentName:"김지현", agentNames:["김지현"] };
+/* 고정 담당자 명단 — 예전 저장값(agentName 한 명)도 그대로 읽습니다 */
+const opsFixedNames = fx => (Array.isArray(fx.agentNames) && fx.agentNames.length) ? fx.agentNames.filter(Boolean) : (fx.agentName ? [fx.agentName] : []);
 let OPS = { members:[], leaders:[], fixed:Object.assign({}, OPS_FIXED_DFLT), loaded:false };
 let opsFilterInit = false;
 const opsUI = { open:true, view:"wait" };
@@ -5138,14 +5142,21 @@ function opsCounts(ym){
 function opsPick(e, members, counts){
   if(!members.length) return null;
   const fx = OPS.fixed || {};
-  if(fx.on !== false && fx.agentName){
+  if(fx.on !== false && opsFixedNames(fx).length){
     const rt = (typeof e.aiPersonalRating === "number") ? e.aiPersonalRating : null;
     const words = String(fx.srcs || "").split(",").map(srcKeyOf).filter(Boolean);
     const sk = srcKeyOf(e.source || e.aiSource);
     const mx = Number(fx.maxRating) || 2;
     if(rt !== null && rt >= 1 && rt <= mx && sk && words.some(w => sk.includes(w))){
-      const m = members.find(x => x.name === fx.agentName);
-      if(m) return { m, kind:"fixed" };
+      /* 고정 담당자가 여럿이면 그 안에서 이번 달에 적게 받은 분부터 (휴가·배분 끔인 분은 제외) */
+      const fnames = opsFixedNames(fx);
+      const fm = members.filter(x => fnames.includes(x.name));
+      if(fm.length){
+        let fb = Infinity, fc = [];
+        fm.forEach(m => { const c = counts[m.name] || 0; if(c < fb){ fb = c; fc = [m]; } else if(c === fb) fc.push(m); });
+        fc.sort((a, b) => String(a.name).localeCompare(String(b.name), "ko"));
+        return { m: fc[opsHash(e._id) % fc.length], kind:"fixed" };
+      }
     }
   }
   let best = Infinity, cands = [];
@@ -5712,6 +5723,8 @@ function renderOpsAdmin(){
   const cntRows = rows.filter(r => r.cnt > 0);
   const avgRate = cntRows.length ? Math.round(cntRows.reduce((s, r) => s + r.rate, 0) / cntRows.length) : 0;
   const fx = OPS.fixed || {};
+  const fxN = opsFixedNames(fx);
+  const fxAll = AGENTS.map(a => a.name).concat(fxN.filter(n => !AGENTS.some(a => a.name === n)));
   const opt = (v, t, s) => '<option value="'+admEsc(v)+'"'+(s?" selected":"")+'>'+admEsc(t)+'</option>';
   box.innerHTML =
     '<div class="panel"><h3>고정 배분 규칙</h3>'
@@ -5721,8 +5734,9 @@ function renderOpsAdmin(){
     +'<span style="font-size:12.5px">판매처에</span><input id="fxSrcs" value="'+admEsc(fx.srcs||"")+'" style="max-width:190px" placeholder="예: 스마트스토어">'
     +'<span style="font-size:12.5px">이(가) 들어가고 별점이</span><input id="fxMax" type="number" min="1" max="5" value="'+admEsc(fx.maxRating||2)+'" style="max-width:60px">'
     +'<span style="font-size:12.5px">점 이하이면</span>'
-    +'<select id="fxAgent">'+AGENTS.map(a => opt(a.name, a.name, a.name === fx.agentName)).join("") + (fx.agentName && !AGENTS.some(a => a.name === fx.agentName) ? opt(fx.agentName, fx.agentName, true) : "") +'</select>'
-    +'<span style="font-size:12.5px">에게 고정</span>'
+    +'<span id="fxAgents" style="display:inline-flex;flex-wrap:wrap;gap:4px 12px;padding:4px 8px;border:1px solid var(--line,#ddd);border-radius:8px">'
+    + fxAll.map(n => '<label style="font-size:12.5px;font-weight:700;white-space:nowrap"><input type="checkbox" class="fxA" value="'+admEsc(n)+'"'+(fxN.includes(n)?" checked":"")+'> '+admEsc(n)+'</label>').join("")
+    +'</span><span style="font-size:12.5px">에게 고정 <span style="color:var(--sub)">(여러 명이면 이번 달에 적게 받은 분부터)</span></span>'
     +'<button class="sm primary" id="fxSave">저장</button><span id="fxState" style="font-size:12.5px;font-weight:800"></span></div>'
     +'<div class="hint" style="margin:8px 0 0">판매처 말은 부분만 맞아도 걸립니다 — 「스마트스토어」 하나로 스마트스토어 · 풀필먼트(스마트스토어) · 스타배송(스마트스토어)가 모두 잡힙니다.</div></div>'
     +'<div class="panel"><h3>월별 처리 리포트 <span style="color:var(--sub);font-weight:600;font-size:12px">(관리자만 볼 수 있습니다)</span></h3>'
@@ -5761,7 +5775,9 @@ function renderOpsAdmin(){
   });
   const fs = $("#fxSave"); if(fs) fs.addEventListener("click", async () => {
     const st = $("#fxState");
-    const v = { on: $("#fxOn").checked, srcs: $("#fxSrcs").value.trim(), maxRating: Math.max(1, Math.min(5, parseInt($("#fxMax").value, 10) || 2)), agentName: $("#fxAgent").value };
+    const v = { on: $("#fxOn").checked, srcs: $("#fxSrcs").value.trim(), maxRating: Math.max(1, Math.min(5, parseInt($("#fxMax").value, 10) || 2)), agentNames: [...document.querySelectorAll("#fxAgents .fxA:checked")].map(x => x.value) };
+    if(!v.agentNames.length){ st.style.color = "var(--bad)"; st.textContent = "고정할 담당자를 한 명 이상 골라 주세요."; return; }
+    v.agentName = v.agentNames[0];
     st.textContent = "저장 중…";
     try{ await opsSaveCfg({ fixed:v }); OPS.fixed = v; st.style.color = "var(--ok)"; st.textContent = "✔ 저장했습니다 — 다음 접수부터 적용됩니다"; }
     catch(err){ st.style.color = "var(--bad)"; st.textContent = "저장하지 못했습니다: " + (err.message || err); }

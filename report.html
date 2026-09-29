@@ -1121,7 +1121,8 @@
     </div>
 
     <div class="panel">
-      <h3>접근 기록 <span style="color:var(--sub);font-weight:600;font-size:12px">(관리자만 볼 수 있습니다)</span></h3>
+      <h3 id="lgHead" style="cursor:pointer;user-select:none" title="누르면 접었다 펼칩니다"><span id="lgArrow">▸</span> 접근 기록 <span style="color:var(--sub);font-weight:600;font-size:12px">(관리자만 볼 수 있습니다 · 눌러서 펼치기)</span></h3>
+      <div id="lgBody" hidden>
       <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:8px">
         누가 언제 <b>무엇을 몇 건 다운로드</b>했는지, 언제 <b>로그인</b>했는지 남습니다.
         <b>기록은 만들어지기만 하고 고치거나 지울 수 없습니다.</b>
@@ -1134,6 +1135,7 @@
         <span id="lgState" style="font-size:12.5px;font-weight:700;color:var(--sub)"></span>
       </div>
       <div class="tablewrap" id="lgList"></div>
+      </div>
     </div>
   </div>
   </section>
@@ -4787,10 +4789,13 @@ function roleSelectHtml(uid, cur){
     + '</select>';
 }
 
-async function admRender(){
+async function admRender(quiet){
   if(!ME || ME.role!=="master") return;
   const box=$("#admList");
-  box.innerHTML='<div class="empty">불러오는 중…</div>';
+  /* 🔴 역할·상태를 바꾼 뒤 다시 그릴 때는 「불러오는 중…」으로 비우지 않습니다.
+        표가 잠깐 사라지면 페이지가 짧아져 화면이 맨 위로 튕겼습니다(2026-09-29). */
+  const keepY = window.scrollY;
+  if(!quiet) box.innerHTML='<div class="empty">불러오는 중…</div>';
   const r = await admApi({action:"list"}, true);
   if(!r.ok){ box.innerHTML='<div class="empty">'+admEsc(agMsg(r.reason))+'</div>'; return; }
   box.innerHTML='<table class="data"><thead><tr>'
@@ -4816,8 +4821,9 @@ async function admRender(){
   box.querySelectorAll("button[data-a]").forEach(b=>b.addEventListener("click",()=>admAct(b.dataset)));
   box.querySelectorAll("select[data-a]").forEach(sel=>sel.addEventListener("change",()=>
     admAct({a:"role", u:sel.dataset.u, v:sel.value})));
+  if(quiet) window.scrollTo(0, keepY);
   loadStaff();          // 사람이 늘거나 빠지면 담당자 명단도 같이 갱신
-  lgLoad();
+  if(!quiet && lgIsOpen()) lgLoad();      // 접근 기록은 펼쳐 놓았을 때만 읽습니다(500건 읽기 절약)
 }
 
 function admNotice(html, tone){
@@ -4942,7 +4948,7 @@ async function admAct(d){
     if(!r.ok) admNotice(agMsg(r.reason),"bad");
     else admNotice("삭제했습니다.");
   }
-  admRender();
+  admRender(true);
 }
 
 /* ── 엑셀 파일로 올리기 ──
@@ -6256,6 +6262,17 @@ async function lgLoad(){
     $("#lgState").textContent="불러오지 못했습니다. (규칙에 accessLogs 가 들어갔는지 확인해 주세요)";
   }
 }
+/* 접근 기록 접기/펼치기 — 처음엔 접혀 있고, 펼친 상태는 이 브라우저에 기억합니다 */
+let lgLoadedOnce = false;
+function lgIsOpen(){ const b = $("#lgBody"); return !!(b && !b.hidden); }
+function lgSetOpen(on, remember){
+  const b = $("#lgBody"), a = $("#lgArrow"); if(!b) return;
+  b.hidden = !on; if(a) a.textContent = on ? "▾" : "▸";
+  if(remember){ try{ localStorage.setItem("lgOpen", on ? "1" : "0"); }catch(_){} }
+  if(on && !lgLoadedOnce && ME && ME.role === "master"){ lgLoadedOnce = true; lgLoad(); }
+}
+$("#lgHead").addEventListener("click", () => lgSetOpen(!lgIsOpen(), true));
+try{ if(localStorage.getItem("lgOpen") === "1") lgSetOpen(true, false); }catch(_){}
 $("#lgLoad").addEventListener("click", lgLoad);
 $("#lgWho").addEventListener("change", lgRender);
 $("#lgAct").addEventListener("change", lgRender);

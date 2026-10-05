@@ -220,317 +220,24 @@
   .box .kv b{display:inline-block;min-width:74px;color:var(--sub);font-weight:600}
   .box button{margin-top:16px;border:none;background:var(--brand);color:#fff;font-weight:800;padding:12px 22px;border-radius:10px;font-size:14px;cursor:pointer;width:100%}
   .box.dup .icon{color:var(--bad)}
-
-  /* ══════════ 화면 디자인 개편 (2026-10) ══════════
-     🔴 모양(색·간격·카드·버튼)만 바꿉니다. 동작·id·문구는 그대로입니다.
-        위쪽 옛 규칙은 지우지 않고, 이 아래 규칙이 덮어씁니다. */
-  :root{--accent:#c98a2e;--accentbg:#fbf3e6;--okbg:#e9f4ee;--badbg:#fbedee;--warnbg:#fdf3e4;
-    --sunk:#faf8f6;--sunk2:#f2efec;--r-md:12px;--r-lg:18px;--sh-1:0 1px 2px rgba(43,39,37,.06);
-    --focus:0 0 0 3px rgba(47,109,246,.28);}
-  body{font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
-    line-height:1.55;-webkit-font-smoothing:antialiased}
-  .wrap{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
-  button:focus-visible,input:focus-visible,textarea:focus-visible,.type:focus-visible{outline:none;box-shadow:var(--focus)}
-  /* 맨 위(표지) — 첫 화면은 크게, 이후 단계는 로고만 작게 */
-  header.hero{padding:26px 22px 22px;border-bottom:0;border-radius:0 0 22px 22px;box-shadow:var(--sh-1)}
-  header.hero h1{font-size:22px;letter-spacing:-.02em}
-  header.hero p{font-size:13.5px}
-  body:not(.is-first) header.hero{padding:10px 16px;border-radius:0;text-align:left;display:flex;align-items:center;gap:10px}
-  body:not(.is-first) header.hero h1,body:not(.is-first) header.hero p{display:none}
-  body:not(.is-first) header.hero .logo{height:24px;margin:0}
-  body:not(.is-first) .demo-badge{margin:0 0 0 auto}
-  .bar{display:none}
-  /* 단계 표시 — 점 + 지금 단계 이름 */
-  .stepbar{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);padding:10px 18px 9px}
-  .stepper{display:flex;align-items:center;margin:2px 0 7px}
-  .stepper .d{width:9px;height:9px;border-radius:50%;background:#dcd5ce;flex:0 0 auto}
-  .stepper .d.done{background:var(--brand)}
-  .stepper .d.cur{width:13px;height:13px;background:#fff;border:3px solid var(--accent)}
-  .stepper .l{flex:1;height:2px;background:#dcd5ce;margin:0 3px}
-  .stepper .l.done{background:var(--brand)}
-  .steplbl{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px}
-  .steplbl b{font-size:14px;color:var(--ink)} .steplbl span{color:var(--sub)}
-  /* 카드 */
-  .card{margin:12px 14px 0;padding:20px 18px;border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-1)}
-  .card h2{margin:2px 0 6px;font-size:21px;letter-spacing:-.02em}
-  .card .desc{margin:0 0 16px;font-size:13.5px}
-  .hint{font-size:12.5px}
-  .notice{font-size:12.5px;background:var(--sunk);border:1px solid var(--line);border-radius:12px}
-  label.fld{font-size:14px}
-  /* 입력칸 — 16px 이상(아이폰 확대 방지), 높이 48px */
-  input[type=text],input[type=tel],input[type=email],.cprow input{min-height:48px;padding:0 14px;font-size:16px;
-    border:1.5px solid var(--line);border-radius:var(--r-md);background:#fff}
-  textarea{min-height:84px;padding:12px 14px;font-size:16px;border:1.5px solid var(--line);border-radius:var(--r-md);background:#fff}
-  input:focus,textarea:focus{border-color:var(--brand);box-shadow:var(--focus)}
-  #addrSearch{min-height:48px;font-size:14px !important;border-radius:var(--r-md) !important}
-  .err{font-size:12.5px;font-weight:600}
-  /* 참여 유형 — 큰 선택 카드 */
-  .types{grid-template-columns:1fr;gap:10px}
-  .type{flex-direction:row;align-items:center;justify-content:flex-start;gap:14px;min-height:76px;padding:14px 16px;
-    border:2px solid var(--line);border-radius:16px;text-align:left}
-  .type .emo{width:46px;height:46px;border-radius:12px;background:var(--sunk2);display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto}
-  .type .tt{margin:0;font-size:16px}
-  .type::after{content:"›";margin-left:auto;color:var(--sub);font-size:22px}
-  .type.on{border-color:var(--accent);background:var(--accentbg);box-shadow:none}
-  /* 구매 조회 */
-  .vtabs{background:var(--sunk2);border-radius:12px;padding:4px;gap:4px}
-  .vtab{min-height:40px;border:0;background:transparent;border-radius:9px;color:var(--sub)}
-  .vtab.on{background:#fff;color:var(--ink);box-shadow:var(--sh-1)}
-  #invBtn{min-height:50px;font-size:15px !important;border-radius:var(--r-md) !important}
-  #chkOpen{border-radius:var(--r-md)}
-  .cprow #chkBtn{min-height:48px;border-radius:var(--r-md)}
-  .ivcard{border:2px solid #cfe7da;background:var(--okbg);border-radius:16px}
-  .ivcard .ivtitle{color:var(--ok)}
-  .ivbox{background:#fff}
-  .ogbtn{min-height:44px;border-radius:var(--r-md)}
-  /* 동의·설문·사은품 선택 — 눌러서 고르는 카드 */
-  .consent,.qitem{padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
-  .radio{align-items:center;min-height:50px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;font-size:14px;font-weight:600}
-  .radio.sel{border-color:var(--accent);background:var(--accentbg)}
-  .radio input{appearance:none;-webkit-appearance:none;width:20px;height:20px;margin:0;border-radius:50%;
-    border:2px solid #cfc7c0;background:#fff;flex:0 0 auto}
-  .radio input:checked{border:6px solid var(--accent)}
-  .radio .cons{font-size:12px;font-weight:400;margin-top:3px}
-  .cdeny{border-radius:12px}
-  .chk{align-items:center;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-weight:600}
-  .chk input{appearance:none;-webkit-appearance:none;width:22px;height:22px;margin:0;border-radius:7px;
-    border:2px solid #cfc7c0;background:#fff;flex:0 0 auto}
-  .chk input:checked{border-color:var(--ok);background:var(--ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%23fff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
-  .chk:has(input:checked){border-color:var(--ok);background:var(--okbg)}
-  .ctag{border-radius:999px;padding:2px 8px}
-  /* 제품 선택 */
-  .prod{border:2px solid var(--line);border-radius:14px}
-  .prod.on{border-color:var(--accent);background:var(--accentbg);box-shadow:none}
-  .prod .check{background:var(--accent)}
-  .cat.on{border-color:var(--brand)}
-  /* 사진 올리기 — 칸 3개, ✕, 장수 */
-  .drop{border:2px dashed #cfc7c0;border-radius:16px;background:#fff}
-  .upbtn{border-radius:10px}
-  .fldrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 7px}
-  .fldrow label.fld{margin:0}
-  .cnt{font-size:12.5px;font-weight:800;color:var(--sub)}
-  .cnt.full{color:var(--ok)}
-  .shot{position:relative;flex:0 0 calc((100% - 16px)/3);min-width:0}
-  .shot img{width:100%;aspect-ratio:1;object-fit:cover;display:block;border:1px solid var(--line);border-radius:14px;background:var(--sunk2)}
-  .shot .x{position:absolute;top:5px;right:5px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:24px;padding:0;cursor:pointer}
-  .shot .no{position:absolute;left:5px;bottom:5px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:1px 7px;border-radius:9px}
-  /* 신청 확인 */
-  .ckgrp{border-radius:16px}
-  .ckgrp .gh{font-size:13.5px;color:var(--ink);font-weight:800}
-  .ckrow .v{font-size:16px}
-  .ckrow .fix{border-color:#cfdcfb;background:#eaf0fd;color:#2f6df6}
-  .ckwarn{border-radius:12px}
-  /* 아래 고정 버튼 — 아이폰 홈 막대 영역까지 */
-  .nav{padding:10px 14px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -4px 16px rgba(43,39,37,.06)}
-  .nav .prog{display:none !important}
-  .nbtn{min-height:52px;border-radius:14px;font-size:16px}
-  .nbtn.back{flex:0 0 96px;background:var(--sunk2)}
-  /* 완료·안내 창 — 아래에서 올라오는 시트 */
-  #modal{align-items:flex-end;padding:0}
-  #modal .box{max-width:560px;max-height:92vh;overflow:auto;padding:24px 20px calc(20px + env(safe-area-inset-bottom));
-    border-radius:22px 22px 0 0;animation:sheetUp .25s ease}
-  #modal .box .icon{width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:var(--okbg);
-    display:flex;align-items:center;justify-content:center;font-size:30px;animation:tickPop .45s .1s both cubic-bezier(.2,1.4,.4,1)}
-  #modal .box.dup .icon{background:var(--badbg)}
-  #modal .box h3{font-size:20px}
-  #modal .box .kv{border-radius:12px;background:var(--sunk)}
-  #modal .box button{min-height:52px;border-radius:14px;font-size:16px}
-  @keyframes sheetUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
-  @keyframes tickPop{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
-  /* ══════════ 아이닉 브랜드 컬러 · 최종 디자인 (2026-10-03 승인) ══════════
-     🔴 모양(색·간격·카드·버튼)만 바꿉니다. 동작·id·문구·저장값은 그대로입니다.
-        위쪽 옛 규칙은 지우지 않고, 이 아래 규칙이 덮어씁니다.
-     색 근거: 아이닉 공식몰(i-nic.co.kr) — 민트 #34A796(브랜드 버튼·강조), 차콜 #222(구매 버튼),
-              따뜻한 그레이지(상세페이지 배경), 회색 글자 #757575.
-     brand = 알아보는 색(진행 표시·아이콘·선택 테두리) / primary = 누르는 색(주 버튼·체크) — 흰 글씨가 잘 읽히게 한 단계 진하게
-     secondary = 보조 버튼(차콜) / accent = 사은품·완료 요약에만 아주 조금 */
-  :root{--in-brand:#34A796;--in-primary:#1F7F70;--in-primary-press:#17665A;--in-primary-tint:#E8F4F1;--in-primary-line:#BFE1D9;
-    --in-secondary:#2B2B2B;--in-accent:#8C7A5B;--in-accent-tint:#F4EFE6;--in-accent-line:#E6DCC6;
-    --in-field:#F5F6F7;--in-border-strong:#DBDEE2;--in-muted:#9A9A9A;
-    --in-success:#2E8B57;--in-success-tint:#EAF5EE;--in-warning:#B7791F;--in-warning-tint:#FDF6E7;--in-danger:#D14343;--in-danger-tint:#FDEEEE;
-    /* 옛 이름도 새 색으로 — 위쪽 규칙·인라인 스타일(var(--brand) 등)이 같이 따라옵니다 */
-    --brand:var(--in-primary);--brand-dark:var(--in-primary-press);--ok:var(--in-success);--bad:var(--in-danger);
-    --ink:#222222;--sub:#757575;--line:#EBEBEB;--bg:#F6F5F2;--card:#FFFFFF;
-    --accent:var(--in-brand);--accentbg:var(--in-primary-tint);--okbg:var(--in-success-tint);--badbg:var(--in-danger-tint);--warnbg:var(--in-warning-tint);
-    --sunk:var(--in-field);--sunk2:#EFF0F1;--r-md:12px;--r-lg:20px;--sh-1:none;
-    --focus:0 0 0 3px rgba(31,127,112,.22);}
-  body{background:var(--bg);color:var(--ink);font-size:15px;letter-spacing:-.01em}
-  .wrap{max-width:480px;padding-bottom:calc(128px + env(safe-area-inset-bottom))}
-  .req{color:var(--in-danger)}
-
-  /* 맨 위 — 첫 화면은 왼쪽 정렬 큰 제목, 이후 단계는 로고만 있는 얇은 줄 */
-  header.hero{background:#fff;text-align:left;padding:18px 20px 22px;border-radius:0;box-shadow:none;border-bottom:1px solid var(--line)}
-  header.hero .logo{height:26px;margin:0 0 18px;display:block}
-  header.hero h1{font-size:28px;line-height:1.28;font-weight:800;letter-spacing:-.03em;margin:0 0 6px}
-  header.hero p{font-size:15px;color:var(--sub)}
-  header.hero h1::before{content:"INIC EVENT";display:flex;align-items:center;gap:7px;margin:0 0 10px;font-size:12px;font-weight:700;
-    letter-spacing:.1em;color:var(--in-accent)}
-  .demo-badge{background:var(--in-field);border-color:var(--line)}
-  body:not(.is-first) header.hero{position:sticky;top:0;z-index:30;height:56px;padding:0 16px 0 20px;background:rgba(255,255,255,.96);border-bottom:1px solid var(--line)}
-  body:not(.is-first) header.hero .logo{height:24px}
-
-  /* 단계 표시 — 점을 조각 막대로 (끝낸 단계 brand · 지금 단계 primary) */
-  .stepbar{position:static;background:transparent;border-bottom:0;padding:14px 20px 2px}
-  .stepper{gap:4px;margin:0 0 8px}
-  .stepper .l{display:none}
-  .stepper .d,.stepper .d.cur{flex:1;width:auto;height:4px;border:0;border-radius:4px;background:var(--in-border-strong);transition:background .3s}
-  .stepper .d.done{background:var(--in-brand)}
-  .stepper .d.cur{background:var(--in-primary)}
-  .steplbl{flex-direction:row-reverse;justify-content:flex-end;gap:8px;font-size:12px;font-variant-numeric:tabular-nums}
-  .steplbl span{color:var(--sub)}
-  .steplbl b{font-size:12px;font-weight:600;margin-left:auto;color:var(--ink)}
-
-  /* 단계 내용 — 흰 카드 */
-  .card{margin:10px 16px 0;padding:20px 16px;background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:none}
-  .card:first-of-type{border-top:1px solid var(--line)}
-  .card h2{font-size:23px;line-height:1.3;font-weight:800;letter-spacing:-.03em;margin:2px 0 8px}
-  .card .desc{font-size:14.5px;color:var(--sub);margin:0 0 16px}
-  .hint{font-size:12.5px;color:var(--sub)}
-  .notice{background:var(--in-field);border:0;border-radius:12px;color:#444;font-size:13px}
-  .notice b{color:var(--ink)}
-  label.fld{font-size:13.5px}
-
-  /* 입력칸 — 옅은 회색 바탕, 누르면 흰 바탕 + primary 테두리 */
-  input[type=text],input[type=tel],input[type=email],.cprow input{min-height:52px;border:1.5px solid transparent;background:var(--in-field);border-radius:12px}
-  textarea{border:1.5px solid transparent;background:var(--in-field);border-radius:12px}
-  input::placeholder,textarea::placeholder{color:var(--in-muted)}
-  input:focus,textarea:focus{border-color:var(--in-primary);background:#fff;box-shadow:var(--focus)}
-  #addrRoad{background:var(--in-field) !important}
-
-  /* 참여 유형 — 큰 선택 카드 2개 */
-  .types{grid-template-columns:1fr 1fr;gap:10px}
-  .type{position:relative;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:0;min-height:150px;padding:18px 14px;
-    border:2px solid transparent;border-radius:16px;background:var(--in-field)}
-  .type:hover{border-color:var(--in-primary-line)}
-  .type::after{display:none}
-  .type .emo{width:48px;height:48px;border-radius:14px;background:#fff;border:1px solid var(--line);color:var(--in-brand)}
-  .type .emo svg{width:24px;height:24px}
-  .type .tt{margin-top:14px;font-size:16px;line-height:1.3}
-  .type.on{border-color:var(--in-brand);background:var(--in-primary-tint)}
-  .type.on::before{content:"";position:absolute;top:12px;right:12px;width:22px;height:22px;border-radius:50%;
-    background:var(--in-primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center/14px no-repeat}
-  #nextTop{min-height:56px;border-radius:14px;margin-top:18px !important}
-  #chkOpen{border:1.5px solid var(--line);background:#fff;color:var(--in-primary);border-radius:14px;min-height:50px;font-size:14px}
-  #chkBody{background:var(--in-field);border:0;border-radius:14px}
-  .cprow #chkBtn{background:var(--in-secondary)}
-
-  /* 구매 확인 */
-  .vtabs{background:var(--in-field)}
-  .vtab.on{background:#fff;color:var(--in-primary);border:0}
-  #invBtn,#addrSearch{background:var(--in-secondary) !important;border-color:var(--in-secondary) !important;color:#fff !important}
-  #invBtn{min-height:52px;border-radius:14px !important}
-  .ivcard{border:1px solid var(--in-primary-line);background:var(--in-primary-tint)}
-  .ivcard .ivtitle{color:var(--in-primary)}
-  .ivbox{border-color:var(--in-primary-line)}
-  .ogbtn,.ivswitch{border-color:var(--in-border-strong);background:#fff;color:var(--in-primary)}
-  .ogchip.on{border-color:var(--in-secondary);background:var(--in-secondary)}
-
-  /* 참여 안내 및 동의 — 항목마다 카드, 응답 개수, 긴 안내 접기 */
-  #step-consent.card{background:transparent;border:0;padding:20px 4px 0}
-  #step-consent > h2,#step-consent > .desc{padding:0 4px}
-  .ccount{position:sticky;top:64px;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;
-    padding:8px 14px 8px 16px;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:999px;
-    box-shadow:0 2px 8px rgba(0,0,0,.05);font-size:13.5px;font-weight:600}
-  .ccount:empty{display:none}
-  .ccount b{color:var(--in-primary);font-variant-numeric:tabular-nums}
-  .ccount .cdots{display:flex;gap:5px}
-  .ccount .cdots i{width:20px;height:6px;border-radius:3px;background:var(--in-border-strong)}
-  .ccount .cdots i.on{background:var(--in-brand)}
-  .consent{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px 16px 16px;margin-bottom:12px}
-  .consent:has(input:checked){border-color:var(--in-primary-line)}
-  .consent .ctitle{display:flex;align-items:flex-start;flex-wrap:wrap;gap:6px 8px;font-size:16.5px;line-height:1.4;letter-spacing:-.02em;margin-bottom:12px}
-  .consent .ctitle[data-no]::before{content:attr(data-no);flex:none;font-size:12px;font-weight:700;color:var(--sub);background:var(--in-field);
-    border-radius:6px;padding:3px 7px;margin-top:1px;font-variant-numeric:tabular-nums;letter-spacing:0}
-  .ctag{font-size:11.5px;border-radius:6px;padding:3px 8px;margin:1px 0 0 auto}
-  .ctag.must{background:var(--in-primary-tint);color:var(--in-primary)}
-  .ctag.opt{background:var(--in-field);color:var(--sub)}
-  .consent .notice{font-size:14px;line-height:1.7;padding:14px;margin:0 0 4px !important;overflow-wrap:anywhere}
-  .consent.clamp .notice{max-height:128px;overflow:hidden;-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
-  .cmore{display:block;min-height:44px;padding:0 4px;border:0;background:none;color:var(--in-primary);font-size:13.5px;font-weight:600;
-    text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-family:inherit}
-  .cmore:focus-visible{outline:none;box-shadow:var(--focus);border-radius:6px}
-  .radio{min-height:58px;padding:10px 14px;border:1.5px solid var(--in-border-strong);border-radius:14px;font-size:14.5px;font-weight:700;line-height:1.4;gap:12px}
-  .radio input{width:22px;height:22px;border:2px solid var(--in-border-strong)}
-  .radio.sel{border-color:var(--in-brand);background:var(--in-primary-tint)}
-  .radio input:checked{border:6px solid var(--in-primary)}
-  .radio.sel:has(input[value=deny]){border-color:var(--in-secondary);background:var(--in-field)}
-  .radio input[value=deny]:checked{border:2px solid var(--in-secondary);
-    background:var(--in-secondary) linear-gradient(#fff,#fff) center/10px 2px no-repeat}
-  .radio .cons{font-size:12.5px;font-weight:500;color:var(--sub)}
-  .cdeny{background:var(--in-danger-tint);border-color:#F4CACA;color:var(--in-danger);border-radius:12px;font-size:13.5px}
-  .cdeny b{color:#B03636}
-  .chk{border-color:var(--in-border-strong);border-radius:14px}
-  .chk input{border-color:var(--in-border-strong)}
-  .chk input:checked{border-color:var(--in-primary);background-color:var(--in-primary)}
-  .chk:has(input:checked){border-color:var(--in-brand);background:var(--in-primary-tint)}
-
-  /* 설문·제품 */
-  .qitem{border:0;border-radius:0;padding:0 0 18px;margin-bottom:18px;border-bottom:1px solid var(--line)}
-  .qitem:last-child{border-bottom:0;margin-bottom:0}
-  .qitem .qtt{font-size:16px;font-weight:700;margin-bottom:6px}
-  .qitem.invalid{padding:10px}
-  .cat{border-color:var(--in-border-strong);color:var(--ink);font-weight:600}
-  .cat.on{background:var(--in-secondary);border-color:var(--in-secondary);color:#fff}
-  .prod{border:1.5px solid var(--in-border-strong);border-radius:14px}
-  .prod:hover{border-color:var(--in-primary-line)}
-  .prod.on{border-color:var(--in-brand);background:var(--in-primary-tint)}
-  .prod .check{background:var(--in-primary)}
-  .prod .badge{background:var(--in-field);color:var(--sub)}
-
-  /* 사진 올리기 — 민트 점선 */
-  .drop{border:1.5px dashed var(--in-brand);background:var(--in-primary-tint);color:var(--sub)}
-  .drop:hover{background:#DDEFEA}
-  .upbtn{background:#fff;color:var(--in-primary);border:1px solid var(--in-primary-line)}
-  .cnt.full{color:var(--in-primary)}
-  .shot img{border-radius:14px}
-
-  /* 사은품 상자 — 아이보리 (보상 표시에만 accent) */
-  .giftbox{background:var(--in-accent-tint);border:1px solid var(--in-accent-line);border-radius:16px}
-  .giftimg{background:#fff}
-  .giftkind{color:var(--in-accent)}
-  .giftfor{background:#fff;border-color:var(--in-accent-line);border-radius:16px 16px 0 0}
-
-  /* 최종확인 */
-  .ckgrp{border-radius:16px}
-  .ckgrp .gh{background:var(--in-field)}
-  .ckrow .fix{border-color:var(--in-primary-line);background:#fff;color:var(--in-primary)}
-  .ckwarn{background:var(--in-warning-tint);border-color:#F1DDB0}
-
-  /* 아래 고정 버튼 */
-  .nav{max-width:480px;background:linear-gradient(to top,var(--bg) 72%,rgba(246,245,242,0));border-top:0;box-shadow:none;padding:14px 16px calc(14px + env(safe-area-inset-bottom))}
-  .nbtn{min-height:56px;border-radius:14px}
-  .nbtn.next,.nbtn.submit{background:var(--in-primary);box-shadow:0 6px 16px rgba(31,127,112,.22)}
-  .nbtn.next:active,.nbtn.submit:active{background:var(--in-primary-press)}
-  .nbtn.back{flex:0 0 88px;background:#fff;color:var(--ink);border:1px solid var(--in-border-strong)}
-
-  /* 완료 창 — 민트 원 + 체크 (중복·안내 창은 기존 ⚠️ 그대로) */
-  #modal .box:not(.dup) .icon{font-size:0;width:76px;height:76px;background:var(--in-brand) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/38px no-repeat;
-    box-shadow:0 0 0 10px var(--in-primary-tint);margin-bottom:24px}
-  #modal .box.dup .icon{background:var(--in-danger-tint)}
-  #modal .box h3{font-size:22px;letter-spacing:-.03em}
-  #modal .box .kv{background:var(--in-accent-tint);border:1px solid var(--in-accent-line)}
-  #modal .box button{background:var(--in-primary)}
-  #mMore{border-color:var(--in-border-strong) !important;color:var(--in-primary) !important}
-  @media(prefers-reduced-motion:reduce){.stepper .d{transition:none}}
 </style>
 </head>
-<body class="is-first">
+<body>
 <div class="wrap">
   <header class="hero">
     <img class="logo" src="data:image/png;base64,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" alt="inic">
-    <h1 id="heroTitle">포토리뷰 이벤트 참여</h1>
-    <p id="heroDesc">편안한 일상, 아이닉과 함께하세요</p>
+    <h1>포토리뷰 이벤트 참여</h1>
+    <p>편안한 일상, 아이닉과 함께하세요</p>
     <span class="demo-badge" id="demoBadge">🔵 미리보기(데모) 모드 — 실제 저장은 안 됩니다</span>
   </header>
   <div class="bar"><i id="barFill"></i></div>
-  <div class="stepbar hide" id="stepBar"><div class="stepper" id="stepper"></div><div class="steplbl"><b id="stepName"></b><span id="stepNo"></span></div></div>
 
   <div class="card step" id="step-type">
-    <h2>참여 유형 선택</h2>
+    <h2>참여 유형 선택 <span class="req">*</span></h2>
     <p class="desc">구매하신 방법에 맞는 유형을 선택하세요. 잘못 선택 시 이중 접수·오배송이 발생할 수 있습니다.</p>
     <div class="types">
-      <div class="type" data-type="review"><div class="emo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div><div class="tt">포토리뷰 이벤트</div></div>
-      <div class="type" data-type="coupang"><div class="emo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div><div class="tt">쿠팡·로켓배송<br>정품 등록</div></div>
+      <div class="type" data-type="review"><div class="emo">📷</div><div class="tt">포토리뷰 이벤트</div></div>
+      <div class="type" data-type="coupang"><div class="emo">🚀</div><div class="tt">쿠팡·로켓배송<br>정품 등록</div></div>
     </div>
     <div class="err" id="err-type">참여 유형을 선택해 주세요.</div>
 
@@ -554,7 +261,7 @@
 
   <!-- 구매 확인 (포토리뷰 전용) -->
   <div class="card step hide" id="step-invoice">
-    <h2>구매 확인</h2>
+    <h2>구매 확인 <span class="req">*</span></h2>
     <p class="desc">구매 내역이 확인되어야 접수하실 수 있습니다. <b>편하신 방법 하나</b>를 골라 입력해 주세요.</p>
     <div class="vtabs" id="vtabs">
       <button type="button" class="vtab on" data-vt="np">성함 + 연락처</button>
@@ -604,21 +311,19 @@
   <div class="card step hide" id="step-consent">
     <h2>참여 안내 및 동의 <span class="req">*</span></h2>
     <p class="desc">아래 항목을 선택해 주세요. 필수 항목을 "거부"하시면 사은품/기프티콘이 발행되지 않습니다.</p>
-    <!-- 응답 개수 표시(화면 전용 — 저장·검사와 무관). syncConsentCount() 가 채웁니다. -->
-    <div class="ccount" id="consentCount" role="status" aria-live="polite"></div>
     <div id="consentBox"></div>
     <div class="err" id="err-consent">필수 동의 항목을 선택해 주세요.</div>
   </div>
 
   <div class="card step hide" id="step-entry">
-    <h2>참여 설문</h2>
+    <h2>참여 설문 <span class="req">*</span></h2>
     <p class="desc">이벤트에 참여해 주신 모든 분께 여쭤보는 짧은 문항입니다. 각 문항에서 하나씩 선택해 주세요.</p>
     <div id="entryBox"></div>
     <div class="err" id="err-entry">모든 문항에 답해 주세요. (기타 선택 시 내용 입력)</div>
   </div>
 
   <div class="card step hide" id="step-product">
-    <h2>구매하신 제품</h2>
+    <h2>구매하신 제품 <span class="req">*</span></h2>
     <p class="desc">카테고리를 고른 뒤 구매하신 제품을 선택해 주세요.</p>
     <div class="cats" id="cats"></div>
     <div class="prods" id="prods"></div>
@@ -626,7 +331,7 @@
   </div>
 
   <div class="card step hide" id="step-survey">
-    <h2>제품 사용 설문</h2>
+    <h2>제품 사용 설문 <span class="req">*</span></h2>
     <p class="desc">더 나은 제품을 위한 짧은 설문입니다. 각 문항에서 하나씩 선택해 주세요.</p>
     <div id="surveyBox"></div>
     <div class="err" id="err-survey">모든 문항에 답해 주세요. (기타 선택 시 내용 입력)</div>
@@ -634,7 +339,7 @@
 
   <!-- 구매 내역 확인 — 쿠팡 정품등록 전용. 제품 사용 설문 다음, S/N 등록 앞. -->
   <div class="card step hide" id="step-buy">
-    <h2>구매 내역 확인</h2>
+    <h2>구매 내역 확인 <span class="req">*</span></h2>
     <div class="notice" id="buyNotice"></div>
     <div id="buyExample" style="display:none;margin:0 0 12px">
       <div class="hint" style="margin:0 0 6px"><b>이렇게 캡처해 주세요</b></div>
@@ -654,8 +359,8 @@
   </div>
 
   <div class="card step hide" id="step-serial">
-    <h2>시리얼번호(S/N) 등록</h2>
-    <div class="notice" id="serialNotice">시리얼번호를 정확히 기재해 주셔야 기프티콘 발송이 가능합니다.
+    <h2>시리얼번호(S/N) 등록 <span class="req">*</span></h2>
+    <div class="notice">시리얼번호를 정확히 기재해 주셔야 기프티콘 발송이 가능합니다.
       <b>동일한 시리얼번호가 등록될 경우, 사은품/기프티콘은 최초 등록한 1명에게만 발송</b>됩니다.</div>
     <div id="snExample" style="display:none;margin:0 0 12px">
       <div class="hint" style="margin:0 0 6px"><b>이 부분을 촬영해 주세요</b> — 아래 예시처럼 S/N 라벨이 보이게 찍어 등록해 주세요.</div>
@@ -672,16 +377,16 @@
       <div class="hint" id="serialHint">중복 참여 확인에 사용됩니다.</div>
       <div class="err" id="err-serial">시리얼번호를 입력해 주세요.</div>
     </div>
-    <label class="chk"><input type="checkbox" id="serialAck"><span id="serialAckTxt">동일한 S/N은 최초 등록 1명에게만 사은품/기프티콘이 발송됨을 확인했습니다. <span class="req">*</span></span></label>
+    <label class="chk"><input type="checkbox" id="serialAck"><span>동일한 S/N은 최초 등록 1명에게만 사은품/기프티콘이 발송됨을 확인했습니다. <span class="req">*</span></span></label>
     <div class="err" id="err-serialack">확인에 체크해 주세요.</div>
   </div>
 
   <div class="card step hide" id="step-info">
-    <h2 id="infoTitle">캡처 및 받으실 정보</h2>
+    <h2 id="infoTitle">캡처 및 받으실 정보 <span class="req">*</span></h2>
     <p class="desc">정확히 입력해 주세요. 오기재 시 발송이 지연되거나 누락될 수 있습니다.</p>
     <div id="rewardBox"></div>
     <div id="fileHome"><div class="field" id="fileField">
-      <div class="fldrow"><label class="fld" id="fileLabel">포토리뷰 캡처 이미지 <span class="req">*</span></label><span class="cnt" id="shotCnt"></span></div>
+      <label class="fld" id="fileLabel">포토리뷰 캡처 이미지 <span class="req">*</span></label>
       <div class="hint" id="fileHint" style="margin:0 0 8px"><b>본인이 작성한 리뷰 화면</b>을 캡처해 등록해 주세요. <b>별점·후기 내용·첨부하신 사진</b>이 함께 보여야 합니다.<br><span style="color:#c0392b">※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.</span></div>
       <div id="exInline" style="display:none;position:relative;margin:0 0 10px;border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:zoom-in" onclick="openEx()">
         <img id="exInlineImg" alt="포토리뷰 캡처 예시" loading="lazy" onerror="document.getElementById('exInline').style.display='none'" style="width:100%;display:block">
@@ -858,57 +563,12 @@ function MSGK(key, dflt){
   return n && typeof n.k === "boolean" ? n.k : !!dflt;
 }
 
-/* 🔴 화면 문구 연결 (2026-10 · 리포트 설정 편집기와의 약속)
-      저장 JSON 맨 위의 formTextV 가 1 이상이고, 그 값이 비어 있지 않을 때만 설정 문구를 씁니다.
-      아니면 아래 FT_DFLT(= 연결하기 전 접수폼에 적혀 있던 문구 그대로)를 씁니다.
-      ⚠️ 기본 문구를 고치면 설정을 연결하지 않은 고객 화면이 바뀝니다. 리포트 쪽 기본값과 같이 고치세요.
-      표기: {{굵게}} [[빨간 굵게]] — 화면에 넣을 때는 반드시 esc/rich/richPlain 을 거칩니다. */
-const FT_DFLT={
-  "cover.title":"포토리뷰 이벤트 참여",
-  "cover.desc":"편안한 일상, 아이닉과 함께하세요",
-  "capture.title":"포토리뷰 캡처 이미지",
-  "capture.desc":"{{본인이 작성한 리뷰 화면}}을 캡처해 등록해 주세요. {{별점·후기 내용·첨부하신 사진}}이 함께 보여야 합니다.",
-  "capture.warn":"※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.",
-  "buy.title":"구매 내역 확인",
-  "buy.exampleName":"coupang_buy_guide.webp",
-  "serial.desc":"시리얼번호를 정확히 기재해 주셔야 기프티콘 발송이 가능합니다.",
-  "serial.warn":"{{동일한 시리얼번호가 등록될 경우, 사은품/기프티콘은 최초 등록한 1명에게만 발송}}됩니다.",
-  "serial.ack":"동일한 S/N은 최초 등록 1명에게만 사은품/기프티콘이 발송됨을 확인했습니다.",
-  "info.desc":"정확히 입력해 주세요. 오기재 시 발송이 지연되거나 누락될 수 있습니다."
-};
-function FT(path, dflt){
-  const d = dflt===undefined ? FT_DFLT[path] : dflt;
-  if(!CFG || !(Number(CFG.formTextV) >= 1)) return d;
-  let v=CFG;
-  String(path).split(".").forEach(k=>{ v = (v && typeof v==="object") ? v[k] : undefined; });
-  return (typeof v==="string" && v.trim()) ? v : d;
-}
-/* 구매내역 예시 이미지 — 파일 이름만 허용합니다(폴더·주소를 넣을 수 없게). */
-function ftBuyExample(){
-  const n=FT("buy.exampleName");
-  return "examples/" + (/^[\w.\- ]+\.(webp|png|jpe?g)$/i.test(n) ? n : FT_DFLT["buy.exampleName"]);
-}
-/* 화면에 한 번 적어 두는 고정 문구들 — 설정이 도착한 뒤 한 번 갈아 끼웁니다.
-   (캡처 안내는 단계가 열릴 때마다 renderFileField 가 FT 로 다시 씁니다) */
-function applyFormText(){
-  const ht=$("#heroTitle"), hd=$("#heroDesc");
-  if(ht) ht.innerHTML=esc(FT("cover.title"));
-  if(hd) hd.innerHTML=richPlain(FT("cover.desc"));
-  const bt=document.querySelector("#step-buy > h2"); if(bt) bt.textContent=FT("buy.title");
-  BUY_EXAMPLE=ftBuyExample();
-  /* richPlain = {{굵게}} 를 <b> 로 — 예전 화면(<b>…</b>)과 글자 크기·굵기가 같게 */
-  const sn=$("#serialNotice"); if(sn) sn.innerHTML=richPlain(FT("serial.desc"))+" "+richPlain(FT("serial.warn"));
-  const sa=$("#serialAckTxt"); if(sa) sa.innerHTML=esc(FT("serial.ack"))+' <span class="req">*</span>';
-  const id=document.querySelector("#step-info > .desc"); if(id) id.innerHTML=richPlain(FT("info.desc"));
-}
-
 /* 화면에 이미 적혀 있는 빨간 오류 글씨 — 설정값으로 갈아 끼웁니다. */
 const ERR_KEY={ "err-email":"errEmail", "err-name":"errName", "err-phone":"errPhone", "err-inv":"errInv",
   "err-consent":"errConsent", "err-entry":"errEntry", "err-type":"errType",
   "err-prod":"errProd", "err-survey":"errSurvey", "err-gift":"errGift",
   "err-qty":"errQty", "err-reward":"errReward", "err-serial":"errSerial",
-  "err-serialack":"errSerialack", "err-file":"errFile", "err-addr":"errAddr",
-  "err-buy":"errBuy" };
+  "err-serialack":"errSerialack", "err-file":"errFile", "err-addr":"errAddr" };
 
 function applyConfig(){
   if(!CFG) return;
@@ -1004,7 +664,6 @@ function applyConfig(){
           const lab=inp.closest(".radio"); if(lab) lab.classList.add("sel");
         });
         syncConsentDeny();          // 거부를 골라 둔 상태였으면 안내도 다시 붙입니다
-        syncConsentCount();         // 되살린 답으로 응답 개수 표시도 맞춥니다(화면 전용)
       }
     }
     const h=document.querySelector("#step-consent .desc");
@@ -1061,7 +720,6 @@ function applyConfig(){
     if(r.ackCoupon)     COUPON_ACK=r.ackCoupon;
   }
   state.infoFor=null;                // 사은품 상자를 다시 그리게 한다
-  applyFormText();
 }
 
 /* (*…*) 처럼 감싼 괄호를 벗겨 낸다 — 설정 화면은 괄호까지 적어 두기 때문 */
@@ -1091,7 +749,7 @@ async function loadConfig(){
    저장소의 examples/ 폴더에 이 이름으로 올려두면 「구매 내역 확인」 화면에 자동으로 나옵니다.
    파일이 없으면 예시 칸은 그냥 안 보입니다(오류 아님).
    권장 규격 : 가로 1560px · .webp · 200KB 이하 */
-let BUY_EXAMPLE="examples/"+FT_DFLT["buy.exampleName"];   // 설정이 도착하면 applyFormText 가 바꿉니다
+const BUY_EXAMPLE="examples/coupang_buy_guide.webp";
 
 /* 음식물처리기처럼 사은품 때문에 코드가 둘로 갈라지는 제품.
    한 번 접수하면 형제 코드도 「썼다」로 봐야 사은품이 두 번 나가지 않습니다. */
@@ -1116,11 +774,9 @@ const KAKAO_CHANNELS={
       설정을 아직 못 읽었을 때만 기본값을 씁니다. */
 let KAKAO_SET=false;
 function kakaoUrl(){ return KAKAO_SET ? String(KAKAO_MAIN||"").trim() : KAKAO_MAIN_DFLT; }
-/* 🔴 보안(2026-10-02) — 링크 주소는 http(s) 만 쓰고, 따옴표로 속성을 깨지 못하게 바꿔 넣습니다. */
-function safeHref(u){ const t=String(u||"").trim(); return /^https?:\/\//i.test(t) ? esc(t).replace(/"/g,"&quot;") : ""; }
 /* 카카오 상담 버튼 한 개 — 모양을 한 군데서만 정합니다. */
 function kakaoBtn(big){
-  const u=safeHref(kakaoUrl()); if(!u) return "";
+  const u=kakaoUrl(); if(!u) return "";
   const pad = big ? "10px 16px" : "9px 15px";
   return '<div style="margin-top:'+(big?"10px":"9px")+'"><a href="'+u+'" target="_blank" rel="noopener" '
     + 'style="display:inline-block;background:#FEE500;color:#191600;font-weight:800;padding:'+pad
@@ -1446,19 +1102,6 @@ function getFlow(){
   if(surveyOf(state.product)) f.push("survey");
   f.push("buy"); f.push("serial"); f.push("info"); f.push("confirm"); return f;
 }
-/* 단계 표시 — 점 + 지금 단계 이름 (표지는 점에서 뺍니다). 점·이름은 코드에 적힌 고정 글자만 씁니다. */
-const STEP_NAME={type:"참여 유형",invoice:"구매 확인",consent:"참여 안내·동의",entry:"참여 설문",product:"제품 선택",
-  survey:"제품 설문",buy:"구매내역",serial:"S/N 등록",info:"받으실 정보",confirm:"신청 확인"};
-function renderStepper(flow,step){
-  const bar=$("#stepBar"); if(!bar) return;
-  const st=flow.slice(1), i=st.indexOf(step);
-  bar.classList.toggle("hide", current===0 || i<0);
-  if(current===0 || i<0) return;
-  $("#stepper").innerHTML = st.map((s,j)=>(j?'<span class="l'+(j<=i?' done':'')+'"></span>':'')
-    +'<span class="d'+(j<i?' done':j===i?' cur':'')+'" title="'+STEP_NAME[s]+'"></span>').join("");
-  $("#stepName").textContent = (step==="info" && state.type==="review") ? "캡처 및 받으실 정보" : STEP_NAME[step];
-  $("#stepNo").textContent = (i+1)+" / "+st.length;
-}
 let current=0;
 function showStep(){
   const flow=getFlow(); if(current>flow.length-1) current=flow.length-1;
@@ -1485,8 +1128,6 @@ function showStep(){
   if(step==="confirm") renderConfirm();
   $("#prog").textContent = state.type ? (current+1)+" / "+flow.length : "";
   $("#barFill").style.width = state.type ? Math.round((current+1)/flow.length*100)+"%" : "0";
-  document.body.classList.toggle("is-first",first);
-  renderStepper(flow,step);
   if(step==="product"){ renderCats(); renderProds(); }   // 송장 확인 결과에 따라 목록이 달라질 수 있어 매번 다시 그림
   if(step==="entry") renderEntrySurvey();
   if(step==="survey") renderSurvey();
@@ -1530,7 +1171,7 @@ $$(".type").forEach(t=>t.addEventListener("click",()=>{
 }));
 function applyType(){
   const review=state.type==="review";
-  $("#infoTitle").innerHTML = '정보 입력';
+  $("#infoTitle").innerHTML = '정보 입력 <span class="req">*</span>';
   renderFileField();
   $$(".only-review").forEach(el=>el.classList.toggle("hide",!review));
   $$(".only-coupang").forEach(el=>el.classList.toggle("hide",review));
@@ -1540,18 +1181,13 @@ function applyType(){
 function renderConsent(){
   const box=$("#consentBox"); box.innerHTML=""; state.consent={};
   const list=[...CONSENTS.common,...(state.type==="review"?CONSENTS.review:CONSENTS.coupang)];
-  list.forEach((c,ci)=>{
+  list.forEach(c=>{
     const el=document.createElement("div"); el.className="consent"; el.dataset.cid=c.id;
     const tag=c.tag==="must"?'<span class="ctag must">필수</span>':'<span class="ctag opt">선택</span>';
     /* 🔴 설정 화면에서 넣은 줄바꿈·빈 줄을 그대로 살립니다.
           예전에는 글자만 넣어서 여러 줄이 한 덩어리로 붙어 나왔습니다(2026-09-09 지적).
           [[빨간 굵은 글씨]] · {{검은 굵은 글씨}} 도 다른 문구와 똑같이 씁니다. */
-    /* 화면 전용(2026-10 디자인): 항목 번호(data-no, CSS 가 그림)와 긴 안내의 「전체 보기」.
-       안내 글은 접어도 그대로 화면에 들어 있습니다(지우거나 줄이지 않음). */
-    const long=String(c.notice||"").length>160;
-    if(long) el.classList.add("clamp");
-    let inner=`<div class="ctitle" data-no="${ci+1}/${list.length}">${esc(c.title)}${tag}</div><div class="notice" style="margin:6px 0 4px">${rich(c.notice)}</div>`
-      +(long?'<button type="button" class="cmore" aria-expanded="false">전체 보기</button>':'');
+    let inner=`<div class="ctitle">${esc(c.title)}${tag}</div><div class="notice" style="margin:6px 0 4px">${rich(c.notice)}</div>`;
     if(c.ack){ inner+=`<label class="chk"><input type="checkbox" data-cid="${c.id}"><span>${rich(c.ackLabel||"")} <span class="req">*</span></span></label>`; }
     /* 부가 설명이 비어 있으면 괄호 자체를 안 그립니다.
        예전에는 빈 값이어도 「(**)」 가 남아 보였습니다(2026-09-09 지적). */
@@ -1574,27 +1210,7 @@ function renderConsent(){
   box.querySelectorAll('input[type=checkbox]').forEach(ck=>ck.addEventListener("change",e=>{
     state.consent[e.target.dataset.cid]=e.target.checked?"ack":null; hideErr("err-consent");
   }));
-  syncConsentCount();
 }
-/* ══ 화면 표시 전용 (2026-10 디자인) — 저장값·필수 검사와 무관 ══
-   ① 「4개 중 N개 응답」 : state.consent 를 읽기만 합니다.
-   ② 긴 안내 「전체 보기 / 접기」 : 글은 그대로 두고 높이만 접습니다. */
-function syncConsentCount(){
-  const el=document.getElementById("consentCount"); if(!el) return;
-  const list=[...CONSENTS.common,...(state.type==="review"?CONSENTS.review:CONSENTS.coupang)];
-  const on=list.map(c=>!!(state.consent&&state.consent[c.id]));
-  const n=on.filter(Boolean).length;
-  el.innerHTML=list.length?`<span>${list.length}개 중 <b>${n}</b>개 응답</span><span class="cdots" aria-hidden="true">${on.map(v=>`<i class="${v?"on":""}"></i>`).join("")}</span>`:"";
-}
-(function(){
-  const box=document.getElementById("consentBox"); if(!box) return;
-  box.addEventListener("change",syncConsentCount);     // 각 항목의 change 처리(저장)가 먼저 끝난 뒤 개수만 다시 셉니다
-  box.addEventListener("click",e=>{
-    const b=e.target.closest(".cmore"); if(!b) return;
-    const open=b.closest(".consent").classList.toggle("clamp")===false;
-    b.textContent=open?"접기":"전체 보기"; b.setAttribute("aria-expanded",String(open));
-  });
-})();
 
 function renderCats(){const box=$("#cats");box.innerHTML="";
   Object.keys(PRODUCTS).forEach(cat=>{const el=document.createElement("button");
@@ -1637,9 +1253,9 @@ function renderEntrySurvey(){
   state.esurveyInit=true; state.esurvey={}; box.innerHTML="";
   ENTRY_SURVEY.forEach((q,qi)=>{
     const el=document.createElement("div"); el.className="qitem"; el.dataset.qi=qi;
-    let h=`<div class="qtt">${qi+1}. ${esc(q.q)}</div>`;
+    let h=`<div class="qtt">${qi+1}. ${q.q}</div>`;
     q.opts.forEach((o,oi)=>{ const etc=/^기타/.test(o);
-      h+=`<label class="radio"><input type="radio" name="e_${qi}" value="${oi}" data-qi="${qi}" data-etc="${etc}"><span>${esc(o)}</span></label>`; });
+      h+=`<label class="radio"><input type="radio" name="e_${qi}" value="${oi}" data-qi="${qi}" data-etc="${etc}"><span>${o}</span></label>`; });
     h+=`<input type="text" class="hide" id="eetc_${qi}" placeholder="기타 내용을 입력해 주세요" style="margin-top:8px">`;
     el.innerHTML=h; box.appendChild(el);
   });
@@ -1662,9 +1278,9 @@ function renderSurvey(){
   if(!list){ box.innerHTML='<div class="desc">이 제품은 추가 설문이 없습니다. 다음으로 진행해 주세요.</div>'; return; }
   list.forEach((q,qi)=>{
     const el=document.createElement("div"); el.className="qitem"; el.dataset.qi=qi;
-    let h=`<div class="qtt">${qi+1}. ${esc(q.q)}</div>`;
+    let h=`<div class="qtt">${qi+1}. ${q.q}</div>`;
     q.opts.forEach((o,oi)=>{ const etc=/^기타/.test(o);
-      h+=`<label class="radio"><input type="radio" name="s_${qi}" value="${oi}" data-qi="${qi}" data-etc="${etc}"><span>${esc(o)}</span></label>`; });
+      h+=`<label class="radio"><input type="radio" name="s_${qi}" value="${oi}" data-qi="${qi}" data-etc="${etc}"><span>${o}</span></label>`; });
     h+=`<input type="text" class="hide" id="etc_${qi}" placeholder="기타 내용을 입력해 주세요" style="margin-top:8px">`;
     el.innerHTML=h; box.appendChild(el);
   });
@@ -1703,9 +1319,9 @@ function renderInfo(){
 function renderFileField(){
   const review=state.type!=="coupang";
   const lab=$("#fileLabel"), hint=$("#fileHint"), dt=$("#dropText");
-  if(lab) lab.innerHTML = review ? esc(FT("capture.title"))+' <span class="req">*</span>' : '시리얼번호(S/N) 라벨 사진 <span class="req">*</span>';
+  if(lab) lab.innerHTML = review ? '포토리뷰 캡처 이미지 <span class="req">*</span>' : '시리얼번호(S/N) 라벨 사진 <span class="req">*</span>';
   if(hint) hint.innerHTML = review
-    ? richPlain(FT("capture.desc"))+'<br><span style="color:#c0392b">'+richPlain(FT("capture.warn"))+'</span>'
+    ? '<b>본인이 작성한 리뷰 화면</b>을 캡처해 등록해 주세요. <b>별점·후기 내용·첨부하신 사진</b>이 함께 보여야 합니다.<br><span style="color:#c0392b">※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.</span>'
     : '<b>제품에 부착된 시리얼번호(S/N) 라벨</b>이 또렷하게 보이게 촬영해 등록해 주세요.<br>사진을 먼저 올리신 뒤, 사진을 보면서 아래에 번호를 입력하시면 편합니다.<br><span style="color:#c0392b">※ 라벨이 보이지 않는 사진이거나 입력하신 S/N과 다른 경우 지급 대상에서 제외됩니다.</span>';
   if(dt) dt.textContent = review ? "여기를 눌러 캡처 이미지를 등록" : "여기를 눌러 사진을 등록";
   /* 🔴 포토리뷰만 여러 장 (2026-09-22). 정품등록 S/N 라벨은 1장 그대로입니다. */
@@ -1951,7 +1567,7 @@ function renderRewardInner(){
   bindQtyPick();
   const af=$("#addrField"); if(af) af.classList.toggle("hide", rw!=="gift");
   /* 화면 이름은 사은품·상품권과 상관없이 「정보 입력」 하나로 둡니다(2026-09-09 담당자 요청). */
-  $("#infoTitle").innerHTML=(CFG&&CFG.info&&CFG.info.title?esc(CFG.info.title):"정보 입력");
+  $("#infoTitle").innerHTML=(CFG&&CFG.info&&CFG.info.title?esc(CFG.info.title):"정보 입력")+' <span class="req">*</span>';
 }
 
 /* 수량 2개 이상 구매 고객 — 한 번에 받을지, 나눠서 접수할지 고르게 한다.
@@ -2105,8 +1721,6 @@ function renderShots(){
   shotUrls.forEach(u=>URL.revokeObjectURL(u)); shotUrls=[];
   const box=$("#shotBox"); const fn=$("#filename");
   const n=state.files.length, lim=maxShots();
-  const sc=$("#shotCnt");
-  if(sc){ sc.textContent = lim>1 ? n+" / "+lim+"장" : ""; sc.classList.toggle("full", lim>1 && n>=lim); }
   if(!n){ resetDropInner(); if(box) box.innerHTML=""; if(fn) fn.textContent=""; return; }
 
   /* 드롭 자리에는 「더 올리기」만 남깁니다. 그림은 아래 줄에 나란히 보여 줍니다. */
@@ -2122,10 +1736,13 @@ function renderShots(){
   if(box){
     box.innerHTML = state.files.map((f,i)=>{
       const u=URL.createObjectURL(f); shotUrls.push(u);
-      return '<div class="shot">'
-        + '<img src="'+u+'" alt="">'
-        + '<button type="button" class="x" aria-label="'+(i+1)+'번째 사진 빼기" onclick="dropShot('+i+')">✕</button>'
-        + '<div class="no">'+(i+1)+'</div></div>';
+      return '<div style="position:relative;flex:1 1 0;min-width:0">'
+        + '<img src="'+u+'" style="width:100%;height:96px;object-fit:cover;border:1px solid #e0dad3;border-radius:9px;background:#f4f2f0">'
+        + '<button type="button" aria-label="'+(i+1)+'번째 사진 빼기" onclick="dropShot('+i+')" '
+        + 'style="position:absolute;top:4px;right:4px;width:22px;height:22px;border:0;border-radius:50%;'
+        + 'background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:22px;padding:0;cursor:pointer">✕</button>'
+        + '<div style="position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.55);color:#fff;'
+        + 'font-size:11px;padding:1px 6px;border-radius:9px">'+(i+1)+'</div></div>';
     }).join("");
     box.style.display = "flex";
   }
@@ -2583,11 +2200,11 @@ async function lookupParticipation(){
       +rich(fill(MSGT("checkNone","{{○○}} 님으로 참여하신 내역이 없습니다.\n포토리뷰 이벤트 또는 쿠팡 로켓배송 정품등록 여부 선택 후 다음을 눌러 접수 부탁드립니다."),[name]))
       +'</div>';return;}
     const MSG='margin-top:9px;font-size:12.5px;color:var(--sub);line-height:1.55';
-    box.innerHTML=`<div class="cpempty" style="border-style:solid;color:var(--ink)"><b>${esc(name)}</b> 님 · 참여 ${list.length}건</div>`+
+    box.innerHTML=`<div class="cpempty" style="border-style:solid;color:var(--ink)"><b>${name}</b> 님 · 참여 ${list.length}건</div>`+
       list.map(e=>{const st=custStatus(e);const tp=e.type==="coupang"?"쿠팡 정품등록":"포토리뷰";
-        let h=`<div class="cpcard"><b>${esc(prodNameOf(e.product))}</b> · ${tp}<span class="cpbadge ${st.cls}">${st.label}</span>`;
+        let h=`<div class="cpcard"><b>${prodNameOf(e.product)}</b> · ${tp}<span class="cpbadge ${st.cls}">${st.label}</span>`;
         /* 🔴 메인 채널 하나 (2026-09-22) — 예전에는 제품군별로 갈라 보냈습니다. */
-        const url=safeHref(kakaoUrl());
+        const url=kakaoUrl();
         const kakao=url?`<div style="margin-top:6px"><a href="${url}" target="_blank" rel="noopener" class="cpkakao">💬 아이닉 카카오톡 채널로 문의하기</a></div>`:"";
         if(st.consult){
           // 검수 지연·부적합 등 상담이 필요한 건
@@ -2881,7 +2498,7 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
         아예 다른 칸을 두고, 선불이면 그 칸을 씁니다.                                  */
   const prepaid = !coupon && e.shipFee === "선불";
   const dKey  = (review?"doneReview":"doneCoupang") + (coupon?"Coupon":"Gift") + (prepaid?"Pre":"");
-  const dHead = review ? "리뷰 참여 내용 확인 후 " : "정품등록 확인 후 ";
+  const dHead = review ? "리뷰 심사(별점·사진 자동 확인) 후 " : "정품등록 심사(시리얼번호 자동 대조) 후 ";
   /* 선불 칸이 아직 비어 있으면 착불 문구로 대신합니다(빈 화면이 나가지 않게). */
   const dFall = prepaid ? MSGT(dKey.replace(/Pre$/,""), dHead + "○○ 발송됩니다.") : (dHead + "○○ 발송됩니다.");
   const pre   = MSGT(dKey, dFall);
@@ -2919,10 +2536,10 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
   }
   let kv=head
     +`<div><b>유형</b> ${review?"포토리뷰 이벤트":"쿠팡·로켓배송 정품 등록"}</div>`
-    +`<div><b>제품</b> ${esc(pname)}</div>`
-    +(e.giftItem?`<div><b>${e.rewardType==="coupon"?"상품권":"사은품"}</b> ${esc(e.giftItem)}${q>1?` · ${q}개`:""}</div>`:``)
+    +`<div><b>제품</b> ${pname}</div>`
+    +(e.giftItem?`<div><b>${e.rewardType==="coupon"?"상품권":"사은품"}</b> ${e.giftItem}${q>1?` · ${q}개`:""}</div>`:``)
     +(e.orderNo?`<div><b>주문번호</b> ${esc(e.orderNo)}</div>`:``)
-    +`<div><b>수령인</b> ${esc(e.name)}</div><div><b>연락처</b> ${esc(e.phone)}</div>`;
+    +`<div><b>수령인</b> ${e.name}</div><div><b>연락처</b> ${e.phone}</div>`;
   /* 🔴 2026-09-22 — 팝업 맨 아래 회색 상자(「완료 문구」)를 없앴습니다 (담당자 요청).
         위 문구와 같은 말이 반복되어 고객이 헷갈렸습니다.
         ⚠️ 서버에 저장된 옛 글(form.done.desc)은 남아 있지만 이제 아무 데도 안 씁니다. */
@@ -2963,7 +2580,7 @@ function showDup(dup,review){$("#box").className="box dup";$("#mIcon").textConte
     : "구매하신 수량보다 {{더 많이}} 참여하셔야 하는 사정이 있으시면, 아래 {{○○ 카카오톡 채널}}로 문의해 주세요.\n[[중복접수를 방지하기 위해 아이닉 상담사에게 포토리뷰 수기접수 요청해 주세요.]]";
   /* 🔴 메인 채널 하나 (2026-09-22) — 예전에는 「생활가전 카카오톡 채널로」처럼
         제품군 이름이 버튼에 박혀 있었습니다. */
-  const url=safeHref(kakaoUrl());
+  const url=kakaoUrl();
   $("#mDesc").textContent="";
   const more=$("#mMore"); if(more) more.classList.add("hide");
   const kakao = url ? kakaoBtn(true)
@@ -2984,7 +2601,7 @@ function continueEntry(){
   state.giftChoice=null; state.qtyMode=null;
   const fi=$("#file"); if(fi) fi.value="";
   resetDropInner(); const fn=$("#filename"); if(fn) fn.textContent="";
-  const sb=$("#shotBox"); if(sb){ sb.innerHTML=""; sb.style.display="none"; } const sc0=$("#shotCnt"); if(sc0) sc0.textContent="";
+  const sb=$("#shotBox"); if(sb){ sb.innerHTML=""; sb.style.display="none"; }
   // 다 쓴 제품은 목록에서 빼서 다시 못 고르게 한다
   state.prodCodes=state.prodCodes.filter(c=>((state.qtyByCode[c]||1)-(state.usedByCode[c]||0))>0);
   if(state.prodCodes.length>1){ state.product=null; state.buyQty=1; state.usedQty=0; }   // 제품 선택 단계로
@@ -3025,7 +2642,7 @@ function resetForm(){
   document.querySelectorAll(".type").forEach(x=>x.classList.remove("on"));
   const di=$("#dropInner"); if(di) di.innerHTML='<div style="font-size:30px">📷</div><div style="margin-top:6px" id="dropText">여기를 눌러 이미지를 등록</div><span class="upbtn">파일 선택</span>';
   const fn=$("#filename"); if(fn) fn.textContent="";
-  const sb2=$("#shotBox"); if(sb2){ sb2.innerHTML=""; sb2.style.display="none"; } const sc1=$("#shotCnt"); if(sc1) sc1.textContent="";
+  const sb2=$("#shotBox"); if(sb2){ sb2.innerHTML=""; sb2.style.display="none"; }
   const more=$("#mMore"); if(more) more.classList.add("hide");
   resetBtn(); current=0; showStep();
 }
@@ -3091,13 +2708,7 @@ const API_ERR = {
   token:   ["tokenExpired",    "구매 확인이 만료되었습니다.\n처음 화면에서 구매 내역을 다시 조회한 뒤 접수해 주세요."],
   product: ["productMismatch", "조회하신 구매 내역에 없는 제품입니다.\n구매 내역을 다시 조회해 주세요."],
   input:   ["inputInvalid",    "입력하신 정보를 다시 확인해 주세요."],
-  origin:  ["originBlocked",   "접수는 아이닉 공식 접수폼에서만 가능합니다."],
-  /* 🔴 2026-10-02 — 서버가 필수 사진·구매내역·S/N 이 없다고 막았을 때.
-        쿠팡의 사진은 S/N 라벨 사진이라 문구를 따로 둡니다(아래 showApiErr). */
-  image:    ["imageMissing",    "리뷰 이미지를 업로드해 주세요."],
-  imageSn:  ["snImageMissing",  "S/N 라벨 사진을 업로드해 주세요."],
-  buyImage: ["buyImageMissing", "구매내역 캡처를 업로드해 주세요."],
-  serial:   ["serialMissing",   "시리얼번호(S/N)를 입력해 주세요."]
+  origin:  ["originBlocked",   "접수는 아이닉 공식 접수폼에서만 가능합니다."]
 };
 const API_ERR_ELSE = ["submitErr",
   "접수 중 오류가 발생했습니다.\n잠시 후 다시 시도해 주세요. 계속 실패하면 상담사에게 문의해 주세요."];
@@ -3116,8 +2727,7 @@ function showNotice(key, dflt, vals, title){
   $("#modal").classList.add("on");
 }
 function showApiErr(reason){
-  if(reason==="image" && state.type==="coupang") reason="imageSn";
-  const [key, dflt] = (reason && Object.prototype.hasOwnProperty.call(API_ERR, reason) && API_ERR[reason]) || API_ERR_ELSE;
+  const [key, dflt] = API_ERR[reason] || API_ERR_ELSE;
   showNotice(key, dflt);
 }
 

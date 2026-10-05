@@ -7,7 +7,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{--brand:#3f3939;--ink:#2b2725;--sub:#8a827c;--line:#ece8e4;--bg:#f6f4f2;--card:#fff;
-    --ok:#12a150;--bad:#e5484d;--warn:#e08a1e;--blue:#2f6df6;}
+    --ok:#12a150;--bad:#e5484d;--warn:#e08a1e;--blue:#2f6df6;
+    /* 2026-10 화면 정리(디자인 토큰) — 시안과 같은 색·모서리 */
+    --sunk:#faf8f6;--sunk2:#f2efec;--okbg:#e9f4ee;--badbg:#fbedee;--warnfg:#b8791a;--warnbg:#fdf3e4;--bluebg:#eaf0fd;
+    --accent:#c98a2e;--accentbg:#fbf3e6;--r-sm:8px;--r-md:12px;--r-lg:16px;
+    --sh-1:0 1px 2px rgba(43,39,37,.06);--sh-2:0 8px 28px rgba(43,39,37,.14);--focus:0 0 0 3px rgba(47,109,246,.28);}
   *{box-sizing:border-box}
   body{margin:0;font-family:"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;background:var(--bg);color:var(--ink)}
   .wrap{max-width:1680px;margin:0 auto;padding:22px 20px 60px}
@@ -197,7 +201,7 @@
 /* ══════════ 이벤트 설정 화면 (관리자 탭) ══════════
    ⚠️ 모든 선택자가 #evtCfg 안으로 갇혀 있습니다. 리포트 기존 스타일과 섞이지 않습니다. */
 
-  #evtCfg{
+  #evtCfg, #evtNav{
     --brand:#3f3939; --ink:#2b2725; --sub:#8a827c; --line:#ece8e4;
     --bg:#f6f4f2; --card:#ffffff; --sunk:#faf8f6; --sunk2:#f2efec;
     --ok:#12a150; --okbg:#e9f4ee; --bad:#e5484d; --badbg:#fbedee;
@@ -207,7 +211,7 @@
     --r:10px;
   }
   @media (prefers-color-scheme: dark){
-    #evtCfg:not([data-theme="light"]){
+    #evtCfg:not([data-theme="light"]), #evtNav:not([data-theme="light"]){
       --brand:#e8e2de; --ink:#f0ebe7; --sub:#a29892; --line:#3a3533;
       --bg:#211e1d; --card:#2b2725; --sunk:#242120; --sunk2:#332e2c;
       --ok:#4ecf8a; --okbg:#1c3327; --bad:#f47b7f; --badbg:#3a2325;
@@ -216,7 +220,7 @@
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
     }
   }
-  #evtCfg[data-theme="dark"]{
+  #evtCfg[data-theme="dark"], #evtNav[data-theme="dark"]{
     --brand:#e8e2de; --ink:#f0ebe7; --sub:#a29892; --line:#3a3533;
     --bg:#211e1d; --card:#2b2725; --sunk:#242120; --sunk2:#332e2c;
     --ok:#4ecf8a; --okbg:#1c3327; --bad:#f47b7f; --badbg:#3a2325;
@@ -490,6 +494,115 @@
   #evtCfg summary:hover{color:var(--ink)}
   #evtCfg pre{margin:0; padding:0 15px 15px; overflow-x:auto; font-size:11.5px; line-height:1.65; color:var(--sub)}
 
+  /* ══ 2026-10 설정 편집기 개편 — 왼쪽 메뉴 · 아래 고정 저장 줄 · 안내 문구 카드 ══
+     ⚠️ 관리자 페이지(#page-admin)는 [왼쪽 메뉴 | 내용] 두 칸입니다.
+        내용 칸에는 설정 편집기(#evtCfg) · 부적합 운영(#admRep) · 사용자(#admUsers) 중 하나만 보입니다.
+        #admRep · #admUsers 는 메인 스크립트가 채우는 곳이라 자리만 옮기지 않고 그대로 둡니다. */
+  #page-admin.on{display:grid; grid-template-columns:232px minmax(0,1fr); gap:18px; align-items:start}
+  #page-admin.on > #evtCfg, #page-admin.on > #admRep, #page-admin.on > #admUsers{grid-column:2; min-width:0}
+  #page-admin.on > #evtNav{grid-column:1; grid-row:1 / span 4}
+  @media (max-width:900px){
+    #page-admin.on{grid-template-columns:minmax(0,1fr)}
+    #page-admin.on > #evtCfg, #page-admin.on > #admRep, #page-admin.on > #admUsers, #page-admin.on > #evtNav{grid-column:1; grid-row:auto}
+    #evtNav{position:static !important; max-height:none !important}
+  }
+  #evtNav{position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; box-sizing:border-box;
+    background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:14px; padding:10px 8px 12px;
+    font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif; font-size:13.5px}
+  #evtNav *{box-sizing:border-box}
+  #evtNav .ng{font-size:11.5px; font-weight:800; color:var(--sub); letter-spacing:.04em; margin:12px 10px 5px}
+  #evtNav .ng:first-child{margin-top:4px}
+  #evtNav button, #evtNav a.nl{appearance:none; display:flex; width:100%; align-items:center; gap:8px; text-align:left; cursor:pointer;
+    border:0; background:transparent; color:var(--ink); font:inherit; font-weight:600; padding:8px 10px; border-radius:9px; text-decoration:none}
+  #evtNav button:hover, #evtNav a.nl:hover{background:var(--sunk)}
+  #evtNav button.on{background:var(--brand); color:var(--bg)}
+  #evtNav button.sub{padding-left:24px; font-weight:500; font-size:13px}
+  #evtNav button:focus-visible, #evtNav a.nl:focus-visible{outline:2px solid var(--blue); outline-offset:-2px}
+  #evtNav .nd{width:7px; height:7px; border-radius:50%; background:var(--accent); margin-left:auto; flex:none}
+  #evtNav .ext{margin-left:auto; font-size:11px; color:var(--sub)}
+
+  #evtCfg .save.sbar{position:sticky; bottom:0; z-index:30; margin-top:18px; padding:11px 16px;
+    background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 -6px 20px rgba(63,57,57,.08)}
+  #evtCfg .save.sbar .cnt{font-weight:800; font-size:13.5px}
+  #evtCfg .save.sbar .cnt.on{color:var(--accent)}
+  #evtCfg .save.sbar .sp{flex:1}
+  #evtCfg .save.sbar .hint2{font-size:12px; color:var(--sub)}
+  #evtCfg .btn.ghost2{border-color:transparent; background:transparent; color:var(--sub)}
+  #evtCfg .btn.ghost2:hover{background:var(--sunk2); color:var(--ink)}
+
+  /* 이름표가 붙은 입력칸 (고객 화면 문구) */
+  #evtCfg .lf{margin:0 0 14px}
+  #evtCfg .lf > label{display:flex; align-items:center; gap:8px; justify-content:space-between; font-size:13px; font-weight:700; color:var(--ink); margin:0 0 5px; letter-spacing:0}
+  #evtCfg .lf .src{font-weight:500; color:var(--sub); font-size:11.5px; font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+  #evtCfg .lf .lfp{margin-top:5px; font-size:12px; color:var(--sub); line-height:1.6; border-left:3px solid var(--line); padding:1px 0 1px 9px}
+  #evtCfg .lf .lfh{margin-top:4px; font-size:11.5px; color:var(--sub)}
+  #evtCfg .lf .lfe{margin-top:4px; font-size:12px; font-weight:700; color:var(--bad)}
+  #evtCfg .lf .hl{color:#c0392b; font-weight:800} #evtCfg .lf .hlk{font-weight:800}
+  #evtCfg .chg{outline:2px solid var(--accent); outline-offset:1px}
+  #evtCfg .nbox{border-radius:12px; padding:10px 12px; font-size:12.5px; line-height:1.7; margin:0 0 12px; background:var(--bluebg); color:var(--ink)}
+  #evtCfg .nbox.warn{background:var(--warnbg)}
+  #evtCfg .nbox.bad{background:var(--badbg)}
+  #evtCfg .lfbox{border:1px solid var(--line); border-radius:12px; padding:12px 14px 2px; margin-top:14px; background:var(--sunk)}
+  #evtCfg .lfbox > .lft{font-size:12px; font-weight:800; color:var(--sub); margin:0 0 10px}
+  #evtCfg .each{background:var(--sunk); border-radius:10px; padding:8px 10px; margin-top:6px}
+  #evtCfg .each .r{display:grid; grid-template-columns:96px 1fr; gap:6px; align-items:center; margin-top:5px}
+  #evtCfg .each .r > span{font-size:11.5px; color:var(--sub); word-break:break-all}
+
+  /* 안내 문구 관리 */
+  #evtCfg .ntools{position:sticky; top:0; z-index:20; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; box-shadow:var(--shadow)}
+  #evtCfg .ntools .sbx{width:100%; height:42px; font-size:14.5px; border-radius:11px; padding:0 14px; background:var(--sunk)}
+  #evtCfg .ntools .frow{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:9px}
+  #evtCfg .ntools .frow .lb{font-size:11.5px; font-weight:800; color:var(--sub); width:34px; flex:none}
+  #evtCfg .fchip{appearance:none; cursor:pointer; height:28px; padding:0 11px; border-radius:999px; border:1px solid var(--line);
+    background:var(--card); color:var(--sub); font-size:12px; font-weight:700; white-space:nowrap}
+  #evtCfg .fchip:hover{border-color:var(--sub)}
+  #evtCfg .fchip.on{background:var(--brand); border-color:var(--brand); color:var(--bg)}
+  #evtCfg .fchip:focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+  #evtCfg .nres{display:flex; align-items:center; gap:10px; margin:14px 2px 8px; color:var(--sub); font-weight:700; font-size:13px}
+  #evtCfg .nxc{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin-bottom:10px}
+  #evtCfg .nxc.chgd{border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent)}
+  #evtCfg .nxt{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  #evtCfg .nxt b{font-size:14.5px}
+  #evtCfg .nxk{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:11px; color:var(--sub); background:var(--sunk2); padding:1px 6px; border-radius:5px; margin-left:auto}
+  #evtCfg .ndot{width:8px; height:8px; border-radius:50%; background:var(--accent); display:inline-block; flex:none}
+  #evtCfg .tagc{display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:999px; font-size:11.5px; font-weight:700; background:var(--sunk2); color:var(--sub); white-space:nowrap}
+  #evtCfg .tagc.bad{background:var(--badbg); color:var(--bad)} #evtCfg .tagc.warn{background:var(--warnbg); color:var(--warn)}
+  #evtCfg .tagc.ok{background:var(--okbg); color:var(--ok)} #evtCfg .tagc.blue{background:var(--bluebg); color:var(--blue)}
+  #evtCfg .nxw{display:flex; gap:8px; margin:8px 0 6px; font-size:12.5px; align-items:flex-start}
+  #evtCfg .nxw > span:first-child{flex:0 0 62px; color:var(--sub); font-weight:700}
+  #evtCfg .nxw > span:last-child{flex:1; min-width:0}
+  #evtCfg .nxc textarea{min-height:64px; font-size:14px}
+  #evtCfg .nxacts{display:flex; gap:6px; margin-top:9px; align-items:center; flex-wrap:wrap}
+  #evtCfg .nxacts .sp{flex:1}
+  #evtCfg .nxkk{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--sub); font-weight:700}
+  #evtCfg .nxdef{margin-top:10px; background:var(--bluebg); border-radius:11px; padding:10px 12px}
+  #evtCfg .nxdef .h{font-size:12px; font-weight:800; color:var(--blue); margin-bottom:4px; display:flex; align-items:center; gap:8px}
+  #evtCfg .nxdef .h .sp{flex:1}
+  #evtCfg .nxdef .tx{white-space:pre-wrap; font-size:13px; line-height:1.65}
+  #evtCfg .nxwarn{margin-top:6px; font-size:12px; font-weight:700; color:var(--bad)}
+  #evtCfg .nxtip{margin-top:5px; font-size:11.5px; color:var(--sub)}
+  #evtCfg .mono2{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:12px; background:var(--sunk2); padding:1px 6px; border-radius:5px}
+
+  /* 고객 화면 이미지 */
+  #evtCfg .imgl{display:grid; grid-template-columns:72px 1fr auto; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--line)}
+  #evtCfg .imgl:first-of-type{border-top:0}
+  #evtCfg .imgl .th{width:72px; height:54px; border-radius:8px; overflow:hidden; background:var(--sunk2); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--bad); font-size:18px}
+  #evtCfg .imgl .th img{width:100%; height:100%; object-fit:cover; display:block}
+  #evtCfg .imgl code{font-size:12px; background:var(--sunk2); padding:1px 6px; border-radius:5px; word-break:break-all}
+  #evtCfg .imgsec{border:1px solid var(--line); border-radius:14px; background:var(--card); padding:14px 16px; margin-bottom:12px}
+  #evtCfg .imgsec > h3{margin:0 0 8px; font-size:14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+
+  /* 변경 내용 보기 창 */
+  #evtCfg .chgmodal{display:none; position:fixed; inset:0; background:rgba(20,16,14,.5); z-index:520; align-items:center; justify-content:center; padding:20px}
+  #evtCfg .chgbox{background:var(--card); border-radius:16px; width:min(640px,100%); max-height:86vh; overflow:auto; box-shadow:0 18px 50px rgba(0,0,0,.28)}
+  #evtCfg .chgbox .hd{display:flex; align-items:center; gap:8px; padding:15px 18px; border-bottom:1px solid var(--line); font-weight:800; position:sticky; top:0; background:var(--card)}
+  #evtCfg .chgbox .bd{padding:14px 18px}
+  #evtCfg .chgbox .ft{display:flex; justify-content:flex-end; gap:8px; padding:12px 18px; border-top:1px solid var(--line)}
+  #evtCfg .dif{border:1px solid var(--line); border-radius:11px; margin-bottom:9px; overflow:hidden}
+  #evtCfg .dif .h{background:var(--sunk); padding:7px 12px; font-weight:800; font-size:12.5px}
+  #evtCfg .dif .m{padding:7px 12px; background:var(--badbg); color:var(--bad); font-size:12.5px; white-space:pre-wrap; word-break:break-word}
+  #evtCfg .dif .p{padding:7px 12px; background:var(--okbg); color:var(--ok); font-size:12.5px; white-space:pre-wrap; word-break:break-word}
+
   /* ── 부적합 운영 (2026-09-29) ── */
   .opill{display:inline-block;font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;white-space:nowrap}
   .opill.g{background:#f4f1ec;color:#6b625c} .opill.ok{background:#e9f8ef;color:#12703d} .opill.y{background:#fdf3e2;color:#8a5a12}
@@ -509,6 +622,237 @@
   .ocard.wt{border-color:#ecd29a;background:#fffaf0} .ocard.wt .v{color:#8a5a12}
   .rbar{height:9px;border-radius:5px;background:#f0ece8;overflow:hidden;min-width:60px} .rbar i{display:block;height:100%;background:var(--brand,#3f3939)}
   td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+
+  /* ══════════ 2026-10 화면 정리 (업무 화면 공통) ══════════
+     ⚠️ 보기만 바꿉니다. 아래 규칙은 #evtCfg(설정 편집기) 안의 모양을 건드리지 않도록 전역 이름만 쓰거나 #tabs·.page 로 좁혀 둡니다. */
+  body{font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
+  header{padding:4px 0 2px}
+  h1{display:flex;align-items:center;gap:10px;flex-wrap:wrap;letter-spacing:-.2px}
+  h1 .brand{display:inline-flex;align-items:center;justify-content:center;background:var(--brand);color:#fff;border-radius:8px;padding:3px 10px;font-size:14px;font-weight:900;letter-spacing:.06em}
+  button{border-radius:var(--r-sm);transition:background .15s,transform .05s,box-shadow .15s}
+  button:hover:not(:disabled):not(.primary):not(.on):not(.active):not(.danger):not(.ghost):not(.imgbtn){background:var(--sunk)}
+  button:active:not(:disabled){transform:scale(.98)}
+  button:focus-visible,.tab:focus-visible,.pg:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:none;box-shadow:var(--focus)}
+  button.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+  button.primary:hover:not(:disabled){background:#2f2a2a}
+  button.danger{background:var(--badbg);color:var(--bad);border-color:transparent}
+  button.danger:hover:not(:disabled){background:#f8dcde}
+  button.ghost{background:transparent;border-color:transparent;color:var(--sub)}
+  button.ghost:hover:not(:disabled){background:var(--sunk2);color:var(--ink)}
+  button.sm{padding:5px 11px;border-radius:var(--r-sm)}
+
+  /* 탭 — 밑줄 + 건수 */
+  #tabs.tabs{gap:2px;margin-bottom:14px}
+  #tabs .tab{display:inline-flex;align-items:center;gap:6px;background:transparent;border:0;border-bottom:3px solid transparent;border-radius:var(--r-sm) var(--r-sm) 0 0;
+    padding:10px 14px 9px;margin-bottom:-1px;color:var(--sub);font-weight:800;font-size:13.5px}
+  #tabs .tab:hover{background:var(--sunk2);color:var(--ink)}
+  #tabs .tab.active{background:transparent;color:var(--ink);box-shadow:none;border-bottom-color:var(--brand)}
+  .tcs{display:inline-flex;gap:3px}
+  .tcs i{font-style:normal;min-width:20px;height:18px;padding:0 6px;border-radius:999px;font-size:11px;font-weight:800;line-height:18px;text-align:center;background:var(--sunk2);color:var(--sub)}
+  .tcs i.w{background:var(--warnbg);color:var(--warnfg)} .tcs i.b{background:var(--badbg);color:var(--bad)} .tcs i.a{background:var(--accentbg);color:var(--accent)}
+  #tabs .tab.active .tcs i{background:var(--brand);color:#fff}
+  #tabs .tab.active .tcs i.w{background:var(--warnbg);color:var(--warnfg)} #tabs .tab.active .tcs i.b{background:var(--badbg);color:var(--bad)} #tabs .tab.active .tcs i.a{background:var(--accentbg);color:var(--accent)}
+  /* 하위 탭 — 알약 */
+  .subtab{border-radius:999px;padding:6px 14px}
+  .subtab:hover:not(.active){background:var(--sunk2)}
+
+  /* 따라다니는 필터 줄 */
+  .filters.stick{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 0;margin-bottom:6px;border-bottom:1px solid var(--line)}
+  .tile,.panel,.svq,.rescard{box-shadow:var(--sh-1)}
+  .tile,.panel,.svq,.tablewrap,.rescard{border-radius:var(--r-lg)}
+  .tablewrap{box-shadow:var(--sh-1)}
+  select,input[type=text]{border-radius:var(--r-sm);min-height:34px}
+  select:hover,input[type=text]:hover{border-color:#d9d3cd}
+
+  /* 표 — 촘촘하고 읽기 쉽게 */
+  table.data{font-size:12.5px}
+  table.data th{background:var(--sunk);color:var(--sub);padding:9px 10px;font-size:11.5px;letter-spacing:.02em}
+  table.data td{padding:7px 10px}
+  table.data tr:last-child td{border-bottom:0}
+  table.data tr.clickrow:hover td{background:var(--accentbg)}
+  table.data tr.cur td{background:var(--accentbg);box-shadow:inset 0 0 0 0 transparent}
+  table.data tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+
+  /* 상태 칩 — 적합 ok / 부적합 bad / 확인필요 warn / 미심사 blue / 출고완료 / 수동승인 / 중복 warn */
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:11.5px;line-height:1.5;vertical-align:middle}
+  .pill.eligible::before,.pill.ineligible::before,.pill.needreview::before,.pill.pending::before,.pill.shipped::before,.pill.approved::before,.pill.accent::before,.pill.reserved::before,.pill.unshipped::before{
+    content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.85}
+  .pill.eligible,.pill.shipped{background:var(--okbg);color:var(--ok)}
+  .pill.ineligible{background:var(--badbg);color:var(--bad)}
+  .pill.needreview{background:var(--warnbg);color:var(--warnfg)}
+  .pill.pending{background:var(--bluebg);color:var(--blue)}
+  .pill.approved,.pill.accent{background:var(--accentbg);color:var(--accent)}
+  .pill.unshipped{background:var(--sunk2);color:var(--sub)}
+  .pill.reserved{background:var(--bluebg);color:var(--blue)}
+
+  /* 비어 있을 때 */
+  div.empty{padding:34px 20px;color:var(--sub);font-size:13px;line-height:1.7}
+  div.empty::before{content:"";display:block;width:40px;height:40px;margin:0 auto 10px;border-radius:50%;background:var(--sunk2);
+    box-shadow:inset 0 0 0 2px var(--line),inset 0 -10px 0 -4px var(--line)}
+  .hint{line-height:1.65}
+
+  /* 예약발송 */
+  .chkgrid .chk{min-width:0} input.rsvat{min-height:0}
+  .rsv-purpose{display:flex;gap:10px;align-items:flex-start;background:var(--accentbg);border:1px solid #f0dcb8;border-radius:var(--r-md);padding:11px 14px;margin:0 0 12px;font-size:12.5px;line-height:1.65}
+  .rsv-purpose b{color:#7a5210}
+  .rsv-info{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--sub);font-size:12.5px;margin:0 2px 10px}
+  .rgrp{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);margin-bottom:12px;overflow:hidden;box-shadow:var(--sh-1)}
+  .rgh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 14px;background:var(--sunk);border-bottom:1px solid var(--line)}
+  .rgh b{font-size:14.5px} .rgh .cnt{font-weight:800;color:var(--accent);font-size:13px} .rgh .sp{flex:1}
+  .rgrp table.data{border-radius:0} .rgrp .tablewrap{border:0;border-radius:0;box-shadow:none}
+  .rpg{margin-top:6px}
+  .rpg .pg{min-width:34px;padding:6px 10px}
+
+  /* 상세 — 오른쪽 서랍 (같은 #detailModal · 같은 id) */
+  #detailModal.drawer{background:rgba(30,26,24,.45)}
+  #detailModal .dr-box{background:#fff;width:min(1240px,100vw);height:100vh;max-height:none;overflow:auto;padding:0 22px 22px;border-radius:var(--r-lg) 0 0 var(--r-lg);box-shadow:var(--sh-2)}
+  #detailModal .dr-hd{position:sticky;top:0;z-index:5;background:#fff;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 0 12px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+  #detailModal .dr-nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  #detailModal .dr-pos{font-size:12px;font-weight:700;color:var(--sub);min-width:46px;text-align:center}
+  #detailModal .dr-keys{font-size:11px;color:var(--sub);margin-right:4px}
+  #detailModal .dr-keys kbd{font:inherit;font-weight:800;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:var(--sunk)}
+  #detailModal .dr-body{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+  #detailModal .dr-left{flex:1 1 560px;min-width:260px;display:grid;grid-template-columns:minmax(0,1fr);gap:0 16px;align-content:start}
+  #detailModal .dr-left:has(#dtBuyWrap:not([style*="display: none"]):not([style*="display:none"])){grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  #detailModal .dr-left > *{grid-column:1}
+  #detailModal .dr-left:has(#dtBuyWrap:not([style*="display: none"]):not([style*="display:none"])) > #dtBuyWrap{grid-column:2;grid-row:1 / span 6}
+  #detailModal #dtBuyWrap{margin-top:0!important}
+  #detailModal #dtImg,#detailModal #dtBuyImg{max-height:60vh!important;width:100%;object-fit:contain}
+  #detailModal .dr-right{flex:0 0 400px;max-width:100%;min-width:260px;display:flex;flex-direction:column;gap:9px}
+  #detailModal .dtrow b{min-width:84px}
+  @media(max-width:900px){
+    #detailModal .dr-box{width:100vw;border-radius:0;padding:0 14px 18px}
+    #detailModal .dr-right{flex:1 1 100%}
+    #detailModal .dr-keys{display:none}
+  }
+  /* ══════════ 아이닉 브랜드 컬러 · 최종 디자인 C안 (2026-10-03 승인) ══════════
+     🔴 모양만 바꿉니다. id·data-tab·동작·권한은 그대로입니다. 위쪽 옛 규칙은 지우지 않고 이 아래가 덮어씁니다.
+     · 왼쪽 사이드바 = 기존 <header>(로고·이름·기준시각) + #tabs(메뉴) + 사용자·로그아웃 — 같은 요소를 자리만 옮겼습니다.
+     · 브랜드색(민트)은 선택된 메뉴·주 버튼·포커스·핵심 상태에만 씁니다. 나머지는 회색·차콜.
+     색 근거: 아이닉 공식몰 — 민트 #34A796, 차콜 #222, 회색 글자 #757575 (접수폼과 같은 체계) */
+  :root{--in-brand:#34A796;--in-primary:#1F7F70;--in-primary-press:#17665A;--in-primary-tint:#E8F4F1;--in-primary-line:#BFE1D9;
+    --in-secondary:#2B2B2B;--in-border-strong:#DBDEE2;--in-muted:#9A9A9A;--in-side:#F7F7F6;--in-hover:#EFEFED;
+    --brand:var(--in-primary);--ink:#222222;--sub:#757575;--line:#EBEBEB;--bg:#FFFFFF;--card:#FFFFFF;
+    --ok:#2E8B57;--bad:#D14343;--warn:#B7791F;--blue:#52606D;
+    --sunk:#FAFAF9;--sunk2:#F0F0EE;--okbg:#EAF5EE;--badbg:#FDEEEE;--warnfg:#B7791F;--warnbg:#FDF6E7;--bluebg:#EEF1F4;
+    --accent:var(--in-primary);--accentbg:var(--in-primary-tint);
+    --r-sm:6px;--r-md:8px;--r-lg:10px;--sh-1:none;--sh-2:0 12px 40px rgba(0,0,0,.14);
+    --focus:0 0 0 3px rgba(31,127,112,.22);}
+  body{font-size:13px;color:var(--ink);background:#fff;font-variant-numeric:tabular-nums}
+
+  /* ── 사이드바 + 본문 ── */
+  #mainWrap{max-width:none;margin:0;padding:16px 24px 60px 248px}
+  #mainWrap > header{position:fixed;left:0;top:0;bottom:0;width:224px;z-index:60;margin:0;padding:0;
+    display:flex;flex-direction:column;flex-wrap:nowrap;align-items:stretch;justify-content:flex-start;gap:0;
+    background:var(--in-side);border-right:1px solid var(--line)}
+  #mainWrap > header h1{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;margin:0;padding:16px 16px 12px;font-size:12.5px;font-weight:600;color:var(--sub);letter-spacing:0}
+  #mainWrap > header h1 .brandlogo{height:20px;display:block;margin:0}
+  #mainWrap > header h1 .svc{padding-left:10px;border-left:1px solid var(--in-border-strong);line-height:16px;color:var(--sub)}
+  #mainWrap > header h1 .sub{flex-basis:100%;margin:6px 0 0;font-size:11px;font-weight:500;color:var(--in-muted);line-height:1.4}
+  /* 메뉴 */
+  #mainWrap > header #tabs{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;flex-wrap:nowrap;gap:1px;margin:0;padding:4px 8px 8px;border:0}
+  #mainWrap > header #tabs .tab{position:relative;display:flex;align-items:center;gap:9px;width:100%;height:34px;margin:0;padding:0 10px;
+    border:0;border-radius:6px;background:none;color:#4a4a4a;font-size:13px;font-weight:500;white-space:nowrap}
+  #mainWrap > header #tabs .tab:hover{background:var(--in-hover);color:var(--ink)}
+  #mainWrap > header #tabs .tab.active{background:var(--in-primary-tint);color:var(--in-primary);font-weight:600;box-shadow:none;border:0}
+  #mainWrap > header #tabs .tab.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:2px;border-radius:2px;background:var(--in-primary)}
+  #mainWrap > header #tabs .tab::after{content:"";order:-1;flex:none;width:16px;height:16px;background:currentColor;opacity:.55;
+    -webkit-mask:var(--ic) center/16px no-repeat;mask:var(--ic) center/16px no-repeat}
+  #mainWrap > header #tabs .tab.active::after{opacity:1}
+  #mainWrap > header #tabs .tcs{margin-left:auto}
+  #mainWrap > header #tabs .tcs i{background:none;color:var(--sub);font-weight:500;min-width:0;padding:0;font-size:11.5px}
+  #mainWrap > header #tabs .tcs i.w{color:var(--warnfg);font-weight:600} #mainWrap > header #tabs .tcs i.b{color:var(--bad);font-weight:600}
+  #mainWrap > header #tabs .tcs i.a{color:var(--in-primary);font-weight:600}
+  #mainWrap > header #tabs .tab.active .tcs i{background:none;color:var(--in-primary)}
+  #mainWrap > header #tabs .tab.active .tcs i.w{color:var(--warnfg)} #mainWrap > header #tabs .tab.active .tcs i.b{color:var(--bad)}
+  /* 메뉴 아이콘 (선 아이콘 · 모양만) */
+  #tabs .tab[data-tab="all"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4 6h16M4 12h16M4 18h16'/%3E%3C/svg%3E")}
+  #tabs .tab[data-tab="report"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M5 20V11M12 20V4M19 20v-6'/%3E%3C/svg%3E")}
+  #tabs .tab[data-tab="order"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linejoin='round'%3E%3Crect x='4' y='9' width='16' height='11' rx='1'/%3E%3Cpath d='M12 9v11M3 9h18'/%3E%3C/svg%3E")}
+  #tabs .tab[data-tab="acct"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M3 8h18v3a2 2 0 000 4v3H3v-3a2 2 0 000-4z'/%3E%3C/svg%3E")}
+  #tabs .tab[data-tab="bad"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l10 18H2z'/%3E%3Cpath d='M12 10v5M12 18v.5'/%3E%3C/svg%3E")}
+  #tabs .tab[data-tab="reserve"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E")}
+  #tabs .tab[data-tab="cs"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-4-4'/%3E%3C/svg%3E")}
+  #tabs .tab[data-tab="manual"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16z'/%3E%3C/svg%3E")}
+  #tabs .tab[data-tab="orders"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2'%3E%3Cellipse cx='12' cy='6' rx='8' ry='3'/%3E%3Cpath d='M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3'/%3E%3C/svg%3E")}
+  #tabs .tab[data-tab="admin"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1'/%3E%3C/svg%3E")}
+  /* 사용자 · 비밀번호 변경 · 로그아웃 · 새로고침 — 맨 아래 */
+  #mainWrap > header .btns{flex:none;display:flex;flex-direction:column;align-items:stretch !important;gap:6px;margin:0;padding:10px 12px 12px;border-top:1px solid var(--line)}
+  #mainWrap > header #whoBox{flex-wrap:wrap;gap:2px 4px;font-size:12px;color:var(--sub)}
+  #mainWrap > header #whoami{flex-basis:100%;font-size:12.5px;font-weight:600;color:var(--ink);margin:0 0 4px 2px;line-height:1.35}
+  #mainWrap > header .btns button{border:0;background:none;color:var(--in-muted);font-size:11.5px;font-weight:500;padding:4px 6px;border-radius:5px}
+  #mainWrap > header .btns button:hover:not(:disabled){background:var(--in-hover);color:var(--ink)}
+  #mainWrap > header .btns #reload{align-self:flex-start}
+  @media(max-width:900px){
+    #mainWrap{padding:0 14px 60px}
+    #mainWrap > header{position:static;width:auto;border-right:0;border-bottom:1px solid var(--line);margin:0 -14px 12px}
+    #mainWrap > header #tabs{flex-direction:row;overflow-x:auto}
+    #mainWrap > header #tabs .tab{width:auto}
+    #mainWrap > header .btns{flex-direction:row;flex-wrap:wrap}
+  }
+
+  /* ── 버튼: 주 버튼만 민트, 나머지 흰 바탕 차콜 글자 ── */
+  button{border-color:var(--in-border-strong);color:var(--in-secondary);font-weight:600;border-radius:6px}
+  button.primary{background:var(--in-primary);border-color:var(--in-primary);color:#fff}
+  button.primary:hover:not(:disabled){background:var(--in-primary-press);border-color:var(--in-primary-press)}
+  button.sm{border-radius:6px}
+  .subtab{background:#fff;border-color:var(--in-border-strong);color:var(--sub);font-weight:600}
+  .subtab.active{background:var(--in-secondary);border-color:var(--in-secondary);color:#fff}
+  .subtab2.active{background:var(--in-secondary);border-color:var(--in-secondary)}
+  .pg.on{background:var(--in-secondary);border-color:var(--in-secondary);color:#fff}
+  select,input[type=text]{border-color:var(--in-border-strong);border-radius:6px}
+  select:focus,input[type=text]:focus{outline:none;border-color:var(--in-primary);box-shadow:var(--focus)}
+  .guidelink,.helplink{color:var(--in-primary)}
+  .guidelink{border-color:var(--in-primary-line);background:var(--in-primary-tint)}
+  a.img,button.imgbtn{color:var(--in-primary)}
+
+  /* ── 목록: 촘촘한 표, 얇은 선 ── */
+  .filters.stick{background:#fff;padding:10px 0;border-bottom:1px solid var(--line)}
+  .tablewrap{border-color:var(--line);border-radius:8px;box-shadow:none}
+  table.data{font-size:12.5px}
+  table.data th{background:#FAFAF9;color:var(--sub);font-weight:600;font-size:11.5px;letter-spacing:0;padding:0 10px;height:32px;border-bottom:1px solid var(--line)}
+  table.data td{padding:0 10px;height:36px;border-bottom:1px solid #F1F1EF}
+  table.data tr:hover td,table.data tr.clickrow:hover td{background:#FAFAF9}
+  table.data tr.cur td{background:#F2F2F0}
+  table.data tr.cur td:first-child{box-shadow:inset 2px 0 0 var(--in-primary)}
+
+  /* ── 상태: 점 + 글자색 (적합 녹색 · 부적합 적색 · 확인필요 호박색 · 그 외 중립) ── */
+  .pill.eligible,.pill.shipped,.pill.gift,.pill.ineligible,.pill.needreview,.pill.coupon,.pill.pending,.pill.unshipped,.pill.review,
+  .pill.approved,.pill.accent,.pill.reserved,.pill.manual,.pill.coupang{background:none;padding:0 2px;font-weight:600;font-size:12px}
+  .pill.eligible,.pill.shipped,.pill.gift{color:var(--ok)}
+  .pill.ineligible{color:var(--bad)}
+  .pill.needreview,.pill.coupon{color:var(--warnfg)}
+  .pill.pending,.pill.unshipped,.pill.review{color:var(--sub)}
+  .pill.approved,.pill.accent,.pill.reserved,.pill.manual,.pill.coupang{color:var(--in-primary)}
+  .shipbig.resv{background:var(--in-primary-tint);color:var(--in-primary)}
+  .shipbig.wait{background:var(--sunk2);color:var(--sub)}
+
+  /* ── 카드·패널: 그림자 대신 얇은 선 ── */
+  .tile,.panel,.svq,.rescard,.form,.rgrp,.ocard{box-shadow:none;border-color:var(--line);border-radius:10px}
+  .tile .val{font-weight:700}
+  .bar,.rbar i{background:var(--in-brand)}
+  .shotlbl .no{background:var(--in-secondary)}
+  .rsv-purpose{background:var(--in-primary-tint);border-color:var(--in-primary-line)}
+  .rsv-purpose b{color:var(--in-primary)}
+  .rgh{background:#FAFAF9}
+  .rgh .cnt{color:var(--in-primary)}
+  .opsbox{border-color:#F1DDB0;background:var(--warnbg)}
+  .opsbox.zero{border-color:#CFE6D6;background:var(--okbg)}
+
+  /* ── 상세(오른쪽 서랍) ── */
+  #detailModal.drawer{background:rgba(20,20,20,.32)}
+  #detailModal .dr-box{border-radius:0;box-shadow:var(--sh-2);border-left:1px solid var(--line)}
+  #detailModal .dr-hd{border-bottom-color:var(--line)}
+  #detailModal .dr-keys kbd{background:#fff;border-color:var(--in-border-strong)}
+  .dtchk{border-color:var(--line);border-radius:8px}
+  .dtchk .ch{background:#FAFAF9}
+
+  /* ── 설정(관리자 탭) — 같은 색 체계, 밝은 화면만 바꿉니다(어두운 화면 설정은 그대로) ── */
+  #evtCfg, #evtNav{--brand:#1F7F70;--ink:#222222;--sub:#757575;--line:#EBEBEB;--bg:#F7F7F6;--card:#FFFFFF;--sunk:#FAFAF9;--sunk2:#F0F0EE;
+    --ok:#2E8B57;--okbg:#EAF5EE;--bad:#D14343;--badbg:#FDEEEE;--warn:#B7791F;--warnbg:#FDF6E7;--blue:#1F7F70;--bluebg:#E8F4F1;
+    --accent:#1F7F70;--shadow:none;--r:8px}
+  #evtNav{border-radius:10px}
+  #evtNav button.on{background:var(--sunk2);color:var(--ink);font-weight:700}
 </style>
 </head>
 <body>
@@ -519,26 +863,27 @@
 
 <div class="wrap" id="mainWrap" style="visibility:hidden">
   <header>
-    <h1>아이닉 이벤트 관리 리포트 <span class="sub" id="asof">불러오는 중…</span></h1>
-    <div class="btns" style="align-items:center"><span id="whoBox" style="display:none"><b id="whoami"></b><button id="btnChangePw" class="sm">비밀번호 변경</button><button id="btnLogout" class="sm">로그아웃</button></span><button id="reload">↻ 새로고침</button></div>
-  </header>
+    <h1><img class="brandlogo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAABACAYAAAD1eP6XAAAON0lEQVR4nO2df5RcZXnHv8/zzuzAJiFLMAmaBIViaREX2iG7M5Pd3JAYGmkQAadSRVEPFE+iBVsptuhZYqFoqKfKUasQ9SDnSDUqJYY2Bk6Tm03mzoTsKYEjeBTRECIEUvKL/NiZeZ+nf8wd2M3u7N47OzM7kfmcMyebue993++89/v+uO+Pe4EWLVq0aNHipISChInH4xEAGBgYKNRZz0lNPB6PAm+ufKpooJ6enpnG2hsBXA5gqv/1rwGscT1vfSPEnSTwolQqDeBjqnoWAED1ADH/JA/cl8lkDk+uvPoyqoF6urs7DfOPjDHnqSpUtRSYCKoKEfnGkULhM2+mkjYaSzs7pwy2t68xxlwDYFg+EQBR3a4iH3az2WcnU2c94RO/cBznLYb5x8x8nrUWIoKyicp/RyKRlVOi0VsmQ3AzkW9vXx2NRK4RkRH5ZEXAzF0Avh+Px9snW2u9GGEg5POfNMa8U0QqnuQfu6W3t3de/aQ1N04qdRGIbihaWzGMtRbGmOSUtrZrGiitoQwzUDqdNgRcMZZ5gFJVbYzp4GLxPXVV18xYu9wwR8cLpgBI9eoGKJoUhhnoueeeY1GdWinwUAiAEr1payAlOkuDBiaaXU8tk8nIJiwEqpqvlZCTDWI+FmQMxKdYPyWTyzADDQwMFAE8SzR+1ogqWHVHvYQ1OyoyEKQGIgAK/G+99UwWJ9ZAqkTfKt+OVjyJGSKy49SOjv76SWtu8sB6K/I75sqVOBFBVPNGZE0DpTWUEb++3/MeEdVvGWMwWk3EzFCRfSBasWHDhsGGqGxCstnsqwR8WlXzo5mIiErjZiK3b8rlBiZBYkMYtfjsO3jwpmKx2AfV/YYZhhllQ6nq9qLI8i2e93ijxTYbruetF2vfLyK/4HI+MYOZAdUXiyKfcrPZuyZbZz0Zs7PT29V1NkciS6B6JlQtMw/ETjvNnYyaZ9myZbEjR47MihYKM4XorQpMAwCoHlCivRHVl20sttd13YZ3WB3HmUqFwhIAF6gqAdglkchj/f39LzZay/J4vP3w1KnthUKhjYgiRHQMQHHr1q0HUBpVqCkhbiQaT29v7zxTKCwG0XsUiAOYA2AalQCA8uivKnCQgF1QHSDmjWzt5v/J5fZO6g9oAIsTiTlFYxaQ6gJS7RRgLoAOqEaIiBUoEJBX4PcE/BJEOQD9s+bMeWrt2rWVR0ED0pQGuiSZXGiJPknAXzDRDOCNeaZKHfyyocr/isheAtYJcN8fWnMbj8ejU6LRZUR0HYBFzHyGf7dXOX8AwJ+jsyIFInpCRR4sMP8wk8n8vlotTWWghcnkfAI+D2A5M/PQidywEBGYCFYkD2Ctity5JZd7pqaCJwEnmXw/AbcSUQL+5HY1ecR+J19EXlLg2zHVezZms6+GjaeigRzHiWihcBmrLhXgXAZeIsArGPPQ1q1bXwmteAwSicSpMaLbiOgzRNQ+3lRKWExp2GG/Ev3zrDlz7qlF1T2UxYnEHAtcSUTdCkwH8JQSrd+SyXi1SqOnp+ccY+3dRHSVf+FrEm+5oInIr0T1c1uy2YdCnT/al05X11wY8x1mvrRcNZYDi+pvxdqbt+Ry6yaoHQDQ29t7tikWv8vMi2QCNc540Bsl7iFrzI21KgROd/fHiflOZn7r6/lEBLG2qKrfHQRuzmazxyaURqnW+QYzv83WuHCVYSIooFD96nHV24JqHmGgVCo1Lar6qDGm244y08ylwbFBFbl8Sy736EREL0wm/4yJfkpE76h1rVMJvzZ6QoG/dj3vlxOJy0mlrmXggUp9D2MMrLX3u573CQBV/UAnkbiFmO8EEK1X4RqKMQZSLK4/DlyXDdCkjRgHiqj+TSXzAP4UBnMMRP+2dOnSKdUK7U0k/pyBdY00DwBYERDzRQT87JJU6rxq41nc3T1bVe8eq+NqrQUzX9ebTL63mjQWplK3sTGr0SDzAL5mY5bHgIcSicSM8cIPM1BfXx8T8Fc6zgUVERhj3nX8tdcWVSPyklTqj5joP4l5biPNU0ZKJjpXVH/oOM5bqonDGnN5hPnMIBeWgY+Gjd9JJD5tiO4oL1RrJLZ0fRfGiB4YbzHcMAOtX7/eqOppQScJiejCsOKWx+Ptono/M8+bDPOUEREY5guRz9/rOE4k7PmqGvi3E3BOmLgXJZNLQHR3o40zFN9El02NRlePFW5EE0ZEYa5q6GGAw21tfcaYBZNpnjL+stMrNZ9fEfZcAqYFurylGwPTF3DpTDKZnKXAvUwUm0wDAa83wSt6u7s/WCnMhNYDhcXp6kqA6KZK/avxICKwP9dU/pTnnoIsQRkNVQUDq5xE4tyqIqgxUeCLhvkcqcI8J+ZP+f+vz89VgQLEzHcnk8lZox0PXXVXSzqdNnt3777DEMXCZo5/iwlV/Y2qblOinSqyFwCIaC4TXaSqC5h5XtiBNVWFYe4oWtsH4COhhNWYRd3d3Ur08bC36kOGKH6jIi6Ax1X1ZWLOK9ChIu8C0SKoXmyMiYSp/f38mddm7T8A+OyJxxtmoJf27FlimBeHbbqYGaL6OFRXF4h+XmmfVSKRmBETuQLALcz8p2HSsSIgorSTSn3FzWSeCCWwhgjR5wxRW5gC5q/NekZV7zrV2oc3bN9+qFJQZ8GCLhH5LBFdDVS+exyhSxUgut7p7v66m8v9blikgZVOEFb9FIVoZ/xOuqrqHYMijut5Px5rk142m33V9bzv4ejRlKh+k0M2aYY5pqo3hjqphjjJ5AVE9N4wxvdrne8Mqva4nvfAGOYBAHG3bcu6nvcBVf0ogENBL4dfC01Xok+ceKwhBvL7F0tC1T5Eotau3JzJfCHMSK67c+cBN5NZKaqrwrT7fqm/csn8+WcEF1k7VPXDhjkWNDwzQ1X/xfW864MM+A3F9bwHVORqVT3IzGB/OmOsD0qfjyzt7Bw29teQJkyJLjPMgee4/Gr5djeX+/dq03Q973YnlZrJzCuCpOuXstkFZgfAT6tNtxrS6XTb3t27Lw/apPj58yPX8z5fbZpuNvuYk0otUtW3S5AMspaU2R5ubx8WtiEGItVLg4ZlZliRrUfy+S9NNN1jxeI/nsK8mJn/JHDHmmgZGmygvbt3n0dEfxyk7+M3Wy9KJHIzJrhAzO/vPTGROOrehKVSqWkg6gx6AVVVwPzFWuy7317qE9wVuOulCgIuTqfTZqJph4GY40E2KQL+Hanq1ydjteNo1N1AMaKzAMwONORfKl1PUiSyqVbptxUKD1uRF4KYSAGA6O3/9/zzVU1vVIuqXhh09N+KHCbVH9RbU1DqbiALvI2I2oKE9cczNtZyXfNjAwMHCdgSyEAlk3cgGm3oTlJWfUeQcMQMBXa6udyuOksKTN0NpNaeFfh2EYCq1n4LjOqOoDf1RMS2WBx11LVeCHBmkHD+b3gKdVgcXy11NxARBe5PqCqU+UDNRTC/EjTHqTTqPe4yhlpCIQxBRGON9TSchs6FBcGI1HzLkIo03e+smtK2oaah6TJWmyyDGoGGWNXgr7luGprOQG9SXgoSyH/W0LvRRLtpWgZqBoh+G8QRKgIl6uzp6Tm77poC0jJQE6AiTwYKByDCPJWLxWvrLCkwLQM1Acy8w4oEGnkXVRDRCqera269dQWhYeuBWlTmlblzfzXzhReeoQBTPlraFTNbgK85jvPBiQy6OsnkBQTMCbI+1AAQEaFTTul3Xfd4+fuWgZqAp9euzS9MpdYZok4bYMpHSmu5r5LBwX/t6+v7u1WrVoVeYN6bSl1Kqv9BzKebINNMpVHw59r27+8c9n3YhFvUBykWHyyKHA96eyUiYGNucjduvL+np2dmmLScROJ6A6wF0elDn2891sffHHD/o08+eWRoXC0DNQlbt29/moCfhVoEV9rfdm3E2m1OKnXDWBsB0+m06U0mFzrJ5MPEfB+A04KukCAiWGv3azT6vROPtZqwJoJFvmyB9wEIvDJRSuu538lE98aIvrAomXQF2AHV5wGAVKeD+d0v79nTy8DFzEyh16UToQh8u7+/f/eJx1oGaiI25XIDCxOJNRFjVobZmVFuZohoHhFda4Bht/nkhxEg9FM9iAhFa3dRLPaV0Y63mrAmg2Kx263Ir8NuCgDw+ns6TvxYEVSzz+yNaPXvXdfdN9rBloGaDNd195HqDQocq3azZK0wpeXF9/Tncj+pFKZloCZkczbrqsjfApi0mWXfPP89paPj1rHCtQzUpLjZ7BpV/Sf4u04biTEGVuRRHD36ofGeyNsyUBPjet6XRHUlgHyjTMTMsNaui+bzaXfnzgPjhm+AphYTYIvnfROqV0F1t6nyAQlB8DvtVkRWv5bPf+CxgYGDgc6rm6IWNWOz5z0yCPSK6oPlJ27UCiIqPfZP9RcCXOF63q1htlS1DHSS4Hners2ZzIcI+EtV3VI2UrVNW/mxL1DdXVS9DUeP9vR73iNh4xkxkEiqTAEc7r9IZFz1qkoUsCPov92m5o29AqE0BFlWq6ocJE7/eM0K6qZM5r/S6fTP9+3Zs0St/ZgyL2HmWeM+aHyIThEZFNUBUv3BILDWy2RerlbPCAMp0SFVPTTePAmVjh8fMxAAZh4U1UOBtu0CIKKavwmaifJBNaA0ojv+i/SIjgSOE6jpTgr/OdcbAWx05s8/U6PRbhXpUaILVXUeAWeAKOYrU1LdJ0SvMNEzEMmxMVs3bdv2NGqwPejE4kNLk8mZVjXQNtvjzIfGey/60s7OKba9vSOooLZ9+/ZtePbZmu7MiMfj7dOj0dODhj8KvDreE0F6enpObysWA72N+RhRwfO8qkt5GM4///y2GTNmTG8rFtsAgJn1lMHBA+sHBo42Iv0WLVq0aNHiJOH/ATN32IeTF2vYAAAAAElFTkSuQmCC" alt="아이닉"><span class="svc">포토리뷰 관리자</span><span class="sub" id="asof">불러오는 중…</span></h1>
 
+  <!-- 2026-10 디자인: 왼쪽 사이드바 = 이 header (로고·이름 → 메뉴 #tabs → 사용자·로그아웃). 요소·id 는 그대로, 자리만 옮겼습니다. -->
   <div class="tabs" id="tabs">
     <div class="tab active" data-tab="all">전체</div>
     <div class="tab" data-tab="report">포토리뷰 리포트</div>
-    <div class="tab" data-tab="order">사은품</div>
-    <div class="tab" data-tab="acct">상품권</div>
-    <div class="tab" data-tab="bad">부적합</div>
-    <div class="tab" data-tab="reserve">예약발송</div>
+    <div class="tab" data-tab="order">사은품<span class="tcs" data-tcs="order"></span></div>
+    <div class="tab" data-tab="acct">상품권<span class="tcs" data-tcs="acct"></span></div>
+    <div class="tab" data-tab="bad">부적합<span class="tcs" data-tcs="bad"></span></div>
+    <div class="tab" data-tab="reserve">예약발송<span class="tcs" data-tcs="reserve"></span></div>
     <div class="tab" data-tab="cs">고객검색</div>
     <div class="tab" data-tab="manual">수기접수</div>
     <div class="tab" data-tab="orders">고객DB</div>
     <div class="tab" data-tab="admin" id="tabAdmin" style="display:none">관리자</div>
   </div>
+    <div class="btns" style="align-items:center"><span id="whoBox" style="display:none"><b id="whoami"></b><button id="btnChangePw" class="sm">비밀번호 변경</button><button id="btnLogout" class="sm">로그아웃</button></span><button id="reload">↻ 새로고침</button></div>
+  </header>
 
   <!-- 전체 -->
   <section class="page on" id="page-all">
-    <div class="filters">
+    <div class="filters stick">
       <span id="count" style="font-size:12.5px;color:var(--sub);font-weight:700"></span>
       <span style="flex:1"></span>
       <button id="csvBtn" class="sm">CSV(전체)</button>
@@ -571,7 +916,7 @@
   <section class="page" id="page-order">
     <div class="subtabs"><div class="subtab active" data-sub="order" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="order" data-v="inelig">확인필요</div></div>
     <div class="hint" id="orderHint"></div>
-    <div class="filters"><span id="oCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
+    <div class="filters stick"><span id="oCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
       <button id="reAllOrder" class="sm" style="display:none">🔄 확인필요 전체 재심사 (사은품+상품권)</button>
       <button id="dlOrder" class="sm primary">📦 일괄출고</button></div>
     <div class="tablewrap"><table class="data" id="tableOrder"><thead></thead><tbody></tbody></table>
@@ -583,7 +928,7 @@
   <section class="page" id="page-acct">
     <div class="subtabs"><div class="subtab active" data-sub="acct" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="acct" data-v="inelig">확인필요</div></div>
     <div class="hint" id="acctHint"></div>
-    <div class="filters"><span id="aCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
+    <div class="filters stick"><span id="aCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
       <button id="reAllAcct" class="sm" style="display:none">🔄 확인필요 전체 재심사 (사은품+상품권)</button>
       <button id="dlAcct" class="sm primary">🎟️ 일괄출고</button></div>
     <div class="tablewrap"><table class="data" id="tableAcct"><thead></thead><tbody></tbody></table>
@@ -598,7 +943,7 @@
     <!-- 조장 · 관리자에게만 보이는 인콜 확인 상자 -->
     <div id="badPanelA"></div>
     <div id="badUnassigned" style="display:none;margin:0 0 10px;padding:9px 13px;border:1.5px solid #f0c9c9;background:#fff7f7;color:#b3252a;border-radius:10px;font-size:12.5px;line-height:1.6"></div>
-    <div class="filters">
+    <div class="filters stick">
       <select id="bfReward"><option value="">보상 전체</option><option value="gift">사은품</option><option value="coupon">상품권</option></select>
       <select id="bfReason"><option value="">사유 전체</option><option value="notcap">리뷰 캡처·S/N 사진 아님</option><option value="ratingunread">별점 미확인</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="snmismatch">S/N 불일치</option><option value="snunread">S/N 미확인</option><option value="dup">중복 참여</option></select>
       <select id="bfAgent"><option value="">담당자 전체</option><option value="__none__">미지정</option></select>
@@ -625,19 +970,21 @@
 
   <!-- 예약발송 -->
   <section class="page" id="page-reserve">
-    <div class="hint">품절 등으로 나중에 발송할 <b>제품을 지정</b>하세요. 지정한 제품의 적격 건은 사은품/상품권 발송목록에서 빠지고 아래 예약발송 목록으로 모입니다. <b>재고가 입고되면 위에서 해당 제품 체크를 해제</b>하세요 → 그 건들이 사은품/상품권 발송목록(적합)으로 이동해 거기서 일괄출고하면 됩니다.</div>
+    <div class="rsv-purpose"><span>📮</span><div><b>출고 화면이 아니라 문자 안내용 고객 목록입니다</b> · 입고되면 지정 해제 → 사은품 탭 일괄출고<br>
+      품절 등으로 나중에 발송할 <b>제품을 지정</b>하면 그 제품의 <b>적합·부적합·출고 승인</b> 고객이 아래 목록으로 모이고, 적합·출고 승인 건은 사은품 발송목록(일괄출고)에서 빠집니다. <b>확인필요</b> 건은 사은품/상품권 탭의 「확인필요」에서 재심사합니다.</div></div>
     <div class="panel" style="margin-bottom:14px">
       <h3>예약발송 제품 지정</h3>
       <div class="hint" style="margin:0 0 10px">여기서는 <b>제품과 입고 시점</b>만 정합니다. 고객에게 나갈 <b>문장</b>은 <b>안내 문구 탭 → ⑧ 접수 완료 → 「사은품 · 예약발송일 때」</b> 에서 고치세요.</div>
       <div class="chkgrid" id="reserveConfig"></div>
       <button id="saveReserve" class="primary sm">저장</button><span class="msg" id="reserveMsg" style="margin-left:8px"></span>
     </div>
-    <div class="subtabs"><div class="subtab active" data-sub="reserve" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="reserve" data-v="inelig">확인필요</div></div>
-    <div class="filters"><input type="text" id="rSearch" placeholder="이름·연락처·제품 검색">
-      <span id="rCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span></div>
-    <div class="tablewrap"><table class="data" id="tableReserve"><thead></thead><tbody></tbody></table>
-      <div class="empty" id="emptyReserve" style="display:none">예약발송 대상이 없습니다.</div></div>
-    <div class="pager" id="pagerReserve"></div>
+    <div class="filters stick"><input type="text" id="rSearch" placeholder="이름·연락처(숫자만 OK)·제품 검색" style="min-width:280px">
+      <span id="rCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
+      <button id="dlReserve" class="sm primary" title="예약 제품 전체 고객 (검색어와 상관없이 전체)">⬇ 문자 발송용 목록 내려받기</button></div>
+    <div class="rsv-info" id="rNote"></div>
+    <div id="reserveGroups"></div>
+    <div class="empty" id="emptyReserve" style="display:none">예약발송 대상이 없습니다.</div>
+    <div class="pager rpg" id="pagerReserve"></div>
   </section>
 
   <!-- 고객검색 -->
@@ -1013,17 +1360,10 @@
 
   <section class="page" id="page-admin">
 
+<!-- 왼쪽 메뉴 — 안은 설정 편집기 스크립트(renderNav)가 채웁니다 -->
+<nav id="evtNav" aria-label="이벤트·운영 관리 메뉴"></nav>
+
 <div id="evtCfg" hidden>
-  <div id="evtTabBar">
-      <div class="tabs" role="tablist">
-        <button class="tab" role="tab" aria-selected="true"  data-t="gift">사은품</button>
-        <button class="tab" role="tab" aria-selected="false" data-t="rule">프로모션</button>
-        <button class="tab" role="tab" aria-selected="false" data-t="form">접수폼</button>
-        <button class="tab" role="tab" aria-selected="false" data-t="notice">안내 문구</button>
-        <button class="tab" role="tab" aria-selected="false" data-t="users">사용자</button>
-        <button class="tab" role="tab" aria-selected="false" data-t="badops">부적합 운영</button>
-      </div>
-  </div>
 <div class="cols" id="cols">
     <main class="panel">
       <div class="body" id="pane"></div>
@@ -1051,15 +1391,24 @@
     </aside>
   </div>
 
-  <div class="save">
-    <button class="btn primary" id="saveBtn">💾 서버에 저장</button>
-    <button class="btn" id="resetBtn">되돌리기</button>
+  <!-- 아래 고정 저장 줄 — 고친 내용은 「저장」을 눌러야 서버에 남습니다. 안 누르고 나가면 사라집니다. -->
+  <div class="save sbar" id="saveBar">
+    <span class="cnt" id="saveCnt">변경 없음</span>
+    <button class="btn sm" id="viewChgBtn" type="button" disabled>변경 내용 보기</button>
+    <button class="btn sm ghost2" id="resetBtn" type="button">모두 되돌리기</button>
     <span class="msg" id="saveMsg"></span>
+    <span class="sp"></span>
+    <span class="hint2" id="saveHint">저장하면 약 1분 뒤 고객 화면에 반영됩니다</span>
+    <button class="btn primary" id="saveBtn" type="button">저장</button>
   </div>
-  <p style="margin:6px 0 0;font-size:12px;color:var(--sub)">
-    고친 내용은 <b>이 버튼을 눌러야</b> 서버에 남습니다. 이 버튼을 안 누르고 창을 닫으면 <b style="color:var(--bad)">전부 사라집니다.</b>
-    항목에 붙는 <b>「고치는 중」</b>은 <b>그 칸이 열려 있다</b>는 표시일 뿐입니다 — 저장하면 칸이 닫히면서 함께 사라집니다.
-  </p>
+  <div class="chgmodal" id="chgModal" role="dialog" aria-modal="true" aria-label="변경 내용">
+    <div class="chgbox">
+      <div class="hd"><span>저장 전 확인 · 바뀐 내용</span><span class="tagc warn" id="chgCnt"></span><span style="flex:1"></span>
+        <button class="btn sm ghost2" id="chgX" type="button" aria-label="닫기">✕</button></div>
+      <div class="bd" id="chgBody"></div>
+      <div class="ft"><button class="btn" id="chgClose" type="button">계속 수정</button></div>
+    </div>
+  </div>
   <!-- 「서버에 저장될 내용 보기(개발자용)」 상자는 뺐습니다 (2026-09-14).
        담당자가 볼 일이 없고 화면만 어지럽혔습니다.
        ⚠️ 안에 있던 #dump 는 softRefresh() 가 매번 채우던 곳입니다.
@@ -1174,17 +1523,24 @@
 <div id="opsToast" style="position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#2b2725;color:#fff;font-size:12.5px;font-weight:700;padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .25s;z-index:260;max-width:92vw;text-align:center;pointer-events:none"></div>
 
 <!-- 부적합 상세 (아웃콜 응대 기록) -->
-<div id="detailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:210;align-items:center;justify-content:center;padding:20px" onclick="if(event.target.id==='detailModal')closeDetail()">
-  <div style="background:#fff;border-radius:14px;width:min(860px,94vw);max-height:92vh;overflow:auto;padding:18px 20px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px">
+<!-- 상세 = 오른쪽 서랍 (2026-10). 키보드: J·↓ 다음 / K·↑ 이전 / Esc 닫기 — 지금 화면에 그려진 목록 순서대로 -->
+<div id="detailModal" class="drawer" style="display:none;position:fixed;inset:0;z-index:210;align-items:stretch;justify-content:flex-end;padding:0" onclick="if(event.target.id==='detailModal')closeDetail()">
+  <div class="dr-box">
+    <div class="dr-hd">
       <div>
         <div style="font-weight:800;font-size:17px" id="dtName">-</div>
         <div style="font-size:12.5px;color:var(--sub);margin-top:2px" id="dtMeta">-</div>
       </div>
-      <button class="sm" onclick="closeDetail()">닫기 ✕</button>
+      <div class="dr-nav">
+        <span class="dr-keys"><kbd>K</kbd> 이전 · <kbd>J</kbd> 다음 · <kbd>Esc</kbd> 닫기</span>
+        <button class="sm" data-act="dnav" data-dir="-1" aria-label="이전 고객">‹ 이전</button>
+        <span class="dr-pos" id="dtPos"></span>
+        <button class="sm" data-act="dnav" data-dir="1" aria-label="다음 고객">다음 ›</button>
+        <button class="sm" onclick="closeDetail()">닫기 ✕</button>
+      </div>
     </div>
-    <div style="display:flex;gap:18px;flex-wrap:wrap">
-      <div style="flex:1;min-width:240px">
+    <div class="dr-body">
+      <div class="dr-left">
         <!-- 🔴 사진 제목(2026-09-10) — 첫 사진에는 제목이 아예 없어서 무슨 사진인지 알 수 없었습니다. -->
         <div id="dtImgTitle" class="shotlbl"></div>
         <img id="dtImg" alt="리뷰 이미지" style="width:100%;max-height:360px;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#f4f2f0;cursor:zoom-in" onclick="openImg(this.src)">
@@ -1199,7 +1555,7 @@
           <a id="dtBuyOpen" href="#" target="_blank" class="img" style="display:block;font-size:12px;text-align:right;margin-top:6px">새 탭에서 원본 열기 ↗</a>
         </div>
       </div>
-      <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:9px">
+      <div class="dr-right">
         <!-- 🔴 AI 심사 체크리스트(2026-09-10) — 쿠팡 정품등록 전용.
              예전에는 같은 판정이 ① S/N 줄 ② 구매내역 4줄 ③ 부적합 사유 줄, 세 군데에 흩어져 있었습니다.
              AI가 보는 항목은 정해져 있으므로 늘 같은 순서로 한 장에 모읍니다.
@@ -1480,7 +1836,9 @@ function reasonOf(e){
 function shipStateOf(e){if(e.shipState)return e.shipState;if(e.shipped)return "shipped";return "pending";}
 const STATUS_META={eligible:["적격","eligible"],ineligible:["부적합","ineligible"],review:["확인필요","needreview"],pending:["미심사","pending"]};
 const SHIP_META={pending:["미발송","unshipped"],reserved:["예약발송","reserved"],shipped:["출고완료","shipped"]};
-function statusBadge(e){const s=shipStatus(e);const[l,c]=STATUS_META[s];const m=e.manual?' <span class="pill manual">수기</span>':'';return `<span class="pill ${c}">${l}</span>${m}`;}
+/* 화면 표시는 「적합」으로 통일합니다(2026-10). STATUS_META 의 「적격」은 엑셀 내보내기 값이라 그대로 둡니다. */
+function statusBadge(e){const s=shipStatus(e);const[l0,c]=STATUS_META[s];const l=s==="eligible"?"적합":l0;const m=e.manual?' <span class="pill manual">수기</span>':'';
+  const d=(!e.manual&&dupIds.has(e._id))?' <span class="pill needreview">중복</span>':'';return `<span class="pill ${c}">${l}</span>${d}${m}`;}
 function shipBadge(e){const s=shipStateOf(e);const[l,c]=SHIP_META[s];return `<span class="pill ${c}">${l}</span>`;}
 function isEligible(e){return shipStatus(e)==="eligible";}
 function isReserve(e){return reserveProducts.has(e.product);}
@@ -1511,7 +1869,13 @@ async function logAccess(action, detail, count){
   }catch(err){ console.warn("기록 실패", err); }   // 기록이 안 돼도 업무는 막지 않는다
 }
 
-function matchSearch(e,q){if(!q)return true;const hay=[e.name,e.phone,e.orderNo,e.serial,e.agent,e.address,e.product].join(" ").toLowerCase();return hay.includes(q.trim().toLowerCase());}
+/* 🔴 2026-10 — 연락처는 숫자만 쳐도 찾습니다(00001001 · 0000-1001 → 010-0000-1001).
+      「숫자·공백·하이픈」으로만 된 검색어이고 숫자가 4자리 이상일 때만 연락처 숫자와 맞춰 봅니다(짧은 숫자로 엉뚱한 건이 걸리지 않게).
+      부적합·예약발송·고객검색이 이 함수를 같이 씁니다. */
+function matchSearch(e,q){if(!q)return true;const hay=[e.name,e.phone,e.orderNo,e.serial,e.agent,e.address,e.product].join(" ").toLowerCase();
+  const qq=String(q).trim().toLowerCase();if(hay.includes(qq))return true;
+  if(/^[\d\s\-+().]+$/.test(qq)){const qd=qq.replace(/\D/g,"");if(qd.length>=4&&String(e.phone||"").replace(/\D/g,"").includes(qd))return true;}
+  return false;}
 
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error(src));document.head.appendChild(s);});}
 async function initFbApp(){
@@ -1703,22 +2067,22 @@ function shippedDate(e){const t=e.shippedAt;if(!t)return "-";let d=null;
   if(t.toDate)d=t.toDate();else if(typeof t==="object"&&t.seconds!=null)d=new Date(t.seconds*1000);else if(typeof t==="string")d=new Date(t);
   return d&&!isNaN(d)?fmtDate(d):"-";}
 /* 공통 컬럼 — 세 번째 값은 td/th class (wrapcell = 줄바꿈 허용) */
-const TYPE_COL=["유형",e=>`<span class="pill ${e.type}">${TYPE_LABEL[e.type]||e.type}</span>`];
+const TYPE_COL=["유형",e=>`<span class="pill ${clsType(e.type)}">${TYPE_LABEL[clsType(e.type)]||admEsc(e.type)}</span>`];
 const MONO='font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;letter-spacing:.2px';
 /* 정품등록은 '고객 입력 S/N'과 'AI가 이미지에서 읽은 S/N'을 나란히 보여줘야 담당자가 바로 비교 가능 */
 const SN_COL=["S/N (입력 / AI판독)",e=>{
   if(e.type!=="coupang")return '<span style="color:var(--sub)">-</span>';
-  const inp=e.serial||"(미입력)";
+  const inp=admEsc(e.serial||"(미입력)");
   const ai=e.aiSerialInImage;
   if(ai===undefined)return `<span style="${MONO}">${inp}</span>`;
   const same=e.aiSerialMatch===true;
-  return `<span style="${MONO}">${inp}</span><div style="${MONO};margin-top:2px;color:${same?"var(--ok,#12a150)":"var(--bad,#c0392b)"}">${ai?("AI "+ai):"AI 판독불가"}</div>`;
+  return `<span style="${MONO}">${inp}</span><div style="${MONO};margin-top:2px;color:${same?"var(--ok,#12a150)":"var(--bad,#c0392b)"}">${ai?("AI "+admEsc(ai)):"AI 판독불가"}</div>`;
 },"wrapcell"];
 const COLS=[
-  ["접수일시",e=>fmtDate(e._date)],["판매처",e=>e.source||"-","wrapcell"],["출고",e=>shipBadge(e)],["출고일자",e=>shippedDate(e)],
-  TYPE_COL,["제품",e=>e.product||"-"],
-  ["보상",e=>`<span class="pill ${e.rewardType}">${REWARD_LABEL[e.rewardType]||"-"}</span>`],["사은품/상품권",e=>e.giftItem||"-","wrapcell"],
-  ["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],["심사",e=>statusBadge(e)]
+  ["접수일시",e=>fmtDate(e._date)],["판매처",e=>admEsc(e.source||"-"),"wrapcell"],["출고",e=>shipBadge(e)],["출고일자",e=>shippedDate(e)],
+  TYPE_COL,["제품",e=>admEsc(e.product||"-")],
+  ["보상",e=>`<span class="pill ${clsRw(e.rewardType)}">${REWARD_LABEL[clsRw(e.rewardType)]||"-"}</span>`],["사은품/상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
+  ["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["심사",e=>statusBadge(e)]
 ];
 function headHtml(cols){return "<tr>"+cols.map(c=>`<th class="${c[2]||""}">${c[0]}</th>`).join("")+"</tr>";}
 function rowHtml(cols,e,attrs){return `<tr${attrs||""}>`+cols.map(c=>`<td class="${c[2]||""}">${c[1](e)}</td>`).join("")+"</tr>";}
@@ -1729,7 +2093,7 @@ function renderTableAll(){
   /* 전체 탭도 행을 누르면 상세가 열립니다 (2026-09-14 담당자 요청).
      부적합·확인필요와 같은 상세 화면이고, 적합 건에는 안내와 재심사 단추만 나옵니다. */
   $("#tableAll tbody").innerHTML=rows.map(e=>rowHtml(COLS,e,
-    ` class="clickrow" onclick="openDetail('${e._id}',true)"`)).join("");
+    ` class="clickrow" data-act="detail" data-ro="1" data-id="${admEsc(e._id)}"`)).join("");
   $("#emptyAll").style.display=all.length?"none":"block";pager("#pagerAll",all.length,"all");
 }
 
@@ -1870,7 +2234,7 @@ function renderSurvey(){
     return;
   }
   if(!codes.includes(svCur)) svCur=codes[0];
-  sel.innerHTML=codes.map(c=>'<option value="'+c+'"'+(c===svCur?' selected':'')+'>'+svEsc(svStats[c].name)+' — 접수 '+svStats[c].n+'건</option>').join("");
+  sel.innerHTML=codes.map(c=>'<option value="'+admEsc(c)+'"'+(c===svCur?' selected':'')+'>'+svEsc(svStats[c].name)+' — 접수 '+svStats[c].n+'건</option>').join("");
   const p=svStats[svCur], secs=svSections(p);
   const nq=secs.reduce((a,s)=>a+s.qs.length,0);
   $("#surveyBox").innerHTML=
@@ -1885,7 +2249,7 @@ function svBindTip(){
   document.querySelectorAll(".svseg").forEach(el=>{
     el.addEventListener("mousemove",e=>{
       const a=el.dataset.t.split("|");
-      tip.innerHTML="<b>"+a[0]+"</b><br>"+a[1]+"건 · "+a[2]+"%";
+      tip.innerHTML="<b>"+svEsc(a[0])+"</b><br>"+svEsc(a[1])+"건 · "+svEsc(a[2])+"%";   // 보안(2026-10-02): 고객 설문 답이라 바꿔 넣습니다
       tip.style.display="block"; tip.style.left=(e.clientX+14)+"px"; tip.style.top=(e.clientY+14)+"px";
     });
     el.addEventListener("mouseleave",()=>{tip.style.display="none";});
@@ -1964,23 +2328,32 @@ async function svMakePpt(all){
 /* 사은품/상품권 */
 function isShippable(e){return shipStatus(e)==="eligible"||e.overrideEligible===true;}   // 적격 또는 수동 출고승인
 function teamElig(rw){return ALL.filter(e=>e.rewardType===rw&&isShippable(e)&&!isReserve(e)&&shipStateOf(e)!=="shipped");}
-function teamInelig(rw){return ALL.filter(e=>e.rewardType===rw&&(shipStatus(e)==="review"||shipStatus(e)==="pending")&&!e.overrideEligible&&!isReserve(e));} // 확인필요(AI 애매·오류)
+/* 확인필요(AI 애매·오류). 🔴 2026-10 — 예약발송 제품도 여기에 포함합니다(예약 탭은 확인필요를 안 받으므로, 재심사는 여기서 합니다).
+   ⚠️ teamElig(출고 목록)는 그대로 예약 제품을 뺍니다. */
+function teamInelig(rw){return ALL.filter(e=>e.rewardType===rw&&(shipStatus(e)==="review"||shipStatus(e)==="pending")&&!e.overrideEligible);}
 /* 수기접수 증빙 이미지는 manualImageUrl 에 있습니다.
    AI 심사 판정(재심사 버튼 등)은 imageUrl 만 보므로 그대로 둡니다. */
-function imgUrlOf(e){ return e.imageUrl || e.manualImageUrl || ""; }
+/* 🔴 보안(2026-10-02) — 이미지 주소는 우리 Storage 주소(firebasestorage.googleapis.com)만 씁니다.
+      접수 데이터에 엉뚱한 주소가 들어 있어도 화면·엑셀·ZIP 이 그 주소를 열지 않게 하려는 것입니다. */
+const okImgUrl = u => /^https:\/\/firebasestorage\.googleapis\.com\//.test(String(u||"")) ? String(u) : "";
+function imgUrlOf(e){ return okImgUrl(e.imageUrl) || okImgUrl(e.manualImageUrl) || ""; }
 /* 🔴 포토리뷰 캡처 여러 장 (2026-09-22). 예전 건에는 imageUrls 가 없어 한 장짜리 배열이 됩니다. */
 function imgUrlsOf(e){
-  const many = Array.isArray(e.imageUrls) ? e.imageUrls.map(x=>String(x||"")).filter(Boolean) : [];
+  const many = Array.isArray(e.imageUrls) ? e.imageUrls.map(okImgUrl).filter(Boolean) : [];
   if(many.length) return many;
   const one = imgUrlOf(e);
   return one ? [one] : [];
 }
-/* 단추 글씨는 장수와 상관없이 「이미지」 그대로입니다 — 누르면 있는 만큼 보여 줍니다. */
+/* 🔴 보안(2026-10-02) — class 에 들어가는 유형·보상 값은 정해진 것만 통과시킵니다(따옴표로 속성을 깨지 못하게). */
+const _own = (o,k) => Object.prototype.hasOwnProperty.call(o, String(k));
+const clsType = v => _own(TYPE_LABEL, v) ? v : "";
+const clsRw   = v => _own(REWARD_LABEL, v) ? v : "";
+/* 단추 글씨는 장수와 상관없이 「이미지」 그대로입니다 — 누르면 있는 만큼 보여 줍니다.
+   🔴 2026-10-02 — 주소를 단추에 글자로 넣지 않고, 누르면 문서 ID로 찾아 엽니다(아래 data-act 처리). */
 function imgBtn(e){
   const us=imgUrlsOf(e);
   if(!us.length) return "-";
-  const j=JSON.stringify(us).replace(/"/g,"&quot;");
-  return `<button class="imgbtn" onclick="event.stopPropagation();openImg(${j})">이미지</button>`;
+  return `<button class="imgbtn" data-act="img" data-id="${admEsc(e._id)}">이미지</button>`;
 }
 /* AI 별점·사진 판정 셀 (심사된 포토리뷰만)
    🔴 2026-09-22 — 캡처가 여러 장이 되면서, AI 가 **몇 번째 장에서 봤는지**를 같이 적습니다.
@@ -2009,28 +2382,28 @@ function photoCell(e){
        + shotNo(e, e.aiPhotoShot);
 }
 function eligCheck(e){
-  if(e.overrideEligible) return `<span class="pill reserved">수동승인</span> <button class="sm" onclick="event.stopPropagation();setOverride('${e._id}',false)">취소</button>`;
+  if(e.overrideEligible) return `<span class="pill approved">수동승인</span> <button class="sm" data-act="unapprove" data-id="${admEsc(e._id)}">취소</button>`;
   // 수기접수는 AI 심사를 거치지 않은 건이라 구분해서 표시 (이미지·S/N이 비어 있는 이유)
   if(e.manual) return `<span class="pill eligible">적합(수기)</span>`;
   return `<span class="pill eligible">적합</span>`;
 }
 /* 확인필요 사유 셀 — AI 오류면 실제 원인(aiErrorDetail)까지 함께 표시 */
 function reasonCell(e){
-  const base=reasonOf(e)||"-";
+  const base=admEsc(reasonOf(e)||"-");
   const det=(e.aiErrorDetail||e.aiBuyErrorDetail)?String(e.aiErrorDetail||e.aiBuyErrorDetail).slice(0,180):"";
-  return det ? `${base}<div style="font-size:11px;color:var(--sub);margin-top:3px;white-space:normal">원인: ${det.replace(/</g,"&lt;")}</div>` : base;
+  return det ? `${base}<div style="font-size:11px;color:var(--sub);margin-top:3px;white-space:normal">원인: ${admEsc(det)}</div>` : base;
 }
 /* 담당자 칸 = 출고 승인 버튼을 누른 상담사 (승인 뒤 정정이 필요할 때 누가 눌렀는지 찾기 위함). 2026-09-29 이전 승인은 기록이 없어 「-」 */
 const apvBy=e=>e.overrideEligible?(e.approvedBy||"-"):"-";
 const apvAt=e=>e.overrideEligible&&e.approvedAt?opsMD(tsDate(e.approvedAt)):"-";
-const ELIG_ORDER=[["접수일자",e=>fmtDate(e._date)],["담당자",apvBy],TYPE_COL,["검수",e=>eligCheck(e)],["배송구분",e=>shipFeeBadge(e)],["사은품",e=>e.giftItem||"-","wrapcell"],
-  SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
-const ELIG_ACCT=[["접수일자",e=>fmtDate(e._date)],["담당자",apvBy],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>e.giftItem||"-","wrapcell"],
-  SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
+const ELIG_ORDER=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>admEsc(apvBy(e))],TYPE_COL,["검수",e=>eligCheck(e)],["배송구분",e=>shipFeeBadge(e)],["사은품",e=>admEsc(e.giftItem||"-"),"wrapcell"],
+  SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
+const ELIG_ACCT=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>admEsc(apvBy(e))],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
+  SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
 /* 확인필요 = 재심사 담당. 재심사 누르면 결과에 따라 적합/부적합으로 자동 이동 */
-const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>e.product||"-"],SN_COL,
+const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>admEsc(e.product||"-")],SN_COL,
   ["별점",e=>ratingCell(e)],["사진",e=>photoCell(e)],["사유",e=>reasonCell(e),"wrapcell"],
-  ["이미지",e=>imgBtn(e)],["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],
+  ["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],
   ["재심사",e=>reJudgeBtn(e)]];
 function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
   let all,cols;
@@ -2041,7 +2414,7 @@ function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
   $(tableId+" thead").innerHTML=headHtml(cols);
   // 확인필요 행은 클릭 → 상세(이미지 + 담당자 직접 판정)
   $(tableId+" tbody").innerHTML=rows.map(e=>rowHtml(cols,e,
-    view==="inelig"?` class="clickrow" onclick="openDetail('${e._id}')"`:"")).join("");
+    view==="inelig"?` class="clickrow" data-act="detail" data-id="${admEsc(e._id)}"`:"")).join("");
   $(emptyId).style.display=all.length?"none":"block";pager(pagerId,all.length,key);
 }
 function renderOrder(){
@@ -2137,7 +2510,7 @@ function reJudgeBtn(e){
   const left=cdLeft(reJudgeUntil.get(e._id));
   return left
     ? `<button class="sm" disabled style="opacity:.55">${left}초</button>`
-    : `<button class="sm" onclick="event.stopPropagation();reJudge('${e._id}')">재심사</button>`;
+    : `<button class="sm" data-act="rejudge" data-id="${admEsc(e._id)}">재심사</button>`;
 }
 async function reJudge(id){
   if(cdLeft(reJudgeUntil.get(id)))return;
@@ -2206,9 +2579,9 @@ function renderReserveConfig(){
   $("#reserveConfig").innerHTML = prods.map(p=>{
     const on = reserveProducts.has(p);
     const at = admEsc(reserveNote[p] || "");
-    return `<label class="chk rsvrow"><input type="checkbox" value="${p}" ${on?"checked":""}>`
-      + `<span class="rsvnm">${p}${PNAME[p]?" · "+PNAME[p]:""}</span>`
-      + `<input class="rsvat" type="text" maxlength="20" data-p="${p}" value="${at}" `
+    return `<label class="chk rsvrow"><input type="checkbox" value="${admEsc(p)}" ${on?"checked":""}>`
+      + `<span class="rsvnm">${admEsc(p)}${PNAME[p]?" · "+admEsc(PNAME[p]):""}</span>`
+      + `<input class="rsvat" type="text" maxlength="20" data-p="${admEsc(p)}" value="${at}" `
       + `placeholder="예) 10월 중순" aria-label="입고예정 시점" ${on?"":"disabled"}>`
       + `</label>`;
   }).join("")||'<div class="empty">제품이 없습니다.</div>';
@@ -2241,23 +2614,69 @@ async function saveReserve(){
     renderActiveTab();
   }catch(err){msg.className="msg bad";msg.style.color="";msg.textContent="저장 실패: "+(err.message||err);}
 }
-function reserveElig(q){return ALL.filter(e=>isReserve(e)&&isShippable(e)&&shipStateOf(e)!=="shipped"&&matchSearch(e,q));}
-function reserveInelig(q){return ALL.filter(e=>isReserve(e)&&(shipStatus(e)==="review"||shipStatus(e)==="pending")&&!e.overrideEligible&&matchSearch(e,q));}
-const RESERVE_ELIG=[["검수",e=>eligCheck(e)],["출고",e=>shipBadge(e)],["처리",e=>`<button class="sm primary" onclick="setShipState('${e._id}','shipped')">출고완료</button>`],
-  ["접수일시",e=>fmtDate(e._date)],["제품",e=>e.product||"-"],["보상",e=>`<span class="pill ${e.rewardType}">${REWARD_LABEL[e.rewardType]||"-"}</span>`],
-  ["사은품/상품권",e=>e.giftItem||"-"],["수령인",e=>e.name||"-"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr")],["주문번호",e=>e.orderNo||"-"]];
-const RESERVE_INELIG=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>e.product||"-"],SN_COL,
-  ["별점",e=>ratingCell(e)],["사진",e=>photoCell(e)],["사유",e=>reasonCell(e),"wrapcell"],
-  ["이미지",e=>imgBtn(e)],["보상",e=>`<span class="pill ${e.rewardType}">${REWARD_LABEL[e.rewardType]||"-"}</span>`],
-  ["수령인",e=>e.name||"-","wrapcell"],["연락처",e=>cell(e,"phone")],["재심사",e=>reJudgeBtn(e)]];
+/* ══════════ 예약발송 목록 (2026-10 확정) ══════════
+   목록 = 예약 제품 · 사은품 · 미출고 · (적합 · 부적합 · 출고 승인).
+   확인필요·심사중은 넣지 않습니다 → 사은품/상품권 「확인필요」(teamInelig 가 예약 제품도 받습니다)에서 재심사합니다.
+   ⚠️ 출고 화면이 아니라 문자 안내용 고객 목록입니다. 행별 「출고완료」 단추는 없습니다.
+      입고되면 제품 지정을 해제 → 출고 가능한 건(적합·출고승인)이 사은품 탭으로 돌아가 거기서 일괄출고합니다(teamElig·dlShipTemplate 은 그대로).
+   ⚠️ 페이지는 「고객 10명」 기준(제품 묶음이 페이지를 넘어가면 다음 페이지에서 이어집니다). */
+const R_PER=10;
+/* 예약 제품이면 상품권 건도 넣습니다 — 상품권 발송목록(teamElig)도 예약 제품을 빼므로, 여기 없으면 어디에도 안 보입니다(기존 동작 유지) */
+function reserveBase(e){return isReserve(e)&&shipStateOf(e)!=="shipped";}
+function reserveList(q){return ALL.filter(e=>reserveBase(e)&&(e.overrideEligible===true||shipStatus(e)==="eligible"||shipStatus(e)==="ineligible")&&matchSearch(e,q));}
+function reserveHold(q){return ALL.filter(e=>reserveBase(e)&&!e.overrideEligible&&(shipStatus(e)==="review"||shipStatus(e)==="pending")&&matchSearch(e,q));}
+function rName(p){return PNAME[p]||p||"(제품 미상)";}
+function rTime(e){return e._date?e._date.getTime():0;}
+function rSorted(list){return list.slice().sort((a,b)=>rName(a.product).localeCompare(rName(b.product),"ko")||String(a.product||"").localeCompare(String(b.product||""))||(rTime(a)-rTime(b)));}
+function rStateText(e){return e.overrideEligible?"출고 승인":(shipStatus(e)==="ineligible"?"부적합":"적합");}
+function rChip(e){return e.overrideEligible?'<span class="pill approved">출고 승인</span>':(shipStatus(e)==="ineligible"?'<span class="pill ineligible">부적합</span>':'<span class="pill eligible">적합</span>');}
+/* 내려받기 권한은 사은품·상품권 일괄출고와 같은 역할(DL_BY_ROLE)만 — 버튼 숨김일 뿐 서버 규칙이 막는 것은 아닙니다 */
+function rDlAllowed(){const al=DL_BY_ROLE[(ME&&ME.role)||"agent"];return !al||al.indexOf("dlReserve")>=0;}
+/* 엑셀·CSV 수식 주입 방지 — =,+,-,@ 로 시작하는 칸은 앞에 ' 를 붙입니다 */
+function rSafe(v){v=String(v==null?"":v);return /^[=+\-@\t\r]/.test(v)?"'"+v:v;}
+function rDownload(list,baseName){
+  if(!rDlAllowed()){alert("이 계정은 내려받기 권한이 없습니다.");return;}
+  if(!list.length){alert("대상 데이터가 없습니다.");return;}
+  const rows=rSorted(list).map(e=>({"제품":rSafe(rName(e.product)),"고객명":rSafe(e.name||""),"연락처":rSafe(e.phone||""),"접수일":fmtDate(e._date),
+    "상태":rStateText(e),"입고 예정":rSafe(reserveNote[e.product]||"추후")}));
+  downloadRows(rows,baseName);          // 접근 기록(logAccess)은 downloadRows 가 남깁니다
+}
+function rPageBtn(n,cur){return `<button class="pg ${n===cur?"on":""}" data-act="rpage" data-n="${n}">${n}</button>`;}
 function renderReserve(){
-  const v=subView.reserve||"elig";
-  const all=(v==="inelig"?reserveInelig:reserveElig)($("#rSearch").value),rows=slice(all,"reserve");
-  const cols=v==="inelig"?RESERVE_INELIG:RESERVE_ELIG;
-  $("#rCount").textContent="총 "+all.length+"건";
-  $("#tableReserve thead").innerHTML=headHtml(cols);
-  $("#tableReserve tbody").innerHTML=rows.map(e=>rowHtml(cols,e)).join("");
-  $("#emptyReserve").style.display=all.length?"none":"block";pager("#pagerReserve",all.length,"reserve");
+  const q=$("#rSearch").value, all=rSorted(reserveList(q));
+  const pages=Math.max(1,Math.ceil(all.length/R_PER)); if(pageState.reserve>pages)pageState.reserve=pages;
+  const cur=pageState.reserve, base=(cur-1)*R_PER, vis=all.slice(base,base+R_PER);
+  const tot={}; all.forEach(e=>{const k=e.product||"";tot[k]=(tot[k]||0)+1;});
+  $("#rCount").textContent="예약 고객 "+all.length+"명 · "+Object.keys(tot).length+"개 제품 · 한 페이지 "+R_PER+"명";
+  const hold=reserveHold(q).length;
+  $("#rNote").innerHTML=hold?`<span class="pill needreview">확인필요·심사중 ${hold}명</span><span>은 이 목록에 넣지 않았습니다 · 사은품/상품권 탭 「확인필요」에서 재심사해 적합 또는 부적합으로 판정되면 들어옵니다</span>`:"";
+  const dl=rDlAllowed();
+  $("#reserveGroups").innerHTML=(()=>{
+    const groups=[]; vis.forEach((e,i)=>{const g=groups[groups.length-1]; if(g&&g.p===(e.product||"")) g.rows.push([e,base+i+1]); else groups.push({p:e.product||"",rows:[[e,base+i+1]]});});
+    return groups.map(g=>{
+      const cont=all.findIndex(x=>(x.product||"")===g.p)<base;
+      return `<div class="rgrp"><div class="rgh"><b>${admEsc(rName(g.p))}</b><span class="cnt">고객 ${tot[g.p]}명</span>`
+        +(cont?'<span class="hint" style="margin:0">(앞 페이지에서 이어짐)</span>':"")
+        +`<span class="pill accent">입고 ${admEsc(reserveNote[g.p]||"추후")}</span><span class="sp"></span>`
+        +(dl?`<button class="sm" data-act="rdl" data-p="${admEsc(g.p)}">이 제품만 내려받기</button>`:"")+`</div>`
+        +`<div class="tablewrap"><table class="data"><thead><tr><th style="width:52px">No</th><th>고객명</th><th>연락처</th><th>접수일</th><th class="wrapcell">사은품</th><th>상태</th></tr></thead><tbody>`
+        +g.rows.map(([e,no])=>`<tr><td style="color:var(--sub)">${no}</td><td><b>${admEsc(e.name||"-")}</b></td><td>${cell(e,"phone")}</td><td>${fmtDate(e._date)}</td>`
+          +`<td class="wrapcell">${admEsc(e.giftItem||"-")}</td><td>${rChip(e)}</td></tr>`).join("")
+        +`</tbody></table></div></div>`;
+    }).join("");
+  })();
+  const em=$("#emptyReserve");
+  em.textContent=reserveProducts.size?"조건에 맞는 예약발송 고객이 없습니다.":"예약발송으로 지정한 제품이 없습니다. 위에서 제품을 체크하고 저장하세요.";
+  em.style.display=all.length?"none":"block";
+  const pg=$("#pagerReserve");
+  if(pages<=1){pg.innerHTML="";return;}
+  let h=`<button class="pg" ${cur>1?`data-act="rpage" data-n="${cur-1}"`:"disabled"}>‹ 이전</button>`;
+  const s=Math.max(1,cur-2), e2=Math.min(pages,cur+2);
+  if(s>1)h+=rPageBtn(1,cur)+(s>2?'<span class="dots">…</span>':"");
+  for(let i=s;i<=e2;i++)h+=rPageBtn(i,cur);
+  if(e2<pages)h+=(e2<pages-1?'<span class="dots">…</span>':"")+rPageBtn(pages,cur);
+  h+=`<button class="pg" ${cur<pages?`data-act="rpage" data-n="${cur+1}"`:"disabled"}>다음 ›</button>`;
+  pg.innerHTML=h;
 }
 
 /* 부적합 아웃콜(응대) */
@@ -2316,7 +2735,7 @@ const CALL_MEMO_REQUIRED = "기타";        // 이걸 고르면 결과메모 필
 const CALL_COLOR={"부재중":"wait","통화완료":"eligible","문자 발송완료":"wait"};
 function callBadge(e){const s=e.callStatus||"";
   if(!s)return '<span class="pill wait">미응대</span>';
-  return `<span class="pill ${CALL_COLOR[s]||"wait"}">${s}</span>`;}
+  return `<span class="pill ${_own(CALL_COLOR,s)?CALL_COLOR[s]:"wait"}">${admEsc(s)}</span>`;}
 /* 경과 · 기한일 칸 */
 function elapsedHtml(e){
   const n=Math.max(0,waitDaysOf(e));
@@ -2330,19 +2749,19 @@ function dueHtml(e){
 }
 function badCols(){
   const cols=[];
-  if(opsCanMove()) cols.push(["<input type='checkbox' id='bChkAll'>",e=>`<input type="checkbox" class="bchk" data-id="${e._id}" onclick="event.stopPropagation()">`]);
+  if(opsCanMove()) cols.push(["<input type='checkbox' id='bChkAll'>",e=>`<input type="checkbox" class="bchk" data-id="${admEsc(e._id)}" onclick="event.stopPropagation()">`]);
   cols.push(
     ["접수일자",e=>fmtDate(e._date)],
     ["경과",e=>elapsedHtml(e)],
     ["기한일",e=>dueHtml(e)],
     ["담당자",e=>opsAgentSel(e)+opsAgentTag(e)],
-    ["수령인",e=>e.name||"-"],
+    ["수령인",e=>admEsc(e.name||"-")],
     ["연락처",e=>cell(e,"phone")],
-    ["사은품/상품권",e=>e.giftItem||"-"],
-    ["사유",e=>reasonOf(e)||"-"],
+    ["사은품/상품권",e=>admEsc(e.giftItem||"-")],
+    ["사유",e=>admEsc(reasonOf(e)||"-")],
     ["이미지",e=>imgBtn(e)],
-    ["응대상태",e=>callBadge(e)],["처리상태",e=>e.callResult||"-","wrapcell"],
-    ["출고승인",e=>`<button class="sm primary" onclick="event.stopPropagation();approveClick('${e._id}')">출고 승인</button>`]);
+    ["응대상태",e=>callBadge(e)],["처리상태",e=>admEsc(e.callResult||"-"),"wrapcell"],
+    ["출고승인",e=>`<button class="sm primary" data-act="approve" data-id="${admEsc(e._id)}">출고 승인</button>`]);
   return cols;
 }
 function renderBad(){
@@ -2351,7 +2770,7 @@ function renderBad(){
   const cols=badCols();
   $("#bCount").textContent="총 "+all.length+"건";
   $("#tableBad thead").innerHTML="<tr>"+cols.map(c=>`<th>${c[0]}</th>`).join("")+"</tr>";
-  $("#tableBad tbody").innerHTML=rows.map(e=>`<tr class="clickrow${e.agent&&e.agent!==opsMe()&&$("#bfSearch").value.trim()?" other":""}" onclick="openDetail('${e._id}')">`+cols.map(c=>`<td>${c[1](e)}</td>`).join("")+"</tr>").join("");
+  $("#tableBad tbody").innerHTML=rows.map(e=>`<tr class="clickrow${e.agent&&e.agent!==opsMe()&&$("#bfSearch").value.trim()?" other":""}" data-act="detail" data-id="${admEsc(e._id)}">`+cols.map(c=>`<td>${c[1](e)}</td>`).join("")+"</tr>").join("");
   const searching=!!$("#bfSearch").value.trim();
   const em=$("#emptyBad");
   em.textContent=searching?"「"+$("#bfSearch").value.trim()+"」(으)로 찾은 건이 없습니다.":"이 조건에 맞는 부적합 건이 없습니다.";
@@ -2396,7 +2815,7 @@ function openDetail(id, readOnly){
   const chkRows = aiChecklist(e);
   if(e.type==="coupang" && !chkRows){
     $("#dtSnRow").style.display="";
-    $("#dtSn").innerHTML=`<span style="${MONO}">${e.serial||"(미입력)"}</span>`;
+    $("#dtSn").innerHTML=`<span style="${MONO}">${admEsc(e.serial||"(미입력)")}</span>`;
   } else $("#dtSnRow").style.display="none";
   $("#dtAddr").innerHTML=cell(e,"addr");
 
@@ -2406,7 +2825,7 @@ function openDetail(id, readOnly){
   const st=shipStatus(e);
   const isBad = st==="ineligible" && !e.overrideEligible;
   const isShipped = !!(e.shipped||e.shipState==="shipped");
-  const stateHtml = statusBadge(e)+(e.overrideEligible?' <span class="pill reserved">수동승인</span>':"")+" "+csShipBadge(e);
+  const stateHtml = statusBadge(e)+(e.overrideEligible?' <span class="pill approved">수동승인</span>':"")+" "+csShipBadge(e);
   $("#dtState").innerHTML = stateHtml;
 
   /* 체크리스트가 있으면 상태 배지를 그 머리줄로 올리고, 따로 있던 「상태」 줄은 감춥니다 */
@@ -2495,7 +2914,7 @@ function openDetail(id, readOnly){
     }
   }
   /* 쿠팡 정품등록의 구매내역 캡처 — 있는 건에만 보입니다. */
-  const _bu=e.buyImageUrl||"";
+  const _bu=okImgUrl(e.buyImageUrl);
   const bw=$("#dtBuyWrap");
   if(bw){
     if(_bu){ bw.style.display=""; $("#dtBuyImg").src=_bu; $("#dtBuyOpen").href=_bu; }
@@ -2544,8 +2963,8 @@ function openDetail(id, readOnly){
   /* 옛 건에 이미 저장된 값(예: 「문자 발송완료」)이 목록에서 사라지지 않게 그 건에만 남겨 둡니다 */
   const _stL=CALL_STATES.includes(e.callStatus||"")?CALL_STATES:CALL_STATES.concat([e.callStatus]);
   const _rsL=CALL_RESULTS.includes(e.callResult||"")?CALL_RESULTS:CALL_RESULTS.concat([e.callResult]);
-  $("#dtStatus").innerHTML=_stL.map(o=>`<option value="${o}" ${o===(e.callStatus||"")?"selected":""}>${o||"— 응대상태 선택 —"}</option>`).join("");
-  $("#dtResult").innerHTML=_rsL.map(o=>`<option value="${o}" ${o===(e.callResult||"")?"selected":""}>${o||"— 처리상태 선택 —"}</option>`).join("");
+  $("#dtStatus").innerHTML=_stL.map(o=>`<option value="${admEsc(o)}" ${o===(e.callStatus||"")?"selected":""}>${o?admEsc(o):"— 응대상태 선택 —"}</option>`).join("");
+  $("#dtResult").innerHTML=_rsL.map(o=>`<option value="${admEsc(o)}" ${o===(e.callResult||"")?"selected":""}>${o?admEsc(o):"— 처리상태 선택 —"}</option>`).join("");
   syncApproveBtn();
   $("#dtMemo").value=e.callMemo||"";
   syncApproveBtn();          /* 「기타」 안내·승인 단추 상태를 열 때 바로 맞춥니다 */
@@ -2618,6 +3037,55 @@ async function approveDetail(){
 window.openDetail=openDetail;window.closeDetail=closeDetail;
 window.saveDetail=saveDetail;window.approveDetail=approveDetail;window.reJudgeDetail=reJudgeDetail;
 document.addEventListener("change",e=>{if(e.target&&e.target.id==="dtResult")syncApproveBtn();});
+/* 🔴 보안(2026-10-02) — 목록의 행·단추는 onclick="…('문서ID')" 대신 data-act·data-id 로 표시하고 여기 한 곳에서 처리합니다.
+      문서 ID에는 고객이 보낸 제품코드가 들어가므로, 자바스크립트 글자 안에 끼워 넣으면 따옴표로 빠져나갈 수 있기 때문입니다.
+   ⚠️ 가장 가까운 data-act 하나만 처리합니다 — 행 안의 단추를 누르면 행(상세 열기)은 열리지 않습니다
+      (예전 event.stopPropagation() 과 같은 동작). 체크박스·담당자 칸은 예전처럼 스스로 클릭을 막습니다. */
+document.addEventListener("click",ev=>{
+  const el=ev.target&&ev.target.closest?ev.target.closest("[data-act]"):null; if(!el) return;
+  const id=el.dataset.id||"";
+  switch(el.dataset.act){
+    case "detail":    openDetail(id, el.dataset.ro==="1"); drawerSync(); break;
+    case "dnav":      detailNav(Number(el.dataset.dir)||0); break;
+    case "rpage":     pageState.reserve=Math.max(1,Number(el.dataset.n)||1); renderReserve(); break;
+    case "rdl":       { const p=el.dataset.p||""; rDownload(reserveList("").filter(x=>(x.product||"")===p),"아이닉_예약발송_문자안내_"+p.replace(/[\\\/:*?"<>|\s]+/g,"_")); break; }
+    case "img":     { const e=ALL.find(x=>x._id===id); if(e) openImg(imgUrlsOf(e)); break; }
+    case "unapprove": setOverride(id,false); break;
+    case "rejudge":   reJudge(id); break;
+    case "shipped":   setShipState(id,"shipped"); break;
+    case "approve":   approveClick(id); break;
+  }
+});
+/* ══════════ 상세 서랍 — 키보드로 넘겨 보기 (2026-10) ══════════
+   J·↓ 다음 / K·↑ 이전 / Esc 닫기. 「지금 화면에 그려진 표」의 행(data-act="detail") 순서 그대로 넘어갑니다(페이지 끝에서는 멈춤).
+   ⚠️ openDetail 은 그대로 부르고, 읽기전용 여부(data-ro)도 그 행의 값을 그대로 넘깁니다. 입력칸에 글을 쓰는 중에는 반응하지 않습니다. */
+function drawerRows(){return $$(".page.on [data-act='detail']");}
+function drawerSync(){
+  const rows=drawerRows(), i=rows.findIndex(r=>(r.dataset.id||"")===detailId), pos=$("#dtPos"), box=$("#detailModal .dr-box");
+  if(pos) pos.textContent=i>=0?(i+1)+" / "+rows.length:"";
+  rows.forEach(r=>r.classList.remove("cur")); if(i>=0) rows[i].classList.add("cur");
+  if(box) box.scrollTop=0;
+}
+function detailNav(dir){
+  if(!detailId||!dir) return;
+  const rows=drawerRows(), i=rows.findIndex(r=>(r.dataset.id||"")===detailId); if(i<0) return;
+  const n=rows[i+(dir>0?1:-1)]; if(!n) return;
+  /* 응대 기록을 적다가 저장하지 않고 넘어가면 사라집니다 — 한 번 묻습니다 */
+  const cur=ALL.find(x=>x._id===detailId)||{};
+  const box=$("#dtCallBox"), open=box&&box.style.display!=="none";
+  const dirty=open&&(($("#dtStatus").value||"")!==(cur.callStatus||"")||($("#dtResult").value||"")!==(cur.callResult||"")||($("#dtMemo").value||"")!==(cur.callMemo||""));
+  if(dirty&&!confirm("저장하지 않은 응대 기록이 있습니다.\n저장하지 않고 다음 건으로 넘어갈까요?")) return;
+  openDetail(n.dataset.id||"", n.dataset.ro==="1"); drawerSync();
+  n.scrollIntoView({block:"nearest"});
+}
+document.addEventListener("keydown",e=>{
+  if($("#detailModal").style.display!=="flex"||$("#imgModal").style.display==="flex") return;
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  const t=e.target, tag=t&&t.tagName;
+  if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"||(t&&t.isContentEditable)) return;
+  if(e.code==="KeyJ"){ e.preventDefault(); detailNav(1); }   /* 화살표는 서랍 스크롤에 남겨 둡니다 */
+  else if(e.code==="KeyK"){ e.preventDefault(); detailNav(-1); }
+});
 
 /* 고객검색 */
 /* 고객검색 발송 상태: 발송(출고완료) / 출고대기(부적합·리뷰 검수) / 예약발송 / 미발송 */
@@ -2631,20 +3099,20 @@ function renderCS(){
   const q=$("#csSearch").value.trim(),box=$("#csResult");
   if(!q){box.innerHTML='<div class="empty">검색어를 입력하세요.</div>';$("#pagerCs").innerHTML="";return;}
   const all=ALL.filter(e=>matchSearch(e,q));
-  if(!all.length){box.innerHTML=`<div class="empty">'${q}' 로 참여한 내역이 없습니다. (이벤트 미참여)</div>`;$("#pagerCs").innerHTML="";return;}
+  if(!all.length){box.innerHTML=`<div class="empty">'${admEsc(q)}' 로 참여한 내역이 없습니다. (이벤트 미참여)</div>`;$("#pagerCs").innerHTML="";return;}
   const rows=slice(all,"cs");
   box.innerHTML=rows.map(e=>{
     const shipped=e.shipped||e.shipState==="shipped";
     const sb=csShipBadge(e);
-    return `<div class="rescard clickable ${shipped?"shipped":""}" onclick="openDetail('${e._id}')"><div style="flex:1">
-      <div class="who">${e.name||"(이름없음)"} <span class="pill ${e.type}">${TYPE_LABEL[e.type]||e.type}</span>${e.manual?' <span class="pill manual">수기</span>':""}</div>
+    return `<div class="rescard clickable ${shipped?"shipped":""}" data-act="detail" data-id="${admEsc(e._id)}"><div style="flex:1">
+      <div class="who">${admEsc(e.name||"(이름없음)")} <span class="pill ${clsType(e.type)}">${TYPE_LABEL[clsType(e.type)]||admEsc(e.type)}</span>${e.manual?' <span class="pill manual">수기</span>':""}</div>
       <div class="meta">접수일자 ${fmtDate(e._date)} · 출고일자 ${shippedDate(e)}</div>
       <div class="csdetail">
-        <div><b>제품</b>${e.product||"-"}</div>
-        <div><b>${REWARD_LABEL[e.rewardType]||"사은품/상품권"}</b>${e.giftItem||"-"}</div>
-        <div><b>판매처</b>${e.source||"-"}</div>
-        <div><b>주문번호</b>${e.orderNo||"-"}</div>
-        ${e.type==="coupang"?`<div><b>S/N</b><span style="${MONO}">${e.serial||"(미입력)"}</span></div>`:""}
+        <div><b>제품</b>${admEsc(e.product||"-")}</div>
+        <div><b>${REWARD_LABEL[clsRw(e.rewardType)]||"사은품/상품권"}</b>${admEsc(e.giftItem||"-")}</div>
+        <div><b>판매처</b>${admEsc(e.source||"-")}</div>
+        <div><b>주문번호</b>${admEsc(e.orderNo||"-")}</div>
+        ${e.type==="coupang"?`<div><b>S/N</b><span style="${MONO}">${admEsc(e.serial||"(미입력)")}</span></div>`:""}
         <div><b>배송구분</b>${shipFeeBadge(e)}</div>
         <div><b>연락처</b>${cell(e,"phone")}</div>
         <div><b>주소</b>${cell(e,"addr")}</div>
@@ -3448,7 +3916,7 @@ function exportAllRows(){
        그러면 엑셀에서 클릭이 안 되고, 복사해도 3개가 통째로 붙어 나와 안 열립니다.
        한 칸에 주소 하나씩 나눕니다. 1장짜리는 「이미지URL」에만 들어갑니다. */
     "이미지URL":imgUrlsOf(e)[0]||"","이미지URL2":imgUrlsOf(e)[1]||"","이미지URL3":imgUrlsOf(e)[2]||"",
-    "구매내역이미지URL":e.buyImageUrl||"","문서ID":e._id||""}));
+    "구매내역이미지URL":okImgUrl(e.buyImageUrl),"문서ID":e._id||""}));
 }
 const DL_ORDER=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["사은품",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주소",e=>e.address||""],["주문번호",e=>e.orderNo||""],["판매처",e=>e.source||""],["문서ID",e=>e._id||""]];
 const DL_ACCT=[["접수일시",e=>fmtDate(e._date)],["카테고리",e=>e.category||""],["제품",e=>e.product||""],["상품권",e=>e.giftItem||""],["수령인",e=>e.name||""],["연락처",e=>e.phone||""],["주문번호",e=>e.orderNo||""],["판매처",e=>e.source||""],["문서ID",e=>e._id||""]];
@@ -3543,7 +4011,17 @@ async function dlShipTemplate(rw,fname){
 }
 
 /* 탭/이벤트 */
+/* 탭 머리의 건수 배지 (2026-10) — 숫자만 넣으므로 이스케이프할 것이 없습니다. 실패해도 화면은 계속 그립니다.
+   사은품·상품권 = 적합(발송대상) 건수 + 확인필요(노랑) / 부적합 = 처리 안 끝난 건 / 예약발송 = 목록 고객 수 */
+function updateTabCounts(){
+  const put=(k,html)=>{const el=document.querySelector('[data-tcs="'+k+'"]');if(el)el.innerHTML=html;};
+  const b=(n,c)=>n>0?`<i class="${c||""}">${n}</i>`:"";
+  ["order","acct"].forEach(k=>{const rw=k==="order"?"gift":"coupon";put(k,b(teamElig(rw).length)+b(teamInelig(rw).length,"w"));});
+  put("bad",b(badBase().length,"b"));
+  put("reserve",b(reserveList("").length,"a"));
+}
 function renderActiveTab(){
+  try{updateTabCounts();}catch(_){}
   if(curTab==="all")renderTableAll();
   else if(curTab==="report")renderReport();
   else if(curTab==="order")renderOrder();
@@ -4502,6 +4980,7 @@ $("#csBtn").addEventListener("click",reset("cs",renderCS));
 $("#csSearch").addEventListener("input",reset("cs",renderCS));
 $("#csSearch").addEventListener("keydown",e=>{if(e.key==="Enter")renderCS();});
 $("#saveReserve").addEventListener("click",saveReserve);
+$("#dlReserve").addEventListener("click",()=>rDownload(reserveList(""),"아이닉_예약발송_문자안내"));
 $("#mType").addEventListener("change",onTypeChange);
 $("#mCategory").addEventListener("change",onCategoryChange);
 $("#mProduct").addEventListener("change",onProductChange);
@@ -4549,11 +5028,11 @@ const ROLE_KEYS  = ["master","qa","order","acct","agent"];
 const DL_BY_ROLE = {
   master: null,                              // 전부
   qa:     ["svPpt","svPptAll"],              // 포토리뷰 리포트 PPT
-  order:  ["dlOrder","dlAcct"],              // 사은품·상품권 일괄출고
-  acct:   ["dlOrder","dlAcct"],
+  order:  ["dlOrder","dlAcct","dlReserve"],  // 사은품·상품권 일괄출고 · 예약발송 문자 안내 목록
+  acct:   ["dlOrder","dlAcct","dlReserve"],
   agent:  []                                 // 없음
 };
-const DL_BUTTONS = ["csvBtn","xlsxBtn","svPpt","svPptAll","dlOrder","dlAcct","dlBad"];
+const DL_BUTTONS = ["csvBtn","xlsxBtn","svPpt","svPptAll","dlOrder","dlAcct","dlBad","dlReserve"];
 function applyDownloadsForRole(){
   const allow = DL_BY_ROLE[(ME&&ME.role)||"agent"];
   DL_BUTTONS.forEach(id=>{
@@ -5278,7 +5757,7 @@ function opsAgentSel(e){
   const opt = (v, t, s) => '<option value="'+admEsc(v)+'"'+(s?" selected":"")+'>'+admEsc(t)+'</option>';
   let h;
   if(role === "agent"){
-    if(cur === me) return '<select class="agsel" data-id="'+e._id+'" disabled '+style+'>'+opt(me, me+" (나)", true)+'</select>';
+    if(cur === me) return '<select class="agsel" data-id="'+admEsc(e._id)+'" disabled '+style+'>'+opt(me, me+" (나)", true)+'</select>';
     h = (cur ? opt(cur, cur, true) : opt("", "— 미지정 —", true)) + opt(me, me+" (나)", false);
   } else {
     const names = AGENTS.map(a => a.name).sort((a, b) => a.localeCompare(b, "ko"));
@@ -5287,7 +5766,7 @@ function opsAgentSel(e){
     if(cur && !list.includes(cur)) list.push(cur);
     h = list.map(n => opt(n, n + (n === me ? " (나)" : opsIsLeaderName(n) ? " · 조장" : ""), n === cur)).join("") + opt("", "— 미지정 —", !cur);
   }
-  return '<select class="agsel" data-id="'+e._id+'" onclick="event.stopPropagation()" '+style+'>'+h+'</select>';
+  return '<select class="agsel" data-id="'+admEsc(e._id)+'" onclick="event.stopPropagation()" '+style+'>'+h+'</select>';
 }
 function opsAgentTag(e){
   let t = "";
@@ -5408,8 +5887,8 @@ function renderPanelA(){
     const chg=admEsc(e.inCallFrom||"?")+' → <b>'+admEsc(e.agent||"?")+'</b>';
     const cust='<b>'+admEsc(e.name||"(이름없음)")+'</b> <span style="color:var(--sub);font-size:11.5px">'+admEsc(e.giftItem||"")+'</span>';
     return isWait
-      ? '<tr><td><input type="checkbox" class="opsSel" data-id="'+e._id+'"></td><td>'+opsMD(tsDate(e.inCallAt))+'</td><td>'+cust+'</td><td>'+chg+'</td><td>'+now(e)+'</td>'
-        +'<td><button class="sm primary" data-ops="ok" data-id="'+e._id+'">확인</button></td></tr>'
+      ? '<tr><td><input type="checkbox" class="opsSel" data-id="'+admEsc(e._id)+'"></td><td>'+opsMD(tsDate(e.inCallAt))+'</td><td>'+cust+'</td><td>'+chg+'</td><td>'+now(e)+'</td>'
+        +'<td><button class="sm primary" data-ops="ok" data-id="'+admEsc(e._id)+'">확인</button></td></tr>'
       : '<tr style="color:#6b625c"><td></td><td>'+opsMD(tsDate(e.inCallAt))+'</td><td>'+cust+'</td><td>'+chg+'</td><td>'+now(e)+'</td>'
         +'<td><b style="color:var(--ink)">✓ 확인</b> <span style="color:var(--sub);font-size:11.5px">'+admEsc(e.inCallOkBy||"")+' · '+opsMD(tsDate(e.inCallOkAt))+'</span></td></tr>';
   };
@@ -6391,7 +6870,39 @@ const LEDGER_PRODUCTS = [
 ];
 const LP_COUNT = Object.fromEntries(LEDGER_PRODUCTS);
 
+/* ══════════ 접수폼 문구 연결 (index ↔ report 공통 약속 · 2026-10) ══════════
+   저장 JSON 맨 위의 formTextV(숫자)가 1 이상이어야 접수폼(index.html)이 아래 문구를 설정에서 읽습니다.
+   아니면 접수폼은 자기 안의 기본 문구(FT_DFLT)를 씁니다 — 연결 전 화면 그대로입니다.
+   ⚠️ 아래 값은 index.html 의 FT_DFLT 와 같아야 합니다. 한쪽만 고치면 「연결하는 순간」 고객 화면 문구가 바뀝니다.
+   ⚠️ 값 = 지금 접수폼에 실제로 나가고 있는 글. 표기: {{굵게}} · [[빨간 굵게]] */
+const FORM_TEXT_V = 1;
+const FT0 = {
+  "cover.title":   "포토리뷰 이벤트 참여",
+  "cover.desc":    "편안한 일상, 아이닉과 함께하세요",
+  "capture.title": "포토리뷰 캡처 이미지",
+  "capture.desc":  "{{본인이 작성한 리뷰 화면}}을 캡처해 등록해 주세요. {{별점·후기 내용·첨부하신 사진}}이 함께 보여야 합니다.",
+  "capture.warn":  "※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.",
+  "buy.title":     "구매 내역 확인",
+  "buy.exampleName":"coupang_buy_guide.webp",
+  "serial.desc":   "시리얼번호를 정확히 기재해 주셔야 기프티콘 발송이 가능합니다.",
+  "serial.warn":   "{{동일한 시리얼번호가 등록될 경우, 사은품/기프티콘은 최초 등록한 1명에게만 발송}}됩니다.",
+  "serial.ack":    "동일한 S/N은 최초 등록 1명에게만 사은품/기프티콘이 발송됨을 확인했습니다.",
+  "info.desc":     "정확히 입력해 주세요. 오기재 시 발송이 지연되거나 누락될 수 있습니다."
+};
+/* 위 이름 → 저장 JSON 안의 자리. (표지는 survey 에 저장되고, 서버가 cover 로 접수폼에 내려 줍니다) */
+const FT_PATH = {
+  "cover.title":"survey.title", "cover.desc":"survey.desc",
+  "capture.title":"form.capture.title", "capture.desc":"form.capture.desc", "capture.warn":"form.capture.warn",
+  "buy.title":"form.buy.title", "buy.exampleName":"form.buy.exampleName",
+  "serial.desc":"form.serial.desc", "serial.warn":"form.serial.warn", "serial.ack":"form.serial.ack",
+  "info.desc":"form.info.desc"
+};
+/* 구매내역 예시 이미지 파일 이름 규칙 — index.html ftBuyExample 과 같은 규칙(폴더·주소 금지) */
+const EXAMPLE_NAME_RE = /^[\w.\- ]+\.(webp|png|jpe?g)$/i;
+
 const DEFAULTS = {
+  /* 접수폼 문구 연결 표식 — 새로 저장하는 설정은 처음부터 연결된 상태입니다 */
+  formTextV: FORM_TEXT_V,
   /* 제품 = 원장 제품군 이름. 사은품이 지정된 것만 이벤트 대상이 됩니다. */
   /* ⚠️ codes 는 접수폼(고객 화면)이 쓰는 제품 코드입니다. 설정에서 고친 사은품·설문이
      어느 제품에 붙는지 이 코드로 이어집니다. 건드리지 마세요.
@@ -6420,9 +6931,10 @@ const DEFAULTS = {
     { product:"무선청소기 맥스제로 i90", srcs:["스마트스토어"], label:"스팀물걸레키트", type:"gift",
       from:"2026-09-01", to:"2026-09-30", basis:"apply", name:"스토어팜 i90 9월 프로모션" }
   ],
+  /* 표지 — 접수폼 맨 위 제목·설명. FT0 값(= 연결 전 접수폼의 글)과 같습니다. */
   survey: {
-    title:"아이닉 포토리뷰 이벤트 설문",
-    desc:"솔직한 의견을 들려주시면 다음 제품을 만드는 데 쓰겠습니다.",
+    title:FT0["cover.title"],
+    desc:FT0["cover.desc"],
     thanks:"설문에 참여해 주셔서 감사합니다."
   },
   entrySurvey: [
@@ -6578,27 +7090,27 @@ const DEFAULTS = {
        원장에 쿠팡 로켓배송 구매 정보가 없어서, 고객이 주문목록 캡처를 올려 구매를 증명합니다.
        [[…]] 는 빨간 굵은 글씨, {{…}} 는 검은 굵은 글씨로 나갑니다. */
     buy: {
-      title:"구매 내역 확인",
+      title:FT0["buy.title"],
       desc:"쿠팡 앱·홈페이지의 {{주문목록}} 화면을 캡처해 올려 주세요.\n{{구매일자}}(굵은 날짜)와 {{제품명}}(제품 사진 옆 글)이 함께 보여야 합니다.\n[[※ 구매일자나 제품명이 가려진 캡처, 다른 화면 캡처는 지급 대상에서 제외됩니다.]]",
-      exampleName:"coupang_buy_guide.webp",
+      exampleName:FT0["buy.exampleName"],
       req:true
     },
-    /* 쿠팡 정품등록에서만 나오는 화면 ② */
+    /* 쿠팡 정품등록에서만 나오는 화면 ② — desc/warn/ack 는 FT0(= 접수폼에 지금 나가는 글)와 같습니다 */
     serial: {
-      desc:"제품에 붙은 시리얼번호(S/N)를 정확히 입력해 주세요.",
-      warn:"※ 같은 시리얼번호가 이미 등록된 경우, 사은품/기프티콘은 최초 1명에게만 발송됩니다.",
+      desc:FT0["serial.desc"],
+      warn:FT0["serial.warn"],
       exampleName:"i90_시리얼_확인방법.webp",
-      ack:"S/N 위치와 번호를 확인했습니다",
+      ack:FT0["serial.ack"],
       req:true, ackReq:true
     },
     capture: {
-      title:"포토리뷰 캡처 이미지",
-      desc:"본인이 작성한 리뷰 화면을 캡처해 등록해 주세요. 별점·후기 내용·첨부하신 사진이 함께 보여야 합니다.",
-      warn:"※ 제품 사진, 주문내역, 상품 상세페이지 등 리뷰 화면이 아닌 이미지는 지급 대상에서 제외됩니다.",
+      title:FT0["capture.title"],
+      desc:FT0["capture.desc"],
+      warn:FT0["capture.warn"],
       exampleName:"포토리뷰_사진첨부_예시.webp",
       req:true
     },
-    info:   { title:"정보 입력", desc:"정확히 입력해 주세요. 오기재 시 발송이 지연되거나 누락될 수 있습니다.",
+    info:   { title:"정보 입력", desc:FT0["info.desc"],
       /* 처음 들어 있는 항목 4개. 담당자가 필수/선택을 바꾸거나 지울 수 있습니다.
          ⚠️ 성함·연락처·주소를 선택으로 바꾸거나 지우면 발송을 못 하게 되니 주의하세요.
          ⚠️ 이메일을 선택으로 바꾸면, 마케팅에 동의하셨는데 이메일이 없는 고객이 생겨
@@ -6661,6 +7173,9 @@ const DEFAULTS = {
     errSerialack: { t:"확인에 체크해 주세요.", k:false },
     errFile:      { t:"이미지를 등록해 주세요.", k:false },
     errAddr:      { t:"[주소 검색]으로 기본주소를 등록한 뒤 상세주소를 입력해 주세요.", k:false },
+    /* 2026-10 — 접수폼에 이미 있던 빨간 글씨 두 곳을 설정에서 고칠 수 있게 연결했습니다 (index ERR_KEY) */
+    errEmail:     { t:"올바른 이메일을 입력해 주세요.", k:false },
+    errBuy:       { t:"구매내역 캡처를 등록해 주세요.", k:false },
 
     /* ── 구매 확인 · 조회 버튼 ── */
     needNamePhone:{ t:"성함과 연락처를 모두 정확히 입력해 주세요.\n두 가지가 모두 일치해야 조회됩니다.", k:false },
@@ -6710,20 +7225,26 @@ const DEFAULTS = {
     productMismatch:{ t:"조회하신 구매 내역에 없는 제품입니다.\n구매 내역을 다시 조회해 주세요.", k:false },
     inputInvalid: { t:"입력하신 정보를 다시 확인해 주세요.", k:false },
     originBlocked:{ t:"접수는 아이닉 공식 접수폼에서만 가능합니다.", k:false },
+    /* 2026-10-02 — 서버가 필수 사진·구매내역·S/N 이 없다고 막았을 때 (접수폼 API_ERR 과 같은 글자) */
+    imageMissing:   { t:"리뷰 이미지를 업로드해 주세요.", k:false },
+    snImageMissing: { t:"S/N 라벨 사진을 업로드해 주세요.", k:false },
+    buyImageMissing:{ t:"구매내역 캡처를 업로드해 주세요.", k:false },
+    serialMissing:  { t:"시리얼번호(S/N)를 입력해 주세요.", k:false },
     submitErr:    { t:"접수 중 오류가 발생했습니다.\n잠시 후 다시 시도해 주세요. 계속 실패하면 상담사에게 문의해 주세요.", k:true },
 
     /* ── 접수 완료 창 ── */
     doneTitle:    { t:"참여가 접수되었습니다", k:false },
     /* 심사 방법(포토리뷰/쿠팡) × 받는 것(사은품/상품권) = 넷.
        ○○ 를 남겨 두면 「사은품이」 「기프티콘(상품권)이」 가 자동으로 들어갑니다. */
-    doneReviewGift:   { t:"리뷰 심사(별점·사진 자동 확인) 후 사은품이 발송됩니다.", k:false },
-    doneReviewCoupon: { t:"리뷰 심사(별점·사진 자동 확인) 후 기프티콘(상품권)이 발송됩니다.", k:false },
-    doneCoupangGift:  { t:"정품등록 심사(시리얼번호 자동 대조) 후 사은품이 발송됩니다.", k:false },
-    doneCoupangCoupon:{ t:"정품등록 심사(시리얼번호 자동 대조) 후 기프티콘(상품권)이 발송됩니다.", k:false },
+    /* 2026-10 — 고객 화면에는 「자동 확인·자동 대조」 같은 심사 방식 표현을 쓰지 않습니다. */
+    doneReviewGift:   { t:"리뷰 참여 내용 확인 후 사은품이 발송됩니다.", k:false },
+    doneReviewCoupon: { t:"리뷰 참여 내용 확인 후 기프티콘(상품권)이 발송됩니다.", k:false },
+    doneCoupangGift:  { t:"정품등록 확인 후 사은품이 발송됩니다.", k:false },
+    doneCoupangCoupon:{ t:"정품등록 확인 후 기프티콘(상품권)이 발송됩니다.", k:false },
     /* 사은품이 선불로 나가는 제품(가습기 iH12 등) 전용.
        착불 문구에서 배송비 이야기만 빠진 문장입니다. 처음 열 때 착불 문구를 그대로 옮겨 드립니다. */
-    doneReviewGiftPre:  { t:"리뷰 심사(별점·사진 자동 확인) 후 사은품이 발송됩니다.", k:false },
-    doneCoupangGiftPre: { t:"정품등록 심사(시리얼번호 자동 대조) 후 사은품이 발송됩니다.", k:false },
+    doneReviewGiftPre:  { t:"리뷰 참여 내용 확인 후 사은품이 발송됩니다.", k:false },
+    doneCoupangGiftPre: { t:"정품등록 확인 후 사은품이 발송됩니다.", k:false },
     /* 🔴 예약발송 (2026-09-22 담당자 요청) — 품절이라 나중에 보내는 **사은품**일 때.
           이때는 위 여섯 문구 대신 **이것만** 나갑니다(「평균 1주일 이내」가 거짓말이 되므로).
           {{○○}} 자리에 「예약발송」 탭에서 제품마다 적어 두신 시점이 들어갑니다.
@@ -6874,6 +7395,21 @@ function paneGift(){
           el("td", {},
             el("input", { type:"text", value:p.gift, placeholder:"사은품 이름을 입력하세요", "aria-label":"사은품 이름",
               oninput:e => { p.gift = e.target.value; softRefresh(); } }),
+            /* 코드가 둘 이상인 제품(음식물처리기) — 고객이 코드별로 사은품을 고르므로 이름도 코드마다 따로 둡니다.
+               ⚠️ 서버는 giftEach[코드] 를 먼저 보고, 코드가 하나일 때만 위 대표 이름(gift)을 씁니다(eventApi). */
+            (p.codes || []).length > 1
+              ? el("div", { class:"each" },
+                  el("b", { style:"font-size:12px" }, "코드별 사은품 이름 — 고객 화면·출고에 쓰이는 값"),
+                  (p.codes || []).map(c => el("div", { class:"r" },
+                    el("span", {}, c),
+                    el("input", { type:"text", value:(p.giftEach || {})[c] || "", "aria-label":c + " 사은품 이름",
+                      placeholder:"이 코드의 사은품 이름",
+                      oninput:e => { if(!p.giftEach || typeof p.giftEach !== "object") p.giftEach = {};
+                        p.giftEach[c] = e.target.value; softRefresh(); } }))),
+                  el("div", { style:"font-size:11px;color:var(--sub);margin-top:6px;line-height:1.55" },
+                    "위의 대표 이름은 목록에 보이는 이름입니다. 고객 화면에는 ", el("b", {}, "코드별 이름"),
+                    "이 쓰이고, 비워 두면 그 코드의 사은품 이름이 빈 값이 됩니다."))
+              : "",
             /* 사진 — 접수폼의 사은품 카드에 나옵니다 (2026-09-14 추가).
                예전에는 접수폼 파일 안에 그림이 박혀 있어 담당자가 못 바꿨습니다. */
             ((p.codes || []).length > 1
@@ -6923,7 +7459,12 @@ function paneGift(){
           el("td", { class:"tight" }, el("span", { style:"color:var(--sub)" }, p.cat)),
           el("td", {}, p.gift
             ? el("span", {}, p.gift)
-            : el("span", { style:"color:var(--sub)" }, "이벤트 대상 아님")),
+            : el("span", { style:"color:var(--sub)" }, "이벤트 대상 아님"),
+            (p.gift && (p.codes || []).length > 1)
+              ? el("div", { style:"font-size:11px;color:var(--sub);margin-top:3px;line-height:1.6" },
+                  (p.codes || []).map(c => el("div", {}, c + " → ",
+                    ((p.giftEach || {})[c] || "") || el("span", { style:"color:var(--bad)" }, "(이름 없음)"))))
+              : ""),
           el("td", { class:"tight" }, p.gift
             ? el("span", { class:"pill " + (p.type === "coupon" ? "coupon" : "gift") },
                 p.type === "coupon" ? "상품권" : "사은품")
@@ -6964,7 +7505,7 @@ function paneGift(){
     el("h2", {}, "제품별 사은품"),
     el("p", { class:"hint" },
       "고치려면 ", el("b", {}, "그 줄을 누르세요"), ". 다른 줄을 누르면 닫힙니다. ",
-      el("b", { style:"color:var(--bad)" }, "다 고치신 뒤 화면 맨 아래 「💾 서버에 저장」까지 눌러야 남습니다."), " ",
+      el("b", { style:"color:var(--bad)" }, "다 고치신 뒤 화면 아래 고정 줄의 「저장」까지 눌러야 남습니다."), " ",
       "제품군 이름은 ", el("b", {}, "원장(출고리스트)에 적힌 것과 똑같이"), " 넣어야 합니다. 한 글자라도 다르면 그 제품을 산 고객이 조회되지 않습니다.",
       el("br", {}),
       "사은품을 비워 두면 ", el("b", {}, "이벤트 대상 아님"), " 이 됩니다 — 원장에는 있지만 이벤트를 안 하는 제품입니다. ",
@@ -7407,7 +7948,7 @@ function pvDoneBody(spot){
           ? (nt("doneGiftReserve") || "신청하신 사은품은 예약발송으로 {{○○}} 입고 예정입니다.")
               .replace("{{○○}}", "{{10월 중순}}")
           : (nt(DONE_BODY_KEYS.includes(spot) ? spot : "doneReviewGift")
-              || "리뷰 심사(별점·사진 자동 확인) 후 ○○ 발송됩니다.")
+              || "리뷰 참여 내용 확인 후 ○○ 발송됩니다.")
               .replace("○○", /Coupon$/.test(spot) ? "기프티콘(상품권)이" : "사은품이")) + '</p>'
   +   '<div class="kv">'
   +     '<div><b>유형</b> 포토리뷰 이벤트</div>'
@@ -7592,19 +8133,56 @@ function openScreenPreview(kind, spot, cap, o){
 
 
 
+/* ══════════ 이름표가 붙은 입력칸 — 「접수폼 문구 연결」 전용 ══════════
+   어느 고객 화면의 어느 자리에 나가는 글인지 이름표를 붙이고, 저장된 값과 다르면 테두리를 칩니다.
+   ⚠️ 값은 cfg 의 경로(path)에 바로 씁니다. 눌러서 여는 방식(tv)을 거치지 않으므로 늘 고칠 수 있습니다.
+   ⚠️ 고객 입력이 아니라 관리자 입력이지만, 미리보기 줄은 반드시 pvT(= 먼저 이스케이프)를 거칩니다. */
+const pathGet = (o, p) => String(p).split(".").reduce((v, k) => (v && typeof v === "object") ? v[k] : undefined, o);
+function pathSet(o, p, val){
+  const ks = String(p).split("."), last = ks.pop();
+  let v = o;
+  ks.forEach(k => { if(!v[k] || typeof v[k] !== "object") v[k] = {}; v = v[k]; });
+  v[last] = val;
+}
+function linkedField(path, label, opt){
+  opt = opt || {};
+  const base = () => { const v = pathGet(SAVED || DEFAULTS, path); return typeof v === "string" ? v : ""; };
+  const now  = () => { const v = pathGet(cfg, path); return typeof v === "string" ? v : ""; };
+  const id = "lf-" + path.replace(/\./g, "-");
+  const prev = opt.rich ? el("div", { class:"lfp" }) : null;
+  const err  = opt.check ? el("div", { class:"lfe" }) : null;
+  const upd = ctl => {
+    const v = ctl.value;
+    ctl.classList.toggle("chg", v !== base());
+    if(prev){ prev.innerHTML = v.trim() ? pvT(v) : "(비어 있으면 접수폼이 기본 문구를 씁니다)"; }
+    if(err) err.textContent = opt.check(v) || "";
+  };
+  const on = e => { pathSet(cfg, path, e.target.value); upd(e.target); softRefresh(); };
+  const ctl = opt.rows
+    ? el("textarea", { id, rows:String(opt.rows), "aria-label":label, oninput:on }, now())
+    : el("input", { id, type:"text", value:now(), "aria-label":label, oninput:on });
+  upd(ctl);
+  return el("div", { class:"lf" },
+    el("label", { for:id }, el("span", {}, label), opt.src ? el("span", { class:"src" }, opt.src) : ""),
+    ctl,
+    prev || "",
+    err || "",
+    opt.hint ? el("div", { class:"lfh" }, opt.hint)
+             : (opt.rich ? el("div", { class:"lfh" }, el("code", {}, "{{굵게}}"), " ", el("code", {}, "[[빨간 굵게]]"), " 쓸 수 있습니다") : ""));
+}
+
 function paneForm(){
   const F = cfg.form, entry = cfg.entrySurvey, prod = groupList("prod");
   const form = el("div", { class:"form" });
   let n = 0;
 
   /* 표지 — 폼의 머리글 */
-  form.append(el("div", { class:"fcard head" },
+  form.append(el("div", { class:"fcard head", id:"c-cover" },
     el("div", { class:"band" }, el("span", { style:"font-size:36px" }, "🗒️")),
     el("div", { class:"pad" },
-      el("input", { class:"bare ftitle", type:"text", value:cfg.survey.title, "aria-label":"접수폼 제목",
-        oninput:e => { cfg.survey.title = e.target.value; syncToc(); } }),
-      el("input", { class:"bare fdesc", type:"text", value:cfg.survey.desc, "aria-label":"설명",
-        oninput:e => { cfg.survey.desc = e.target.value; } }),
+      /* 표지 — 고객이 접수폼을 열면 맨 처음 보는 제목·설명. 2026-10 부터 접수폼에 실제로 연결됩니다. */
+      linkedField("survey.title", "표지 · 큰 제목", { src:"cover.title" }),
+      linkedField("survey.desc",  "표지 · 설명",    { src:"cover.desc", rows:2, rich:true }),
       el("div", { class:"fmeta" }, "접수 기간", el("b", { style:"color:var(--ink)" }, "이벤트 기간과 동일")))));
 
   /* 유형에 따라 앞 화면이 다릅니다. 담당자가 헷갈리지 않게 한 줄로 알려 줍니다. */
@@ -7682,7 +8260,9 @@ function paneForm(){
     entry.push({ q:"새 질문", opts:["항목 1", "항목 2"], req:true });
     sel = "q:entry:" + (entry.length - 1); render();
   };
-  form.append(grpBar("참여 설문 · 공통 문항", "제품과 상관없이 모든 참여 고객에게 한 번만 묻습니다", addEntryQ));
+  const entryBar = grpBar("참여 설문 · 공통 문항", "제품과 상관없이 모든 참여 고객에게 한 번만 묻습니다", addEntryQ);
+  entryBar.id = "c-entry";
+  form.append(entryBar);
   entry.forEach((_, i) => form.append(qCard("entry", i, i + 1)));
   form.append(el("div", { class:"addline" },
     el("button", { class:"btn sm primary", type:"button",
@@ -7745,30 +8325,35 @@ function paneForm(){
           el("span", {}, "구매내역 캡처 이미지"),
           reqBtn(F.buy.req, () => { F.buy.req = !F.buy.req; }, isOpen("buy"), "buy")),
         tv(F.buy, "desc", "buy", { cls:"sdesc", multi:true }),
-        el("div", { class:"exbox" },
-          el("div", { style:"font-weight:700;color:var(--ink)" }, "구매내역 캡처 예시 이미지"),
-          el("div", { style:"margin-top:4px" }, F.buy.exampleName),
-          el("div", { class:"note", style:"margin-top:6px" },
-            "저장소 examples/ 폴더에 이 이름으로 올리면 고객 화면에 자동으로 나옵니다. ",
-            "권장 : 가로 1560px · .webp · 200KB 이하")))]));
+        el("div", { class:"lfbox" },
+          el("div", { class:"lft" }, "고객 화면에 나가는 글 · 파일 (2026-10 부터 연결됨)"),
+          linkedField("form.buy.title", "구매 내역 확인 화면 · 제목", { src:"buy.title" }),
+          linkedField("form.buy.exampleName", "구매 내역 확인 화면 · 예시 이미지 파일 이름", { src:"buy.exampleName",
+            check:v => (v && !EXAMPLE_NAME_RE.test(v))
+              ? "파일 이름만 쓸 수 있습니다(폴더·주소 불가, .webp .png .jpg). 이대로 저장하면 기본 파일(" + FT0["buy.exampleName"] + ")이 나갑니다." : "",
+            hint:"깃허브 examples/ 폴더의 파일 이름입니다. 권장 : 가로 1560px · .webp · 200KB 이하. 없으면 예시 칸만 숨겨집니다. 올리는 방법은 「고객 화면 이미지」 메뉴에 있습니다." })))]));
     form.append(card("serial", ++n, "시리얼번호(S/N) 등록", "쿠팡 정품등록만", [
       el("div", { class:"fbody" },
         el("div", { class:"ctitle", style:"margin-bottom:8px" },
           F.serial.req ? el("span", { class:"req" }, "*") : "",
           el("span", {}, "시리얼번호(S/N)"),
           reqBtn(F.serial.req, () => { F.serial.req = !F.serial.req; }, isOpen("serial"), "serial")),
-        tv(F.serial, "desc", "serial", { cls:"sdesc", multi:true }),
-        tv(F.serial, "warn", "serial", { cls:"warnline", multi:true }),
+        el("div", { class:"lfbox" },
+          el("div", { class:"lft" }, "S/N 등록 화면에 나가는 글 (2026-10 부터 연결됨)"),
+          el("div", { class:"nbox" }, "처음 연결될 때 고객 화면은 바뀌지 않습니다 — 아래 칸에는 ",
+            el("b", {}, "지금 접수폼에 나가는 문구"), "가 들어 있습니다. 여기서 고치고 저장하면 접수폼에 반영됩니다. ",
+            "중복 규칙(같은 S/N은 최초 1명에게만 발송) 안내가 빠지지 않게 주의하세요."),
+          linkedField("form.serial.desc", "S/N 등록 화면 · 안내 문구 (앞부분)", { src:"serial.desc", rows:2, rich:true }),
+          linkedField("form.serial.warn", "S/N 등록 화면 · 주의 문구 (뒷부분)", { src:"serial.warn", rows:2, rich:true }),
+          linkedField("form.serial.ack",  "S/N 등록 화면 · 확인 체크 문구", { src:"serial.ack", rows:2 })),
         el("div", { class:"exbox" },
           el("div", { style:"font-weight:700;color:var(--ink)" }, "S/N 위치 안내 이미지"),
-          el("div", { style:"margin-top:4px" }, F.serial.exampleName)),
+          el("div", { style:"margin-top:4px" }, "제품마다 sn/ 폴더의 파일을 씁니다 — 「고객 화면 이미지」 메뉴에서 확인하세요")),
         el("div", { class:"cblock" },
           el("div", { class:"ctitle" },
             F.serial.ackReq ? el("span", { class:"req" }, "*") : "",
-            el("span", {}, "확인 체크"),
-            reqBtn(F.serial.ackReq, () => { F.serial.ackReq = !F.serial.ackReq; }, isOpen("serial"), "serial")),
-          el("div", { class:"copt", style:"align-items:center" },
-            el("span", { class:"cchk" }), tv(F.serial, "ack", "serial", { cls:"cmain" }))))]));
+            el("span", {}, "확인 체크 필수 여부"),
+            reqBtn(F.serial.ackReq, () => { F.serial.ackReq = !F.serial.ackReq; }, isOpen("serial"), "serial"))))]));
   } else {
   form.append(card("capture", ++n, F.capture.title, "포토리뷰만", [
     el("div", { class:"fbody" },
@@ -7777,8 +8362,11 @@ function paneForm(){
         el("span", {}, "리뷰 캡처 이미지"),
         reqBtn(F.capture.req, () => { F.capture.req = !F.capture.req; },
           isOpen("capture"), "capture")),
-      tv(F.capture, "desc", "capture", { cls:"sdesc", multi:true }),
-      tv(F.capture, "warn", "capture", { cls:"warnline", multi:true }),
+      el("div", { class:"lfbox" },
+        el("div", { class:"lft" }, "캡처 및 받으실 정보 화면 · 리뷰 캡처 영역에 나가는 글 (2026-10 부터 연결됨)"),
+        linkedField("form.capture.title", "리뷰 캡처 영역 · 칸 이름", { src:"capture.title" }),
+        linkedField("form.capture.desc",  "리뷰 캡처 영역 · 안내 문구 (첫 줄)", { src:"capture.desc", rows:2, rich:true }),
+        linkedField("form.capture.warn",  "리뷰 캡처 영역 · 주의 문구 (둘째 줄, 빨간 글씨)", { src:"capture.warn", rows:2 })),
       el("div", { class:"exbox" },
         el("div", { style:"font-weight:700;color:var(--ink)" }, "사진 첨부 예시 이미지"),
         el("div", { style:"margin-top:4px" }, F.capture.exampleName),
@@ -7793,7 +8381,9 @@ function paneForm(){
   const TYPES = ["단답", "장문", "연락처", "주소 검색", "객관식", "체크"];
   form.append(card("info", ++n, F.info.title, "", [
     el("div", { class:"fbody" },
-      tv(F.info, "desc", "info", { cls:"sdesc", multi:true }),
+      el("div", { class:"lfbox" },
+        el("div", { class:"lft" }, "캡처 및 받으실 정보 화면 · 맨 위 설명 (2026-10 부터 연결됨)"),
+        linkedField("form.info.desc", "받으실 정보 화면 · 설명", { src:"info.desc", rows:2, rich:true })),
       ...F.info.fields.map((f, i) => el("div", { class:"cblock" },
         el("div", { class:"ctitle" },
           f.req ? el("span", { class:"req" }, "*") : "",
@@ -7841,12 +8431,12 @@ function paneForm(){
         el("p", { class:"hint", style:"margin:0" },
           "고객이 보는 순서 그대로입니다. 고칠 곳을 눌러 그 자리에서 바로 고치세요. ",
           el("b", {}, "구매 확인 · 접수 완료"), " 는 고칠 것이 문구뿐이라 ",
-          el("b", {}, "「안내 문구」 탭"), " 에 있습니다. ",
+          el("b", {}, "「안내 문구」 메뉴"), " 에 있습니다. ",
           el("span", { class:"req" }, "*"), " 가 붙은 항목이 ", el("b", {}, "필수"), " 입니다 — ",
           el("b", {}, "「수정」"), " 을 먼저 누르셔야 ", el("b", {}, "「필수」"), " 를 바꿀 수 있습니다. ",
           "필수를 켜면 ", el("b", {}, "빨간색"), " 이 되고 항목 이름 앞에 ", el("span", { class:"req" }, "*"), " 가 붙습니다. ",
-          "다 고치셨으면 같은 자리의 ", el("b", {}, "「저장」"), " 을 누르고, ",
-          "맨 아래 ", el("b", {}, "「저장」"), " 으로 서버에 남기세요.")),
+          "다 고치셨으면 화면 아래 고정 줄의 ", el("b", {}, "「저장」"), " 으로 서버에 남기세요. ",
+          "표지 · 사진 · S/N · 받으실 정보의 ", el("b", {}, "이름표가 붙은 칸"), " 은 눌러서 열 필요 없이 바로 고칠 수 있습니다.")),
       el("div", { class:"row" },
         el("div", { class:"field" },
           el("label", {}, "어느 유형으로 볼지"),
@@ -7875,6 +8465,7 @@ function buildToc(node){
   node.replaceChildren();
   node.append(el("h3", {}, "차례"));
   const F = cfg.form;
+  node.append(tocCard("cover", "0", "표지"));
   node.append(tocCard("consent", "1", F.consent.title));
 
   node.append(el("div", { class:"tgrp" }, "2 · 참여 설문"));
@@ -7886,8 +8477,11 @@ function buildToc(node){
   prod.forEach((q, i) => node.append(tocQ("prod", i, cfg.entrySurvey.length + i + 1, q)));
 
   node.append(el("div", { class:"tgrp" }, "그 다음"));
-  [["reward", "4", "받으실 사은품 안내"], ["capture", "5", F.capture.title],
-   ["info", "6", F.info.title]].forEach(([id, n, t]) => node.append(tocCard(id, n, t)));
+  (formType === "coupang"
+    ? [["reward", "4", "받으실 사은품 안내"], ["buy", "5", F.buy.title], ["serial", "6", "시리얼번호(S/N) 등록"],
+       ["info", "7", F.info.title]]
+    : [["reward", "4", "받으실 사은품 안내"], ["capture", "5", F.capture.title],
+       ["info", "6", F.info.title]]).forEach(([id, n, t]) => node.append(tocCard(id, n, t)));
 }
 function tocCard(id, no, t){
   return el("button", { class:"titem" + (isOpen(id) && !editAll ? " on" : ""), type:"button",
@@ -7921,7 +8515,10 @@ const NOTICE_GROUPS = [
     ["errSerial",   "시리얼번호",      "쿠팡 정품등록 · S/N 칸이 비었을 때"],
     ["errSerialack","시리얼 확인 체크","쿠팡 정품등록 · 확인 체크를 안 했을 때"],
     ["errFile",     "캡처 이미지",     "7단계 · 사진을 안 올렸을 때"],
-    ["errAddr",     "주소",            "8단계 · 주소 검색을 안 하고 넘어가려 할 때"]
+    ["errAddr",     "주소",            "8단계 · 주소 검색을 안 하고 넘어가려 할 때"],
+    /* 2026-10 추가 — 묶음 제목은 그대로 두고 맨 끝에만 붙였습니다(CSV 「구분+이름」 키가 안 바뀝니다) */
+    ["errEmail",    "이메일",          "캡처 및 받으실 정보 · 이메일 칸이 비었거나 형식이 맞지 않을 때"],
+    ["errBuy",      "구매내역 캡처",   "쿠팡 정품등록 · 구매내역 캡처를 안 올렸을 때"]
   ]],
   ["② 구매 확인 — 「조회」를 눌렀는데 입력이 부족할 때", [
     ["needNamePhone", "성함·연락처 미입력", "성함 또는 연락처를 비운 채 조회를 눌렀을 때"],
@@ -7966,6 +8563,10 @@ const NOTICE_GROUPS = [
     ["productMismatch","구매 내역에 없는 제품", "조회 결과에 없는 제품으로 접수를 시도했을 때"],
     ["inputInvalid",   "입력값 오류",          "성함·연락처 형식이 맞지 않을 때"],
     ["originBlocked",  "공식 폼이 아님",       "복제된 페이지에서 접수를 시도했을 때"],
+    ["imageMissing",   "리뷰 이미지 없음",     "포토리뷰 · 필수인 캡처 이미지 없이 접수됐을 때"],
+    ["snImageMissing", "S/N 사진 없음",        "쿠팡 정품등록 · 필수인 S/N 라벨 사진 없이 접수됐을 때"],
+    ["buyImageMissing","구매내역 캡처 없음",   "쿠팡 정품등록 · 필수인 구매내역 캡처 없이 접수됐을 때"],
+    ["serialMissing",  "S/N 미입력",           "쿠팡 정품등록 · 필수인 S/N 없이 접수됐을 때"],
     ["submitErr",      "접수 중 오류",         "그 밖의 오류일 때"]
   ]],
   ["⑧ 접수 완료 — 초록 팝업 창", [
@@ -8337,119 +8938,288 @@ window.noticeImport = { plan: (t, f) => ntPlan(t, f || "검사.csv"),
                         apply: () => ntApply(),
                         peek: () => NT_PLAN };
 
+/* ══════════ 안내 문구 관리 (2026-10 개편) ══════════
+   검색 · 화면/상황 칩 · 카드(표시 위치 · 현재 문구 · 기본값 · 미리보기 · 상담 버튼).
+   ⚠️ 아래 이름표(NT_*)는 「보여 주기」 전용입니다. 문구의 키(NOTICE_GROUPS)·CSV 키(ntKeyOf)·모양(NOTICE_SHAPE)과
+      무관하며, 여기 없는 문구는 NOTICE_GROUPS 에 적힌 「언제 나오나」 글로 대신 보여 줍니다.
+   ⚠️ 「표시 위치」는 index.html 의 실제 동작을 보고 적은 글입니다. 접수폼 화면 순서를 바꾸면 같이 고치세요. */
+const NT_SCREENS = [
+  ["type","참여 유형 선택"], ["check","참여 조회"], ["lookup","구매 확인"], ["consent","동의"],
+  ["survey","설문"], ["buy","구매내역(쿠팡)"], ["sn","S/N 등록(쿠팡)"], ["info","받으실 정보"],
+  ["confirm","신청 확인"], ["submit","신청 직후 팝업"], ["staff","상담사용"]
+];
+const NT_SITS = [
+  ["err","입력 오류"], ["result","조회 결과"], ["dup","중복"], ["reject","서버가 막음"],
+  ["upload","사진 올리기"], ["done","접수 완료"], ["status","참여 상태"], ["guide","늘 표시되는 글"]
+];
+const NT_SIT_CLASS = { err:"bad", reject:"bad", dup:"warn", upload:"warn", done:"ok", status:"blue", result:"", guide:"" };
+const ntLabel = (list, k) => (list.find(x => x[0] === k) || [k, k])[1];
+
+/* 묶음 번호(①~⑨)별 「표시 위치」 앞부분 — 뒤에는 NOTICE_GROUPS 의 「언제 나오나」 글이 붙습니다 */
+const NT_PREFIX = {
+  "②":"포토리뷰 접수 > 구매 확인 화면 · [구매 내역 확인] 버튼 아래 회색 상자 · ",
+  "③":"포토리뷰 접수 > 구매 확인 화면 · 조회 결과 상자 · ",
+  "④":"접수 > 신청 직후 뜨는 「이미 참여하셨습니다」 팝업 · ",
+  "⑤":"접수 > 참여 안내 및 동의 화면 · ",
+  "⑥":"접수 > 사진 올리는 칸에서 사진을 고른 직후 뜨는 팝업 · ",
+  "⑦":"접수 > [참여 신청하기]를 누른 뒤 서버가 막았을 때 뜨는 팝업 · ",
+  "⑧":"접수 > 신청이 끝난 뒤 뜨는 완료 팝업 · ",
+  "⑨":"첫 화면 > 포토리뷰 이벤트 참여 조회 결과 · "
+};
+/* ① 항목 아래 빨간 글씨 — 화면마다 달라 키별로 적습니다. [화면, 표시 위치] */
+const NT_ERR_WHERE = {
+  errName:     ["info",   "접수 > 캡처 및 받으실 정보 화면 · 수령인 성함 칸 아래 빨간 글씨"],
+  errPhone:    ["info",   "접수 > 캡처 및 받으실 정보 화면 · 연락처 칸 아래 빨간 글씨"],
+  errEmail:    ["info",   "접수 > 캡처 및 받으실 정보 화면 · 이메일 칸 아래 빨간 글씨"],
+  errAddr:     ["info",   "접수 > 캡처 및 받으실 정보 화면 · 주소 칸 아래 빨간 글씨 (사은품 배송일 때만 주소 칸이 나옴)"],
+  errFile:     ["info",   "포토리뷰 접수 > 캡처 및 받으실 정보 화면 · 리뷰 캡처 칸 아래 (쿠팡 정품등록은 S/N 등록 화면의 S/N 사진 칸 아래)"],
+  errGift:     ["info",   "접수 > 캡처 및 받으실 정보 화면 · 사은품 고르는 카드 아래 (고를 수 있는 사은품이 여러 개일 때)"],
+  errQty:      ["info",   "접수 > 캡처 및 받으실 정보 화면 · 받으실 방법 고르는 줄 아래 (2개 이상 구매한 고객)"],
+  errReward:   ["info",   "접수 > 캡처 및 받으실 정보 화면 · 발송 안내 동의 체크 아래"],
+  errInv:      ["lookup", "포토리뷰 접수 > 구매 확인 화면 · 조회 결과 영역 아래 (조회하지 않고 [다음]을 눌렀을 때)"],
+  errConsent:  ["consent","접수 > 참여 안내 및 동의 화면 · 동의 항목 아래 빨간 글씨"],
+  errEntry:    ["survey", "접수 > 참여 설문 화면 · 문항 아래 빨간 글씨"],
+  errType:     ["type",   "접수 첫 화면 · 참여 유형 카드 아래 빨간 글씨"],
+  errProd:     ["survey", "접수 > 제품 선택 화면 · 제품 카드 아래 빨간 글씨"],
+  errSurvey:   ["survey", "접수 > 제품 사용 설문 화면 · 문항 아래 빨간 글씨"],
+  errSerial:   ["sn",     "쿠팡 정품등록 > S/N 등록 화면 · S/N 입력칸 아래 빨간 글씨"],
+  errSerialack:["sn",     "쿠팡 정품등록 > S/N 등록 화면 · 확인 체크 아래 빨간 글씨"],
+  errBuy:      ["buy",    "쿠팡 정품등록 > 구매내역 확인 화면 · 캡처 올리는 칸 아래 빨간 글씨"]
+};
+/* ○○ 자리에 무엇이 들어가는지 (index.html 에서 확인한 것만) */
+const NT_PH = {
+  skippedSome:"제품 이름", skippedUsed:"제품 이름(안 넣어도 됩니다)", noTarget:"제품 이름",
+  consentDeny:"동의 항목 이름", checkNone:"고객 성함", doneGiftReserve:"입고 시점(예약발송 탭에서 적은 값)",
+  checkShipped:"앞 ○○ = 사은품, {{○○}} = 출고일자", checkShippedCoupon:"앞 ○○ = 기프티콘, {{○○}} = 발송일자",
+  checkWait:"앞 ○○ = 참여 유형, 뒤 ○○ = 사은품/기프티콘", dupAskReview:"채널 이름(아이닉)", dupAskCoupang:"채널 이름(아이닉)",
+  fileTooBig:"사진 용량"
+};
+/* 상담 버튼(MSGK)을 접수폼이 실제로 읽는 문구 — index.html 의 MSGK( 호출 + showNotice 로 띄우는 문구 전부.
+   ⚠️ 여기 없는 문구는 스위치를 켜 두어도 고객 화면에 버튼이 나오지 않습니다(저장된 값은 지우지 않습니다).
+   ⚠️ notFound* · checkShipped* · dupAsk* 는 접미사가 붙는 식구들이라 이름 앞부분으로 맞춥니다. */
+const NT_KAKAO_KEYS = new Set([
+  "rate","noTarget","readFail","dupAll","checkConsult","checkWait","doneGiftReserve",
+  "fileTooBig","netFail","uploadFail",
+  "submitRate","tokenExpired","productMismatch","inputInvalid","originBlocked",
+  "imageMissing","snImageMissing","buyImageMissing","serialMissing","submitErr"
+]);
+const ntKakaoOk = k => NT_KAKAO_KEYS.has(k) || /^(notFound|checkShipped|dupAsk)/.test(k);
+const phN = t => (String(t == null ? "" : t).match(/○○|○/g) || []).length;
+
+/* 화면 상태 — 칩·검색어는 다른 메뉴에 다녀와도 남겨 둡니다 */
+const NT = { q:"", sc:"", si:"", only:false, def:{} };
+
+/* 안내 문구 한 장 = 카드 한 개. 「항상 적혀 있는 글」과 「상황 문구」를 같은 모양으로 다룹니다. */
+function ntItems(){
+  const items = [];
+  const savedN = () => ((SAVED || DEFAULTS).notices) || {};
+  ALWAYS_GROUPS.forEach(([scr, rows]) => rows.forEach(([lab, get, key, multi, where, kind, spot]) => {
+    const path = kind === "manual" ? "form.manualGuide" : "form." + kind + "." + spot;
+    const sc = kind === "lookup" ? "lookup" : kind === "manual" ? "staff" : "confirm";
+    const pre = kind === "lookup" ? "포토리뷰 접수 > 구매 확인 화면 · "
+              : kind === "manual" ? "관리자 > "
+              : "접수 > 신청 확인 화면 · ";
+    items.push({
+      id:"a:" + path, name:scr + " · " + lab, key:path, group:"항상 적혀 있는 글", sc, si:"guide", where:pre + where,
+      get:() => String((get() || {})[key] || ""),
+      set:v => { const o = get(); if(o) o[key] = v; },
+      defT:() => String(pathGet(DEFAULTS, path) || ""),
+      savedT:() => String(pathGet(SAVED || DEFAULTS, path) || ""),
+      kakao:null,
+      preview:() => openScreenPreview(kind, spot, scr + " 화면 · " + lab)
+    });
+  }));
+  NOTICE_GROUPS.forEach(([title, rows]) => rows.forEach(([k, t, when]) => {
+    const g = String(title).slice(0, 1);
+    let sc, si, where;
+    if(g === "①"){ const m = NT_ERR_WHERE[k]; sc = m ? m[0] : "info"; si = "err"; where = m ? m[1] : when; }
+    else {
+      where = (NT_PREFIX[g] || "") + when;
+      sc = g === "②" || g === "③" ? "lookup" : g === "⑤" ? "consent" : g === "⑥" ? "info"
+         : g === "⑨" ? "check" : "submit";
+      si = g === "②" ? "err" : g === "③" ? "result" : g === "④" ? "dup" : g === "⑤" ? "err"
+         : g === "⑥" ? "upload" : g === "⑦" ? "reject" : g === "⑧" ? "done" : "status";
+      if(k === "dupAll") si = "dup";
+      if(g === "⑨" && (k === "checkNeed")) si = "err";
+      if(g === "⑨" && (k === "checkRate" || k === "checkErr")) si = "reject";
+    }
+    items.push({
+      id:"n:" + k, name:t, key:k, group:title, sc, si, where,
+      get:() => String(((cfg.notices || {})[k] || {}).t || ""),
+      set:v => { cfg.notices = cfg.notices || {}; cfg.notices[k] = cfg.notices[k] || {}; cfg.notices[k].t = v; },
+      defT:() => String(((DEFAULTS.notices || {})[k] || {}).t || ""),
+      savedT:() => String((savedN()[k] || {}).t || ""),
+      kakao:{
+        ok:ntKakaoOk(k),
+        get:() => !!((cfg.notices || {})[k] || {}).k,
+        set:v => { cfg.notices = cfg.notices || {}; cfg.notices[k] = cfg.notices[k] || {}; cfg.notices[k].k = v; },
+        saved:() => !!(savedN()[k] || {}).k
+      },
+      preview:() => openNoticePreview(title, t, ((cfg.notices || {})[k] || {}).t, ((cfg.notices || {})[k] || {}).k, k)
+    });
+  }));
+  return items;
+}
+
+function ntChanged(it){
+  return it.get() !== it.savedT() || (it.kakao && it.kakao.get() !== it.kakao.saved());
+}
+
+function ntCard(it){
+  const card = el("div", { class:"nxc" });
+  const dot  = el("span", { class:"ndot", title:"저장한 값과 다릅니다" });
+  const warn = el("div", { class:"nxwarn" });
+  const acts = el("div", { class:"nxacts" });
+  const defBox = el("div", { class:"nxdef" });
+  const ta = el("textarea", { "aria-label":it.name, rows:"2",
+    oninput:e => { it.set(e.target.value); upd(); softRefresh(); } }, it.get());
+
+  const upd = () => {
+    const ch = ntChanged(it);
+    card.classList.toggle("chgd", ch);
+    dot.style.display = ch ? "" : "none";
+    const dn = phN(it.defT()), cn = phN(it.get());
+    warn.textContent = dn !== cn
+      ? "⚠ ○○ 자리가 " + dn + "개여야 합니다 (지금 " + cn + "개). 값이 엉뚱한 자리에 들어가거나 빠질 수 있습니다." : "";
+    drawActs();
+  };
+  const drawActs = () => {
+    const open = !!NT.def[it.id];
+    defBox.style.display = open ? "" : "none";
+    acts.replaceChildren(
+      el("button", { class:"btn sm", type:"button",
+        onclick:() => { NT.def[it.id] = !NT.def[it.id]; drawActs(); } }, open ? "기본값 닫기" : "기본값 보기"),
+      el("button", { class:"btn sm", type:"button", onclick:() => it.preview() }, "미리보기"),
+      ntChanged(it)
+        ? el("button", { class:"btn sm ghost2", type:"button", onclick:() => {
+            const sv = it.savedT(); it.set(sv); ta.value = sv; fitArea(ta);
+            if(it.kakao) it.kakao.set(it.kakao.saved());
+            upd(); softRefresh(); } }, "↺ 변경 취소")
+        : "",
+      el("span", { class:"sp" }),
+      it.kakao === null ? "" :
+        it.kakao.ok
+          ? el("label", { class:"switch nxkk" },
+              el("input", { type:"checkbox", ...(it.kakao.get() ? { checked:"" } : {}),
+                onchange:e => { it.kakao.set(e.target.checked); upd(); softRefresh(); } }),
+              "💬 카카오 상담 버튼")
+          : el("span", { class:"nxkk", title:"접수폼이 이 문구 아래에는 상담 버튼을 붙이지 않습니다" },
+              "💬 이 문구는 상담 버튼을 지원하지 않습니다"));
+  };
+  /* 기본값 상자 — 기본 문구와 「이 문구로 되돌리기」 */
+  defBox.append(
+    el("div", { class:"h" }, "기본 문구", el("span", { class:"sp" }),
+      el("button", { class:"btn sm", type:"button", onclick:() => {
+        const d = it.defT(); it.set(d); ta.value = d; fitArea(ta); upd(); softRefresh(); } }, "이 문구로 되돌리기")),
+    el("div", { class:"tx" }, it.defT() || "(기본 문구가 없습니다)"));
+
+  const tag = el("div", { class:"nxt" },
+    dot, el("b", {}, it.name),
+    el("span", { class:"tagc blue" }, ntLabel(NT_SCREENS, it.sc)),
+    el("span", { class:"tagc " + (NT_SIT_CLASS[it.si] || "") }, ntLabel(NT_SITS, it.si)),
+    el("span", { class:"nxk" }, it.key));
+  card.append(tag,
+    el("div", { class:"nxw" }, el("span", {}, "표시 위치"), el("span", {}, it.where)),
+    el("div", { class:"nxw" }, el("span", {}, "현재 문구"), el("span", {}, ta,
+      phN(it.defT()) ? el("div", { class:"nxtip" }, el("b", {}, "○○"), " 는 자동으로 채워지는 자리입니다"
+        + (NT_PH[it.key] ? " — " + NT_PH[it.key] : "") + ". 지우거나 늘리지 마세요. ",
+        el("code", {}, "[[빨간 굵게]]"), " ", el("code", {}, "{{굵게}}")) : "",
+      warn)),
+    defBox, acts);
+  upd();
+  return card;
+}
+
+function ntMatch(it){
+  if(NT.sc && it.sc !== NT.sc) return false;
+  if(NT.si && it.si !== NT.si) return false;
+  if(NT.only && !ntChanged(it)) return false;
+  const q = NT.q.trim().toLowerCase();
+  if(!q) return true;
+  return [it.name, it.key, it.where, it.get(), ntLabel(NT_SCREENS, it.sc), ntLabel(NT_SITS, it.si)]
+    .join(" ").toLowerCase().includes(q);
+}
+
 function paneNotice(){
+  const items = ntItems();
+  const list = el("div", { id:"ntList" });
+  const rc = el("span", {});
+  const chipRow = (id, lab, defs, key) => {
+    const row = el("div", { class:"frow" }, el("span", { class:"lb" }, lab));
+    const mk = (v, t) => el("button", { class:"fchip" + (NT[key] === v ? " on" : ""), type:"button", "data-v":v,
+      onclick:() => { NT[key] = v; row.querySelectorAll(".fchip").forEach(b =>
+        b.classList.toggle("on", b.dataset.v === v)); draw(); } }, t);
+    row.append(mk("", "전체"), ...defs.map(([v, t]) => mk(v, t)));
+    return row;
+  };
+  const draw = () => {
+    const shown = items.filter(ntMatch);
+    rc.textContent = shown.length + "개 문구" + (NT.q.trim() ? " · 「" + NT.q.trim() + "」 검색 결과" : "");
+    list.replaceChildren(...(shown.length ? shown.map(ntCard)
+      : [el("div", { class:"nbox" }, "찾는 문구가 없습니다. 다른 단어로 검색하거나 칩을 「전체」로 바꿔 보세요.")]));
+    fitAllAreas();
+  };
   const total = NOTICE_GROUPS.reduce((n, g) => n + g[1].length, 0);
   const always = ALWAYS_GROUPS.reduce((n, g) => n + g[1].length, 0);
+
+  const q = el("input", { type:"text", class:"sbx", id:"ntQ", value:NT.q, "aria-label":"문구 검색",
+    placeholder:"찾을 문구나 화면을 입력하세요   예) S/N, 이메일, 완료, 만료",
+    oninput:e => { NT.q = e.target.value; draw(); } });
+  const only = el("label", { class:"switch", style:"margin-left:auto" },
+    el("input", { type:"checkbox", ...(NT.only ? { checked:"" } : {}),
+      onchange:e => { NT.only = e.target.checked; draw(); } }), "변경한 것만");
+
   const out = [
     el("h2", {}, "안내 문구"),
     el("p", { class:"hint" },
-      "고객이 채우는 항목은 ", el("b", {}, "접수폼"), " 탭에 있고, 여기는 ", el("b", {}, "고객에게 보여 주는 말"), " 입니다. ",
-      el("b", {}, "조회가 안 될 때 · 이미 참여했을 때"), " 처럼 상황이 생겼을 때 뜨는 문장 ",
-      el("b", {}, total + "개"), " 와, 그 문구마다 ", el("b", {}, "카카오 상담 버튼"), " 을 켜고 끄는 곳입니다. ",
-      "맨 위 ", el("b", {}, always + "개"), " 만 상황과 상관없이 늘 적혀 있는 글입니다. ",
-      "각 문구 밑의 회색 줄이 ", el("b", {}, "언제 어디에 나오는지"), " 입니다. ",
-      el("b", {}, "○○"), " 는 고객 이름·제품명처럼 자동으로 채워지는 자리라 지우지 마세요. ",
-      el("br"),
-      "글씨를 강조하고 싶으시면 ", el("b", {}, "[[대괄호 두 개]]"), " 는 ",
-      el("span", { style:"color:var(--bad);font-weight:800" }, "빨간 굵은 글씨"), ", ",
-      el("b", {}, "{{중괄호 두 개}}"), " 는 ", el("b", {}, "검은 굵은 글씨"), " 로 나갑니다."),
-    /* 지금 화면의 문구를 한 파일로 뽑습니다 — 여럿이 같이 검토할 때 씁니다 */
-    el("div", { class:"row", style:"margin:4px 0 14px;gap:8px;align-items:center;flex-wrap:wrap" },
+      "고객 화면에 나가는 말 ", el("b", {}, (total + always) + "개"), " 를 한곳에서 찾고 고칩니다. ",
+      "카드의 ", el("b", {}, "표시 위치"), " 가 그 문구가 고객 화면의 어디에 나오는지 알려 줍니다. ",
+      "고친 문구는 카드에 ", el("span", { class:"ndot", style:"vertical-align:middle" }), " 표시가 붙고, ",
+      "화면 아래 ", el("b", {}, "「저장」"), " 을 눌러야 서버에 남습니다. ",
+      el("b", {}, "○○"), " 는 이름·제품명처럼 자동으로 채워지는 자리라 지우지 마세요."),
+    el("div", { class:"ntools" }, q,
+      chipRow("sc", "화면", NT_SCREENS, "sc"),
+      (() => { const r = chipRow("si", "상황", NT_SITS, "si"); r.append(only); return r; })()),
+    el("div", { class:"nres" }, rc),
+    list,
+    /* ── 엑셀(CSV)로 한꺼번에 점검·수정 — 동작은 예전 그대로입니다 ── */
+    el("h3", { class:"gtitle" }, "◎ 엑셀로 한꺼번에 점검·수정"),
+    el("div", { class:"row", style:"margin:4px 0 8px;gap:8px;align-items:center;flex-wrap:wrap" },
       el("button", { class:"btn", type:"button", onclick:noticeExport }, "📄 문구 전체 내려받기"),
       el("button", { class:"btn", type:"button", onclick:ntPickFile }, "📥 문구 불러오기"),
-      el("input", { type:"file", id:"ntFile", accept:".csv,text/csv",
-                    style:"display:none", onchange:ntRead }),
+      el("input", { type:"file", id:"ntFile", accept:".csv,text/csv", style:"display:none", onchange:ntRead }),
       el("button", { class:"btn primary", type:"button", id:"ntApply", disabled:"", onclick:ntApply }, "적용"),
       el("span", { id:"ntImportMsg", style:"font-size:12.5px;font-weight:800;color:var(--ok)" }),
       el("span", { id:"ntExportMsg", style:"font-size:12.5px;font-weight:800;color:var(--ok)" })),
-    el("p", { class:"note", style:"margin:-8px 0 12px" },
-      "지금 화면의 문구 ", el("b", {}, String(total + always) + "개"), " 를 엑셀로 받고, ",
-      "고쳐서 ", el("b", {}, "한 번에 되돌려 넣을"), " 수 있습니다. ",
-      "불러오면 ", el("b", {}, "무엇이 바뀌는지 먼저 보여 드리고"), ", 「적용」을 누르셔야 들어갑니다. ",
-      "적용해도 화면만 바뀌니 맨 아래 ", el("b", {}, "저장"), " 을 꼭 눌러 주세요."),
+    el("p", { class:"note", style:"margin:0 0 12px" },
+      "지금 화면의 문구 ", el("b", {}, String(total + always) + "개"), " 를 엑셀로 받고, 고쳐서 ",
+      el("b", {}, "한 번에 되돌려 넣을"), " 수 있습니다. 불러오면 ", el("b", {}, "무엇이 바뀌는지 먼저 보여 드리고"),
+      ", 「적용」을 누르셔야 들어갑니다. 적용해도 화면만 바뀌니 아래 ", el("b", {}, "저장"), " 을 꼭 눌러 주세요."),
     el("div", { id:"ntImportBox", style:"margin:0 0 14px" })
   ];
+  draw();
+  return out;
+}
 
-  /* ── ① 항상 적혀 있는 글 ── */
-  out.push(el("h3", { class:"gtitle" }, "◎ 구매 확인 · 접수 완료 화면에 늘 적혀 있는 글"));
-  ALWAYS_GROUPS.forEach(([scr, rows]) => {
-    out.push(el("div", { class:"stack" }, rows.map(([lab, get, key, multi, where, kind, spot]) => {
-      const o = get();
-      /* 이 문구들은 화면 어디에 붙는지 글만 봐서는 알 수 없어
-         다른 문구들과 똑같이 「미리보기」를 붙입니다.
-         누르면 실제 화면이 뜨고 이 문구가 들어가는 자리에 노란 테두리가 쳐집니다. */
-      return el("div", { class:"ncard" },
-        el("div", { class:"nhead" },
-          el("div", {},
-            el("div", { style:"font-weight:800;font-size:13.5px" }, scr + " · " + lab),
-            el("div", { style:"font-size:12px;color:var(--sub);margin-top:2px" }, scr + " 화면 · " + where)),
-          el("button", { class:"btn sm", type:"button",
-            onclick:e => { e.stopPropagation();
-              openScreenPreview(kind, spot, scr + " 화면 · " + lab); } },
-            "미리보기")),
-        el("textarea", { "aria-label":scr + " " + lab,
-          style: multi ? "" : "min-height:44px",
-          oninput:e => { o[key] = e.target.value; softRefresh(); } }, o[key] || ""));
-    })));
-  });
-  out.push(el("h3", { class:"gtitle" }, "◎ 그 상황이 생겼을 때만 뜨는 문장"));
-
-  NOTICE_GROUPS.forEach(([title, items]) => {
-    out.push(el("h3", { class:"gtitle" }, title));
-    out.push(el("div", { class:"stack" }, items.map(([k, t, when]) => {
-      const n = cfg.notices[k];
-      return el("div", { class:"ncard" },
-        el("div", { class:"nhead" },
-          el("div", {},
-            el("div", { style:"font-weight:800;font-size:13.5px" }, t),
-            el("div", { style:"font-size:12px;color:var(--sub);margin-top:2px" }, when)),
-          el("div", { style:"display:flex;align-items:center;gap:10px;flex-wrap:wrap" },
-            el("label", { class:"switch", style:"font-size:12px" },
-              el("input", { type:"checkbox", ...(n.k ? { checked:"" } : {}),
-                onchange:e => { n.k = e.target.checked; render(); } }),
-              "상담 버튼"),
-            el("button", { class:"btn sm", type:"button",
-              onclick:e => { e.stopPropagation(); openNoticePreview(title, t, n.t, n.k, k); } },
-              "미리보기"))),
-        el("textarea", { "aria-label":t, oninput:e => { n.t = e.target.value; softRefresh(); } }, n.t),
-        n.k ? el("div", { class:"kbtn" }, "💬 상담사 문의하기") : "");
-    })));
-  });
-
-  /* 🔴 2026-09-22 — 메인 채널 하나로 통일했습니다 (담당자 결정).
-        예전에는 제품군에 따라 4곳으로 갈라 보냈습니다. 채널마다 알림을 따로 봐야 해서
-        묻히는 건이 생기고, 링크 4개를 계속 관리해야 했습니다.
-     ⚠️ 카테고리별 주소(cfg.kakao)는 **지우지 않았습니다.** 저장된 값 그대로 남아 있고,
-        화면에서만 감췄습니다. 다시 나누실 일이 생기면 이 자리를 되돌리면 됩니다. */
-  out.push(el("h3", { class:"gtitle" }, "카카오 채널 주소"));
-  out.push(el("p", { class:"hint" },
-    el("b", {}, "상담 버튼"), "을 켠 문구 아래에 노란 ",
-    el("b", {}, "「💬 아이닉 카카오톡 채널로 문의하기」"), " 버튼이 붙습니다. ",
-    "모든 화면이 ", el("b", {}, "아래 주소 하나"), "만 씁니다."));
-  out.push(el("div", { class:"stack", style:"margin-bottom:12px" },
-    el("div", { class:"ncard" },
-      el("div", { class:"field" },
-        el("label", { for:"kkMain" }, "아이닉 메인 카카오 채널 주소"),
-        el("input", { type:"text", class:"mono", id:"kkMain",
-          value: (typeof cfg.kakaoMain === "string" ? cfg.kakaoMain : "") || DEFAULTS.kakaoMain,
-          placeholder:"https://pf.kakao.com/...", "aria-label":"메인 카카오 채널 주소",
-          oninput:e => { cfg.kakaoMain = e.target.value; softRefresh(); } })),
-      el("p", { class:"hint", style:"margin:8px 0 0" },
-        "쓰이는 곳 — ", el("b", {}, "구매 확인 · 중복 접수 팝업 · 참여 조회 · 접수 오류 팝업"), " 네 군데입니다.",
-        el("br"),
-        "비워 두시면 버튼 대신 위 ", el("b", {}, "「채널 주소가 비었을 때」"), " 문구가 나갑니다."))));
-
-  /* 🔴 별점 판매처 (2026-09-23 담당자 결정) */
-  out.push(el("h3", { class:"gtitle" }, "AI 심사 — 별점을 꼭 봐야 하는 판매처"));
-  out.push(el("div", { class:"stack", style:"margin-bottom:12px" },
-    el("div", { class:"ncard" },
+/* ══════ 심사 규칙 — 별점을 꼭 봐야 하는 판매처 (예전에는 안내 문구 맨 아래에 있었습니다) ══════ */
+function paneRules(){
+  return [
+    el("h2", {}, "심사 규칙"),
+    el("p", { class:"hint" }, "고객 화면에 보이는 글이 아니라, ", el("b", {}, "AI 심사가 직접 읽는 값"), " 입니다."),
+    el("div", { class:"nbox warn" },
+      "⚠️ ", el("b", {}, "이 값을 바꾸면 심사 결과가 달라집니다."),
+      " 저장하는 순간부터 새로 접수되는 건에 적용됩니다. 별점을 읽지 못했을 때 아래 판매처는 ",
+      el("b", { style:"color:var(--bad)" }, "부적합"), ", 나머지 판매처는 ", el("b", { style:"color:var(--ok)" }, "통과"),
+      " 로 처리됩니다."),
+    el("div", { class:"imgsec" },
+      el("h3", {}, "별점을 꼭 봐야 하는 판매처"),
       el("div", { class:"field" },
         el("label", { for:"ratSrc" }, "별점이 캡처에 안 보이면 부적합으로 볼 판매처"),
         el("input", { type:"text", id:"ratSrc",
           value: (typeof cfg.ratingSrcs === "string" ? cfg.ratingSrcs : DEFAULTS.ratingSrcs),
           placeholder:"스마트스토어", "aria-label":"별점 필수 판매처",
           oninput:e => { cfg.ratingSrcs = e.target.value; softRefresh(); } })),
-      el("p", { class:"hint", style:"margin:8px 0 0" },
+      el("p", { class:"hint", style:"margin:10px 0 0" },
         el("b", {}, "여기 적힌 판매처"), " — 별점이 캡처에 안 보이면 ",
         el("b", { style:"color:#c0392b" }, "부적합"), ". (스마트스토어는 리뷰 화면에 별점이 반드시 나오므로, ",
         "안 보이면 일부러 가린 것으로 봅니다)", el("br"),
@@ -8459,9 +9229,211 @@ function paneNotice(){
         "쉼표로 여러 개 적으실 수 있습니다. ",
         el("b", {}, "「스마트스토어」"), " 한 단어면 원장의 ",
         el("b", {}, "「풀필먼트(스마트스토어)」「스타배송(스마트스토어)」"), " 도 함께 걸립니다.", el("br"),
-        "비워 두시면 ", el("b", {}, "어느 판매처도 별점을 필수로 보지 않습니다"), "."))));
+        "비워 두시면 ", el("b", {}, "어느 판매처도 별점을 필수로 보지 않습니다"), ".")),
+  ];
+}
 
-  return out;
+/* ══════ 상담 채널 — 안내 문구의 「💬 상담 버튼」이 여는 주소 ══════
+   🔴 2026-09-22 — 메인 채널 하나로 통일했습니다(담당자 결정). 카테고리별 주소(cfg.kakao)는 지우지 않고
+      화면에서만 감췄습니다. 다시 나누실 일이 생기면 이 자리를 되돌리면 됩니다. */
+function kakaoCheck(v){
+  const t = String(v || "").trim();
+  if(!t) return { c:"warn", m:"비워 두면 상담 버튼 대신 「채널 주소가 비었을 때」 문구가 나갑니다." };
+  if(/^https:\/\//i.test(t)) return { c:"ok", m:"https:// 로 시작하는 주소입니다." };
+  if(/^http:\/\//i.test(t)) return { c:"warn", m:"http:// 로 시작합니다. 버튼은 나오지만 보안 연결이 아니니 https:// 주소를 권합니다." };
+  return { c:"bad", m:"https:// 로 시작해야 합니다. 이대로면 상담 버튼이 보이지 않습니다." };
+}
+function paneChannel(){
+  const inp = el("input", { type:"text", class:"mono", id:"kkMain",
+    value:(typeof cfg.kakaoMain === "string" ? cfg.kakaoMain : DEFAULTS.kakaoMain),
+    placeholder:"https://pf.kakao.com/...", "aria-label":"메인 카카오 채널 주소" });
+  const msg = el("div", { class:"lfe" });
+  const open = el("a", { class:"btn sm", target:"_blank", rel:"noopener", style:"text-decoration:none;display:none" }, "주소 열어 보기 ↗");
+  const upd = () => {
+    const r = kakaoCheck(inp.value);
+    msg.textContent = r.m;
+    msg.style.color = r.c === "ok" ? "var(--ok)" : r.c === "warn" ? "var(--warn)" : "var(--bad)";
+    /* 열어 보기 링크는 https 주소일 때만 보입니다 (다른 형식의 주소는 링크로 만들지 않습니다) */
+    const okUrl = /^https:\/\//i.test(inp.value.trim());
+    open.style.display = okUrl ? "" : "none";
+    if(okUrl) open.setAttribute("href", inp.value.trim()); else open.removeAttribute("href");
+    inp.classList.toggle("chg", inp.value !== String((SAVED || DEFAULTS).kakaoMain == null ? "" : (SAVED || DEFAULTS).kakaoMain));
+  };
+  inp.addEventListener("input", () => { cfg.kakaoMain = inp.value; upd(); softRefresh(); });
+  upd();
+  return [
+    el("h2", {}, "상담 채널"),
+    el("p", { class:"hint" },
+      el("b", {}, "상담 버튼"), "을 켠 안내 문구 아래에 노란 ",
+      el("b", {}, "「💬 아이닉 카카오톡 채널로 문의하기」"), " 버튼이 붙습니다. ",
+      "모든 화면이 ", el("b", {}, "아래 주소 하나"), "만 씁니다. 어느 문구에 버튼이 붙는지는 ",
+      el("b", {}, "「안내 문구」"), " 메뉴의 카드마다 정합니다."),
+    el("div", { class:"imgsec" },
+      el("div", { class:"lf", style:"margin:0" },
+        el("label", { for:"kkMain" }, el("span", {}, "아이닉 메인 카카오 채널 주소"), el("span", { class:"src", }, "kakaoMain")),
+        inp, msg),
+      el("div", { class:"row", style:"margin-top:8px" }, open),
+      el("p", { class:"hint", style:"margin:10px 0 0" },
+        "쓰이는 곳 — ", el("b", {}, "구매 확인 · 중복 접수 팝업 · 참여 조회 · 접수 오류 팝업"), " 네 군데입니다.",
+        el("br"),
+        "비워 두시면 버튼 대신 「안내 문구」의 ", el("b", {}, "「채널 주소가 비었을 때」"), " 문구가 나갑니다."))
+  ];
+}
+
+/* ══════ 고객 화면 이미지 (읽기 전용) ══════
+   고객 화면의 사진은 접수폼(index.html)과 같은 깃허브 저장소의 폴더에 있는 파일입니다.
+   이 화면은 「무엇이 있고 무엇이 빠졌는지」만 확인합니다 — 올리는 곳은 깃허브입니다.
+   ⚠️ 아래 SN_IMG_OF · GUIDE_IMGS · GIFT_EMBEDDED 는 index.html 의 같은 이름과 같아야 합니다(복사본). */
+const SN_IMG_OF = {
+  "AO-16LS":"sn/AO-16LS.webp", "i50D":"sn/vacuum.webp", "i50T":"sn/vacuum.webp", "i90":"sn/i90.webp",
+  "iAP22":"sn/iAP22.webp", "iC01":"sn/iC01.webp", "iEK01":"sn/iEK01.webp", "iFD01-F":"sn/iFD01.webp",
+  "iFD01-H":"sn/iFD01.webp", "iH05":"sn/iH05UV.webp", "iH12":"sn/iH12.webp", "iHD01":"sn/iHD01.webp",
+  "iSA6L":"sn/iSA6.webp", "iSA7":"sn/iSA7.webp", "iSC02":"sn/iSC02.webp", "iV10":"sn/vacuum.webp",
+  "iv11":"sn/vacuum.webp"
+};
+const GUIDE_IMGS = [
+  ["쿠팡 (로켓·일반배송)","coupang.webp"], ["아이닉 공식홈페이지","inic.webp"], ["아이닉샵 스토어팜(네이버)","naver.webp"],
+  ["11번가","11st.webp"], ["지마켓","gmarket.webp"], ["옥션","auction.webp"], ["오늘의집","ohou.webp"],
+  ["현대몰","hyundai.webp"], ["카카오톡 쇼핑(톡딜)","kakao.webp"], ["신세계몰","ssg.webp"],
+  ["CJ온스타일","cjonstyle.webp"], ["하이마트","himart.webp"]
+];
+/* 폴더에 파일이 없어도 접수폼 안에 내장된 옛 그림이 대신 나오는 사은품 이름 (index.html GIFT_IMG) */
+const GIFT_EMBEDDED = new Set(["튀김용바스켓 16L,16LS","디바이더 7L","밀폐키친홀더 iFD01","활성탄필터 iFD01",
+  "워셔블필터+배기부필터 1set i50,i50T","미니 악세사리 거치대 i30,i50T","거치대 iv10,iv11","전용 관리 set 가습기용",
+  "보관백 iSC01,iSC02","CU 3,000원","배민 3,000원","네이버페이 10,000원"]);
+
+let IMG_STAMP = 0;                       // 「다시 확인」을 누를 때마다 올라가 브라우저 캐시를 피합니다
+const IMG_CACHE = new Map();
+function probeImg(url){
+  const key = url + "|" + IMG_STAMP;
+  if(IMG_CACHE.has(key)) return IMG_CACHE.get(key);
+  const p = new Promise(res => {
+    const im = new Image();
+    im.onload = () => res(true); im.onerror = () => res(false);
+    im.src = url + (IMG_STAMP ? "?chk=" + IMG_STAMP : "");
+  });
+  IMG_CACHE.set(key, p);
+  return p;
+}
+function copyText(t, btn){
+  const done = () => { const o = btn.textContent; btn.textContent = "복사됨 ✓"; setTimeout(() => { btn.textContent = o; }, 1400); };
+  try {
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done, () => window.prompt("복사해 주세요", t)); }
+    else window.prompt("복사해 주세요", t);
+  } catch(_) { window.prompt("복사해 주세요", t); }
+}
+
+/* 줄 하나 — cands: [{url, file}] 를 차례로 찾아 처음 있는 것을 보여 줍니다. 없으면 missFile 이름으로 올리라고 알려 줍니다. */
+function imgRow(o){
+  const th   = el("div", { class:"th" }, "…");
+  const st   = el("span", { class:"tagc" }, "확인 중");
+  const code = el("code", {}, o.folder + (o.missFile || ""));
+  const note = el("div", { class:"hint", style:"margin:3px 0 0;font-size:11.5px" }, o.size || "");
+  const copy = el("button", { class:"btn sm", type:"button" }, "파일 이름 복사");
+  let copyName = o.missFile || "";
+  copy.addEventListener("click", () => copyText(copyName, copy));
+  const row = el("div", { class:"imgl" }, th,
+    el("div", {}, el("b", {}, o.label), " ", st, o.sub ? el("span", { class:"hint", style:"margin-left:6px" }, o.sub) : "",
+      el("div", { style:"margin-top:4px" }, code), note),
+    copy);
+  const p = (async () => {
+    for(const c of o.cands){
+      if(await probeImg(c.url)){
+        th.replaceChildren(el("img", { src:c.url + (IMG_STAMP ? "?chk=" + IMG_STAMP : ""), alt:"" }));
+        st.className = "tagc ok"; st.textContent = "있음";
+        code.textContent = o.folder + c.file; copyName = c.file;
+        return true;
+      }
+    }
+    th.textContent = "✗";
+    st.className = "tagc bad";
+    st.textContent = o.embedded ? "폴더에 없음 · 내장 이미지가 대신 나옵니다" : "없음 · 고객 화면에 이미지 칸이 비거나 숨겨집니다";
+    return false;
+  })();
+  return { row, p };
+}
+
+function paneImages(){
+  const sum = el("span", { class:"tagc" }, "확인 중");
+  const probes = [];
+  const sec = (title, tag, rows, hint) => el("div", { class:"imgsec" },
+    el("h3", {}, title, tag ? el("span", { class:"tagc" }, tag) : ""),
+    hint ? el("p", { class:"hint", style:"margin:0 0 6px" }, hint) : "",
+    ...rows.map(r => { probes.push(r.p); return r.row; }));
+
+  /* ① 사은품 — 사은품 이름이 곧 파일 이름입니다 (코드가 둘 이상인 제품은 코드별 이름) */
+  const gifts = [];                      // [이름, 쓰이는 곳]
+  const addGift = (name, where) => {
+    name = String(name || "").trim(); if(!name) return;
+    const hit = gifts.find(g => g[0] === name);
+    if(hit){ if(!hit[1].includes(where)) hit[1].push(where); } else gifts.push([name, [where]]);
+  };
+  cfg.products.forEach(p => {
+    if((p.codes || []).length > 1) (p.codes || []).forEach(c => addGift((p.giftEach || {})[c], p.ledger));
+    else addGift(p.gift, p.ledger);
+  });
+  (cfg.giftRules || []).forEach(r => addGift(r.label, "프로모션 · " + (r.name || r.product || "")));
+  const giftRows = gifts.map(([name, where]) => imgRow({
+    label:name, sub:where.join(" · "), folder:"gifts/", missFile:name + ".webp",
+    embedded:GIFT_EMBEDDED.has(name),
+    cands:IMG_EXTS.map(x => ({ url:"gifts/" + encodeURIComponent(name) + "." + x, file:name + "." + x })),
+    size:"사은품 이름 = 파일 이름 · webp → png → jpg 순서로 찾습니다 · 권장 4:3 (예 960×720) · 200KB 이하"
+      + (GIFT_EMBEDDED.has(name) ? " · 이 이름은 접수폼 안에 내장된 대체 그림이 있습니다" : "") }));
+
+  /* ② S/N 라벨 위치 사진 — 제품 코드마다 sn/ 폴더의 파일을 씁니다 (쿠팡 정품등록) */
+  const snFiles = new Map();             // 파일 → [제품 이름]
+  cfg.products.forEach(p => (p.codes || []).forEach(c => {
+    const f = SN_IMG_OF[c]; if(!f) return;
+    const a = snFiles.get(f) || []; if(!a.includes(p.ledger)) a.push(p.ledger); snFiles.set(f, a);
+  }));
+  const snRows = [...snFiles].map(([f, names]) => imgRow({
+    label:names.join(" · "), folder:"sn/", missFile:f.replace(/^sn\//, ""),
+    cands:[{ url:f, file:f.replace(/^sn\//, "") }],
+    size:"S/N 라벨 위치 사진 · 라벨이 읽히게 · 권장 가로 1560px 이내 · .webp · 200KB 이하" }));
+
+  /* ③ 주문번호 확인 방법 안내 (판매처별) */
+  const guideRows = GUIDE_IMGS.map(([name, f]) => imgRow({
+    label:name, folder:"guide/", missFile:f, cands:[{ url:"guide/" + f, file:f }],
+    size:"주문번호 확인 방법 안내 · 권장 가로 1560px 이내 · .webp · 200KB 이하" }));
+
+  /* ④ 쿠팡 구매내역 예시 — 설정 「구매내역 예시 이미지 파일 이름」 */
+  const exName = String(pathGet(cfg, "form.buy.exampleName") || "").trim();
+  const exOk = EXAMPLE_NAME_RE.test(exName) ? exName : FT0["buy.exampleName"];
+  const exRows = [imgRow({
+    label:"쿠팡 구매내역 캡처 예시", folder:"examples/", missFile:exOk, cands:[{ url:"examples/" + encodeURIComponent(exOk), file:exOk }],
+    sub: exOk !== exName ? "(설정의 파일 이름이 규칙에 맞지 않아 기본 파일을 봅니다)" : "",
+    size:"설정 「접수 화면별 › 구매내역」의 파일 이름과 같아야 합니다 · 권장 가로 1560px · .webp · 200KB 이하" })];
+
+  const secs = [
+    sec("사은품 사진", "gifts/", giftRows, "접수폼의 사은품 카드에 나옵니다. 사은품 이름을 바꾸면 파일 이름도 같이 바꿔야 합니다."),
+    sec("S/N 라벨 위치 사진", "sn/ · 쿠팡 정품등록", snRows, "S/N 등록 화면의 「이 부분을 촬영해 주세요」 사진입니다. 제품마다 파일이 정해져 있습니다."),
+    sec("주문번호 확인 방법 안내", "guide/ · 포토리뷰", guideRows, "구매 확인 화면의 「주문번호 어디서 보나」 판매처별 안내 사진입니다."),
+    sec("쿠팡 구매내역 캡처 예시", "examples/ · 쿠팡 정품등록", exRows, "")
+  ];
+  Promise.all(probes).then(rs => {
+    const miss = rs.filter(x => !x).length;
+    sum.className = "tagc " + (miss ? "bad" : "ok");
+    sum.textContent = miss ? "없는 파일 " + miss + "개 / 전체 " + rs.length + "개" : "전체 " + rs.length + "개 모두 있음";
+  });
+
+  return [
+    el("h2", {}, "고객 화면 이미지"),
+    el("p", { class:"hint" },
+      "고객 화면의 사진은 접수폼과 같은 ", el("b", {}, "깃허브 저장소의 폴더"), "에 있는 파일입니다. ",
+      "이 화면은 ", el("b", {}, "무엇이 있고 무엇이 빠졌는지"), " 확인만 합니다(읽기 전용)."),
+    el("div", { class:"nbox" },
+      el("b", {}, "올리는 방법"), " — 깃허브 저장소 → 해당 폴더 → ", el("b", {}, "Add file › Upload files"),
+      " → 아래 ", el("b", {}, "파일 이름 그대로"), " 올리기 → Commit. 1~2분 뒤 반영되며, 휴대폰에서는 새로고침이 필요할 수 있습니다. ",
+      "같은 이름의 파일을 다시 올리면 교체됩니다."),
+    el("div", { class:"row", style:"margin:0 0 12px" }, sum,
+      el("button", { class:"btn sm", type:"button", onclick:() => { IMG_STAMP = Date.now(); render(); } }, "↻ 다시 확인")),
+    ...secs,
+    el("div", { class:"imgsec" },
+      el("h3", {}, "코드 내장 이미지", el("span", { class:"tagc" }, "코드 내장 — 개발자 수정")),
+      el("p", { class:"hint", style:"margin:0" },
+        "아이닉 로고 · 제품 선택 화면의 제품 사진(제품마다 1장) · 리뷰 캡처 예시 사진은 접수폼 파일 안에 들어 있습니다. ",
+        "바꾸려면 개발자가 접수폼을 고쳐야 합니다(이 화면에서는 확인할 수 없습니다). 아이닉 로고는 계속 유지됩니다."))
+  ];
 }
 
 /* ══════ 미리보기 ══════ */
@@ -8508,8 +9480,9 @@ function drawSim(){
 }
 
 /* ══════ 그리기 ══════ */
-const PANES = { gift:paneGift, rule:paneRule, form:paneForm, notice:paneNotice };
-const WIDE = ["form", "notice"];
+const PANES = { gift:paneGift, rule:paneRule, form:paneForm, notice:paneNotice,
+                rules:paneRules, channel:paneChannel, images:paneImages };
+const WIDE = ["form", "notice", "rules", "channel", "images"];
 
 /* 글 칸을 글 길이에 맞춰 저절로 늘립니다.
    ⚠️ 예전에는 손으로 끌어 늘려야 했고, 화면을 다시 그리면 그 크기가 사라져
@@ -8535,7 +9508,8 @@ document.addEventListener("focusin", e => {
 }, true);
 
 function render(){
-  document.querySelectorAll("#evtCfg .tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.t === tab)));
+  /* 안쪽에서 tab 을 바로 바꾼 경우(예: 「접수폼에서 보기」)에도 왼쪽 메뉴가 따라가게 맞춥니다 */
+  if(navCur !== tab){ navCur = tab; navSub = ""; }
   $("#cols").classList.toggle("full", WIDE.includes(tab));
   $("#pane").replaceChildren(...[PANES[tab]()].flat());
   buildSim();
@@ -8547,38 +9521,276 @@ function softRefresh(){
   /* 개발자용 상자를 없앴으므로 있을 때만 채웁니다 (없으면 그냥 넘어갑니다) */
   const d = $("#dump");
   if(d) d.textContent = JSON.stringify(cfg, null, 2);
+  updateSaveBar();
 }
 
 /* ── 리포트에 붙이는 부분 ───────────────────────────────────────
    화면 그리기는 위 코드가 그대로 하고, 여기서는
-   탭 전환 · 저장 · 불러오기만 리포트 쪽과 연결합니다.            */
+   왼쪽 메뉴 · 아래 고정 저장 줄 · 저장 · 불러오기만 리포트 쪽과 연결합니다.  */
 let SAVED = null;                    // 서버에서 마지막으로 읽어온 값
+let FT_PENDING = false;              // 저장돼 있던 설정에 접수폼 문구 연결 표식(formTextV)이 아직 없었는가
 
 function showUsers(on, kind){
-  /* ⚠️ 탭 줄(.tabs)은 #evtCfg 안에 있습니다.
-     #evtCfg 를 숨기면 탭까지 같이 사라지므로, 내용만 껐다 켭니다.
-     .cols 는 display:grid 라서 hidden 속성이 안 먹습니다 — style.display 로 끕니다. */
+  /* ⚠️ 왼쪽 메뉴(#evtNav)는 #evtCfg 밖에 있어 항상 남습니다.
+     사용자(#admUsers)·부적합 운영(#admRep)은 메인 스크립트가 채우는 자리라 그대로 두고,
+     그것을 보여 줄 때는 설정 편집기(#evtCfg) 전체를 끕니다. */
   const box  = document.getElementById("evtCfg");
-  if(box) box.hidden = false;
+  if(box) box.hidden = !!on;
   const show = (el, on2) => { if(el) el.style.display = on2 ? "" : "none"; };
-  show(document.getElementById("cols"), !on);   /* 탭 줄은 #cols 밖에 있어 항상 남습니다 */
+  show(document.getElementById("cols"), !on);
   show(document.querySelector("#evtCfg .save"), !on);
-  show(document.querySelector("#evtCfg details"), !on);
   const u = document.getElementById("admUsers");
   if(u) u.hidden = !(on && kind !== "rep");
   const rp = document.getElementById("admRep");
   if(rp) rp.hidden = !(on && kind === "rep");
 }
 
-document.querySelectorAll("#evtCfg .tab").forEach(b =>
-  b.addEventListener("click", () => {
-    document.querySelectorAll("#evtCfg .tab").forEach(x =>
-      x.setAttribute("aria-selected", String(x === b)));
-    if(b.dataset.t === "users"){ showUsers(true, "users"); return; }
-    if(b.dataset.t === "badops"){ showUsers(true, "rep"); try{ renderOpsAdmin(); }catch(err){ console.error(err); } return; }
-    showUsers(false);
-    tab = b.dataset.t; sel = null; editRow = null; render();
-  }));
+/* ══════════ 왼쪽 메뉴 ══════════
+   [이벤트/접수폼 관리] 접수 화면별(고객이 보는 순서) · 제품·사은품 · 프로모션 · 안내 문구 · 심사 규칙 · 상담 채널 · 고객 화면 이미지
+   [운영 관리]         사용자 · 부적합 운영 · 예약발송 ↗(메인 탭으로 이동) */
+const NAV_SUBS = [        // [id, 이름, 안내 문구 메뉴로 보낼 화면(없으면 접수폼 카드로 이동)]
+  ["cover","표지"], ["lookup","구매 확인","lookup"], ["consent","동의"], ["entry","설문"],
+  ["buy","구매내역 (쿠팡)"], ["serial","S/N 등록 (쿠팡)"], ["reward","사은품 안내"],
+  ["capture","사진 (리뷰 캡처)"], ["info","받으실 정보"], ["confirm","신청 확인","confirm"], ["submit","신청 직후 팝업","submit"]
+];
+const NAV = [
+  { g:"이벤트/접수폼 관리", items:[
+    { k:"form", t:"접수 화면별", subs:true }, { k:"gift", t:"제품·사은품" }, { k:"rule", t:"프로모션" },
+    { k:"notice", t:"안내 문구" }, { k:"rules", t:"심사 규칙" }, { k:"channel", t:"상담 채널" },
+    { k:"images", t:"고객 화면 이미지" } ] },
+  { g:"운영 관리", items:[ { k:"users", t:"사용자" }, { k:"badops", t:"부적합 운영" }, { k:"reserve", t:"예약발송 ↗", link:true } ] }
+];
+let navCur = "gift", navSub = "";
+let LAST_UNITS = [];
+
+function renderNav(){
+  const nav = document.getElementById("evtNav");
+  if(!nav) return;
+  const secs = [...new Set(LAST_UNITS.map(u => u.sec))];
+  const dotFor = k => secs.some(s => s === k || s.indexOf(k + ":") === 0);
+  const sig = navCur + "|" + navSub + "|" + secs.sort().join(",");
+  if(nav._sig === sig) return;
+  nav._sig = sig;
+  const dot = () => el("span", { class:"nd", title:"저장 안 한 변경이 있습니다" });
+  nav.replaceChildren();
+  NAV.forEach(g => {
+    nav.append(el("div", { class:"ng" }, g.g));
+    g.items.forEach(it => {
+      if(it.link){
+        nav.append(el("button", { type:"button", title:"메인 화면의 예약발송 탭으로 이동합니다", onclick:goReserve }, it.t));
+        return;
+      }
+      nav.append(el("button", { type:"button", class: navCur === it.k && !navSub ? "on" : "",
+        "aria-current": navCur === it.k && !navSub ? "page" : null,
+        onclick:() => { if(it.k === "notice"){ NT.sc = ""; NT.si = ""; NT.q = ""; NT.only = false; } navGo(it.k); } },
+        it.t, dotFor(it.k) && !it.subs ? dot() : ""));
+      if(it.subs) NAV_SUBS.forEach(([id, t]) => nav.append(el("button", { type:"button",
+        class:"sub" + (navSub === id ? " on" : ""), "aria-current": navSub === id ? "page" : null,
+        onclick:() => navSubGo(id) }, t, dotFor("form:" + id) ? dot() : "")));
+    });
+  });
+}
+function navGo(k, sub){
+  if(k === "users" || k === "badops"){
+    navCur = k; navSub = "";
+    showUsers(true, k === "users" ? "users" : "rep");
+    if(k === "badops"){ try{ renderOpsAdmin(); }catch(err){ console.error(err); } }
+    renderNav();
+    return;
+  }
+  showUsers(false);
+  navCur = k; navSub = sub || "";
+  tab = k; sel = null; editRow = null;
+  render();
+}
+function navSubGo(id){
+  const S = NAV_SUBS.find(x => x[0] === id);
+  if(S && S[2]){                       // 문구만 있는 화면 → 안내 문구 메뉴를 그 화면으로 걸러서 엽니다
+    NT.sc = S[2]; NT.si = ""; NT.q = ""; NT.only = false;
+    navGo("notice", id);
+    return;
+  }
+  if(id === "buy" || id === "serial") formType = "coupang";
+  if(id === "capture") formType = "review";
+  showUsers(false);
+  navCur = "form"; navSub = id; tab = "form"; editRow = null;
+  sel = ["consent", "reward", "info", "capture", "buy", "serial"].includes(id) ? id : null;
+  render();
+  const t = document.getElementById("c-" + id);
+  if(t) t.scrollIntoView({ block:"start", behavior:"smooth" });
+}
+/* 메인 화면의 「예약발송」 탭을 누른 것과 같습니다 — 저장 안 한 변경이 있으면 메인 쪽이 먼저 물어봅니다 */
+function goReserve(){
+  const t = document.querySelector('#tabs .tab[data-tab="reserve"]');
+  if(t && t.style.display !== "none") t.click();
+  else alert("예약발송 탭을 열 수 없습니다. 권한을 확인해 주세요.");
+}
+
+/* ══════════ 저장 안 한 변경 — 저장된 값(SAVED)과 지금 값(cfg)을 사람 말로 비교 ══════════
+   ⚠️ 비교만 합니다. 아무것도 바꾸지 않으므로 얼마든지 불러도 안전합니다. */
+const DIF_FORM = { lookup:"구매 확인", consent:"동의", pick:"제품 선택", reward:"사은품 안내", buy:"구매내역(쿠팡)",
+  serial:"S/N 등록(쿠팡)", capture:"리뷰 캡처", info:"받으실 정보", done:"접수 완료", confirm:"신청 확인",
+  manualGuide:"수기접수 발송 문구", reserveNote:"예약발송 안내(옛 칸)" };
+const DIF_FIELD = { title:"제목", desc:"설명", tip:"주의 문구", warn:"주의 문구", ack:"확인 문구", req:"필수 여부",
+  ackReq:"확인 체크 필수", exampleName:"예시 이미지 파일 이름", label:"이름", badge:"필수/선택", yes:"동의 문구",
+  yesSub:"동의 부연", no:"거부 문구", noSub:"거부 부연", denyBox:"거부 안내", role:"용도", type:"입력 방식", note:"메모",
+  fields:"항목", extra:"추가 동의 항목", privacy:"개인정보 동의", marketing:"마케팅 동의", titleGift:"제목(사은품)",
+  titleCoupon:"제목(상품권)", noticeGift:"사은품 안내(착불)", noticeGiftPre:"사은품 안내(선불)", noticeCoupon:"기프티콘 안내",
+  ackGift:"동의 문구(착불)", ackGiftPre:"확인 문구(선불)", ackCoupon:"확인 문구(기프티콘)", noticeGiftLabel:"사은품 안내 제목",
+  noticeCouponLabel:"기프티콘 안내 제목", warnCoupon:"노란 상자(상품권)", warnGift:"노란 상자(사은품)" };
+const DIF_PROD = { ledger:"제품군 이름", cat:"카테고리", gift:"사은품 대표 이름", type:"종류", shipFee:"배송비",
+  box:"합배송", codes:"접수폼 제품", giftEach:"코드별 사은품 이름" };
+const DIF_RULE = { name:"이름", product:"제품", srcs:"판매처", label:"프로모션 사은품", type:"종류", from:"시작일",
+  to:"종료일", basis:"기간 기준", img:"사진" };
+const NT_NAME = (() => { const m = {}; NOTICE_GROUPS.forEach(([t, rows]) => rows.forEach(([k, n]) => { m[k] = n; })); return m; })();
+
+function difWalk(a, b, path, out){
+  const isObj = v => v && typeof v === "object";
+  const empty = v => v === undefined || v === null || v === "";
+  if(empty(a) && empty(b)) return;
+  if(isObj(a) && isObj(b) && Array.isArray(a) === Array.isArray(b)){
+    const keys = Array.isArray(a)
+      ? Array.from({ length:Math.max(a.length, b.length) }, (_, i) => i)
+      : [...new Set([...Object.keys(a), ...Object.keys(b)])];
+    keys.forEach(k => difWalk(a[k], b[k], path.concat(String(k)), out));
+    return;
+  }
+  if(isObj(a) || isObj(b)){
+    if(JSON.stringify(a) !== JSON.stringify(b)) out.push({ path, a, b });
+    return;
+  }
+  if(a !== b) out.push({ path, a, b });
+}
+/* 값 → 읽을 수 있는 글 */
+function difFmt(v){
+  if(v === undefined || v === null || v === "") return "(비어 있음)";
+  if(v === true) return "켬(예)";
+  if(v === false) return "끔(아니오)";
+  if(Array.isArray(v)) return v.every(x => typeof x !== "object") ? v.join(", ") : v.length + "개 항목";
+  if(typeof v === "object"){
+    const s = v.ledger || v.name || v.label || v.q || "";
+    return s ? "「" + s + "」 줄" : "항목 1개";
+  }
+  return String(v);
+}
+function difLabel(path){
+  const h = path[0], r = path.slice(1);
+  const nth = s => /^\d+$/.test(s) ? (Number(s) + 1) + "번째" : s;
+  const base = SAVED || DEFAULTS;
+  if(h === "survey") return "표지 · " + ({ title:"큰 제목", desc:"설명", thanks:"감사 문구" }[r[0]] || r[0]);
+  if(h === "products"){
+    const p = cfg.products[r[0]] || (base.products || [])[r[0]] || {};
+    const nm = p.ledger || nth(r[0]) + " 제품";
+    if(r.length === 1) return "제품·사은품 · " + nm + " 줄";
+    if(r[1] === "giftEach") return "제품·사은품 · " + nm + " · 코드별 사은품 이름 (" + (r[2] || "") + ")";
+    return "제품·사은품 · " + nm + " · " + (DIF_PROD[r[1]] || r[1]);
+  }
+  if(h === "giftRules"){
+    const g = (cfg.giftRules || [])[r[0]] || (base.giftRules || [])[r[0]] || {};
+    const nm = g.name || g.label || nth(r[0]) + " 규칙";
+    return "프로모션 · " + nm + (r.length > 1 ? " · " + (DIF_RULE[r[1]] || r[1]) : " 줄");
+  }
+  if(h === "entrySurvey" || h === "surveys"){
+    const pre = h === "surveys" ? "제품 설문 · " + r.shift() + " · " : "참여 설문 · ";
+    const q = nth(r[0]) + " 문항";
+    const f = r[1] === "q" ? "질문" : r[1] === "req" ? "필수 여부" : r[1] === "opts" ? "선택지" + (r[2] != null ? " " + nth(r[2]) : "") : r[1];
+    return pre + q + (f ? " · " + f : "");
+  }
+  if(h === "form"){
+    const sec = DIF_FORM[r[0]] || r[0];
+    const rest = r.slice(1).map(x => /^\d+$/.test(x) ? nth(x) : (DIF_FIELD[x] || x));
+    return "접수폼 · " + sec + (rest.length ? " · " + rest.join(" · ") : "");
+  }
+  if(h === "ratingSrcs") return "심사 규칙 · 별점을 꼭 봐야 하는 판매처";
+  if(h === "kakaoMain") return "상담 채널 · 메인 카카오 채널 주소";
+  if(h === "kakao") return "상담 채널 · 카테고리별 주소(화면에서 감춤) · " + (r[0] || "");
+  return path.join(" · ");
+}
+/* 어느 메뉴의 변경인지 — 왼쪽 메뉴에 점을 찍는 데 씁니다 */
+function difSec(path){
+  const h = path[0];
+  if(h === "survey") return "form:cover";
+  if(h === "products") return "gift";
+  if(h === "giftRules") return "rule";
+  if(h === "entrySurvey" || h === "surveys") return "form:entry";
+  if(h === "ratingSrcs") return "rules";
+  if(h === "kakaoMain" || h === "kakao") return "channel";
+  if(h === "form"){
+    const s = path[1];
+    if(s === "lookup" || s === "confirm" || s === "manualGuide") return "notice";
+    return ["consent", "reward", "capture", "buy", "serial", "info"].includes(s) ? "form:" + s : "form";
+  }
+  return "form";
+}
+function diffUnits(){
+  const base = SAVED || DEFAULTS, units = [];
+  const raw = [];
+  const A = {}, B = {};
+  Object.keys(base).concat(Object.keys(cfg)).forEach(k => {
+    if(k === "notices" || k === "formTextV") return;
+    A[k] = base[k]; B[k] = cfg[k];
+  });
+  difWalk(A, B, [], raw);
+  raw.forEach(d => units.push({ sec:difSec(d.path), label:difLabel(d.path), m:difFmt(d.a), p:difFmt(d.b) }));
+  const nb = base.notices || {}, nc = cfg.notices || {};
+  [...new Set([...Object.keys(nb), ...Object.keys(nc)])].forEach(k => {
+    const x = nb[k] || {}, y = nc[k] || {};
+    const tCh = String(x.t || "") !== String(y.t || ""), kCh = !!x.k !== !!y.k;
+    if(!tCh && !kCh) return;
+    units.push({ sec:"notice", label:"안내 문구 · " + (NT_NAME[k] || k),
+      m: tCh ? String(x.t || "(비어 있음)") : null, p: tCh ? String(y.t || "(비어 있음)") : null,
+      note: kCh ? "상담 버튼: " + (x.k ? "켬" : "끔") + " → " + (y.k ? "켬" : "끔") : "" });
+  });
+  return units;
+}
+function updateSaveBar(){
+  const cnt = document.getElementById("saveCnt");
+  if(!cnt) return;
+  let units = [];
+  try { units = diffUnits(); } catch(err){ console.error(err); }
+  LAST_UNITS = units;
+  const n = units.length;
+  cnt.textContent = n ? "변경 " + n + "건 · 아직 저장 안 됨" : "변경 없음";
+  cnt.classList.toggle("on", n > 0);
+  const v = document.getElementById("viewChgBtn"), r = document.getElementById("resetBtn");
+  if(v) v.disabled = !n;
+  if(r) r.disabled = !n;
+  const h = document.getElementById("saveHint");
+  if(h) h.textContent = "저장하면 약 1분 뒤 고객 화면에 반영됩니다"
+    + (FT_PENDING ? " · 처음 저장하면 접수폼 문구 연결이 켜집니다(지금 화면 문구는 그대로)" : "");
+  renderNav();
+}
+function showChanges(){
+  const units = diffUnits();
+  const body = document.getElementById("chgBody");
+  if(!body) return;
+  document.getElementById("chgCnt").textContent = units.length + "건";
+  body.replaceChildren(...(units.length ? units.map(u => el("div", { class:"dif" },
+    el("div", { class:"h" }, u.label),
+    u.m != null ? el("div", { class:"m" }, "− " + u.m) : "",
+    u.p != null ? el("div", { class:"p" }, "+ " + u.p) : "",
+    u.note ? el("div", { class:"p" }, u.note) : ""))
+    : [el("p", { class:"hint" }, "바뀐 내용이 없습니다.")]));
+  const warn = units.some(u => /문구/.test(u.label) && u.m != null && phN(u.m) !== phN(u.p));
+  if(warn) body.prepend(el("div", { class:"nbox warn" },
+    "⚠ ○○ 자리 수가 달라진 문구가 있습니다. 그래도 저장할 수는 있지만, 값이 엉뚱한 곳에 들어갈 수 있습니다."));
+  document.getElementById("chgModal").style.display = "flex";
+}
+function hideChanges(){ const m = document.getElementById("chgModal"); if(m) m.style.display = "none"; }
+
+document.getElementById("viewChgBtn").addEventListener("click", showChanges);
+document.getElementById("chgClose").addEventListener("click", hideChanges);
+document.getElementById("chgX").addEventListener("click", hideChanges);
+document.getElementById("chgModal").addEventListener("click", e => { if(e.target.id === "chgModal") hideChanges(); });
+document.addEventListener("keydown", e => { if(e.key === "Escape") hideChanges(); });
+
+/* 고치는 중에는 어느 입력이든 바로 변경 건수·점을 갱신합니다 (칸마다 따로 부르지 않아도 되게 맨 위에서 한 번에 듣습니다) */
+(function(){
+  const box = document.getElementById("evtCfg");
+  let t = 0;
+  const sched = () => { if(t) return; t = setTimeout(() => { t = 0; updateSaveBar(); }, 0); };
+  ["input", "change", "click"].forEach(ev => box.addEventListener(ev, sched, true));
+})();
 
 $("#saveBtn").addEventListener("click", async () => {
   const msg = $("#saveMsg");
@@ -8586,6 +9798,7 @@ $("#saveBtn").addEventListener("click", async () => {
   try {
     await window.EVTCFG_SAVE(clone(cfg));
     SAVED = clone(cfg);
+    FT_PENDING = false;
     const n = (cfg.giftRules || []).filter(r => r.srcs.length && r.label && r.product).length;
     const q = cfg.entrySurvey.length + Object.values(cfg.surveys).reduce((s, a) => s + a.length, 0);
     /* 🔴 저장한 뒤에는 열려 있던 칸을 전부 닫습니다(2026-09-10).
@@ -8606,8 +9819,9 @@ $("#saveBtn").addEventListener("click", async () => {
       실제로 한참 고쳐 놓고 저장을 안 눌러 통째로 날린 일이 있었습니다(2026-09-09).
    ⚠️ 「비교」는 저장된 값과 지금 값을 글자로 맞춰 보는 것뿐이라 부담이 없습니다. */
 function evtDirty(){
-  try { return JSON.stringify(cfg) !== JSON.stringify(SAVED || DEFAULTS); }
-  catch(_) { return false; }
+  /* 저장 바의 「변경 N건」과 같은 기준으로 봅니다 (빈칸·없음 차이는 변경으로 보지 않음) */
+  try { return diffUnits().length > 0; }
+  catch(_) { try { return JSON.stringify(cfg) !== JSON.stringify(SAVED || DEFAULTS); } catch(__) { return false; } }
 }
 window.EVTCFG_DIRTY = evtDirty;
 /* 창을 닫거나 새로고침할 때 — 브라우저가 대신 물어봅니다 */
@@ -8617,6 +9831,8 @@ window.addEventListener("beforeunload", e => {
 });
 
 $("#resetBtn").addEventListener("click", () => {
+  const n = diffUnits().length;
+  if(n && !confirm("고치신 내용 " + n + "건을 모두 버리고, 마지막으로 저장한 값으로 되돌릴까요?")) return;
   cfg = clone(SAVED || DEFAULTS);
   surveyProduct = (cfg.products[0] || {}).ledger || "";
   sel = null; editAll = false; editRow = null;
@@ -8695,7 +9911,19 @@ function fixNotices(c){
    ⚠️ 담당자가 **일부러 지운 칸**까지 되살아나면 곤란하므로,
       되살리는 것은 **없으면 큰일 나는 칸**(아래 MUST)만입니다. */
 const MUST_FIELDS = ["이메일"];
+
+/* 🔴 접수폼 문구 연결 (2026-10) — 저장된 설정에 formTextV 가 없으면 연결 전 상태입니다.
+   이때 아래 문구 칸을 「지금 접수폼에 나가는 글」(FT0)로 맞추고 formTextV=1 을 넣습니다.
+   ⚠️ cfg 와 SAVED 양쪽에 똑같이 적용합니다 — 그래야 「바뀐 내용」으로 잡히지 않습니다.
+   ⚠️ 서버에 저장되는 것은 담당자가 한 번 「저장」을 눌렀을 때입니다. 그 전까지 고객 화면은 그대로입니다.
+   ⚠️ 이미 formTextV 가 있으면 아무것도 건드리지 않습니다(담당자가 고친 문구를 덮어쓰지 않습니다). */
+function fixFormText(c){
+  if(!c || typeof c !== "object" || Number(c.formTextV) >= 1) return;
+  Object.keys(FT_PATH).forEach(k => pathSet(c, FT_PATH[k], FT0[k]));
+  c.formTextV = FORM_TEXT_V;
+}
 function fixFields(c){
+  fixFormText(c);
   /* 🔴 메인 카카오 채널 (2026-09-22) — 옛 설정에는 이 칸이 아예 없습니다.
         채워 두지 않으면 화면에는 기본값이 보이는데 **저장은 안 되는** 상태가 됩니다.
      ⚠️ 담당자가 **일부러 비운** 값(빈 문자열)은 그대로 둡니다 — 채널을 닫으실 수 있어야 합니다. */
@@ -8734,6 +9962,7 @@ window.EVTCFG = {
   /* 리포트가 관리자 탭을 열 때 한 번 부릅니다. loaded = 서버에 저장돼 있던 값 */
   mount(loaded){
     if(loaded && typeof loaded === "object" && loaded.products){
+      FT_PENDING = !(Number(loaded.formTextV) >= 1);
       cfg = clone(loaded); SAVED = clone(loaded);
       fixNotices(cfg); fixNotices(SAVED);
       fixFields(cfg);  fixFields(SAVED);

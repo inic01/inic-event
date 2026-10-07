@@ -517,6 +517,12 @@
   #evtNav button:hover, #evtNav a.nl:hover{background:var(--sunk)}
   #evtNav button.on{background:var(--brand); color:var(--bg)}
   #evtNav button.sub{padding-left:24px; font-weight:500; font-size:13px}
+  /* 2026-10-06 — 「접수 화면별」 하위 메뉴 접기·펴기: 이름 버튼(.nm) + 화살표 버튼(.tg) 한 줄 */
+  #evtNav .nrow{display:flex; align-items:stretch; gap:2px}
+  #evtNav .nrow button.nm{flex:1 1 auto; width:auto; min-width:0}
+  #evtNav .nrow button.tg{flex:0 0 34px; width:34px; justify-content:center; padding:8px 0; color:var(--sub); font-size:15px}
+  #evtNav .nrow button.tg .cv{display:inline-block; transition:transform .15s}
+  #evtNav .nrow button.tg[aria-expanded="true"] .cv{transform:rotate(90deg)}
   #evtNav button:focus-visible, #evtNav a.nl:focus-visible{outline:2px solid var(--blue); outline-offset:-2px}
   #evtNav .nd{width:7px; height:7px; border-radius:50%; background:var(--accent); margin-left:auto; flex:none}
   #evtNav .ext{margin-left:auto; font-size:11px; color:var(--sub)}
@@ -1174,7 +1180,10 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
               <button type="button" id="mImgDel" class="sm" style="display:none">이미지 빼기</button>
               <span id="mImgState" style="font-size:12.5px;font-weight:800"></span>
             </div>
-            <div class="hint" style="margin-top:6px">쿠팡 정품등록은 <b>구매내역 사진</b>을 받아 업로드해주세요.
+            <!-- 2026-10-07 담당자 요청 — 유형별로 다른 안내(쿠팡은 기존 문구 그대로). 유형을 바꾸면 onTypeChange() 가 하나만 보이게 합니다. -->
+            <div class="hint" id="mImgHintCp" style="margin-top:6px">쿠팡 정품등록은 <b>구매내역 사진</b>을 받아 업로드해주세요.
+              <b>AI 심사에는 들어가지 않고 보관용으로만</b> 남습니다.</div>
+            <div class="hint" id="mImgHintRv" style="margin-top:6px;display:none">고객님께서 작성해 주신 <b>포토리뷰 사진</b>을 받아 업로드해 주세요.
               <b>AI 심사에는 들어가지 않고 보관용으로만</b> 남습니다.</div>
             <img id="mImgPrev" style="display:none;max-width:260px;margin-top:8px;border-radius:8px;border:1px solid var(--line)">
           </div>
@@ -1649,6 +1658,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
              ✕ 가 곧 부적합 사유이므로, 이 상자가 보일 때는 사유 줄에 「체크리스트에 없는 것」만 남깁니다. -->
         <div class="dtchk" id="dtChkBox" style="display:none"></div>
         <div class="dtrow"><b>사은품/상품권</b><span id="dtReward">-</span></div>
+        <div class="dtrow"><b>수량</b><span id="dtQty">-</span></div>
         <div class="dtrow"><b>제품</b><span id="dtProduct">-</span></div>
         <div class="dtrow"><b>구매처</b><span id="dtSource">-</span></div>
         <div class="dtrow"><b>주문번호</b><span id="dtOrder">-</span></div>
@@ -2170,10 +2180,14 @@ const SN_COL=["S/N (입력 / AI판독)",e=>{
   const same=e.aiSerialMatch===true;
   return `<span style="${MONO}">${inp}</span><div style="${MONO};margin-top:2px;color:${same?"var(--ok,#12a150)":"var(--bad,#c0392b)"}">${ai?("AI "+admEsc(ai)):"AI 판독불가"}</div>`;
 },"wrapcell"];
+/* 수량 (2026-10-07 담당자 요청) — 이 접수 건으로 고객이 받는 개수. 「한 번에 받기」면 2 이상, 나눠 받기·보통 건은 1.
+   ⚠️ 표시만 합니다. 저장된 giftQty 를 사방넷 엑셀 합산(aggShipRows)과 같은 방식으로 읽습니다(값이 없는 예전 건 = 1). */
+function giftQtyOf(e){return Math.max(1,parseInt(e.giftQty,10)||1);}
+function giftQtyHtml(e){const q=giftQtyOf(e);return q>1?`<b style="color:#c0392b">${q}</b>`:String(q);}
 const COLS=[
   ["접수일시",e=>fmtDate(e._date)],["판매처",e=>admEsc(e.source||"-"),"wrapcell"],["출고",e=>shipBadge(e)],["출고일자",e=>shippedDate(e)],
   TYPE_COL,["제품",e=>admEsc(e.product||"-")],
-  ["보상",e=>`<span class="pill ${clsRw(e.rewardType)}">${REWARD_LABEL[clsRw(e.rewardType)]||"-"}</span>`],["사은품/상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
+  ["보상",e=>`<span class="pill ${clsRw(e.rewardType)}">${REWARD_LABEL[clsRw(e.rewardType)]||"-"}</span>`],["사은품/상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],["수량",e=>giftQtyHtml(e)],
   ["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["심사",e=>statusBadge(e)]
 ];
 function headHtml(cols){return "<tr>"+cols.map(c=>`<th class="${c[2]||""}">${c[0]}</th>`).join("")+"</tr>";}
@@ -2958,6 +2972,7 @@ function openDetail(id, readOnly){
   if(hasApv){ $("#dtApvBy").textContent=e.approvedBy||e.agent||"-"; $("#dtApvAt").textContent=e.approvedAt?fmtDate(tsDate(e.approvedAt)):"-"; }
   $("#dtOrder").textContent=e.orderNo||"-";
   $("#dtFee").innerHTML=shipFeeBadge(e);
+  $("#dtQty").innerHTML=giftQtyHtml(e);
   /* 🔴 AI 심사 체크리스트가 보이는 건은 S/N 판정이 그 안에 들어갑니다(2026-09-10).
         같은 말을 두 군데 두지 않기 위해 여기서는 S/N 줄을 아예 감춥니다.
         체크리스트가 없는 건(수기접수·AI를 안 거친 예전 건)은 예전처럼 S/N 줄을 냅니다. */
@@ -3260,6 +3275,7 @@ function renderCS(){
       <div class="csdetail">
         <div><b>제품</b>${admEsc(e.product||"-")}</div>
         <div><b>${REWARD_LABEL[clsRw(e.rewardType)]||"사은품/상품권"}</b>${admEsc(e.giftItem||"-")}</div>
+        <div><b>수량</b>${giftQtyHtml(e)}</div>
         <div><b>판매처</b>${admEsc(e.source||"-")}</div>
         <div><b>주문번호</b>${admEsc(e.orderNo||"-")}</div>
         ${e.type==="coupang"?`<div><b>S/N</b><span style="${MONO}">${admEsc(e.serial||"(미입력)")}</span></div>`:""}
@@ -3759,6 +3775,9 @@ function onTypeChange(){
   const cp = $("#mType").value === "coupang";
   $("#mSerialField").style.display = cp ? "block" : "none";
   $("#mImgReq").textContent = (cp && M_CTX.extra) ? "(필수 · 1장)" : "(선택 · 1장)";
+  /* 증빙 이미지 안내 — 포토리뷰(원장에 없는 직접 등록 포함)는 포토리뷰용, 쿠팡 정품등록은 기존 문구 */
+  $("#mImgHintCp").style.display = cp ? "" : "none";
+  $("#mImgHintRv").style.display = cp ? "none" : "";
 
   /* 🔴 쿠팡 정품등록은 로켓배송 건만 받습니다 (2026-09-14).
         판매처를 「쿠팡 로켓배송」으로 고정하고 고르지 못하게 잠급니다.
@@ -4155,6 +4174,7 @@ function downloadSheets(sheets,baseName){
   return true;
 }
 async function dlShipTemplate(rw,fname){
+  if(SHIP2_OPEN) return;               // 두 번째 파일 안내창이 떠 있는 동안은 다시 시작하지 않습니다
   const list0=teamElig(rw);
   if(!list0.length){alert("대상 데이터가 없습니다.");return;}
   const f=await shipFresh(list0); if(!f) return; const list=f.out;
@@ -4167,9 +4187,58 @@ async function dlShipTemplate(rw,fname){
     sheets.push({name:bk,rows:r.rows});r.flat.forEach(x=>flat.push(x));
   });
   const lines=sheets.reduce((a,s)=>a+s.rows.length,0);
-  if(!confirm(list.length+"건(합산 "+lines+"줄)을 다운로드하고 '출고완료' 처리합니다.\n출고완료된 건은 목록에서 사라집니다. 계속할까요?"+f.note))return;
-  if(!downloadSheets(sheets,fname))return;
+  /* 🔴 2026-10-07 물류팀 요청 — 사은품은 착불·선불을 **파일 따로** 내려받습니다(예: 아이닉_사은품_사방넷[착불]_날짜.xlsx).
+        대상·합배송·수량·시트 모양은 예전과 같고, 한 파일에 시트 둘이던 것을 파일 둘로 나눌 뿐입니다. 상품권은 예전 그대로 한 파일.
+     ⚠️ 브라우저(크롬 등)는 한 번 누름에 두 번째 파일을 저절로 받지 않고 「여러 파일 다운로드」 허용을 묻거나 막습니다(2026-10-07 시험).
+        그래서 둘 다 있을 때는 두 번째 파일을 담당자가 **버튼을 한 번 더 눌러** 받고,
+        두 파일을 다 받았다고 확인한 뒤에만 출고완료를 기록합니다. 중간에 그만두면 아무것도 출고완료되지 않습니다. */
+  const split=(rw==="gift")&&sheets.length>1;
+  if(!confirm(list.length+"건(합산 "+lines+"줄)을 다운로드하고 '출고완료' 처리합니다.\n출고완료된 건은 목록에서 사라집니다. 계속할까요?"+f.note
+    +(split?"\n\n※ 착불·선불 파일 2개로 나눠 받습니다. 첫 파일을 받은 뒤 나오는 창에서 두 번째 파일 버튼을 눌러 주세요.":"")))return;
+  if(rw!=="gift"){
+    if(!downloadSheets(sheets,fname))return;
+    await shipCommit(flat);
+    return;
+  }
+  const nameOf=s=>fname+"["+s.name+"]";      // 아이닉_사은품_사방넷[착불] → downloadSheets 가 기존 규칙대로 _날짜 를 붙입니다
+  if(!downloadSheets([sheets[0]],nameOf(sheets[0])))return;
+  if(!split){ await shipCommit(flat); return; }
+  const ok=await ship2Dialog(sheets[0].name,sheets[1].name,()=>downloadSheets([sheets[1]],nameOf(sheets[1])));
+  if(!ok){ alert("출고완료 처리를 하지 않았습니다. 목록은 그대로입니다.\n방금 받은 파일은 사방넷에 올리지 마시고, 일괄출고를 다시 눌러 주세요."); return; }
   await shipCommit(flat);
+}
+/* 두 번째 파일 안내창 — 버튼 누름으로 받아야 브라우저가 막지 않습니다. 결과: true = 두 파일 받음 확인 → 출고완료, false = 그만두기 */
+let SHIP2_OPEN=false;
+function ship2Dialog(first,second,dlSecond){
+  SHIP2_OPEN=true;
+  return new Promise(resolve=>{
+    const bg=document.createElement("div");
+    bg.setAttribute("role","dialog");bg.setAttribute("aria-modal","true");bg.id="ship2Dlg";
+    bg.style.cssText="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px";
+    const box=document.createElement("div");
+    box.style.cssText="background:#fff;border-radius:12px;max-width:440px;width:100%;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:14px;line-height:1.6";
+    const t=document.createElement("div");t.style.cssText="font-weight:800;font-size:16px;margin-bottom:8px";
+    const p=document.createElement("div");p.style.cssText="color:var(--sub,#6b625b);margin-bottom:14px";
+    const go=document.createElement("button");go.type="button";go.className="primary";go.id="ship2Go";go.style.cssText="width:100%;min-height:44px;margin-bottom:8px";
+    const done=document.createElement("button");done.type="button";done.className="primary";done.id="ship2Done";done.style.cssText="width:100%;min-height:44px;margin-bottom:8px;display:none";
+    const stop=document.createElement("button");stop.type="button";stop.id="ship2Stop";stop.style.cssText="width:100%;min-height:40px";
+    t.textContent="1/2 · "+first+" 파일을 받았습니다";
+    p.textContent="아래 버튼을 눌러 "+second+" 파일도 받아 주세요. 두 파일을 모두 받기 전에는 출고완료 처리되지 않습니다.";
+    go.textContent=second+" 파일 받기";
+    done.textContent="두 파일을 모두 받았습니다 · 출고완료 처리";
+    stop.textContent="그만두기 (출고완료 안 함)";
+    const close=v=>{bg.remove();SHIP2_OPEN=false;resolve(v);};
+    go.onclick=()=>{
+      if(!dlSecond())return;
+      t.textContent="2/2 · "+second+" 파일을 받았습니다";
+      p.textContent="내려받은 폴더에 "+first+" · "+second+" 파일 2개가 모두 있는지 확인한 뒤 눌러 주세요. 하나라도 없으면 「그만두기」를 누르세요(출고완료되지 않습니다).";
+      go.textContent=second+" 파일 다시 받기";
+      done.style.display="";
+    };
+    done.onclick=()=>close(true);
+    stop.onclick=()=>close(false);
+    box.append(t,p,go,done,stop);bg.append(box);document.body.append(bg);go.focus();
+  });
 }
 
 /* 탭/이벤트 */
@@ -9881,6 +9950,7 @@ const NAV = [
   { g:"운영 관리", items:[ { k:"users", t:"사용자" }, { k:"badops", t:"부적합 운영" }, { k:"reserve", t:"예약발송 ↗", link:true } ] }
 ];
 let navCur = "gift", navSub = "";
+let navFormOpen = false;      // 「접수 화면별」 하위 메뉴가 펼쳐져 있는가 (화살표로 접고 폄 · 그 안의 화면으로 가면 저절로 펼침)
 let LAST_UNITS = [];
 
 function renderNav(){
@@ -9889,7 +9959,7 @@ function renderNav(){
   const secs = [...new Set(LAST_UNITS.map(u => u.sec))];
   const dotFor = k => secs.some(s => s === k || s.indexOf(k + ":") === 0);
   /* 로그인 전에는 ME 가 없어 메뉴가 줄어든 채 그려집니다 — 권한이 달라지면 다시 그리도록 서명에 넣습니다 */
-  const sig = (isAdm(ME && ME.role) ? "A" : "L") + "|" + navCur + "|" + navSub + "|" + secs.sort().join(",");
+  const sig = (isAdm(ME && ME.role) ? "A" : "L") + "|" + navCur + "|" + navSub + "|" + (navFormOpen ? "O" : "C") + "|" + secs.sort().join(",");
   if(nav._sig === sig) return;
   nav._sig = sig;
   const dot = () => el("span", { class:"nd", title:"저장 안 한 변경이 있습니다" });
@@ -9906,11 +9976,16 @@ function renderNav(){
         nav.append(el("button", { type:"button", title:"메인 화면의 예약발송 탭으로 이동합니다", onclick:goReserve }, it.t));
         return;
       }
-      nav.append(el("button", { type:"button", class: navCur === it.k && !navSub ? "on" : "",
+      const main = el("button", { type:"button", class: (it.subs ? "nm " : "") + (navCur === it.k && !navSub ? "on" : ""),
         "aria-current": navCur === it.k && !navSub ? "page" : null,
         onclick:() => { if(it.k === "notice"){ NT.sc = ""; NT.si = ""; NT.q = ""; NT.only = false; } navGo(it.k); } },
-        it.t, dotFor(it.k) && !it.subs ? dot() : ""));
-      if(it.subs) NAV_SUBS.forEach(([id, t]) => nav.append(el("button", { type:"button",
+        it.t, dotFor(it.k) && (!it.subs || !navFormOpen) ? dot() : "");   // 접혀 있으면 안쪽의 저장 안 한 변경을 이름 줄 점으로 알려 줍니다
+      if(!it.subs){ nav.append(main); return; }
+      nav.append(el("div", { class:"nrow" }, main,
+        el("button", { type:"button", class:"tg", "aria-expanded": navFormOpen ? "true" : "false",
+          title: navFormOpen ? "하위 메뉴 접기" : "하위 메뉴 펼치기", "aria-label": "접수 화면별 하위 메뉴 " + (navFormOpen ? "접기" : "펼치기"),
+          onclick:() => { navFormOpen = !navFormOpen; renderNav(); } }, el("span", { class:"cv" }, "▸"))));
+      if(navFormOpen) NAV_SUBS.forEach(([id, t]) => nav.append(el("button", { type:"button",
         class:"sub" + (navSub === id ? " on" : ""), "aria-current": navSub === id ? "page" : null,
         onclick:() => navSubGo(id) }, t, dotFor("form:" + id) ? dot() : "")));
     });
@@ -9926,6 +10001,7 @@ function navGo(k, sub){
   }
   showUsers(false);
   navCur = k; navSub = sub || "";
+  if(k === "form" || sub) navFormOpen = true;     // 접수 화면별 안의 화면으로 가면 하위 메뉴를 펼쳐 둡니다
   tab = k; sel = null; editRow = null;
   render();
 }
@@ -9939,7 +10015,7 @@ function navSubGo(id){
   if(id === "buy" || id === "serial") formType = "coupang";
   if(id === "capture") formType = "review";
   showUsers(false);
-  navCur = "form"; navSub = id; tab = "form"; editRow = null;
+  navCur = "form"; navSub = id; tab = "form"; editRow = null; navFormOpen = true;
   sel = ["consent", "reward", "info", "capture", "buy", "serial"].includes(id) ? id : null;
   render();
   const t = document.getElementById("c-" + id);

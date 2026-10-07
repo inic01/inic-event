@@ -413,6 +413,13 @@
   #chkOpen{border:1.5px solid var(--line);background:#fff;color:var(--in-primary);border-radius:14px;min-height:50px;font-size:14px}
   #chkBody{background:var(--in-field);border:0;border-radius:14px}
   .cprow #chkBtn{background:var(--in-secondary)}
+  /* 2026-10-07 — 첫 화면 「참여 조회」(모바일): 성함·연락처·조회를 한 줄에 줄바꿈으로 넣어 연락처 칸이 128px까지 좁아지고
+     010-0000-0000 이 잘렸습니다. 세 가지를 한 줄씩 꽉 차게 쌓습니다(이 영역만).
+     입력칸 바탕이 상자 바탕과 같은 회색이라 커서가 빠지면 칸이 안 보였습니다 → 흰 바탕 + 테두리를 늘 보이게. */
+  #chkBody .cprow{flex-direction:column;gap:8px}
+  #chkBody .cprow input{flex:none;width:100%;min-width:0;box-sizing:border-box;background:#fff;border-color:var(--in-border-strong,var(--line))}
+  #chkBody .cprow input:focus{border-color:var(--in-primary)}
+  #chkBody .cprow #chkBtn{width:100%;min-height:48px}
 
   /* 구매 확인 */
   .vtabs{background:var(--in-field)}

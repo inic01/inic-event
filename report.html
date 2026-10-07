@@ -1797,12 +1797,13 @@ let PRODREWARD={}, SOURCES=[], PNAME={}, dupIds=new Set(), dupReasonMap={};
    🔴 왜 필요한가 — 접수폼이 「배송비(착불)는 한 번만 발생합니다」라고 약속하는데,
       창고가 부피 때문에 두 박스로 보내면 착불이 두 번 나갑니다. **약속과 다른 돈**을 고객이 냅니다.
       그래서 상자가 몇 개로 나뉘는지를 **미리 정해 두고** 안내와 발주를 맞춥니다.
-   ⚠️ 못 읽었으면(BOXCAP_OK=false) **나누지 않습니다.** 잘못 나누는 것보다 예전 그대로가 안전합니다. */
+   ⚠️ 합배송은 설정값이 **확인된** 사은품만 합니다(2026-10-07 대표 확정).
+      「안 정함」 · 설정 목록에 코드 없음 · 설정을 못 읽음(BOXCAP_OK=false)은 모두 「설정 안 함」이라 **1개씩 별도 행**으로 냅니다. */
 let BOXCAP={}, BOXCAP_OK=false;
 /* 수량을 상자로 나눕니다 — 접수폼(index.html)의 같은 이름 함수와 계산이 **똑같아야** 합니다 */
 function boxSplit(qty, cap){
   const n=Math.max(1,Number(qty)||1), c=Number(cap)||0;
-  if(c<1) return [n];            // 상한을 모르면(설정을 못 읽었을 때) 나누지 않습니다 — 예전 그대로
+  if(c<1) return [n];            // 상한이 없는 호출(상품권 등)은 나누지 않습니다. 사은품은 aggShipRows 가 항상 1 이상을 넘깁니다
   const out=[]; let left=n;
   while(left>0){ const k=Math.min(c,left); out.push(k); left-=k; }
   return out;
@@ -4141,10 +4142,13 @@ function aggShipRows(items,feeLabel){
           「배송비 한 번」과 실제가 어긋났습니다.
        ⚠️ 상품권은 배송이 없으므로 나누지 않습니다.
        ⚠️ 접수 기록은 그대로 1건입니다. 나누는 것은 **이 엑셀뿐**입니다. */
-    /* 🔴 설정에 없는 코드는 **안 나눕니다**(0 = 모른다). 접수폼도 같은 경우에
-          「한 번에 묶어서」라고 말하므로, 말과 실제가 어긋나지 않습니다. */
+    /* 🔴 2026-10-07 대표 확정 — 사은품은 합배송 설정값이 **확인된 경우에만** 그 값으로 묶습니다.
+          설정 목록에 코드가 없거나, 설정을 못 읽었거나(BOXCAP_OK=false), 「안 정함」이면 1개씩 별도 행입니다
+          (예: 5개 → 수량 1짜리 5행). 합산 수량 한 행으로 내보내지 않습니다.
+          서로 다른 사은품 · 다른 고객은 위 묶음 키(연락처+주소+사은품)가 달라 처음부터 따로 행입니다. 상품권은 나누지 않습니다(cap 0). */
     const capRaw = Number(BOXCAP[e.product]);
-    const cap = (BOXCAP_OK && e.rewardType==="gift" && capRaw >= 1) ? capRaw : 0;
+    const isGift = e.rewardType==="gift";
+    const cap = !isGift ? 0 : ((BOXCAP_OK && capRaw >= 1) ? capRaw : 1);
     const parts = (cap >= 1) ? boxSplit(qsum, cap) : [qsum];
     parts.forEach(q=>{
       const row={"사이트":"사은품","제품군":e.giftItem||"","수량":q,"이름":e.name||"",

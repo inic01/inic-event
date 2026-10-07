@@ -5219,7 +5219,8 @@ $("#mReset").addEventListener("click",()=>resetManual(false));
 $("#xlsxBtn").addEventListener("click",()=>downloadRows(exportAllRows(),"아이닉이벤트_리포트"));
 $("#csvBtn").addEventListener("click",()=>{const rows=exportAllRows();if(!rows.length){alert("다운로드할 데이터가 없습니다.");return;}
   logAccess("다운로드","아이닉이벤트_리포트(CSV)",rows.length);
-  const heads=Object.keys(rows[0]);const csv=[heads.join(",")].concat(rows.map(r=>heads.map(h=>`"${String(r[h]).replace(/"/g,'""')}"`).join(","))).join("\n");
+  /* 2026-10-07 보안 수정 — 이 버튼만 수식 주입 방지(rSafe)가 빠져 있었습니다. =,+,-,@ 로 시작하는 칸 앞에 ' 를 붙입니다 */
+  const heads=Object.keys(rows[0]);const csv=[heads.join(",")].concat(rows.map(r=>heads.map(h=>`"${rSafe(String(r[h])).replace(/"/g,'""')}"`).join(","))).join("\n");
   const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="아이닉이벤트_리포트_"+todayStr()+".csv";a.click();});
 function dlPlain(list,cols,fname){if(!list.length){alert("대상 데이터가 없습니다.");return;}const rows=list.map(e=>{const o={};cols.forEach(([l,fn])=>o[l]=fn(e));return o;});downloadRows(rows,fname);}
 $("#dlOrder").addEventListener("click",()=>dlShipTemplate("gift","아이닉_사은품_사방넷"));

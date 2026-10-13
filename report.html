@@ -4071,9 +4071,9 @@ $("#mFormClose").addEventListener("click", mFormClose);
 
 /* 다운로드 */
 function todayStr(){const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate());}
-function downloadRows(rows,baseName){
+function downloadRows(rows,baseName,noLog){
   if(!rows.length){alert("대상 데이터가 없습니다.");return false;}
-  logAccess("다운로드", baseName, rows.length);      // 누가 무엇을 몇 건 받았는지 기록
+  if(!noLog) logAccess("다운로드", baseName, rows.length);      // 누가 무엇을 몇 건 받았는지 기록 (noLog: 서버가 이미 기록한 다운로드 — 전체 엑셀)
   const fname=baseName+"_"+todayStr();
   if(typeof XLSX!=="undefined"){const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"data");XLSX.writeFile(wb,fname+".xlsx");}
   else{const heads=Object.keys(rows[0]);const csv=[heads.join(",")].concat(rows.map(r=>heads.map(h=>`"${rSafe(r[h]).replace(/"/g,'""')}"`).join(","))).join("\n");
@@ -5352,12 +5352,36 @@ $("#mCategory").addEventListener("change",onCategoryChange);
 $("#mProduct").addEventListener("change",onProductChange);
 $("#mSubmit").addEventListener("click",submitManual);
 $("#mReset").addEventListener("click",()=>resetManual(false));
-$("#xlsxBtn").addEventListener("click",()=>downloadRows(exportAllRows(),"아이닉이벤트_리포트"));
-$("#csvBtn").addEventListener("click",()=>{const rows=exportAllRows();if(!rows.length){alert("다운로드할 데이터가 없습니다.");return;}
-  logAccess("다운로드","아이닉이벤트_리포트(CSV)",rows.length);
-  /* 2026-10-07 보안 수정 — 이 버튼만 수식 주입 방지(rSafe)가 빠져 있었습니다. =,+,-,@ 로 시작하는 칸 앞에 ' 를 붙입니다 */
-  const heads=Object.keys(rows[0]);const csv=[heads.join(",")].concat(rows.map(r=>heads.map(h=>`"${rSafe(String(r[h])).replace(/"/g,'""')}"`).join(","))).join("\n");
-  const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="아이닉이벤트_리포트_"+todayStr()+".csv";a.click();});
+/* 2026-10-13 — 전체 엑셀도 마스터(관리자 역할 master)만. 행(열 이름·순서·값)은 **서버(ordersApi exportAllXlsx)가 만들어** 주고
+   이 화면은 예전과 똑같이 xlsx 파일로 저장만 합니다(엑셀에는 쿠팡 판매처 기본값을 적용하지 않습니다).
+   서버가 역할을 확인하고 접근 기록도 직접 남기므로 여기서는 기록을 남기지 않습니다(downloadRows 의 세 번째 값 true). */
+let xlsxBusy=false;
+$("#xlsxBtn").addEventListener("click",async()=>{
+  if(xlsxBusy) return;
+  if(!ME||ME.role!=="master"){ alert("전체 엑셀은 관리자(마스터) 계정만 받을 수 있습니다."); return; }
+  xlsxBusy=true; const btn=$("#xlsxBtn"); const t0=btn.textContent; btn.disabled=true; btn.textContent="만드는 중…";
+  try{
+    const r=await ordApi({action:"exportAllXlsx"});
+    if(!r.ok){ alert(r.reason==="forbidden" ? "전체 엑셀은 관리자(마스터) 계정만 받을 수 있습니다." : r.reason==="auth" ? "로그인이 풀렸습니다. 새로고침 후 다시 로그인해 주세요." : "엑셀을 받지 못했습니다. 잠시 후 다시 시도해 주세요."); return; }
+    downloadRows(r.rows||[],"아이닉이벤트_리포트",true);
+  }finally{ xlsxBusy=false; btn.disabled=false; btn.textContent=t0; }
+});
+/* 2026-10-13 — 전체 CSV 는 **서버(ordersApi exportAllCsv)가 만들어 줍니다.** 마스터(관리자 역할)만 받을 수 있고,
+   서버가 역할을 확인하며 접근 기록도 직접 남깁니다(그래서 여기서는 logAccess 를 부르지 않습니다).
+   열·값은 위 exportAllRows 와 같고, 쿠팡 정품등록의 빈 판매처만 CSV 에 「쿠팡」으로 적힙니다.
+   수식 주입 방지(rSafe: =,+,-,@ 앞에 ')도 서버에서 합니다. 한글이 깨지지 않게 맨 앞에 BOM 을 붙이는 것만 여기서 합니다. */
+let csvBusy=false;
+$("#csvBtn").addEventListener("click",async()=>{
+  if(csvBusy) return;
+  if(!ME||ME.role!=="master"){ alert("전체 CSV는 관리자(마스터) 계정만 받을 수 있습니다."); return; }
+  csvBusy=true; const btn=$("#csvBtn"); const t0=btn.textContent; btn.disabled=true; btn.textContent="만드는 중…";
+  try{
+    const r=await ordApi({action:"exportAllCsv"});
+    if(!r.ok){ alert(r.reason==="forbidden" ? "전체 CSV는 관리자(마스터) 계정만 받을 수 있습니다." : r.reason==="auth" ? "로그인이 풀렸습니다. 새로고침 후 다시 로그인해 주세요." : "CSV를 받지 못했습니다. 잠시 후 다시 시도해 주세요."); return; }
+    if(!r.count){ alert("다운로드할 데이터가 없습니다."); return; }
+    const blob=new Blob(["﻿"+r.csv],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="아이닉이벤트_리포트_"+todayStr()+".csv";a.click();
+  }finally{ csvBusy=false; btn.disabled=false; btn.textContent=t0; }
+});
 function dlPlain(list,cols,fname){if(!list.length){alert("대상 데이터가 없습니다.");return;}const rows=list.map(e=>{const o={};cols.forEach(([l,fn])=>o[l]=fn(e));return o;});downloadRows(rows,fname);}
 $("#dlOrder").addEventListener("click",()=>dlShipTemplate("gift","아이닉_사은품_사방넷"));
 $("#dlAcct").addEventListener("click",()=>dlShipTemplate("coupon","아이닉_상품권_사방넷"));
@@ -5398,7 +5422,9 @@ const isLeaderMe = () => !!(ME && ME.role === "agent" && (OPS.leaders || []).inc
    상담사는 업무상 봐야 하기 때문입니다. 대신 밖으로 나가는 것만 통제합니다. */
 const DL_BY_ROLE = {
   master: null,                              // 전부
-  qa:     null,                              // 관리자와 같음(2026-10-06)
+  /* 2026-10-13 — 전체 CSV(csvBtn)는 마스터(관리자 역할 master)만. QA 는 나머지는 관리자와 같지만 이 버튼만 뺍니다.
+     ⚠️ 버튼 숨김은 화면 편의일 뿐이고, 실제 막는 곳은 서버(ordersApi exportAllCsv — master 만 허용)입니다. */
+  qa:     ["svPpt","svPptAll","dlOrder","dlAcct","dlBad","dlReserve"],   // 2026-10-13: 전체 CSV·전체 엑셀 모두 마스터만
   order:  ["dlOrder","dlAcct","dlReserve"],  // 사은품·상품권 일괄출고 · 예약발송 문자 안내 목록
   acct:   ["dlOrder","dlAcct","dlReserve"],
   agent:  []                                 // 없음

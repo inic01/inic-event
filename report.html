@@ -496,14 +496,14 @@
 
   /* ══ 2026-10 설정 편집기 개편 — 왼쪽 메뉴 · 아래 고정 저장 줄 · 안내 문구 카드 ══
      ⚠️ 관리자 페이지(#page-admin)는 [왼쪽 메뉴 | 내용] 두 칸입니다.
-        내용 칸에는 설정 편집기(#evtCfg) · 부적합 운영(#admRep) · 사용자(#admUsers) 중 하나만 보입니다.
-        #admRep · #admUsers 는 메인 스크립트가 채우는 곳이라 자리만 옮기지 않고 그대로 둡니다. */
+        내용 칸에는 설정 편집기(#evtCfg) · 부적합 운영(#admRep) · 사용자(#admUsers) · 서버 관리(#admSrv) 중 하나만 보입니다.
+        #admRep · #admUsers · #admSrv 는 메인 스크립트가 채우는 곳이라 자리만 옮기지 않고 그대로 둡니다. */
   #page-admin.on{display:grid; grid-template-columns:232px minmax(0,1fr); gap:18px; align-items:start}
-  #page-admin.on > #evtCfg, #page-admin.on > #admRep, #page-admin.on > #admUsers{grid-column:2; min-width:0}
+  #page-admin.on > #evtCfg, #page-admin.on > #admRep, #page-admin.on > #admSrv, #page-admin.on > #admUsers{grid-column:2; min-width:0}
   #page-admin.on > #evtNav{grid-column:1; grid-row:1 / span 4}
   @media (max-width:900px){
     #page-admin.on{grid-template-columns:minmax(0,1fr)}
-    #page-admin.on > #evtCfg, #page-admin.on > #admRep, #page-admin.on > #admUsers, #page-admin.on > #evtNav{grid-column:1; grid-row:auto}
+    #page-admin.on > #evtCfg, #page-admin.on > #admRep, #page-admin.on > #admSrv, #page-admin.on > #admUsers, #page-admin.on > #evtNav{grid-column:1; grid-row:auto}
     #evtNav{position:static !important; max-height:none !important}
   }
   #evtNav{position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; box-sizing:border-box;
@@ -1118,6 +1118,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
 
   <!-- 수기접수 -->
   <section class="page" id="page-manual">
+    <div id="mPauseBanner" role="alert" style="display:none;margin:0 0 12px;padding:12px 14px;border-radius:10px;background:#fde8ea;color:#b4232d;font-weight:800;font-size:13.5px;line-height:1.6"></div>
     <div class="hint">
       <b>수기접수는 되도록 쓰지 않는 것이 좋습니다.</b> 고객이 직접 접수해야 리뷰와 설문이 남기 때문입니다.<br>
       그래서 화면 순서도 <b>「고객에게 안내」가 먼저, 「직접 등록」이 나중</b>입니다. (고객DB에 구매 기록이 없으면 접수할 수 없습니다.)
@@ -1542,6 +1543,8 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
 </div>
 
   <div id="admRep" hidden></div>
+
+  <div id="admSrv" hidden></div>
 
   <div id="admUsers" hidden>
     <div class="panel">
@@ -3980,6 +3983,8 @@ async function mImgPick(ev){
   if(!file) return;
   const st = $("#mImgState"); st.style.color = ""; st.textContent = "올리는 중…";
   try{
+    /* 🔴 접수 일시중지 중에는 수기접수 이미지도 올리지 않습니다(진짜 차단은 storage.rules) */
+    { const blk = await manualIntakeBlock(); if(blk){ M_IMG = null; st.textContent = MANUAL_BLOCK_TEXT[blk]; st.style.color = "var(--bad,#c1121f)"; return; } }
     const blob = await mResizeToBlob(file, 1600);
     if(blob.size > 11 * 1024 * 1024) throw new Error("이미지가 너무 큽니다");
     await initFbStorage();
@@ -3994,8 +3999,34 @@ async function mImgPick(ev){
   }catch(err){
     console.error(err);
     M_IMG = null;
-    st.textContent = "실패: " + (err.message || err); st.style.color = "var(--bad,#c1121f)";
+    const blk2 = /unauthorized|permission|denied|forbidden/i.test(String((err && (err.code || err.message)) || "")) ? await manualIntakeBlock() : "";
+    st.textContent = blk2 ? MANUAL_BLOCK_TEXT[blk2] : "실패: " + (err.message || err); st.style.color = "var(--bad,#c1121f)";
   }
+}
+
+/* ══ 🔴 접수 일시중지 중에는 수기접수도 모두 막습니다 (2026-10-15 담당자 결정 — 관리자·QA 포함) ══
+   · 진짜 차단은 보안 규칙입니다: firestore.rules 의 intakeOpen 이 reviewEntries 생성을, storage.rules 가 이미지 올리기를 거절합니다.
+   · 여기는 안내용 확인입니다. 접수 상태(eventConfig/intakeControl)를 **방금** 읽어, 중지거나 읽지 못했으면 등록하지 않습니다
+     (읽지 못하면 정상이라고 가정하지 않고 막습니다 — 고객 접수와 같은 기준).
+   · 막는 것은 「새로 만드는 것」뿐입니다. 이미 접수된 건의 조회·수정·삭제, 심사, 출고에는 영향이 없습니다.
+   반환: "" = 등록 가능 / "paused" = 접수 일시중지 중 / "unknown" = 상태를 확인하지 못함 */
+const MANUAL_BLOCK_TEXT = {
+  paused:  "현재 고객 접수가 일시중지되어 있어 수기접수도 등록할 수 없습니다. 「운영 관리 → 서버 관리」에서 접수를 재개한 뒤 다시 등록해 주세요.",
+  unknown: "접수 상태를 확인하지 못해 수기접수를 등록하지 않았습니다. 인터넷·로그인을 확인하고 다시 시도해 주세요."
+};
+async function manualIntakeBlock(){
+  try{
+    const db = await initFirebase();
+    const d = await db.collection("eventConfig").doc("intakeControl").get();
+    return (d.exists && (d.data() || {}).paused === true) ? "paused" : "";
+  }catch(err){ console.warn("접수 상태를 확인하지 못했습니다", err); return "unknown"; }
+}
+/* 수기접수 화면 맨 위 알림 — 중지 중이면 눈에 띄게 보여 줍니다(화면을 열 때마다 확인) */
+async function manualBanner(){
+  const b = $("#mPauseBanner"); if(!b) return;
+  const blk = await manualIntakeBlock();
+  b.style.display = blk ? "" : "none";
+  b.textContent = blk ? MANUAL_BLOCK_TEXT[blk] : "";
 }
 
 /* ── 저장 ── */
@@ -4032,6 +4063,9 @@ async function submitManual(){
     if(giftQty > M_CTX.left) return bad("남은 수량은 " + M_CTX.left + "건입니다.");
   }
 
+  /* 🔴 접수 일시중지·상태 확인 실패 시 등록하지 않습니다 */
+  { const blk = await manualIntakeBlock(); if(blk) return bad(MANUAL_BLOCK_TEXT[blk]); }
+
   const payload = {
     type, rewardType, category, product, giftItem, source,
     name, phone, orderNo, agent, agentUid, serial, address, shipFee,
@@ -4065,7 +4099,9 @@ async function submitManual(){
     mFormClose();
   }catch(err){
     console.error(err);
-    bad("등록 실패: " + (err.message || err));
+    /* 규칙이 거절한 것이 일시중지 때문일 수 있어, 권한 오류면 상태를 다시 확인해 알맞은 안내를 보입니다 */
+    const blk2 = /permission|PERMISSION/i.test(String((err && (err.code || err.message)) || "")) ? await manualIntakeBlock() : "";
+    bad(blk2 ? MANUAL_BLOCK_TEXT[blk2] : "등록 실패: " + (err.message || err));
   }finally{ $("#mSubmit").disabled = false; }
 }
 
@@ -5024,7 +5060,7 @@ async function gfApply(){
   ["btnChangePw","btnLogout","reload"].forEach(id=>{ const b=document.getElementById(id); if(b&&!b.title) b.title=b.textContent.replace("↻","").trim(); });
   apply();
 })();
-function switchTab(name){curTab=name;$$("#tabs .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));$$(".page").forEach(p=>p.classList.remove("on"));$("#page-"+name).classList.add("on");renderActiveTab();}
+function switchTab(name){curTab=name;$$("#tabs .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));$$(".page").forEach(p=>p.classList.remove("on"));$("#page-"+name).classList.add("on");renderActiveTab(); if(name==="manual") manualBanner();}
 function reset(key,fn){return()=>{pageState[key]=1;fn();};}
 
 $$("#tabs .tab").forEach(t=>t.addEventListener("click",()=>{
@@ -6734,6 +6770,142 @@ function opsReportMonths(){
 }
 const opsCard = (k, v, cls) => '<div class="ocard'+(cls?" "+cls:"")+'"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>';
 
+/* ══════════ 🔴 서버 관리 — 고객 접수 일시중지 (2026-10-15 담당자 요청) ══════════
+   「운영 관리 > 서버 관리」. 시행 뒤에 예상 못 한 문제가 생기면 버튼 하나로 **고객 접수만** 멈춥니다.
+   서버를 끄는 것이 아니므로 심사·출고·이 관리자 화면·수기접수는 그대로 돌아갑니다.
+
+   상태는 eventConfig/intakeControl 문서 한 곳에 있습니다.  paused(true 일 때만 중지) · message(점검 안내 문구) · at · by
+   · 읽는 곳: 서버 eventApi (intakeStatus · submitEntry) — 접수폼이 「다음」에서 묻고, 접수 저장은 서버가 최종으로 거절합니다.
+   · 쓰는 곳: 여기뿐. 관리자·QA 만 쓸 수 있습니다 — 화면 숨김이 아니라 firestore.rules 의 eventConfig 규칙(isMaster)이 막습니다.
+   ⚠️ INTAKE_MSG_DFLT 는 접수폼(index.html)의 같은 이름과 **같은 문장**이어야 합니다(중복 쌍 — 같이 고치세요).
+   ⚠️ 접수폼이 안내를 띄우는 곳: 쿠팡·로켓배송 정품등록 「다음」 / 포토리뷰 「본인이 맞습니다」 체크 후 「다음」. 구매 조회 자체는 막지 않습니다. */
+const INTAKE_REF = ["eventConfig", "intakeControl"];
+const INTAKE_MSG_MAX = 600;
+/* ⚠️ 이 기본 문구는 접수폼(index.html)의 같은 이름과 **같은 문장**이어야 합니다(중복 쌍 — 같이 고치세요). 시험이 같은지 확인합니다.
+   2026-10-15 담당자 최종 확정: 접수 일시중지 때와 서버 연결 오류 때 고객에게 **똑같은 문구** 하나를 보여 줍니다(문구 칸도 하나).
+   고객센터 운영시간·번호는 담당자가 확정한 값입니다. */
+const INTAKE_MSG_DFLT = "현재 시스템 점검으로 인해 접수가 일시 중지되었습니다.\n\n이용에 불편을 드려 죄송합니다.\n\n빠르게 조치를 취할 예정이며, 문의사항은 고객센터 또는 카카오톡 채널을 이용해 주세요.\n\n※ 고객센터 운영 안내 ※\n\n- 카톡 상담 : 화~금 10:00~17:00\n- 전화 상담 : 평일 10:00~17:00\n- 고객센터 : 1800-8515";
+let SRV = { loaded:false, paused:false, message:"", at:null, by:"", draft:null, busy:false, err:"", note:"" };
+
+function srvWhen(ts){ try{ const d = ts && ts.toDate ? ts.toDate() : null; return d ? fmtDate(d) : "-"; }catch(_){ return "-"; } }
+/* 미리보기 — 접수폼의 rich() 와 같은 규칙: [[빨간 굵게]] {{굵게}} 줄바꿈 */
+function srvRich(t){
+  return admEsc(t).replace(/\n/g, "<br>")
+    .replace(/\[\[([^\]]+)\]\]/g, '<b style="color:#c1121f">$1</b>')
+    .replace(/\{\{([^}]+)\}\}/g, '<b>$1</b>');
+}
+async function srvLoad(){
+  const db = await initFirebase();
+  const d = await db.collection(INTAKE_REF[0]).doc(INTAKE_REF[1]).get();
+  const v = d.exists ? (d.data() || {}) : {};
+  SRV.paused  = v.paused === true;
+  SRV.message = typeof v.message === "string" ? v.message : "";
+  SRV.at = v.at || null; SRV.by = typeof v.by === "string" ? v.by : "";
+  SRV.loaded = true;
+}
+async function srvWrite(part){
+  const db = await initFirebase();
+  await db.collection(INTAKE_REF[0]).doc(INTAKE_REF[1]).set(
+    Object.assign({}, part, { at: firebase.firestore.FieldValue.serverTimestamp(), by: opsMe() }), { merge:true });
+}
+function srvText(){ return (SRV.draft != null ? SRV.draft : (SRV.message || INTAKE_MSG_DFLT)); }
+/* 지금 고객에게 실제로 나가는 문구가 무엇인지(기본 문구 / 저장된 문구) — 두 문구가 어긋나는 일을 눈으로 알 수 있게 */
+function srvWhich(){
+  const m = String(SRV.message || "").trim();
+  if(!m) return "기본 문구 (저장된 문구 없음)";
+  return m === INTAKE_MSG_DFLT ? "저장된 문구 (기본 문구와 같음)" : "관리자가 저장한 문구 (기본 문구와 다름)";
+}
+function srvDraw(){
+  const box = $("#admSrv"); if(!box) return;
+  const p = SRV.paused, dis = (SRV.busy || !SRV.loaded) ? " disabled" : "";
+  const badge = !SRV.loaded
+    ? '<span style="display:inline-block;padding:6px 14px;border-radius:999px;font-weight:800;background:#eee;color:#555">❔ 상태를 알 수 없음</span>'
+    : p
+      ? '<span style="display:inline-block;padding:6px 14px;border-radius:999px;font-weight:800;background:#fde8ea;color:#b4232d">🔴 접수 일시중지 중</span>'
+      : '<span style="display:inline-block;padding:6px 14px;border-radius:999px;font-weight:800;background:#e6f4ea;color:#1b6b34">🟢 접수 중 (정상)</span>';
+  box.innerHTML =
+    '<div class="panel"><h3>서버 관리 — 고객 접수 일시중지</h3>'
+    +'<div class="hint" style="margin:0 0 10px">시행 뒤에 예상 못 한 문제가 생기면 버튼 하나로 <b>고객 접수를 멈춥니다.</b> 서버를 끄는 것이 아니라서 <b>심사·출고·이 관리자 화면은 그대로</b> 동작하고, 이미 접수된 건의 조회·수정도 그대로입니다.</div>'
+    +'<div class="filters" style="align-items:center">'+badge
+    +'<span style="font-size:12.5px;color:var(--sub)">마지막 변경: '+admEsc(SRV.loaded && SRV.at ? srvWhen(SRV.at)+" · "+(SRV.by||"-") : "기록 없음")+'</span>'
+    +'<span style="flex:1"></span><button class="sm" data-srv="reload"'+(SRV.busy?" disabled":"")+'>상태 다시 읽기</button></div>'
+    + (SRV.err ? '<div class="hint" style="margin:8px 0 0;color:#b4232d;font-weight:700">'+admEsc(SRV.err)+'</div>' : '')
+    +'<div style="margin:14px 0 6px"><button class="'+(p?"primary":"danger")+'" data-srv="toggle" style="font-size:14px;font-weight:800;padding:10px 20px"'+dis+'>'
+    + (p ? "▶ 접수 재개" : "⏸ 접수 일시중지")+'</button> <span id="srvState" style="font-size:12.5px;font-weight:800;margin-left:8px">'+admEsc(SRV.busy ? "처리 중…" : SRV.note)+'</span></div>'
+    +'<div class="hint" style="margin:8px 0 0"><b>중지하면 막히는 것</b> — ① 고객이 접수폼에서 쿠팡·로켓배송 정품등록 「다음」 / 포토리뷰 「본인이 맞습니다」 체크 후 「다음」을 누르면 안내 팝업이 뜹니다 ② 접수 저장(서버가 거절) ③ <b>사진 올리기</b>(접수 화면을 미리 열어 둔 고객 포함 — 보안 규칙이 막음) ④ <b>수기접수 등록</b>(관리자·QA 포함, 이미지 올리기 포함).<br>'
+    +'<b>그대로 되는 것</b> — 구매 조회·참여 조회 화면, 이미 접수된 건의 조회·수정·삭제, 심사, 출고. &nbsp;<b>반영 시간</b> — 누른 뒤 최대 5초.<br>'
+    +'<b>접수 상태를 확인하지 못하면</b>(서버·인터넷 문제) 정상이라고 가정하지 않고 <b>접수를 막으며</b>, 고객에게는 아래 문구와 <b>똑같은 안내</b>가 뜹니다.<br>'
+    +'<b>알아 두세요</b> — 중지 직전에 이미 끝난 사진 업로드는 접수 기록 없이 파일만 남을 수 있습니다(자동으로 지워지지 않으니 정상 접수 파일이 함께 지워지지는 않습니다).</div></div>'
+    +'<div class="panel"><h3>고객 안내 문구 <span style="font-weight:600;font-size:12px;color:var(--sub)">(접수 일시중지 때와 서버 연결 오류 때 고객에게 똑같이 보임)</span></h3>'
+    +'<div class="hint" style="margin:0 0 8px">줄바꿈은 그대로 나갑니다. 강조: <code>[[이 부분]]</code> 빨간 굵은 글씨, <code>{{이 부분}}</code> 검은 굵은 글씨. <b>카카오톡 채널 문의 버튼은 문구 아래에 자동으로 붙고</b>(기존 채널 주소), 서버가 멈춰도 나옵니다. 서버가 완전히 멈추면 이 문구를 새로 받을 수 없어서 <b>고객이 접수폼을 열 때 미리 받아 둔 문구</b>를 보여 주고, 미리 받지 못한 고객에게는 접수폼에 들어 있는 기본 문구(「기본 문구로 되돌리기」와 같은 문장)가 나갑니다. 이 문구는 「접수 일시중지」를 누를 때도 함께 저장됩니다.</div>'
+    +'<textarea id="srvMsg" rows="11" maxlength="'+INTAKE_MSG_MAX+'" style="width:100%;box-sizing:border-box;padding:10px;font:inherit;line-height:1.6;border:1px solid var(--line,#ddd);border-radius:8px"></textarea>'
+    +'<div class="filters" style="margin-top:8px;align-items:center"><span style="font-size:12px;color:var(--sub)"><span id="srvCnt">0</span> / '+INTAKE_MSG_MAX+'자</span>'
+    +'<span id="srvWhich" style="font-size:12px;font-weight:700;color:var(--sub)">지금 고객에게 나가는 문구: '+admEsc(SRV.loaded ? srvWhich() : "알 수 없음")+'</span>'
+    +'<span style="flex:1"></span><button class="sm" data-srv="dflt"'+dis+'>기본 문구로 되돌리기</button>'
+    +'<button class="sm primary" data-srv="saveMsg"'+dis+'>문구 저장</button></div>'
+    +'<div style="margin-top:12px;font-size:12px;color:var(--sub);font-weight:700">고객 화면 미리보기</div>'
+    +'<div style="margin-top:6px;max-width:360px;border:1px solid var(--line,#ddd);border-radius:14px;padding:18px 18px 16px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.08)">'
+    +'<div style="text-align:center;font-size:26px">🛠️</div><div style="text-align:center;font-weight:800;margin:4px 0 10px">시스템 점검 안내</div>'
+    +'<div id="srvPrev" style="font-size:13.5px;line-height:1.7"></div>'
+    +'<div style="margin-top:10px"><span style="display:inline-block;background:#FEE500;color:#191600;font-weight:800;padding:9px 15px;border-radius:8px">💬 아이닉 카카오톡 채널로 문의하기</span></div>'
+    +'<div style="margin-top:12px;text-align:center;border:1px solid var(--line,#ddd);border-radius:8px;padding:8px;font-weight:800;color:#555">확인</div></div></div>';
+  const ta = $("#srvMsg"); if(ta) ta.value = srvText();
+  srvPreview();
+}
+function srvPreview(){
+  const ta = $("#srvMsg"), pv = $("#srvPrev"), cnt = $("#srvCnt");
+  const t = ta ? ta.value : srvText();
+  if(pv) pv.innerHTML = srvRich(t.trim() || INTAKE_MSG_DFLT);
+  if(cnt) cnt.textContent = String(t.length);
+}
+async function renderServerCtl(){
+  const box = $("#admSrv"); if(!box) return;
+  if(!ME || !isAdm(ME.role)){ box.innerHTML = '<div class="panel"><h3>서버 관리</h3><div class="hint">관리자·QA만 사용할 수 있습니다.</div></div>'; return; }
+  if(!SRV.loaded) box.innerHTML = '<div class="panel"><h3>서버 관리</h3><div class="hint">상태를 불러오는 중…</div></div>';
+  try{ await srvLoad(); SRV.err = ""; }
+  catch(err){ SRV.loaded = false; SRV.err = "현재 접수 상태를 읽지 못했습니다. 인터넷·로그인을 확인하고 「상태 다시 읽기」를 눌러 주세요."; console.warn("접수 상태를 못 읽었습니다", err); }
+  srvDraw();
+}
+document.addEventListener("input", ev => {
+  if(ev.target && ev.target.id === "srvMsg"){ SRV.draft = ev.target.value; srvPreview(); }
+});
+document.addEventListener("click", async ev => {
+  const el = ev.target.closest("[data-srv]"); if(!el) return;
+  if(!ME || !isAdm(ME.role) || SRV.busy) return;               // 화면 숨김과 별개로 한 번 더 확인(진짜 차단은 firestore.rules)
+  const a = el.dataset.srv;
+  const fail = (what, err) => { console.warn(what, err); SRV.err = what + "에 실패했습니다. 인터넷·권한을 확인하고 「상태 다시 읽기」로 현재 상태를 확인해 주세요."; SRV.note = ""; };
+  if(a === "reload"){ SRV.note = ""; await renderServerCtl(); return; }
+  if(!SRV.loaded) return;                                       // 현재 상태를 모르면 아무것도 쓰지 않습니다(버튼 잠금과 별개로 한 번 더)
+  if(a === "dflt"){ SRV.draft = INTAKE_MSG_DFLT; const ta0 = $("#srvMsg"); if(ta0) ta0.value = SRV.draft; srvPreview(); return; }
+  const ta = $("#srvMsg"); if(ta) SRV.draft = ta.value;
+  let text = (SRV.draft != null ? SRV.draft : srvText()).trim();
+  if(!text) text = INTAKE_MSG_DFLT;
+  const tooLong = (s, what) => { if(s.length > INTAKE_MSG_MAX){ alert(what + "는 " + INTAKE_MSG_MAX + "자까지입니다. 지금 " + s.length + "자입니다."); return true; } return false; };
+  if(a === "saveMsg"){
+    if(tooLong(text, "고객 안내 문구")) return;
+    SRV.busy = true; SRV.err = ""; srvDraw();
+    try{ await srvWrite({ message:text }); await srvLoad(); SRV.draft = null; SRV.note = "고객 안내 문구를 저장했습니다"; logAccess("서버 관리", "고객 안내 문구 저장", 1); }
+    catch(err){ fail("문구 저장", err); }
+    SRV.busy = false; srvDraw(); return;
+  }
+  if(a === "toggle"){
+    const toPause = !SRV.paused;
+    if(toPause && tooLong(text, "고객 안내 문구")) return;
+    const q = toPause
+      ? "고객 접수를 지금 바로 멈춥니다.\n\n· 고객이 접수폼에서 「다음」을 누르면 점검 안내가 뜹니다\n· 서버가 접수 저장을 거절하고, 사진 올리기와 수기접수도 막힙니다\n· 심사·출고·관리자 화면은 그대로입니다\n\n접수를 일시중지할까요?"
+      : "고객 접수를 다시 엽니다.\n\n접수를 재개할까요?";
+    if(!confirm(q)) return;
+    SRV.busy = true; SRV.err = ""; srvDraw();
+    try{
+      await srvWrite(toPause ? { paused:true, message:text } : { paused:false });
+      await srvLoad();                                         // 쓴 뒤 다시 읽어서 진짜 바뀌었는지 확인합니다
+      if(SRV.paused !== toPause) throw new Error("저장 후 상태가 다름");
+      SRV.draft = null; SRV.note = toPause ? "접수를 일시중지했습니다 (최대 5초 안에 반영)" : "접수를 재개했습니다 (최대 5초 안에 반영)";
+      logAccess(toPause ? "접수 일시중지" : "접수 재개", "서버 관리에서 " + (toPause ? "접수를 멈춤" : "접수를 다시 엶"), 1);
+    }catch(err){ fail(toPause ? "접수 일시중지" : "접수 재개", err); try{ await srvLoad(); }catch(_){ SRV.loaded = false; } }
+    SRV.busy = false; srvDraw(); return;
+  }
+});
 function renderOpsAdmin(){
   const box = $("#admRep"); if(!box) return;
   const months = opsReportMonths();
@@ -10055,7 +10227,7 @@ let FT_PENDING = false;              // 저장돼 있던 설정에 접수폼 문
 
 function showUsers(on, kind){
   /* ⚠️ 왼쪽 메뉴(#evtNav)는 #evtCfg 밖에 있어 항상 남습니다.
-     사용자(#admUsers)·부적합 운영(#admRep)은 메인 스크립트가 채우는 자리라 그대로 두고,
+     사용자(#admUsers)·부적합 운영(#admRep)·서버 관리(#admSrv)는 메인 스크립트가 채우는 자리라 그대로 두고,
      그것을 보여 줄 때는 설정 편집기(#evtCfg) 전체를 끕니다. */
   const box  = document.getElementById("evtCfg");
   if(box) box.hidden = !!on;
@@ -10063,14 +10235,16 @@ function showUsers(on, kind){
   show(document.getElementById("cols"), !on);
   show(document.querySelector("#evtCfg .save"), !on);
   const u = document.getElementById("admUsers");
-  if(u) u.hidden = !(on && kind !== "rep");
+  if(u) u.hidden = !(on && kind !== "rep" && kind !== "srv");
   const rp = document.getElementById("admRep");
   if(rp) rp.hidden = !(on && kind === "rep");
+  const sv = document.getElementById("admSrv");           // 서버 관리(접수 일시중지) 자리 — 메인 스크립트의 renderServerCtl 이 채웁니다
+  if(sv) sv.hidden = !(on && kind === "srv");
 }
 
 /* ══════════ 왼쪽 메뉴 ══════════
    [이벤트/접수폼 관리] 접수 화면별(고객이 보는 순서) · 제품·사은품 · 프로모션 · 안내 문구 · 심사 규칙 · 상담 채널 · 고객 화면 이미지
-   [운영 관리]         사용자 · 부적합 운영 · 예약발송 ↗(메인 탭으로 이동) */
+   [운영 관리]         사용자 · 부적합 운영 · 서버 관리(접수 일시중지) · 예약발송 ↗(메인 탭으로 이동) */
 const NAV_SUBS = [        // [id, 이름, 안내 문구 메뉴로 보낼 화면(없으면 접수폼 카드로 이동)]
   ["cover","표지"], ["lookup","구매 확인","lookup"], ["consent","동의"], ["entry","설문"],
   ["buy","구매내역 (쿠팡)"], ["serial","S/N 등록 (쿠팡)"], ["reward","사은품 안내"],
@@ -10081,7 +10255,7 @@ const NAV = [
     { k:"form", t:"접수 화면별", subs:true }, { k:"gift", t:"제품·사은품" }, { k:"rule", t:"프로모션" },
     { k:"notice", t:"안내 문구" }, { k:"rules", t:"심사 규칙" }, { k:"channel", t:"상담 채널" },
     { k:"images", t:"고객 화면 이미지" } ] },
-  { g:"운영 관리", items:[ { k:"users", t:"사용자" }, { k:"badops", t:"부적합 운영" }, { k:"reserve", t:"예약발송 ↗", link:true } ] }
+  { g:"운영 관리", items:[ { k:"users", t:"사용자" }, { k:"badops", t:"부적합 운영" }, { k:"server", t:"서버 관리" }, { k:"reserve", t:"예약발송 ↗", link:true } ] }
 ];
 let navCur = "gift", navSub = "";
 let navFormOpen = false;      // 「접수 화면별」 하위 메뉴가 펼쳐져 있는가 (화살표로 접고 폄 · 그 안의 화면으로 가면 저절로 펼침)
@@ -10126,10 +10300,11 @@ function renderNav(){
   });
 }
 function navGo(k, sub){
-  if(k === "users" || k === "badops"){
+  if(k === "users" || k === "badops" || k === "server"){
     navCur = k; navSub = "";
-    showUsers(true, k === "users" ? "users" : "rep");
+    showUsers(true, k === "users" ? "users" : k === "server" ? "srv" : "rep");
     if(k === "badops"){ try{ renderOpsAdmin(); }catch(err){ console.error(err); } }
+    if(k === "server"){ try{ renderServerCtl(); }catch(err){ console.error(err); } }   // 관리자·QA 전용(메뉴도 숨김, 화면 안에서도 한 번 더 확인)
     renderNav();
     return;
   }

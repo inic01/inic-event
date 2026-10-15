@@ -1108,7 +1108,9 @@ async function loadConfig(){
         body:JSON.stringify({action:"getConfig"}),signal:ctl.signal});
       clearTimeout(timer);
       const j=await r.json();
-      if(j&&j.ok){ if(j.cfg) CFG=j.cfg; got=true; break; }
+      if(j&&j.ok){ if(j.cfg) CFG=j.cfg;
+        if(j.intake && typeof j.intake.message==="string") INTAKE_MSG_PRE=j.intake.message;   // 관리자가 정한 공통 안내 문구 — 서버가 죽기 전에 미리 받아 둠
+        got=true; break; }
     }catch(e){ /* 다음 시도 */ }
   }
   CFG_STATE = got ? "ok" : "fail";
@@ -2623,7 +2625,39 @@ function validateStep(step){
   } return true;
 }
 
-function goNext(){ const flow=getFlow(); if(validateStep(flow[current])){ current++; showStep(); } else focusFirstError(); }
+/* 🔴 접수 일시중지 확인 (2026-10-15 담당자 결정)
+   관리자 화면 「운영 관리 > 서버 관리」에서 접수를 멈춰 두었으면, 아래 두 곳에서 「다음」을 눌렀을 때 점검 안내를 띄웁니다.
+     · 쿠팡·로켓배송 정품등록 : 유형을 고르고 「다음」
+     · 포토리뷰               : 구매 정보 조회 후 「본인이 맞습니다. 이 정보로 참여하겠습니다.」 체크하고 「다음」
+   ⚠️ 이 확인은 안내용입니다. 진짜 차단은 서버(submitEntry)와 보안 규칙(사진 업로드·수기접수)이 합니다 — 여기를 건너뛰어도 접수되지 않습니다.
+   🔴 2026-10-15 2차 — **서버에 못 물어보면 막습니다**(「서버 연결 오류」 안내). 확인하지 못한 상태를 정상이라고 가정하지 않습니다.
+      인터넷 불안정·시간 초과·이상한 응답·서버가 돌려준 오류가 모두 같습니다. 「정상으로 확인됨」(ok:true, paused:false)일 때만 통과합니다.
+      반환: null = 통과 / {kind:"paused",message} = 점검 중 / {kind:"error"} = 확인 못 함 */
+let intakeBusy=false;
+async function intakePaused(){
+  if(DEMO_MODE) return null;
+  try{
+    const r=await eventApi({action:"intakeStatus"}, 8000);
+    if(r && r.ok===true && r.paused===true) return {kind:"paused",message:String(r.message||"")};
+    if(r && r.ok===true && r.paused===false) return null;
+  }catch(_){}
+  return {kind:"error"};
+}
+function showIntakeGate(g){ if(g.kind==="paused") showPaused(g.message); else showConnError(); }
+function intakeGateStep(step){ return (step==="type" && state.type==="coupang") || (step==="invoice" && state.type==="review"); }
+async function goNext(){
+  if(intakeBusy) return;
+  const flow=getFlow(), step=flow[current];
+  if(!validateStep(step)){ focusFirstError(); return; }
+  if(intakeGateStep(step)){
+    intakeBusy=true; const btns=[$("#next"),$("#nextTop")]; btns.forEach(b=>{ if(b) b.disabled=true; });
+    let p=null;
+    try{ p=await intakePaused(); } finally { intakeBusy=false; btns.forEach(b=>{ if(b) b.disabled=false; }); }
+    if(getFlow()[current]!==step) return;      // 기다리는 사이 다른 단계로 옮겨졌으면 아무것도 하지 않습니다
+    if(p){ showIntakeGate(p); return; }
+  }
+  current++; showStep();
+}
 $("#next").addEventListener("click",goNext);
 $("#nextTop").addEventListener("click",goNext);
 /* ══ 뒤로가기 (2026-10-06 사용자 확정) ══
@@ -2998,7 +3032,7 @@ async function submit(){
     } else {
       const res=await submitViaApi(entry, (state.files && state.files.length) ? state.files : (state.file?[state.file]:[]));
       if(res&&res.dup){ showDup(res.dup,review); resetBtn(); return; }
-      if(!res||!res.ok){ showApiErr(res&&res.reason); resetBtn(); return; }
+      if(!res||!res.ok){ showApiErr(res&&res.reason, res); resetBtn(); return; }
       /* 수량은 창구가 원장 기준으로 다시 계산한 값을 쓴다 */
       entry.giftQty=res.giftQty||entry.giftQty;
       entry.buyQty=res.buyQty||entry.buyQty;
@@ -3011,7 +3045,16 @@ async function submit(){
       if(state.product) state.usedByCode[state.product]=(res.usedBefore||0)+(res.giftQty||1);
       showDone(entry,false);
     }
-  }catch(err){console.error(err);showUploadErr(err);resetBtn();}
+  }catch(err){console.error(err);await showSubmitCatch(err);resetBtn();}
+}
+/* 🔴 사진 올리기가 거절됐을 때(2026-10-15): Storage 규칙은 일시중지 때문에도 거절합니다.
+   권한 오류면 접수 상태를 다시 물어 중지/연결 오류 안내를 먼저 보이고, 아니면 기존 업로드 오류 안내를 씁니다. */
+async function showSubmitCatch(err){
+  const s=((err&&(err.code||err.name))||"")+" "+((err&&err.message)||String(err||""));
+  if(/unauthorized|permission|denied|forbidden/i.test(s)){
+    const g=await intakePaused(); if(g){ showIntakeGate(g); return; }
+  }
+  showUploadErr(err);
 }
 /* 업로드 실패 원인별 한국어 안내 (영어 원문·개발자 메모 노출 방지) */
 /* 사진을 못 올렸을 때 — 어떤 이유인지 가려 설정의 문구를 씁니다.
@@ -3216,6 +3259,9 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
      주소는 창구가 만들어 접수 데이터에 붙인다. */
 async function submitViaApi(e,files){
   const btn=$("#submitBtn");
+  /* 🔴 접수 일시중지 (2026-10-15) — 사진을 올리기 **전에** 한 번 더 확인합니다. 접수 화면을 미리 열어 둔 고객도 여기서 멈춥니다.
+     (진짜 차단은 Storage 규칙·서버가 합니다. 이 확인은 사진을 헛되이 올리지 않게 하고 알맞은 안내를 보이려는 것입니다.) */
+  { const g=await intakePaused(); if(g) return g.kind==="paused" ? {ok:false,reason:"paused",message:g.message} : {ok:false,reason:"unavailable"}; }
   /* 사진 한 장을 올리고 저장 위치를 돌려준다. 쿠팡 정품등록은 두 장이라 두 번 부른다. */
   const upload=async (f,label)=>{
     const ts=Date.now(), rnd=Math.random().toString(36).slice(2,10);
@@ -3291,7 +3337,30 @@ function showNotice(key, dflt, vals, title){
   const more=$("#mMore"); if(more) more.classList.add("hide");
   $("#modal").classList.add("on");
 }
-function showApiErr(reason){
+/* 🔴 접수 일시중지·서버 연결 오류 안내 팝업 (2026-10-15 최종 확정 — 두 경우 모두 고객에게 **똑같은 문구**를 보여 줍니다)
+   보이는 경우 : ① 관리자가 접수를 일시중지함 ② 접수 상태를 확인하지 못함(서버 연결 오류·시간 초과·이상한 응답)
+                 ③ 서버가 접수 저장을 paused/unavailable 로 거절함
+   보이지 않는 경우 : 중복 접수·구매 정보 불일치 등 일반 업무 오류(기존 안내 그대로). 접수 저장 도중의 네트워크 오류·응답 지연도
+                 기존 안내를 씁니다(이미 저장됐을 수 있어 「이미 접수됐는지 조회」 안내가 필요하기 때문).
+   문구 우선순위 : 서버가 알려 준 문구(일시중지 중) → 접수폼이 열릴 때 미리 받아 둔 관리자 문구(INTAKE_MSG_PRE) → 아래 기본 문구.
+   ⚠️ 기본 문구는 report.html 의 INTAKE_MSG_DFLT 와 **같은 문장**이어야 합니다(중복 쌍 — 같이 고치세요).
+   ⚠️ 고객센터 운영시간·번호는 담당자가 확정한 문구입니다(2026-10-15). 카카오 문의 버튼은 서버 없이도 나옵니다
+      (기존 채널 주소 KAKAO_MAIN_DFLT 를 그대로 씀 — 새 주소를 만들지 않습니다).
+   ⚠️ 접수가 **안 된** 상태이므로 창을 닫아도 폼을 비우지 않습니다(lastModal="err"). */
+const INTAKE_MSG_DFLT="현재 시스템 점검으로 인해 접수가 일시 중지되었습니다.\n\n이용에 불편을 드려 죄송합니다.\n\n빠르게 조치를 취할 예정이며, 문의사항은 고객센터 또는 카카오톡 채널을 이용해 주세요.\n\n※ 고객센터 운영 안내 ※\n\n- 카톡 상담 : 화~금 10:00~17:00\n- 전화 상담 : 평일 10:00~17:00\n- 고객센터 : 1800-8515";
+let INTAKE_MSG_PRE="";
+function showPaused(message){
+  $("#box").className="box dup"; $("#mIcon").textContent="🛠️";
+  $("#mTitle").textContent="시스템 점검 안내";
+  state.lastModal="err";
+  $("#mDesc").innerHTML=rich(String(message||"").trim() || String(INTAKE_MSG_PRE||"").trim() || INTAKE_MSG_DFLT);
+  $("#mKv").innerHTML=ivKakao();
+  const more=$("#mMore"); if(more) more.classList.add("hide");
+  $("#modal").classList.add("on");
+}
+function showConnError(){ showPaused(""); }     /* 서버 연결 오류도 같은 문구·같은 팝업 */function showApiErr(reason, res){
+  if(reason==="paused"){ showPaused(res && res.message); return; }
+  if(reason==="unavailable"){ showConnError(); return; }
   if(reason==="image" && state.type==="coupang") reason="imageSn";
   const [key, dflt] = (reason && Object.prototype.hasOwnProperty.call(API_ERR, reason) && API_ERR[reason]) || API_ERR_ELSE;
   showNotice(key, dflt);

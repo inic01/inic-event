@@ -2968,6 +2968,8 @@ function badCols(){
   if(opsCanMove()) cols.push(["<input type='checkbox' id='bChkAll'>",e=>`<input type="checkbox" class="bchk" data-id="${admEsc(e._id)}" onclick="event.stopPropagation()">`]);
   cols.push(
     ["접수일자",e=>fmtDate(e._date)],
+    /* 2026-10-19 담당자 요청 — 부적합에는 포토리뷰·쿠팡·한달 사용후기가 섞여 들어와 구분이 어려워 「유형」 칸을 둡니다(전체 탭의 유형 칸과 같은 표시) */
+    TYPE_COL,
     ["경과",e=>elapsedHtml(e)],
     ["기한일",e=>dueHtml(e)],
     ["담당자",e=>opsAgentSel(e)+opsAgentTag(e)],

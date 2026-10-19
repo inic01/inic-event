@@ -409,6 +409,10 @@
   .type.on{border-color:var(--in-brand);background:var(--in-primary-tint)}
   .type.on::before{content:"";position:absolute;top:12px;right:12px;width:22px;height:22px;border-radius:50%;
     background:var(--in-primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center/14px no-repeat}
+  /* 세 번째 카드(한달 사용후기)는 아래 한 줄을 다 차지합니다 */
+  .type[data-type="month"]{grid-column:1/-1;flex-direction:row;align-items:center;gap:14px;min-height:84px;padding:14px 16px}
+  .type[data-type="month"] .tt{margin-top:0}
+  .type[data-type="month"].on::before{top:50%;transform:translateY(-50%)}
   #nextTop{min-height:56px;border-radius:14px;margin-top:18px !important}
   #chkOpen{border:1.5px solid var(--line);background:#fff;color:var(--in-primary);border-radius:14px;min-height:50px;font-size:14px}
   #chkBody{background:var(--in-field);border:0;border-radius:14px}
@@ -538,6 +542,8 @@
     <div class="types">
       <div class="type" data-type="review"><div class="emo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div><div class="tt">포토리뷰 이벤트</div></div>
       <div class="type" data-type="coupang"><div class="emo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div><div class="tt">쿠팡·로켓배송<br>정품 등록</div></div>
+      <!-- 🔴 한달 사용후기 (2026-10) — 접수 유형은 포토리뷰와 같고 event:"month" 표시만 더합니다(MONTH_CODES 설명) -->
+      <div class="type hide" data-type="month"><div class="emo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/><path d="M9 15l2 2 4-4"/></svg></div><div class="mtx"><div class="tt">한달 사용후기</div></div></div>
     </div>
     <div class="err" id="err-type">참여 유형을 선택해 주세요.</div>
 
@@ -563,6 +569,7 @@
   <div class="card step hide" id="step-invoice">
     <h2>구매 확인</h2>
     <p class="desc">구매 내역이 확인되어야 접수하실 수 있습니다. <b>편하신 방법 하나</b>를 골라 입력해 주세요.</p>
+    <div class="notice hide" id="monthNote" style="margin:0 0 12px">🗓️ <b>한달 사용후기</b> 이벤트입니다. 대상 제품 구매 고객만 참여하실 수 있습니다. 같은 제품이라도 <b>구매 수량만큼</b> 참여하실 수 있고, 포토리뷰 참여와는 별개입니다.</div>
     <div class="vtabs" id="vtabs">
       <button type="button" class="vtab on" data-vt="np">성함 + 연락처</button>
       <button type="button" class="vtab" data-vt="ord">주문번호</button>
@@ -811,6 +818,17 @@ async function eventApi(payload, timeoutMs){
         {{이 부분}}  → 검은 굵은 글씨
       ⚠️ 별표(*)를 안 쓰는 이유 — 「홍*동」처럼 글 안에 별표가 들어가는 문구가 있어서입니다. */
 let CFG = null;
+/* 🔴 한달 사용후기 접수폼은 포토리뷰와 따로 저장된 문구·동의 항목을 씁니다(서버 month.form).
+   CFG_BASE = 서버에서 받은 그대로, CFG = 지금 화면이 쓰는 것(한달 사용후기를 고르면 CFG_BASE 위에 month.form 을 덮어씀).
+   카드를 고르거나 풀 때 syncCfg() → applyConfig() 로 바꿉니다. */
+let CFG_BASE = null, APPLY_SNAP = null;
+function monthOv(){ const m = CFG_BASE && CFG_BASE.month; return (m && m.on===true && m.form && typeof m.form==="object") ? m.form : null; }
+function syncCfg(){
+  if(!CFG_BASE) return false;
+  const ov = (state.event==="month") ? monthOv() : null;
+  CFG = ov ? Object.assign({}, CFG_BASE, ov) : CFG_BASE;
+  return true;
+}
 
 function esc(s){ return String(s==null?"":s)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -930,6 +948,20 @@ const ERR_KEY={ "err-email":"errEmail", "err-name":"errName", "err-phone":"errPh
 
 function applyConfig(){
   if(!CFG) return;
+  /* 🔴 한달 사용후기 ↔ 포토리뷰를 오갈 때 앞 설정의 글이 남지 않게, 처음(설정 적용 전)의 값을 적어 두었다가
+     매번 그 값으로 되돌린 뒤 지금 설정을 적용합니다(그래서 같은 설정을 여러 번 적용해도 결과가 같습니다). */
+  {
+    const dom = s => { const e=document.querySelector(s); return e ? e.innerHTML : null; };
+    const DOMS = ["#step-invoice > .desc", "#vp-np .notice", "#step-consent .desc"];
+    if(!APPLY_SNAP){
+      APPLY_SNAP = { reward:[GIFT_NOTICE,GIFT_NOTICE_PRE,COUPON_NOTICE,GIFT_ACK,GIFT_ACK_PRE,COUPON_ACK],
+        confirm:Object.assign({},CONFIRM), req:Object.assign({},REQ), consent:CONSENTS.common.slice(), dom:DOMS.map(dom) };
+    } else {
+      [GIFT_NOTICE,GIFT_NOTICE_PRE,COUPON_NOTICE,GIFT_ACK,GIFT_ACK_PRE,COUPON_ACK]=APPLY_SNAP.reward;
+      Object.assign(CONFIRM,APPLY_SNAP.confirm); Object.assign(REQ,APPLY_SNAP.req); CONSENTS.common=APPLY_SNAP.consent.slice();
+      DOMS.forEach((s,i)=>{ const e=document.querySelector(s); if(e && APPLY_SNAP.dom[i]!=null) e.innerHTML=APPLY_SNAP.dom[i]; });
+    }
+  }
   /* 「추가 참여 안내」를 포토리뷰용·쿠팡용 둘로 나누기 전에 저장해 두신 설정이면
      예전 글이 하나뿐입니다. 그 글을 두 곳에 그대로 씁니다. */
   if(CFG.notices && CFG.notices.dupAsk){
@@ -1058,6 +1090,21 @@ function applyConfig(){
       g.fee  ?{fee:g.fee}   :{},       // 착불 / 선불 (관리자 「사은품」 탭에서 정합니다)
       (Number(g.box)>=1) ? {box:Number(g.box)} : {});   // 합배송 — 한 상자에 몇 개까지 (2026-09-28)
   });
+  /* 한달 사용후기 — 켜져 있을 때만 카드를 보입니다(서버가 「켬 + 사은품 있음」일 때만 on:true 를 줍니다). */
+  {
+    const m=CFG.month;
+    MONTH = (m && m.on===true && m.gifts && typeof m.gifts==="object") ? { on:true, title:String(m.title||""), note:String(m.note||""), gifts:m.gifts }
+                                                                      : { on:false, title:"", note:"", gifts:{} };
+    const card=document.querySelector('.type[data-type="month"]');
+    if(card){
+      card.classList.toggle("hide",!MONTH.on);
+      const tt=card.querySelector(".tt"); if(tt) tt.textContent=MONTH.title||"한달 사용후기";
+      /* 켜져 있던 카드가 꺼지면(설정이 바뀐 뒤 다시 받았을 때) 이미 고른 한달 사용후기는 풀어 줍니다 */
+      if(!MONTH.on && state.card==="month"){ state.card=""; state.type=null; state.event=""; card.classList.remove("on"); try{ applyType(); showStep(); }catch(e){} }
+    }
+    const mn=$("#monthNote");
+    if(mn && MONTH.note) mn.innerHTML="🗓️ "+rich(MONTH.note);
+  }
   /* 신청 확인 화면 문구 — 설정(안내 문구 탭)에서 고친 값이 있으면 갈아 끼웁니다 (2026-09-14). */
   /* 🔴 예약발송 문구는 이제 안내 문구 탭 ⑧ 「사은품 · 예약발송일 때」에서 읽습니다.
         MSGT("doneGiftReserve") 가 알아서 가져오므로 여기서 따로 받을 것이 없습니다. */
@@ -1108,7 +1155,7 @@ async function loadConfig(){
         body:JSON.stringify({action:"getConfig"}),signal:ctl.signal});
       clearTimeout(timer);
       const j=await r.json();
-      if(j&&j.ok){ if(j.cfg) CFG=j.cfg;
+      if(j&&j.ok){ if(j.cfg){ CFG=j.cfg; CFG_BASE=j.cfg; syncCfg(); }
         if(j.intake && typeof j.intake.message==="string") INTAKE_MSG_PRE=j.intake.message;   // 관리자가 정한 공통 안내 문구 — 서버가 죽기 전에 미리 받아 둠
         got=true; break; }
     }catch(e){ /* 다음 시도 */ }
@@ -1315,7 +1362,10 @@ function promoFor(code){
 }
 /* 사은품을 묻는 곳은 전부 이 함수 하나를 거칩니다.
    그래서 여기서 한 번만 바꿔 주면 화면·착불 안내·저장값이 모두 따라옵니다. */
+/* 한달 사용후기는 포토리뷰와 사은품 목록이 따로입니다(MONTH.gifts) — 이 함수로만 꺼내 씁니다. */
+function giftRow(code){ return ((state.event==="month") ? MONTH.gifts : GIFTS)[code]; }
 function giftOf(code){
+  if(state.event==="month") return MONTH.gifts[code]||null;   // 판매처 예외(프로모션)는 적용하지 않습니다
   const hit = promoFor(code);
   /* 🔴 사진은 **프로모션 사은품 이름**으로 찾습니다 (2026-09-14).
         기본 사은품과 규칙이 같습니다 — gifts/<사은품 이름>.webp(png·jpg)
@@ -1326,7 +1376,7 @@ function giftOf(code){
   return GIFTS[code]||null;
 }
 /* 이 제품의 배송비 구분 — 「선불」이라고 적어 둔 제품만 선불, 나머지는 착불. */
-function feeOf(code){ return ((GIFTS[code]||{}).fee==="선불") ? "선불" : "착불"; }
+function feeOf(code){ return ((giftRow(code)||{}).fee==="선불") ? "선불" : "착불"; }
 function isPrepaid(code){ return feeOf(code)==="선불"; }
 
 /* ══════════ 합배송 — 한 상자에 몇 개까지 (2026-09-23 담당자 결정) ══════════
@@ -1342,7 +1392,7 @@ function boxCapOf(code){
         예전 문구를 그대로 씁니다. 발주 엑셀도 같은 경우에 안 나누므로,
         고객에게 한 말과 실제 발송이 어긋나지 않습니다.
         ※ 담당자가 「안 정함」으로 둔 사은품은 창구가 1 을 내려보냅니다(=합배송 불가). */
-  const n = Number((GIFTS[code]||{}).box);
+  const n = Number((giftRow(code)||{}).box);
   return (n >= 1) ? n : 0;
 }
 function boxSplit(qty, cap){
@@ -1391,7 +1441,12 @@ const CONSENT_DENY_DEFAULT =
 let COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 발송</b>(기프티쇼비즈)됩니다. 발송일: 매주 월요일(월요일 신청 건은 익주 월요일). 사용 기한: 수령 후 30일, 경과 후 재발송이 어렵습니다.";
 /* ============================================================ */
 
-const state={type:null,category:"주방가전",product:null,file:null,serialPrefix:"",
+/* 🔴 한달 사용후기(2026-10): 카드는 「month」이지만 접수 유형(type)은 포토리뷰와 같은 「review」이고, event:"month" 표시만 더합니다.
+   card = 고객이 누른 카드(review·coupang·month), event = "month" 또는 "". 서버 eventApi 의 evKey 와 같은 규칙입니다.
+   켜기·카드 이름·안내·대상 제품·사은품은 관리자 「한달 사용후기」 메뉴(서버 getConfig 의 month)에서 받습니다.
+   못 받았거나 꺼져 있으면 카드는 숨겨져 있습니다(기본 꺼짐). */
+let MONTH={on:false,title:"",note:"",gifts:{}};
+const state={type:null,card:"",event:"",category:"주방가전",product:null,file:null,serialPrefix:"",
   vTab:"np",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
   files:[],          // 포토리뷰 캡처 여러 장 (2026-09-22) — state.file 은 그중 첫 장
   srcByCode:{},buyByCode:{},        // 원장의 판매처·구매일자 (프로모션 판단용)
@@ -1467,9 +1522,11 @@ function getFlow(){
   if(state.type==="review"){
     // 구매 확인으로 제품이 자동 확정되므로, 여러 제품을 사신 경우에만 제품 선택 단계를 넣는다
     // 참여 안내 및 동의 → 참여 설문 → (제품 선택) → 제품 사용 설문 → 받으실 정보
-    const f=["type","invoice","consent","entry"];
+    /* 한달 사용후기는 설문(참여 설문·제품 설문) 없이 구매 확인 → 동의 → (제품 선택) → 정보 → 확인입니다. */
+    const mo=state.event==="month";
+    const f=mo?["type","invoice","consent"]:["type","invoice","consent","entry"];
     if(!state.invOk || state.prodCodes.length>1) f.push("product");
-    if(surveyOf(state.product)) f.push("survey");
+    if(!mo && surveyOf(state.product)) f.push("survey");
     f.push("info"); f.push("confirm"); return f; }
   /* 쿠팡 정품등록 — 원장에 구매 정보가 없어 조회 화면이 없는 대신,
      제품 사용 설문 다음에 「구매 내역 확인」(주문목록 캡처)을 받고 S/N을 등록합니다. */
@@ -1518,6 +1575,7 @@ function showStep(){
   $("#barFill").style.width = state.type ? Math.round((current+1)/flow.length*100)+"%" : "0";
   document.body.classList.toggle("is-first",first);
   renderStepper(flow,step);
+  if(step==="invoice"){ const mn=$("#monthNote"); if(mn) mn.classList.toggle("hide",state.event!=="month"); }   // 한달 사용후기 안내
   if(step==="product"){ renderCats(); renderProds(); }   // 송장 확인 결과에 따라 목록이 달라질 수 있어 매번 다시 그림
   if(step==="entry") renderEntrySurvey();
   if(step==="survey") renderSurvey();
@@ -1559,8 +1617,12 @@ $$(".type").forEach(t=>t.addEventListener("click",()=>{
   /* 2026-10-06 — 접수 유형을 「바꾸면」 앞 유형에서 고른 제품·S/N·사진·구매 확인을 비웁니다.
      예전에는 남아 있어서 포토리뷰 캡처가 쿠팡 S/N 사진으로 쓰이는 일이 있었습니다.
      같은 유형을 다시 누른 것이면 그대로 둡니다. 이름·연락처·이메일·주소는 같은 분이라 남깁니다. */
-  if(state.type && state.type!==t.dataset.type) clearForTypeChange();
-  state.type=t.dataset.type;
+  /* 카드가 바뀌면(포토리뷰 ↔ 한달 사용후기 포함) 앞 카드의 구매 확인 결과를 비웁니다 —
+     참여한 횟수를 이벤트별로 따로 세기 때문에 조회 결과를 서로 쓰면 안 됩니다. */
+  const card=t.dataset.type;
+  if(state.card && state.card!==card) clearForTypeChange();
+  state.card=card; state.type=(card==="month")?"review":card; state.event=(card==="month")?"month":"";
+  if(syncCfg()){ try{ applyConfig(); }catch(e){ console.warn(e); } }   // 한달 사용후기는 전용 문구·동의 항목, 아니면 기본 설정
   $$(".type").forEach(x=>x.classList.remove("on")); t.classList.add("on");
   hideErr("err-type"); applyType();
 }));
@@ -2393,6 +2455,7 @@ async function lookupPurchase(){
   const tab=state.vTab||"np", btn=$("#invBtn");
   clearLookup();
   const payload={action:"lookupOrder",tab}; let typed={};
+  const isMo=state.event==="month"; if(isMo) payload.event="month";   // 한달 사용후기: 대상 제품만, 참여 횟수는 포토리뷰와 따로
   if(tab==="np"){
     const nm=$("#vName").value.trim(), ph=$("#vPhone").value.trim();
     if(!nm||phoneDigits(ph).length<10){ ivNotice(MSGH("needNamePhone","성함과 연락처를 모두 정확히 입력해 주세요.\n두 가지가 모두 일치해야 조회됩니다.")); return; }
@@ -2414,6 +2477,18 @@ async function lookupPurchase(){
       const why=(res&&res.reason)||"server";
       if(why==="rate"){
         ivNotice(MSGH("rate","조회를 너무 여러 번 시도하셨습니다.\n잠시 후 다시 시도해 주세요.")+(MSGK("rate",true)?ivKakao():""));
+        return;
+      }
+      if(why==="closed"){
+        ivNotice(rich("현재 한달 사용후기 이벤트는 접수하지 않습니다.\n다른 이벤트는 처음 화면에서 선택해 주세요.")+(MSGK("noTarget",true)?ivKakao():""));
+        return;
+      }
+      if(why==="notarget" && isMo){
+        /* 한달 사용후기는 설정 문구가 포토리뷰 기준이라 쓰지 않고, 대상 제품을 직접 알려 드립니다. */
+        const nm=(res.skipped||[]).join(", ");
+        ivNotice((nm?rich(fill("구매하신 {{○○}} 제품은 한달 사용후기 이벤트 대상이 아닙니다.",[nm]))+"<br>":"")
+          +rich("한달 사용후기는 대상 제품 구매 고객만 참여하실 수 있습니다.\n다른 이벤트는 처음 화면에서 선택해 주세요.")
+          +(MSGK("noTarget",true)?ivKakao():""));
         return;
       }
       if(why==="notarget"){
@@ -2489,7 +2564,7 @@ async function lookupPurchase(){
     /* 이벤트를 안 하는 제품과 중고·리퍼는 이유가 달라서 문구를 따로 씁니다.
        두 문구 모두 ○○ 자리에 제품 이름이 들어갑니다(안 쓰셔도 됩니다). */
     const outLine = outNames
-      ? rich(fill(MSGT("skippedSome","※ {{○○}} 은(는) 이번 포토리뷰 이벤트를 진행하지 않아 제외되었습니다."),[outNames])) : "";
+      ? rich(fill(isMo?"※ {{○○}} 은(는) 한달 사용후기 이벤트 대상이 아니라 제외되었습니다.":MSGT("skippedSome","※ {{○○}} 은(는) 이번 포토리뷰 이벤트를 진행하지 않아 제외되었습니다."),[outNames])) : "";
     const usedLine = usedNames
       ? rich(fill(MSGT("skippedUsed","※ 중고·리퍼로 구매하신 상품은 포토리뷰 참여 대상이 아닌 점 참고 부탁드립니다."),[usedNames])) : "";
     const outHtml = (outLine || usedLine)
@@ -2762,7 +2837,7 @@ async function lookupParticipation(){
       +'</div>';return;}
     const MSG='margin-top:9px;font-size:12.5px;color:var(--sub);line-height:1.55';
     box.innerHTML=`<div class="cpempty" style="border-style:solid;color:var(--ink)"><b>${esc(name)}</b> 님 · 참여 ${list.length}건</div>`+
-      list.map(e=>{const st=custStatus(e);const tp=e.type==="coupang"?"쿠팡 정품등록":"포토리뷰";
+      list.map(e=>{const st=custStatus(e);const tp=e.type==="coupang"?"쿠팡 정품등록":(e.event==="month"?"한달 사용후기":"포토리뷰");
         let h=`<div class="cpcard"><b>${esc(prodNameOf(e.product))}</b> · ${tp}<span class="cpbadge ${st.cls}">${st.label}</span>`;
         /* 🔴 메인 채널 하나 (2026-09-22) — 예전에는 제품군별로 갈라 보냈습니다. */
         const url=safeHref(kakaoUrl());
@@ -2791,7 +2866,7 @@ async function lookupParticipation(){
             +(MSGK(sKey,true)?kakao:"")+`</div>`;
         } else if(st.cls==="wait"){
           // 정상 접수 · 아직 미발송
-          const ev=e.type==="coupang"?"쿠팡 로켓배송 정품등록":"포토리뷰 이벤트";
+          const ev=e.type==="coupang"?"쿠팡 로켓배송 정품등록":(e.event==="month"?"한달 사용후기 이벤트":"포토리뷰 이벤트");
           const what=e.rewardType==="coupon"?"기프티콘":"사은품";
           /* 🔴 예약발송 제품이면 초록 문구를 **갈아끼웁니다** (2026-09-22 2차).
                 1차에서는 아래에 주황 상자로 덧붙였는데, 그러면 한 화면에서
@@ -2876,7 +2951,7 @@ function renderConfirm(){
         유형·제품은 앞 단계에서 정해지는 값이라, 여기서 되돌리면 앞서 고른 사은품·설문이
         함께 초기화되어 고객이 처음부터 다시 해야 합니다. */
   h += '<div class="ckgrp"><div class="gh">신청 내용</div>'
-     + ckRow("유형", CK_TYPE[state.type] || state.type, "", "", "")
+     + ckRow("유형", (state.event==="month" ? "한달 사용후기 작성" : (CK_TYPE[state.type] || state.type)), "", "", "")
      + ckRow("제품", prodNameOf(state.product) || "-", "", "", "")
      + ckRow(coupon ? "상품권" : "사은품", gift || "-", fee, "", "")
      + '</div>';
@@ -2976,6 +3051,7 @@ async function submit(){
   const btn=$("#submitBtn"); btn.disabled=true; btn.textContent="확인 중…";
   const review=state.type==="review";
   const entry={type:state.type,name:$("#name").value.trim(),phone:$("#phone").value.trim(),phoneKey:normPhone($("#phone").value),
+    ...(state.event==="month"?{event:"month"}:{}),      // 한달 사용후기 표시(서버가 다시 정합니다)
     email:$("#email").value.trim().toLowerCase(),
     consent:{...state.consent,agreedAt:new Date().toISOString()},
     status:"pending",createdAt:new Date().toISOString()};
@@ -3121,7 +3197,7 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
         :"")+`</div>`;
   }
   let kv=head
-    +`<div><b>유형</b> ${review?"포토리뷰 이벤트":"쿠팡·로켓배송 정품 등록"}</div>`
+    +`<div><b>유형</b> ${review?(state.event==="month"?"한달 사용후기 이벤트":"포토리뷰 이벤트"):"쿠팡·로켓배송 정품 등록"}</div>`
     +`<div><b>제품</b> ${esc(pname)}</div>`
     +(e.giftItem?`<div><b>${e.rewardType==="coupon"?"상품권":"사은품"}</b> ${esc(e.giftItem)}${q>1?` · ${q}개`:""}</div>`:``)
     +(e.orderNo?`<div><b>주문번호</b> ${esc(e.orderNo)}</div>`:``)
@@ -3206,12 +3282,13 @@ window.continueEntry=continueEntry;
 /* 검사 스크립트용 — 담당자가 저장하신 설정을 넣고 화면이 어떻게 나오는지 확인합니다.
    ⚠️ 고객 화면 동작에는 아무 영향이 없습니다. 리포트의 window.EVTCFG 와 같은 용도입니다. */
 window.__EVT_TEST = {
-  setCfg(c){ CFG = c; try{ applyConfig(); }catch(e){ console.warn(e); } },
+  setCfg(c){ CFG = c; CFG_BASE = c; syncCfg(); try{ applyConfig(); }catch(e){ console.warn(e); } },
   notice: (k,d,v,t) => showNotice(k,d,v,t),
   apiErr: r => showApiErr(r)
 };
 function resetForm(){
-  state.type=null;state.category="주방가전";state.file=null;state.files=[];state.buyFile=null;
+  state.type=null;state.card="";state.event="";state.category="주방가전";state.file=null;state.files=[];state.buyFile=null;
+  if(syncCfg()){ try{ applyConfig(); }catch(e){ console.warn(e); } }     // 한달 사용후기 전용 문구를 쓰고 있었으면 원래 문구로
   clearLookup(); state.surveyKeep=null; state.doneCodes=[]; state.vTab="np";
   ["#vName","#vPhone","#vOrd","#vInv"].forEach(s=>{const el=$(s);if(el)el.value="";});
   {const b=$("#invResult");if(b)b.innerHTML="";}
@@ -3361,6 +3438,7 @@ function showPaused(message){
 function showConnError(){ showPaused(""); }     /* 서버 연결 오류도 같은 문구·같은 팝업 */function showApiErr(reason, res){
   if(reason==="paused"){ showPaused(res && res.message); return; }
   if(reason==="unavailable"){ showConnError(); return; }
+  if(reason==="closed"){ showNotice("closed","현재 한달 사용후기 이벤트는 접수하지 않습니다.\n다른 이벤트는 처음 화면에서 선택해 주세요."); return; }
   if(reason==="image" && state.type==="coupang") reason="imageSn";
   const [key, dflt] = (reason && Object.prototype.hasOwnProperty.call(API_ERR, reason) && API_ERR[reason]) || API_ERR_ELSE;
   showNotice(key, dflt);

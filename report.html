@@ -1936,6 +1936,8 @@ const REASON_RULES=[
                                                                                  text:()=>"별점 미확인 (캡처에 별점 없음)"},
   {key:"rating",   label:"별점 미달",       hit:e=>e.aiRatingPass===false&&e.aiPersonalRating!=null&&shipStatus(e)!=="review",
                                                                                  text:e=>`별점 미달 (${e.aiPersonalRating}점)`},
+  /* 한달 사용후기(2026-10-19): 리뷰에 「한달사용」 표시가 없으면 부적합(서버 index.js reviewVerdict). 서버 ordersApi 와 같은 문구 */
+  {key:"nomonth",  label:"한달 사용 표기 없음", hit:e=>e.event==="month"&&e.aiMonthMark===false, text:()=>"한달 사용 표기 없음 (리뷰에 「한달사용」 없음)"},
 ];
 /* 부적합 탭 드롭다운 필터용 대표 사유 1개 (위 순서 그대로) */
 function badReasonType(e){const r=REASON_RULES.find(r=>r.hit(e));return r?r.key:"";}
@@ -1949,6 +1951,7 @@ function reasonOf(e){
       if(buyUnread(e)) return "구매내역 판독 불가";
       return e.aiSerialMatch===false ? "S/N 불일치" : "S/N 판독 불가";
     }
+    if(e.event==="month" && e.aiMonthMark==null) return "한달 사용 표기 판독 불가";
     return "별점 판독 불가";
   }
   // ② 아직 심사 전
@@ -7599,7 +7602,7 @@ const DEFAULTS = {
   /* 🔴 한달 사용후기 (2026-10) — 접수폼의 「한달 사용후기」 카드. 처음에는 꺼져 있어 고객에게 보이지 않습니다.
      items = 대상 제품(접수폼 제품 코드)과 그 제품의 사은품. 포토리뷰 「제품·사은품」과 따로입니다.
      ⚠️ 사은품 이름이 빈 제품은 대상에서 빠집니다(서버 monthPublic). 이름은 접수폼 사은품 사진 파일 이름과 같게 적습니다. */
-  month: { on:false, title:"한달 사용후기", note:"",
+  month: { on:false, title:"한달 사용후기", sub:"아이닉 스마트스토어 구매 고객 이벤트", sources:"스마트스토어", note:"",
     items:[ { code:"iFD01-H", gift:"밀폐키친홀더 iFD01", type:"gift",   shipFee:"착불", box:1 },
             { code:"iFD01-F", gift:"활성탄필터 iFD01",   type:"gift",   shipFee:"착불", box:1 },
             { code:"iEK01",   gift:"배민 3,000원",       type:"coupon" } ] },
@@ -8015,10 +8018,16 @@ function fixMonthForm(c){
     c.month = JSON.parse(JSON.stringify(DEFAULTS.month)); delete c.month.form; delete c.month.cover;
   }
   const m = c.month;
+  /* 2026-10-19 추가 칸 — 이미 저장된 설정에는 없으므로 채웁니다(저장본·편집본 둘 다 같게 채우므로 「변경」으로 안 보입니다) */
+  if(typeof m.sub !== "string") m.sub = DEFAULTS.month.sub;
+  if(typeof m.sources !== "string") m.sources = DEFAULTS.month.sources;
   if(!m.form || typeof m.form !== "object") m.form = monthFormFrom(c);
+  if(!m.form.pick || typeof m.form.pick !== "object") m.form.pick = JSON.parse(JSON.stringify(DEFAULTS.month.form.pick));
   if(!m.cover || typeof m.cover !== "object"){ const s = c.survey || {}; m.cover = { title:String(s.title || ""), desc:String(s.desc || "") }; }
 }
 DEFAULTS.month.form = monthFormFrom(DEFAULTS);
+/* 제품(사은품) 선택 화면 — 음식물처리기처럼 사은품 2종 중 하나를 고르는 고객에게 보이는 글(담당자 요청 2026-10-19) */
+DEFAULTS.month.form.pick = { title:"구매하신 제품", desc:"한달리뷰 사은품 2종 중 원하시는 사은품 1개를 선택해 주세요." };
 DEFAULTS.month.cover = { title:String((DEFAULTS.survey || {}).title || ""), desc:String((DEFAULTS.survey || {}).desc || "") };
 
 let cfg = clone(DEFAULTS);
@@ -8919,6 +8928,7 @@ function paneForm(){
     el("div", { class:"pad" },
       /* 표지 — 고객이 접수폼을 열면 맨 처음 보는 제목·설명. 2026-10 부터 접수폼에 실제로 연결됩니다. */
       MF ? linkedField("month.title", "첫 화면 카드 이름 (30자 이내)", { src:"카드" }) : "",
+      MF ? linkedField("month.sub", "첫 화면 카드 설명 (카드 이름 아래 작은 글, 비우면 안 보임)", { src:"카드" }) : "",
       linkedField(CP + ".title", "표지 · 큰 제목", { src:"cover.title" }),
       linkedField(CP + ".desc",  "표지 · 설명",    { src:"cover.desc", rows:2, rich:true }),
       el("div", { class:"fmeta" }, "접수 기간", el("b", { style:"color:var(--ink)" }, "이벤트 기간과 동일")))));
@@ -9003,6 +9013,16 @@ function paneForm(){
             yes:"동의합니다", yesSub:"", no:"동의하지 않습니다", noSub:"" });
           sel = "consent"; render();
         } }, "+ 동의 항목 추가")))]));
+
+  /* 제품(사은품) 선택 — 한달 사용후기 전용. 여러 제품(음식물처리기의 사은품 2종 포함)을 산 고객에게 보이는 화면 */
+  if(MF){
+    form.append(card("pick", ++n, (F.pick || {}).title || "구매하신 제품", "제품(사은품) 선택", [
+      el("div", { class:"fbody" },
+        el("div", { class:"lfbox" },
+          el("div", { class:"lft" }, "여러 제품을 산 고객 · 음식물처리기(사은품 2종 택1)처럼 고르는 제품에서 보이는 글"),
+          linkedField(FP + ".pick.title", "제품 선택 화면 · 제목"),
+          linkedField(FP + ".pick.desc",  "제품 선택 화면 · 설명", { rows:2, rich:false, hint:"예) 한달리뷰 사은품 2종 중 원하시는 사은품 1개를 선택해 주세요." })))]));
+  }
 
   /* 2 공통 설문 — 한달 사용후기는 설문이 없어 이 아래 두 묶음(공통·제품)을 건너뜁니다 */
   if(!MF){
@@ -9245,9 +9265,10 @@ function buildToc(node){
     node.append(tocCard("cover", "0", "표지 · 카드 이름"));
     node.append(tocCard("lookup", "1", "구매 확인"));
     node.append(tocCard("consent", "2", (M.consent || {}).title || "참여 안내 및 동의"));
+    node.append(tocCard("pick", "3", (M.pick || {}).title || "구매하신 제품"));
     node.append(el("div", { class:"tgrp" }, "그 다음"));
-    [["reward", "3", "받으실 사은품 안내"], ["capture", "4", (M.capture || {}).title || "리뷰 캡처 이미지"],
-     ["info", "5", (M.info || {}).title || "받으실 정보"], ["confirm", "6", (M.confirm || {}).title || "신청 확인"]]
+    [["reward", "4", "받으실 사은품 안내"], ["capture", "5", (M.capture || {}).title || "리뷰 캡처 이미지"],
+     ["info", "6", (M.info || {}).title || "받으실 정보"], ["confirm", "7", (M.confirm || {}).title || "신청 확인"]]
       .forEach(([id, no, t]) => node.append(tocCard(id, no, t)));
     return;
   }
@@ -10331,6 +10352,23 @@ function paneMonth(){
         m.on === true ? "한달 후기 운영" : "한달 후기 미운영")),
     m.on === true && !valid.length
       ? el("div", { class:"nbox warn" }, "운영으로 켜져 있지만 사은품이 있는 제품이 없어 고객에게는 아직 열리지 않습니다.") : "",
+    el("div", { class:"imgsec" },
+      el("h3", {}, "접수 대상"),
+      el("div", { class:"field" },
+        el("label", { for:"moLink" }, "알림톡에 넣을 전용 링크 — 이 링크로 들어온 고객에게만 「한달 사용후기」 카드가 보입니다"),
+        el("div", { style:"display:flex;gap:8px;flex-wrap:wrap" },
+          el("input", { type:"text", id:"moLink", readonly:"", class:"mono", style:"flex:1 1 320px",
+            value:((typeof FORM_URL === "string") ? FORM_URL : "https://inic01.github.io/inic-event/") + "?event=month", "aria-label":"한달 사용후기 전용 링크" }),
+          el("button", { type:"button", class:"btn", onclick:e => { const i = document.getElementById("moLink"); i.select();
+            try{ navigator.clipboard.writeText(i.value); e.target.textContent = "복사됨"; setTimeout(() => { e.target.textContent = "링크 복사"; }, 1500); }
+            catch(err){ document.execCommand && document.execCommand("copy"); } } }, "링크 복사")),
+        el("p", { class:"hint", style:"margin:6px 0 0" }, "일반 접수 주소로 들어온 고객에게는 운영으로 켜 두어도 카드가 보이지 않습니다. 링크 끝의 ", el("code", {}, "?event=month"), " 를 빼면 안 됩니다.")),
+      el("div", { class:"field" },
+        el("label", { for:"moSrc" }, "대상 구매처 (원장 판매처 기준)"),
+        el("input", { type:"text", id:"moSrc", value:m.sources || "", placeholder:"스마트스토어", "aria-label":"대상 구매처",
+          oninput:e => { m.sources = e.target.value; softRefresh(); } }),
+        el("p", { class:"hint", style:"margin:6px 0 0" }, "원장의 판매처에 이 글자가 ", el("b", {}, "들어 있는"), " 구매만 참여할 수 있습니다(예: 스마트스토어 → 「풀필먼트(스마트스토어)」도 포함). ",
+          "쉼표로 여러 개 적을 수 있고, 비우면 모든 구매처가 가능합니다. 판매처를 알 수 없는 구매는 제한이 있으면 참여할 수 없습니다."))),
     el("div", { class:"imgsec", style:"overflow-x:auto" },
       el("h3", {}, "한달 후기 사은품"),
       el("p", { class:"hint" }, "같은 제품이라도 ", el("b", {}, "구매 수량만큼"), " 참여할 수 있고, 포토리뷰 참여와 따로 셉니다. ",
@@ -10583,7 +10621,7 @@ function difLabel(path){
     return "접수폼 · " + sec + (rest.length ? " · " + rest.join(" · ") : "");
   }
   if(h === "month"){
-    const F = { on:"운영 켜기", title:"카드 이름", note:"구매 확인 안내 상자" };
+    const F = { on:"운영 켜기", title:"카드 이름", sub:"카드 설명", sources:"대상 구매처", note:"구매 확인 안내 상자" };
     if(r[0] === "cover") return "한달 사용후기 접수폼 · 표지 · " + ({ title:"큰 제목", desc:"설명" }[r[1]] || r[1]);
     if(r[0] === "form"){
       const sec = DIF_FORM[r[1]] || r[1];
@@ -10607,7 +10645,7 @@ function difSec(path){
   if(h === "survey") return "form:cover";
   if(h === "products") return "gift";
   if(h === "giftRules") return "rule";
-  if(h === "month") return (path[1] === "form" || path[1] === "cover" || path[1] === "title" || path[1] === "note") ? "form" : "month";
+  if(h === "month") return (path[1] === "form" || path[1] === "cover" || path[1] === "title" || path[1] === "note" || path[1] === "sub") ? "form" : "month";
   if(h === "entrySurvey" || h === "surveys") return "form:entry";
   if(h === "ratingSrcs") return "rules";
   if(h === "kakaoMain" || h === "kakao") return "channel";

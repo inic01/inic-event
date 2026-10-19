@@ -831,6 +831,11 @@
   .pill.needreview,.pill.coupon{color:var(--warnfg)}
   .pill.pending,.pill.unshipped,.pill.review{color:var(--sub)}
   .pill.approved,.pill.accent,.pill.reserved,.pill.manual,.pill.coupang{color:var(--in-primary)}
+  /* 유형 칩(typePill) — 포토리뷰 연한 초록 · 쿠팡 정품등록 연한 파랑 · 한달 사용후기 연한 주황 (2026-10-19 담당자 요청: 한달 사용후기만 색이 있어 혼자 튀었음) */
+  .pill.tp{padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .pill.tp.review{background:#e4f4ea;color:#2a7d4b}
+  .pill.tp.coupang{background:#e1edfc;color:#2563a8}      /* ⚠️ 변수 --blue 는 이 화면 테마에서 회색(#52606D)이라 쓰지 않습니다 */
+  .pill.tp.month{background:#fff3e0;color:#b45309}
   .shipbig.resv{background:var(--in-primary-tint);color:var(--in-primary)}
   .shipbig.wait{background:var(--sunk2);color:var(--sub)}
 
@@ -2222,7 +2227,7 @@ function shippedDate(e){const t=e.shippedAt;if(!t)return "-";let d=null;
 /* 🔴 2026-10-19 — 유형 칸에는 「한달 사용후기」가 하나의 유형으로 나옵니다(포토리뷰 딱지를 겹쳐 붙이지 않음).
    목록·상세·내보내기(CSV)·전체 엑셀(서버 ordersApi)이 같은 글자를 씁니다. */
 const MONTH_TYPE_LABEL="한달 사용후기";
-function typePill(e){ return e && e.event==="month" ? `<span class="pill month">${MONTH_TYPE_LABEL}</span>` : `<span class="pill ${clsType(e.type)}">${TYPE_LABEL[clsType(e.type)]||admEsc(e.type)}</span>`; }
+function typePill(e){ return e && e.event==="month" ? `<span class="pill tp month">${MONTH_TYPE_LABEL}</span>` : `<span class="pill tp ${clsType(e.type)}">${TYPE_LABEL[clsType(e.type)]||admEsc(e.type)}</span>`; }
 function typeText(e){ return (e && e.event==="month") ? MONTH_TYPE_LABEL : (TYPE_LABEL[e.type] || e.type || ""); }
 const TYPE_COL=["유형",typePill];
 const MONO='font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;letter-spacing:.2px';

@@ -2299,12 +2299,18 @@ function svSum(rows){return rows.reduce((a,r)=>a+r[1],0);}
 
 /* 접수 데이터 → 제품별 문항별 집계.
    '기타: 직접입력' 답변은 통계에서는 '기타' 하나로 묶고, 입력 내용은 따로 모아 아래에 보여준다. */
+/* 사은품만 다른 같은 제품(음식물처리기 iFD01-H 밀폐키친홀더 / iFD01-F 활성탄필터)은 설문이 같으므로 한 제품으로 합쳐 봅니다(담당자 확인 2026-10-19).
+   ⚠️ 접수 서버 eventApi 의 PICK_GROUPS · 접수폼 index 의 PICK_GROUPS 와 같은 형제 코드입니다 — 제품이 늘면 같이 고치세요. */
+const SV_GROUP={"iFD01-H":"iFD01","iFD01-F":"iFD01"};
+const SV_GROUP_NAME={"iFD01":"음식물처리기 iFD01"};
 function svBuild(){
   const out={};
   ALL.forEach(e=>{
+    /* 한달 사용후기는 설문이 없어(구매 확인·동의만) 설문 통계에서 뺍니다 — 넣으면 접수 건수와 판매처 칸만 늘어나 설문 응답 수와 어긋납니다 */
+    if(e.event==="month") return;
     // 포토리뷰·쿠팡 정품등록 모두 같은 설문을 받으므로 제품 기준으로 합쳐서 집계한다
-    const code=e.product||"(미상)";
-    const p=out[code]||(out[code]={code,name:e.productName||code,n:0,q:{},order:[]});
+    const raw=e.product||"(미상)", code=SV_GROUP[raw]||raw;
+    const p=out[code]||(out[code]={code,name:SV_GROUP_NAME[code]||e.productName||code,n:0,q:{},order:[]});
     p.n++;
     const put=(q,a)=>{
       if(!p.q[q]){ p.q[q]={cnt:{},etc:{}}; p.order.push(q); }

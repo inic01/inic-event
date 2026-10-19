@@ -128,6 +128,7 @@
   .pill{font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;white-space:nowrap}
   .pill.gift{background:#eaf3ee;color:var(--ok)} .pill.coupon{background:#fdf0e3;color:var(--warn)}
   .pill.review{background:#eef1f5;color:#4a5568} .pill.coupang{background:#e9f0fb;color:var(--blue)}
+  .pill.month{background:#fff3e0;color:#b45309}   /* 한달 사용후기 딱지 */
   .pill.eligible{background:#eaf3ee;color:var(--ok)} .pill.ineligible{background:#fdeaea;color:var(--bad)}
   .pill.needreview{background:#fdf0e3;color:var(--warn)} .pill.pending{background:#eef1f5;color:#8a827c}
   .pill.manual{background:#e9f0fb;color:var(--blue)} .pill.shipped{background:#eaf3ee;color:var(--ok)}
@@ -1832,7 +1833,7 @@ let PRODREWARD={}, SOURCES=[], PNAME={}, dupIds=new Set(), dupReasonMap={};
       그래서 상자가 몇 개로 나뉘는지를 **미리 정해 두고** 안내와 발주를 맞춥니다.
    ⚠️ 합배송은 설정값이 **확인된** 사은품만 합니다(2026-10-07 대표 확정).
       「안 정함」 · 설정 목록에 코드 없음 · 설정을 못 읽음(BOXCAP_OK=false)은 모두 「설정 안 함」이라 **1개씩 별도 행**으로 냅니다. */
-let BOXCAP={}, BOXCAP_OK=false;
+let BOXCAP={}, BOXCAP_M={}, BOXCAP_OK=false;      // BOXCAP_M = 한달 사용후기 사은품의 합배송(코드별)
 /* 수량을 상자로 나눕니다 — 접수폼(index.html)의 같은 이름 함수와 계산이 **똑같아야** 합니다 */
 function boxSplit(qty, cap){
   const n=Math.max(1,Number(qty)||1), c=Number(cap)||0;
@@ -2044,8 +2045,14 @@ async function loadData(){
         const n=Number(p2.box), c=(n>=1)?n:1;
         (Array.isArray(p2.codes)?p2.codes:[]).forEach(c2=>{ if(c2) m[c2]=c; });
       });
-      BOXCAP=m; BOXCAP_OK=true;
-    }catch(e){ console.warn("합배송 설정을 못 읽었습니다 — 줄을 나누지 않습니다", e); BOXCAP={}; BOXCAP_OK=false; }
+      /* 한달 사용후기는 사은품·합배송을 따로 정합니다(고객 화면도 그 값으로 안내) — 발주 엑셀도 같은 값으로 끊습니다 */
+      const mm={};
+      ((raw&&raw.month&&Array.isArray(raw.month.items))?raw.month.items:[]).forEach(it=>{
+        if(!it||!it.code||it.type==="coupon")return;
+        const n=Number(it.box); mm[it.code]=(n>=1)?n:1;
+      });
+      BOXCAP=m; BOXCAP_M=mm; BOXCAP_OK=true;
+    }catch(e){ console.warn("합배송 설정을 못 읽었습니다 — 줄을 나누지 않습니다", e); BOXCAP={}; BOXCAP_M={}; BOXCAP_OK=false; }
     $("#asof").textContent="기준 "+new Date().toLocaleString("ko-KR")+" · 총 "+ALL.length+"건";
     buildCatalog();renderManualSelects();renderReserveConfig();renderActiveTab();
     /* 마케팅 활용 인원도 같이 다시 셉니다.
@@ -2100,8 +2107,10 @@ function buildCatalog(){
    수기접수 건은 처음부터 제외합니다. */
 function computeDups(){
   dupIds = new Set(); dupReasonMap = {};
-  ["review","coupang"].forEach(t=>{
-    const rows = ALL.filter(e=>e.type===t && !e.manual).slice()
+  /* 🔴 한달 사용후기는 포토리뷰와 따로 셉니다(둘 다 받을 수 있음) — 서버 eventApi 의 「M:」 열쇠와 같은 규칙.
+        「month」는 유형(type)이 아니라 포토리뷰(review) 중 event:"month" 인 건입니다. */
+  [["review", e=>e.type==="review" && e.event!=="month"], ["month", e=>e.type==="review" && e.event==="month"], ["coupang", e=>e.type==="coupang"]].forEach(([t, inGroup])=>{
+    const rows = ALL.filter(e=>inGroup(e) && !e.manual).slice()
       .sort((a,b)=>(a._date?.getTime()||0)-(b._date?.getTime()||0));
     const keyOf = e=>{
       const prod  = String(e.product||"").trim();
@@ -2205,7 +2214,14 @@ function shippedDate(e){const t=e.shippedAt;if(!t)return "-";let d=null;
   if(t.toDate)d=t.toDate();else if(typeof t==="object"&&t.seconds!=null)d=new Date(t.seconds*1000);else if(typeof t==="string")d=new Date(t);
   return d&&!isNaN(d)?fmtDate(d):"-";}
 /* 공통 컬럼 — 세 번째 값은 td/th class (wrapcell = 줄바꿈 허용) */
-const TYPE_COL=["유형",e=>`<span class="pill ${clsType(e.type)}">${TYPE_LABEL[clsType(e.type)]||admEsc(e.type)}</span>`];
+/* 🔴 한달 사용후기(2026-10): 접수 유형은 포토리뷰(review)와 같고 event:"month" 표시만 다릅니다.
+   목록·상세에는 「한달리뷰」 딱지를 더 붙이고, 중복 표시(computeDups)는 포토리뷰와 따로 셉니다(서버 eventApi 의 evKey 와 같은 규칙). */
+/* 🔴 2026-10-19 — 유형 칸에는 「한달 사용후기」가 하나의 유형으로 나옵니다(포토리뷰 딱지를 겹쳐 붙이지 않음).
+   목록·상세·내보내기(CSV)·전체 엑셀(서버 ordersApi)이 같은 글자를 씁니다. */
+const MONTH_TYPE_LABEL="한달 사용후기";
+function typePill(e){ return e && e.event==="month" ? `<span class="pill month">${MONTH_TYPE_LABEL}</span>` : `<span class="pill ${clsType(e.type)}">${TYPE_LABEL[clsType(e.type)]||admEsc(e.type)}</span>`; }
+function typeText(e){ return (e && e.event==="month") ? MONTH_TYPE_LABEL : (TYPE_LABEL[e.type] || e.type || ""); }
+const TYPE_COL=["유형",typePill];
 const MONO='font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;letter-spacing:.2px';
 /* 정품등록은 '고객 입력 S/N'과 'AI가 이미지에서 읽은 S/N'을 나란히 보여줘야 담당자가 바로 비교 가능 */
 const SN_COL=["S/N (입력 / AI판독)",e=>{
@@ -2243,9 +2259,10 @@ function renderTableAll(){
 function renderReport(){renderTiles();aggTable("#byProduct",e=>e.product);aggTable("#bySource",e=>e.source);renderSurvey();}
 function renderTiles(){
   const a=ALL;
-  const review=a.filter(e=>e.type==="review").length,coupang=a.filter(e=>e.type==="coupang").length;
+  const month=a.filter(e=>e.type==="review"&&e.event==="month").length;
+  const review=a.filter(e=>e.type==="review").length-month,coupang=a.filter(e=>e.type==="coupang").length;
   const elig=a.filter(isEligible).length,inelig=a.filter(e=>shipStatus(e)==="ineligible").length,needr=a.filter(e=>shipStatus(e)==="review").length;
-  const tiles=[["총 참여",a.length,"",""],["포토리뷰",review,"",""],["쿠팡 정품등록",coupang,"",""],
+  const tiles=[["총 참여",a.length,"",""],["포토리뷰",review,"",""],["한달 사용후기",month,"",""],["쿠팡 정품등록",coupang,"",""],
     ["적격",elig,"","ok"],["부적합",inelig,"","bad"],["확인필요",needr,"검토대상","warn"]];
   $("#tiles").innerHTML=tiles.map(([l,v,s,c])=>`<div class="tile ${c||""}"><div class="lbl">${l}</div><div class="val">${v}<small> ${s||""}</small></div></div>`).join("");
 }
@@ -3306,7 +3323,7 @@ function renderCS(){
     const shipped=e.shipped||e.shipState==="shipped";
     const sb=csShipBadge(e);
     return `<div class="rescard clickable ${shipped?"shipped":""}" data-act="detail" data-id="${admEsc(e._id)}"><div style="flex:1">
-      <div class="who">${admEsc(e.name||"(이름없음)")} <span class="pill ${clsType(e.type)}">${TYPE_LABEL[clsType(e.type)]||admEsc(e.type)}</span>${e.manual?' <span class="pill manual">수기</span>':""}</div>
+      <div class="who">${admEsc(e.name||"(이름없음)")} ${typePill(e)}${e.manual?' <span class="pill manual">수기</span>':""}</div>
       <div class="meta">접수일자 ${fmtDate(e._date)} · 출고일자 ${shippedDate(e)}</div>
       <div class="csdetail">
         <div><b>제품</b>${admEsc(e.product||"-")}</div>
@@ -3620,7 +3637,7 @@ function mRenderFind(){
     const doneList = hits.map(e => {
       const st = shipStatus(e), meta = STATUS_META[st] || ["", ""];
       return `<div style="font-size:12px;color:var(--sub);margin-top:3px">
-                · ${fmtDate(e._date)} · ${admEsc(TYPE_LABEL[e.type] || e.type || "")} · ${admEsc(meta[0])}
+                · ${fmtDate(e._date)} · ${admEsc(typeText(e))} · ${admEsc(meta[0])}
                 ${e.manual ? ' <span class="pill" style="background:#f0eeec">수기</span>' : ""}
                 ${e.giftQty > 1 ? ` · 수량 ${e.giftQty}` : ""}</div>`;
     }).join("");
@@ -3716,7 +3733,7 @@ function mcFind(){
         const st = shipStatus(e), meta = STATUS_META[st] || ["", ""];
         return `<tr>
           <td>${fmtDate(e._date)}</td>
-          <td><span class="pill">${admEsc(TYPE_LABEL[e.type] || e.type || "-")}</span></td>
+          <td><span class="pill">${admEsc(typeText(e) || "-")}</span></td>
           <td><b>${admEsc(PNAME[e.product] || e.product || "-")}</b></td>
           <td>${admEsc(e.giftItem || "-")}</td>
           <td>${admEsc(meta[0])}</td>
@@ -4146,7 +4163,7 @@ function downloadRows(rows,baseName,noLog){
   return true;
 }
 function exportAllRows(){
-  return filteredAll().map(e=>({"접수일시":fmtDate(e._date),"유형":TYPE_LABEL[e.type]||e.type,"심사":STATUS_META[shipStatus(e)][0],"출고":SHIP_META[shipStateOf(e)][0],
+  return filteredAll().map(e=>({"접수일시":fmtDate(e._date),"유형":typeText(e),"심사":STATUS_META[shipStatus(e)][0],"출고":SHIP_META[shipStateOf(e)][0],
     "카테고리":e.category||"","제품":e.product||"","보상종류":REWARD_LABEL[e.rewardType]||"","사은품/상품권":e.giftItem||"","판매처":e.source||"",
     "담당자":e.agent||"","주문번호":e.orderNo||"","S/N":e.serial||"","수령인":e.name||"","연락처":e.phone||"","주소":e.address||"",
     "심사사유":reasonOf(e),"수기여부":e.manual?"수기":"",
@@ -4214,9 +4231,10 @@ function aggShipRows(items,feeLabel){
           설정 목록에 코드가 없거나, 설정을 못 읽었거나(BOXCAP_OK=false), 「안 정함」이면 1개씩 별도 행입니다
           (예: 5개 → 수량 1짜리 5행). 합산 수량 한 행으로 내보내지 않습니다.
           서로 다른 사은품 · 다른 고객은 위 묶음 키(연락처+주소+사은품)가 달라 처음부터 따로 행입니다. 상품권은 나누지 않습니다(cap 0). */
-    const capRaw = Number(BOXCAP[e.product]);
+    /* 한달 사용후기 건은 한달 설정의 합배송(BOXCAP_M)으로, 한 묶음에 섞여 있으면 가장 작은 값으로 끊습니다 */
+    const capOf=x=>{ const v=Number((x.event==="month"?BOXCAP_M:BOXCAP)[x.product]); return (BOXCAP_OK && v >= 1) ? v : 1; };
     const isGift = e.rewardType==="gift";
-    const cap = !isGift ? 0 : ((BOXCAP_OK && capRaw >= 1) ? capRaw : 1);
+    const cap = !isGift ? 0 : Math.min(...grp.map(capOf));
     const parts = (cap >= 1) ? boxSplit(qsum, cap) : [qsum];
     parts.forEach(q=>{
       const row={"사이트":"사은품","제품군":e.giftItem||"","수량":q,"이름":e.name||"",
@@ -7578,6 +7596,13 @@ const EXAMPLE_NAME_RE = /^[\w.\- ]+\.(webp|png|jpe?g)$/i;
 const DEFAULTS = {
   /* 접수폼 문구 연결 표식 — 새로 저장하는 설정은 처음부터 연결된 상태입니다 */
   formTextV: FORM_TEXT_V,
+  /* 🔴 한달 사용후기 (2026-10) — 접수폼의 「한달 사용후기」 카드. 처음에는 꺼져 있어 고객에게 보이지 않습니다.
+     items = 대상 제품(접수폼 제품 코드)과 그 제품의 사은품. 포토리뷰 「제품·사은품」과 따로입니다.
+     ⚠️ 사은품 이름이 빈 제품은 대상에서 빠집니다(서버 monthPublic). 이름은 접수폼 사은품 사진 파일 이름과 같게 적습니다. */
+  month: { on:false, title:"한달 사용후기", note:"",
+    items:[ { code:"iFD01-H", gift:"밀폐키친홀더 iFD01", type:"gift",   shipFee:"착불", box:1 },
+            { code:"iFD01-F", gift:"활성탄필터 iFD01",   type:"gift",   shipFee:"착불", box:1 },
+            { code:"iEK01",   gift:"배민 3,000원",       type:"coupon" } ] },
   /* 제품 = 원장 제품군 이름. 사은품이 지정된 것만 이벤트 대상이 됩니다. */
   /* ⚠️ codes 는 접수폼(고객 화면)이 쓰는 제품 코드입니다. 설정에서 고친 사은품·설문이
      어느 제품에 붙는지 이 코드로 이어집니다. 건드리지 마세요.
@@ -7973,6 +7998,29 @@ const DEFAULTS = {
 };
 
 const clone = o => JSON.parse(JSON.stringify(o));
+/* ══════════ 한달 사용후기 접수폼 — 포토리뷰와 따로 저장하는 사본 (2026-10) ══════════
+   cfg.month.form  = 접수 화면별의 카드들(구매 확인·동의·사은품 안내·사진·받으실 정보·신청 확인)을 한달 사용후기 전용으로 둔 것
+   cfg.month.cover = 표지(큰 제목·설명)
+   처음 만들 때는 「지금 저장된 포토리뷰 값」을 그대로 복사합니다 → 고객 화면은 안 바뀌고, 그 뒤부터 서로 영향이 없습니다.
+   ⚠️ 서버 monthPublic 의 허용 목록(lookup·confirm·consent·info·capture·reward·cover)과 같은 칸이어야 접수폼에 내려갑니다. */
+const MONTH_FORM_KEYS = ["lookup", "confirm", "consent", "info", "capture", "reward"];
+function monthFormFrom(c){
+  const f = {}, src = (c && c.form) || {};
+  MONTH_FORM_KEYS.forEach(k => { if(src[k] && typeof src[k] === "object") f[k] = JSON.parse(JSON.stringify(src[k])); });
+  return f;
+}
+function fixMonthForm(c){
+  if(!c) return;
+  if(!c.month || typeof c.month !== "object"){
+    c.month = JSON.parse(JSON.stringify(DEFAULTS.month)); delete c.month.form; delete c.month.cover;
+  }
+  const m = c.month;
+  if(!m.form || typeof m.form !== "object") m.form = monthFormFrom(c);
+  if(!m.cover || typeof m.cover !== "object"){ const s = c.survey || {}; m.cover = { title:String(s.title || ""), desc:String(s.desc || "") }; }
+}
+DEFAULTS.month.form = monthFormFrom(DEFAULTS);
+DEFAULTS.month.cover = { title:String((DEFAULTS.survey || {}).title || ""), desc:String((DEFAULTS.survey || {}).desc || "") };
+
 let cfg = clone(DEFAULTS);
 let tab = "gift";
 let surveyProduct = "무선청소기 맥스제로 i90";
@@ -8563,7 +8611,8 @@ function grpBar(t, d, add){
      포토리뷰  — 구매 확인 → … → 리뷰 캡처 이미지 → 받으실 정보
      쿠팡 정품등록 — 구매 확인 없음 → … → 시리얼번호(S/N) → 받으실 정보          */
 let formType = "review";
-const TYPE_LABEL2 = { review:"포토리뷰 이벤트", coupang:"쿠팡·로켓배송 정품 등록" };
+let monthRewardKind = "gift";      // 한달 사용후기 화면에서 「사은품 안내」 카드로 볼 사은품 종류 (gift · giftPre · coupon)
+const TYPE_LABEL2 = { review:"포토리뷰 이벤트", coupang:"쿠팡·로켓배송 정품 등록", month:"한달 사용후기" };
 
 /* ══════════ 접수폼 미리보기 — 고객이 보는 화면 그대로 ══════════
    ⚠️ 실제 접수폼(index.html)의 디자인·글씨크기·화면 순서를 그대로 옮겨 왔습니다.
@@ -8855,7 +8904,12 @@ function linkedField(path, label, opt){
 }
 
 function paneForm(){
-  const F = cfg.form, entry = cfg.entrySurvey, prod = groupList("prod");
+  /* 🔴 한달 사용후기(MF)는 포토리뷰와 같은 편집 화면을 쓰되, 값은 cfg.month.form / cfg.month.cover 에 따로 저장합니다.
+        설문(참여·제품)이 없고 쿠팡용 칸(구매내역·S/N)도 없습니다. 구매 확인·신청 확인 카드는 한달 사용후기 쪽에만 둡니다. */
+  const MF = formType === "month";
+  if(MF) fixMonthForm(cfg);
+  const F = MF ? cfg.month.form : cfg.form, FP = MF ? "month.form" : "form", CP = MF ? "month.cover" : "survey";
+  const entry = MF ? [] : cfg.entrySurvey, prod = MF ? [] : groupList("prod");
   const form = el("div", { class:"form" });
   let n = 0;
 
@@ -8864,17 +8918,29 @@ function paneForm(){
     el("div", { class:"band" }, el("span", { style:"font-size:36px" }, "🗒️")),
     el("div", { class:"pad" },
       /* 표지 — 고객이 접수폼을 열면 맨 처음 보는 제목·설명. 2026-10 부터 접수폼에 실제로 연결됩니다. */
-      linkedField("survey.title", "표지 · 큰 제목", { src:"cover.title" }),
-      linkedField("survey.desc",  "표지 · 설명",    { src:"cover.desc", rows:2, rich:true }),
+      MF ? linkedField("month.title", "첫 화면 카드 이름 (30자 이내)", { src:"카드" }) : "",
+      linkedField(CP + ".title", "표지 · 큰 제목", { src:"cover.title" }),
+      linkedField(CP + ".desc",  "표지 · 설명",    { src:"cover.desc", rows:2, rich:true }),
       el("div", { class:"fmeta" }, "접수 기간", el("b", { style:"color:var(--ink)" }, "이벤트 기간과 동일")))));
 
   /* 유형에 따라 앞 화면이 다릅니다. 담당자가 헷갈리지 않게 한 줄로 알려 줍니다. */
+  if(MF){
+    form.append(el("div", { class:"qcard fsec", id:"c-lookup" },
+      el("div", { class:"qhead" }, el("span", { class:"qn" }, "①"), el("span", { class:"qtext" }, "구매 확인"),
+        el("span", { class:"pill mute" }, "성함+연락처 · 주문번호 · 송장번호로 원장 조회")),
+      el("div", { class:"fbody" },
+        el("div", { class:"lfbox" },
+          linkedField(FP + ".lookup.desc", "구매 확인 화면 · 설명", { rows:2, rich:true }),
+          linkedField(FP + ".lookup.tip",  "구매 확인 화면 · 주의 문구", { rows:2, rich:true }),
+          linkedField("month.note", "한달 사용후기 안내 상자 (비우면 기본 문구)", { rows:3 })))));
+  } else {
   form.append(el("div", { class:"qcard grp", style:"background:var(--sunk)" },
     el("strong", {}, formType === "review" ? "① 구매 확인" : "① 구매 확인 없음"),
     el("span", { style:"color:var(--sub);font-size:12.5px;margin-left:8px" },
       formType === "review"
         ? "성함+연락처 · 주문번호 · 송장번호 세 가지로 원장을 조회합니다. 고칠 것은 문구뿐이라 「안내 문구」 탭에 있습니다."
         : "쿠팡 로켓배송은 원장에 구매 정보가 없어 조회 화면이 없습니다. 대신 시리얼번호(S/N)로 확인합니다.")));
+  }
 
   /* 1 참여 안내 및 동의 */
   /* ⚠️ 「필수」로 두면 고객 화면에서 항목 이름 뒤에 빨간 * 가 붙고, 안 고르면 다음으로 못 넘어갑니다.
@@ -8938,7 +9004,8 @@ function paneForm(){
           sel = "consent"; render();
         } }, "+ 동의 항목 추가")))]));
 
-  /* 2 공통 설문 */
+  /* 2 공통 설문 — 한달 사용후기는 설문이 없어 이 아래 두 묶음(공통·제품)을 건너뜁니다 */
+  if(!MF){
   const addEntryQ = () => {
     entry.push({ q:"새 질문", opts:["항목 1", "항목 2"], req:true });
     sel = "q:entry:" + (entry.length - 1); render();
@@ -8967,17 +9034,27 @@ function paneForm(){
     el("button", { class:"btn sm primary", type:"button",
       onclick:addProdQ }, "+ 제품 문항 추가")));
   n++;
+  }   // if(!MF)
 
   /* 4 받으실 사은품 */
-  const simP = cfg.products.find(x => x.ledger === surveyProduct) || {};
-  const isCoupon = simP.type === "coupon";
+  /* 한달 사용후기는 제품 대신 「한달 후기 사은품」 표의 종류(사은품 착불 · 사은품 선불 · 상품권)로 고릅니다. */
+  const monthKindOf = it => it.type === "coupon" ? "coupon" : (it.shipFee === "선불" ? "giftPre" : "gift");
+  const simP = MF
+    ? ((cfg.month.items || []).find(it => monthKindOf(it) === monthRewardKind) || {})
+    : (cfg.products.find(x => x.ledger === surveyProduct) || {});
+  const isCoupon = MF ? monthRewardKind === "coupon" : simP.type === "coupon";
   /* 선불 제품은 배송비 문구가 따로 있습니다. 위쪽에서 고른 제품에 맞는 쪽을 고치게 합니다. */
-  const isPre = !isCoupon && simP.shipFee === "선불";
+  const isPre = MF ? monthRewardKind === "giftPre" : (!isCoupon && simP.shipFee === "선불");
   const kNotice = isCoupon ? "noticeCoupon" : (isPre ? "noticeGiftPre" : "noticeGift");
   const kAck    = isCoupon ? "ackCoupon"    : (isPre ? "ackGiftPre"    : "ackGift");
   form.append(card("reward", ++n, isCoupon ? F.reward.titleCoupon : F.reward.titleGift,
     isCoupon ? "상품권일 때" : (isPre ? "사은품일 때 · 선불" : "사은품일 때 · 착불"), [
     el("div", { class:"fbody" },
+      MF ? el("div", { class:"field" },
+        el("label", { for:"moKind" }, "볼 사은품 종류"),
+        el("select", { id:"moKind", onchange:e => { monthRewardKind = e.target.value; render(); } },
+          [["gift", "사은품 · 착불"], ["giftPre", "사은품 · 선불"], ["coupon", "상품권"]].map(([v, t]) =>
+            el("option", { value:v, ...(monthRewardKind === v ? { selected:"" } : {}) }, t)))) : "",
       tv(F.reward, "desc", "reward", { cls:"sdesc", multi:true }),
       el("div", { class:"gcard" },
         el("div", { class:"gimg" }, "사은품 이미지"),
@@ -8995,8 +9072,8 @@ function paneForm(){
           tv(F.reward, kAck, "reward", { cls:"cmain" }))),
       el("p", { class:"note" }, "제품이 ", el("b", {}, "사은품(착불) · 사은품(선불) · 상품권"),
         " 중 무엇이냐에 따라 위 문구가 자동으로 바뀝니다. ",
-        "위쪽 제품을 바꿔 보시면 다른 쪽 문구를 고칠 수 있습니다. ",
-        el("b", {}, "착불/선불은 「사은품」 탭에서 제품마다 정합니다.")))]));
+        (MF ? "위의 「볼 사은품 종류」를 바꿔 보시면 다른 쪽 문구를 고칠 수 있습니다. " : "위쪽 제품을 바꿔 보시면 다른 쪽 문구를 고칠 수 있습니다. "),
+        el("b", {}, MF ? "착불/선불은 「한달 사용후기」 메뉴의 사은품 표에서 정합니다." : "착불/선불은 「사은품」 탭에서 제품마다 정합니다.")))]));
 
   /* 5 캡처 이미지 (포토리뷰) / 시리얼번호 (쿠팡 정품등록) */
   if(formType === "coupang"){
@@ -9038,7 +9115,7 @@ function paneForm(){
             el("span", {}, "확인 체크 필수 여부"),
             reqBtn(F.serial.ackReq, () => { F.serial.ackReq = !F.serial.ackReq; }, isOpen("serial"), "serial"))))]));
   } else {
-  form.append(card("capture", ++n, F.capture.title, "포토리뷰만", [
+  form.append(card("capture", ++n, F.capture.title, MF ? "한달 사용후기만" : "포토리뷰만", [
     el("div", { class:"fbody" },
       el("div", { class:"ctitle", style:"margin-bottom:8px" },
         F.capture.req ? el("span", { class:"req" }, "*") : "",
@@ -9047,9 +9124,9 @@ function paneForm(){
           isOpen("capture"), "capture")),
       el("div", { class:"lfbox" },
         el("div", { class:"lft" }, "캡처 및 받으실 정보 화면 · 리뷰 캡처 영역에 나가는 글 (2026-10 부터 연결됨)"),
-        linkedField("form.capture.title", "리뷰 캡처 영역 · 칸 이름", { src:"capture.title" }),
-        linkedField("form.capture.desc",  "리뷰 캡처 영역 · 안내 문구 (첫 줄)", { src:"capture.desc", rows:2, rich:true }),
-        linkedField("form.capture.warn",  "리뷰 캡처 영역 · 주의 문구 (둘째 줄, 빨간 글씨)", { src:"capture.warn", rows:2 })),
+        linkedField(FP + ".capture.title", "리뷰 캡처 영역 · 칸 이름", { src:"capture.title" }),
+        linkedField(FP + ".capture.desc",  "리뷰 캡처 영역 · 안내 문구 (첫 줄)", { src:"capture.desc", rows:2, rich:true }),
+        linkedField(FP + ".capture.warn",  "리뷰 캡처 영역 · 주의 문구 (둘째 줄, 빨간 글씨)", { src:"capture.warn", rows:2 })),
       el("div", { class:"exbox" },
         el("div", { style:"font-weight:700;color:var(--ink)" }, "사진 첨부 예시 이미지"),
         el("div", { style:"margin-top:4px" }, F.capture.exampleName),
@@ -9066,7 +9143,7 @@ function paneForm(){
     el("div", { class:"fbody" },
       el("div", { class:"lfbox" },
         el("div", { class:"lft" }, "캡처 및 받으실 정보 화면 · 맨 위 설명 (2026-10 부터 연결됨)"),
-        linkedField("form.info.desc", "받으실 정보 화면 · 설명", { src:"info.desc", rows:2, rich:true })),
+        linkedField(FP + ".info.desc", "받으실 정보 화면 · 설명", { src:"info.desc", rows:2, rich:true })),
       ...F.info.fields.map((f, i) => el("div", { class:"cblock" },
         el("div", { class:"ctitle" },
           f.req ? el("span", { class:"req" }, "*") : "",
@@ -9103,6 +9180,17 @@ function paneForm(){
           sel = "info"; render();
         } }, "+ 받으실 정보 항목 추가")))]));
 
+  /* 신청 확인 — 한달 사용후기 전용 문구 (포토리뷰·쿠팡은 「안내 문구」 메뉴에 있습니다) */
+  if(MF){
+    form.append(card("confirm", ++n, (F.confirm || {}).title || "신청 확인", "", [
+      el("div", { class:"fbody" },
+        el("div", { class:"lfbox" },
+          linkedField(FP + ".confirm.title",      "신청 확인 화면 · 제목"),
+          linkedField(FP + ".confirm.warn",       "신청 확인 · 노란 상자 1 (공통)", { rows:3, rich:true }),
+          linkedField(FP + ".confirm.warnCoupon", "신청 확인 · 노란 상자 2 (상품권)", { rows:3, rich:true }),
+          linkedField(FP + ".confirm.warnGift",   "신청 확인 · 노란 상자 2 (사은품)", { rows:3, rich:true })))]));
+  }
+
   const toc = el("div", { class:"toc", id:"toc" });
   buildToc(toc);
 
@@ -9110,8 +9198,12 @@ function paneForm(){
   return [
     el("div", { class:"svtop" },
       el("div", {},
-        el("h2", {}, "접수폼"),
-        el("p", { class:"hint", style:"margin:0" },
+        el("h2", {}, MF ? "접수폼 — 한달 사용후기" : "접수폼"),
+        MF ? el("p", { class:"hint", style:"margin:0" },
+          "한달 사용후기 ", el("b", {}, "전용"), " 접수폼입니다. 여기서 고친 문구·동의 항목·받으실 정보는 ", el("b", {}, "한달 사용후기에만"),
+          " 적용되고 포토리뷰·쿠팡에는 영향이 없습니다(처음에는 지금 포토리뷰 값을 복사해 둔 상태입니다). ",
+          "운영 켜기·끄기와 사은품 표는 왼쪽 ", el("b", {}, "「한달 사용후기」 메뉴"), "에서 정합니다. 고친 뒤에는 화면 아래 고정 줄의 ", el("b", {}, "「저장」"), " 으로 서버에 남기세요.")
+        : el("p", { class:"hint", style:"margin:0" },
           "고객이 보는 순서 그대로입니다. 고칠 곳을 눌러 그 자리에서 바로 고치세요. ",
           el("b", {}, "구매 확인 · 접수 완료"), " 는 고칠 것이 문구뿐이라 ",
           el("b", {}, "「안내 문구」 메뉴"), " 에 있습니다. ",
@@ -9124,11 +9216,11 @@ function paneForm(){
         el("div", { class:"field" },
           el("label", {}, "어느 유형으로 볼지"),
           el("div", { class:"ttoggle" },
-            ["review", "coupang"].map(t =>
+            ["review", "coupang", "month"].map(t =>
               el("button", { class:"btn sm" + (formType === t ? " primary" : ""), type:"button",
                 onclick:e => { e.stopPropagation(); formType = t; sel = null; render(); } },
                 TYPE_LABEL2[t])))),
-        el("div", { class:"field" },
+        MF ? "" : el("div", { class:"field" },
           el("label", { for:"svP" }, "제품 문항·사은품을 볼 제품"),
           el("select", { id:"svP", style:"min-width:280px",
             onchange:e => { surveyProduct = e.target.value; sel = null; render(); } },
@@ -9147,6 +9239,18 @@ function paneForm(){
 function buildToc(node){
   node.replaceChildren();
   node.append(el("h3", {}, "차례"));
+  if(formType === "month"){
+    /* 한달 사용후기 — 설문이 없고, 구매 확인·신청 확인 카드가 있습니다 */
+    const M = cfg.month.form;
+    node.append(tocCard("cover", "0", "표지 · 카드 이름"));
+    node.append(tocCard("lookup", "1", "구매 확인"));
+    node.append(tocCard("consent", "2", (M.consent || {}).title || "참여 안내 및 동의"));
+    node.append(el("div", { class:"tgrp" }, "그 다음"));
+    [["reward", "3", "받으실 사은품 안내"], ["capture", "4", (M.capture || {}).title || "리뷰 캡처 이미지"],
+     ["info", "5", (M.info || {}).title || "받으실 정보"], ["confirm", "6", (M.confirm || {}).title || "신청 확인"]]
+      .forEach(([id, no, t]) => node.append(tocCard(id, no, t)));
+    return;
+  }
   const F = cfg.form;
   node.append(tocCard("cover", "0", "표지"));
   node.append(tocCard("consent", "1", F.consent.title));
@@ -10174,10 +10278,75 @@ function drawSim(){
         })()));
 }
 
+/* ══════ 한달 사용후기 — 접수폼 카드 켜기·이름·안내 + 대상 제품·사은품 (2026-10) ══════
+   ⚠️ 포토리뷰 「제품·사은품」과 따로 저장됩니다(cfg.month). 서버 eventApi 의 monthPublic 이 접수폼용으로 걸러 내려 줍니다. */
+const MONTH_CODE_OPTS = FORM_PRODUCTS.flatMap(([v, n]) => v.split(",").map(c =>
+  [c, v.indexOf(",") > 0 ? n.replace(/\s*\(.*\)\s*$/, "") + " · " + c : n]));
+function monthFix(){
+  if(!cfg.month || typeof cfg.month !== "object") cfg.month = clone(DEFAULTS.month);
+  if(!Array.isArray(cfg.month.items)) cfg.month.items = [];
+  return cfg.month;
+}
+/* 「한달 사용후기」 메뉴: 운영/미운영 토글 + 한달 후기 사은품 표 */
+const MO_COLS = "minmax(190px,1.7fr) minmax(170px,1.6fr) 100px 90px 150px 64px";
+function paneMonth(){
+  const m = monthFix();
+  const valid = m.items.filter(it => String(it.gift || "").trim() && it.code);
+  const codeCount = {}; m.items.forEach(it => { codeCount[it.code] = (codeCount[it.code] || 0) + 1; });
+  const cell = node => el("div", { style:"min-width:0" }, node);
+  const none = el("span", { style:"color:var(--sub);padding:0 4px" }, "없음");
+  const head = el("div", { style:"display:grid;grid-template-columns:" + MO_COLS + ";gap:8px;font-size:12px;font-weight:700;color:var(--sub);padding:0 4px 6px" },
+    ...["제품", "사은품", "종류", "배송비", "합배송", ""].map(t => el("div", {}, t)));
+  const rows = m.items.map((it, i) => {
+    const cp = it.type === "coupon";
+    return el("div", { style:"margin:0 0 8px" },
+      el("div", { style:"display:grid;grid-template-columns:" + MO_COLS + ";gap:8px;align-items:center" },
+        cell(el("select", { "aria-label":"제품", onchange:e => { it.code = e.target.value; render(); } },
+          MONTH_CODE_OPTS.map(([c, n]) => el("option", { value:c, ...(it.code === c ? { selected:"" } : {}) }, n)))),
+        cell(el("input", { type:"text", value:it.gift || "", placeholder:"사은품 이름", "aria-label":"사은품 이름",
+          oninput:e => { it.gift = e.target.value; softRefresh(); } })),
+        cell(el("select", { "aria-label":"종류", onchange:e => { it.type = e.target.value; render(); } },
+          el("option", { value:"gift",   ...(!cp ? { selected:"" } : {}) }, "사은품"),
+          el("option", { value:"coupon", ...(cp ? { selected:"" } : {}) }, "상품권"))),
+        cell(cp ? none.cloneNode(true)
+          : el("select", { "aria-label":"배송비", onchange:e => { it.shipFee = e.target.value; softRefresh(); } },
+              el("option", { value:"착불", ...(it.shipFee !== "선불" ? { selected:"" } : {}) }, "착불"),
+              el("option", { value:"선불", ...(it.shipFee === "선불" ? { selected:"" } : {}) }, "선불"))),
+        cell(cp ? none.cloneNode(true)
+          : el("select", { "aria-label":"합배송", onchange:e => { it.box = e.target.value === "" ? "" : Number(e.target.value); softRefresh(); } },
+              el("option", { value:"", ...(boxUnset(it) ? { selected:"" } : {}) }, "안 정함 (1개씩)"),
+              ...BOX_OPTS.map(o => el("option", { value:String(o.v), ...(Number(it.box) === o.v ? { selected:"" } : {}) }, o.t)))),
+        cell(el("button", { type:"button", class:"btn sm", "aria-label":"이 제품 빼기",
+          onclick:() => { m.items.splice(i, 1); render(); } }, "빼기"))),
+      codeCount[it.code] > 1 ? el("div", { class:"warn-inline" }, "같은 제품이 두 번 들어 있습니다 — 하나만 남겨 주세요") : "",
+      !String(it.gift || "").trim() ? el("div", { class:"warn-inline" }, "사은품 이름이 비어 있어 이 제품은 대상에서 빠집니다") : "");
+  });
+  return [
+    el("div", { class:"svtop" },
+      el("div", {}, el("h2", {}, "한달 사용후기"),
+        el("p", { class:"hint", style:"margin:0" }, "포토리뷰의 「제품·사은품」과는 ", el("b", {}, "따로"), " 저장됩니다. 저장 후 약 1분 뒤 고객 화면에 반영됩니다.")),
+      el("label", { class:"switch" },
+        el("input", { type:"checkbox", id:"moOn", "aria-label":"한달 후기 운영", ...(m.on === true ? { checked:"" } : {}),
+          onchange:e => { m.on = e.target.checked; render(); } }),
+        m.on === true ? "한달 후기 운영" : "한달 후기 미운영")),
+    m.on === true && !valid.length
+      ? el("div", { class:"nbox warn" }, "운영으로 켜져 있지만 사은품이 있는 제품이 없어 고객에게는 아직 열리지 않습니다.") : "",
+    el("div", { class:"imgsec", style:"overflow-x:auto" },
+      el("h3", {}, "한달 후기 사은품"),
+      el("p", { class:"hint" }, "같은 제품이라도 ", el("b", {}, "구매 수량만큼"), " 참여할 수 있고, 포토리뷰 참여와 따로 셉니다. ",
+        "음식물처리기처럼 사은품을 고르는 제품은 ", el("b", {}, "코드별로 한 줄씩"), " 넣으면 고객이 고릅니다."),
+      el("div", { style:"min-width:760px" }, head, ...rows),
+      el("button", { type:"button", class:"btn", onclick:() => {
+        const used = new Set(m.items.map(x => x.code));
+        const next = (MONTH_CODE_OPTS.find(([c]) => !used.has(c)) || MONTH_CODE_OPTS[0])[0];
+        m.items.push({ code:next, gift:"", type:"gift", shipFee:"착불", box:1 }); render(); } }, "＋ 제품 추가"))
+  ];
+}
+
 /* ══════ 그리기 ══════ */
-const PANES = { gift:paneGift, rule:paneRule, form:paneForm, notice:paneNotice,
+const PANES = { gift:paneGift, rule:paneRule, month:paneMonth, form:paneForm, notice:paneNotice,
                 rules:paneRules, channel:paneChannel, images:paneImages };
-const WIDE = ["form", "notice", "rules", "channel", "images"];
+const WIDE = ["form", "notice", "rules", "channel", "images", "month"];
 
 /* 글 칸을 글 길이에 맞춰 저절로 늘립니다.
    ⚠️ 예전에는 손으로 끌어 늘려야 했고, 화면을 다시 그리면 그 크기가 사라져
@@ -10252,7 +10421,7 @@ const NAV_SUBS = [        // [id, 이름, 안내 문구 메뉴로 보낼 화면(
 ];
 const NAV = [
   { g:"이벤트/접수폼 관리", items:[
-    { k:"form", t:"접수 화면별", subs:true }, { k:"gift", t:"제품·사은품" }, { k:"rule", t:"프로모션" },
+    { k:"form", t:"접수 화면별", subs:true }, { k:"gift", t:"제품·사은품" }, { k:"rule", t:"프로모션" }, { k:"month", t:"한달 사용후기" },
     { k:"notice", t:"안내 문구" }, { k:"rules", t:"심사 규칙" }, { k:"channel", t:"상담 채널" },
     { k:"images", t:"고객 화면 이미지" } ] },
   { g:"운영 관리", items:[ { k:"users", t:"사용자" }, { k:"badops", t:"부적합 운영" }, { k:"server", t:"서버 관리" }, { k:"reserve", t:"예약발송 ↗", link:true } ] }
@@ -10315,6 +10484,7 @@ function navGo(k, sub){
   render();
 }
 function navSubGo(id){
+  if(formType === "month") formType = "review";      // 하위 메뉴(표지·동의 …)는 포토리뷰/쿠팡 화면용 — 한달 사용후기 화면에 남아 있지 않게
   const S = NAV_SUBS.find(x => x[0] === id);
   if(S && S[2]){                       // 문구만 있는 화면 → 안내 문구 메뉴를 그 화면으로 걸러서 엽니다
     NT.sc = S[2]; NT.si = ""; NT.q = ""; NT.only = false;
@@ -10412,6 +10582,20 @@ function difLabel(path){
     const rest = r.slice(1).map(x => /^\d+$/.test(x) ? nth(x) : (DIF_FIELD[x] || x));
     return "접수폼 · " + sec + (rest.length ? " · " + rest.join(" · ") : "");
   }
+  if(h === "month"){
+    const F = { on:"운영 켜기", title:"카드 이름", note:"구매 확인 안내 상자" };
+    if(r[0] === "cover") return "한달 사용후기 접수폼 · 표지 · " + ({ title:"큰 제목", desc:"설명" }[r[1]] || r[1]);
+    if(r[0] === "form"){
+      const sec = DIF_FORM[r[1]] || r[1];
+      const rest = r.slice(2).map(x => /^\d+$/.test(x) ? nth(x) : (DIF_FIELD[x] || x));
+      return "한달 사용후기 접수폼 · " + sec + (rest.length ? " · " + rest.join(" · ") : "");
+    }
+    if(r[0] !== "items") return "한달 사용후기 · " + (F[r[0]] || r[0]);
+    const it = ((cfg.month || {}).items || [])[r[1]] || ((base.month || {}).items || [])[r[1]] || {};
+    const nm = it.code || nth(r[1]) + " 제품";
+    const FI = { code:"대상 제품", gift:"사은품 이름", type:"종류", shipFee:"배송비", box:"합배송" };
+    return "한달 사용후기 · " + nm + (r.length > 2 ? " · " + (FI[r[2]] || r[2]) : " 줄");
+  }
   if(h === "ratingSrcs") return "심사 규칙 · 별점을 꼭 봐야 하는 판매처";
   if(h === "kakaoMain") return "상담 채널 · 메인 카카오 채널 주소";
   if(h === "kakao") return "상담 채널 · 카테고리별 주소(화면에서 감춤) · " + (r[0] || "");
@@ -10423,6 +10607,7 @@ function difSec(path){
   if(h === "survey") return "form:cover";
   if(h === "products") return "gift";
   if(h === "giftRules") return "rule";
+  if(h === "month") return (path[1] === "form" || path[1] === "cover" || path[1] === "title" || path[1] === "note") ? "form" : "month";
   if(h === "entrySurvey" || h === "surveys") return "form:entry";
   if(h === "ratingSrcs") return "rules";
   if(h === "kakaoMain" || h === "kakao") return "channel";
@@ -10633,8 +10818,12 @@ function fixFormText(c){
   Object.keys(FT_PATH).forEach(k => pathSet(c, FT_PATH[k], FT0[k]));
   c.formTextV = FORM_TEXT_V;
 }
-function fixFields(c){
+function fixFields(c){ fixFieldsCore(c); fixMonthForm(c); }      // 한달 사용후기 사본은 포토리뷰 쪽을 다 고친 뒤에 만듭니다
+function fixFieldsCore(c){
   fixFormText(c);
+  /* 🔴 한달 사용후기 (2026-10) — 옛 설정에는 이 칸이 없습니다. 채워 두지 않으면 화면에는 기본값이 보이는데 저장은 안 되는 상태가 됩니다.
+        기본값은 「꺼짐」이라 채워도 고객 화면은 달라지지 않습니다. */
+  /* (month 칸 자체는 fixFields → fixMonthForm 이 채웁니다 — 포토리뷰 문구를 복사해야 해서 맨 뒤에 합니다) */
   /* 🔴 메인 카카오 채널 (2026-09-22) — 옛 설정에는 이 칸이 아예 없습니다.
         채워 두지 않으면 화면에는 기본값이 보이는데 **저장은 안 되는** 상태가 됩니다.
      ⚠️ 담당자가 **일부러 비운** 값(빈 문자열)은 그대로 둡니다 — 채널을 닫으실 수 있어야 합니다. */

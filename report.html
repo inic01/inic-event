@@ -10191,6 +10191,8 @@ function paneImages(){
     else addGift(p.gift, p.ledger);
   });
   (cfg.giftRules || []).forEach(r => addGift(r.label, "프로모션 · " + (r.name || r.product || "")));
+  /* 한달 사용후기 사은품(2026-10-19) — 포토리뷰와 사은품 이름이 같으면 한 줄로 합쳐지고 「쓰이는 곳」에 한달 사용후기가 더해집니다 */
+  ((cfg.month && Array.isArray(cfg.month.items)) ? cfg.month.items : []).forEach(it => addGift(it && it.gift, "한달 사용후기"));
   const giftRows = gifts.map(([name, where]) => imgRow({
     label:name, sub:where.join(" · "), folder:"gifts/", missFile:name + ".webp",
     embedded:GIFT_EMBEDDED.has(name),

@@ -412,6 +412,7 @@
   /* 세 번째 카드(한달 사용후기)는 아래 한 줄을 다 차지합니다 */
   .type[data-type="month"]{grid-column:1/-1;flex-direction:row;align-items:center;gap:14px;min-height:84px;padding:14px 16px}
   .type[data-type="month"] .tt{margin-top:0}
+  .type[data-type="month"] .tsub{margin-top:4px;font-size:12.5px;line-height:1.4;color:var(--sub);font-weight:500}
   .type[data-type="month"].on::before{top:50%;transform:translateY(-50%)}
   #nextTop{min-height:56px;border-radius:14px;margin-top:18px !important}
   #chkOpen{border:1.5px solid var(--line);background:#fff;color:var(--in-primary);border-radius:14px;min-height:50px;font-size:14px}
@@ -543,7 +544,7 @@
       <div class="type" data-type="review"><div class="emo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div><div class="tt">포토리뷰 이벤트</div></div>
       <div class="type" data-type="coupang"><div class="emo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div><div class="tt">쿠팡·로켓배송<br>정품 등록</div></div>
       <!-- 🔴 한달 사용후기 (2026-10) — 접수 유형은 포토리뷰와 같고 event:"month" 표시만 더합니다(MONTH_CODES 설명) -->
-      <div class="type hide" data-type="month"><div class="emo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/><path d="M9 15l2 2 4-4"/></svg></div><div class="mtx"><div class="tt">한달 사용후기</div></div></div>
+      <div class="type hide" data-type="month"><div class="emo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/><path d="M9 15l2 2 4-4"/></svg></div><div class="mtx"><div class="tt">한달 사용후기</div><div class="tsub hide" id="monthSub"></div></div></div>
     </div>
     <div class="err" id="err-type">참여 유형을 선택해 주세요.</div>
 
@@ -1093,14 +1094,16 @@ function applyConfig(){
   /* 한달 사용후기 — 켜져 있을 때만 카드를 보입니다(서버가 「켬 + 사은품 있음」일 때만 on:true 를 줍니다). */
   {
     const m=CFG.month;
-    MONTH = (m && m.on===true && m.gifts && typeof m.gifts==="object") ? { on:true, title:String(m.title||""), note:String(m.note||""), gifts:m.gifts }
-                                                                      : { on:false, title:"", note:"", gifts:{} };
+    MONTH = (m && m.on===true && m.gifts && typeof m.gifts==="object") ? { on:true, title:String(m.title||""), sub:String(m.sub||""), note:String(m.note||""), gifts:m.gifts }
+                                                                      : { on:false, title:"", sub:"", note:"", gifts:{} };
     const card=document.querySelector('.type[data-type="month"]');
+    const shown=MONTH.on && MONTH_LINK;      // 켜져 있고, 알림톡 전용 링크로 들어온 경우에만 보임
     if(card){
-      card.classList.toggle("hide",!MONTH.on);
+      card.classList.toggle("hide",!shown);
       const tt=card.querySelector(".tt"); if(tt) tt.textContent=MONTH.title||"한달 사용후기";
+      const ts=card.querySelector(".tsub"); if(ts){ ts.textContent=MONTH.sub; ts.classList.toggle("hide",!MONTH.sub); }
       /* 켜져 있던 카드가 꺼지면(설정이 바뀐 뒤 다시 받았을 때) 이미 고른 한달 사용후기는 풀어 줍니다 */
-      if(!MONTH.on && state.card==="month"){ state.card=""; state.type=null; state.event=""; card.classList.remove("on"); try{ applyType(); showStep(); }catch(e){} }
+      if(!shown && state.card==="month"){ state.card=""; state.type=null; state.event=""; card.classList.remove("on"); try{ applyType(); showStep(); }catch(e){} }
     }
     const mn=$("#monthNote");
     if(mn && MONTH.note) mn.innerHTML="🗓️ "+rich(MONTH.note);
@@ -1445,7 +1448,10 @@ let COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 발
    card = 고객이 누른 카드(review·coupang·month), event = "month" 또는 "". 서버 eventApi 의 evKey 와 같은 규칙입니다.
    켜기·카드 이름·안내·대상 제품·사은품은 관리자 「한달 사용후기」 메뉴(서버 getConfig 의 month)에서 받습니다.
    못 받았거나 꺼져 있으면 카드는 숨겨져 있습니다(기본 꺼짐). */
-let MONTH={on:false,title:"",note:"",gifts:{}};
+let MONTH={on:false,title:"",sub:"",note:"",gifts:{}};
+/* 🔴 한달 사용후기 카드는 **카카오톡 알림톡의 전용 링크(…index.html?event=month)로 들어온 고객에게만** 보입니다(담당자 결정 2026-10-19).
+   링크를 받지 않은 일반 방문자에게는 켜져 있어도 카드가 없습니다. 대상(스마트스토어 구매)은 서버가 원장 판매처로 한 번 더 막습니다. */
+const MONTH_LINK=(()=>{ try{ return /(?:^|[?&])event=month(?:&|$)/.test(location.search); }catch(e){ return false; } })();
 const state={type:null,card:"",event:"",category:"주방가전",product:null,file:null,serialPrefix:"",
   vTab:"np",invOk:false,rows:[],qtyByCode:{},usedByCode:{},prodCodes:[],buyQty:1,usedQty:0,qtyMode:null,doneCodes:[],
   files:[],          // 포토리뷰 캡처 여러 장 (2026-09-22) — state.file 은 그중 첫 장
@@ -1740,9 +1746,13 @@ function renderProds(){
         hideErr("err-prod"); renderProds();};
       box.appendChild(el);});
     const cats=$("#cats"); if(cats) cats.style.display="none";
-    const d=document.querySelector("#step-product .desc"); if(d) d.textContent="구매 내역에서 확인된 제품입니다. 이번에 리뷰를 남기신 제품을 선택해 주세요.";
+    /* 한달 사용후기는 관리자 「접수 화면별 → 한달 사용후기 → 제품(사은품) 선택」 문구를 씁니다(없으면 포토리뷰와 같은 글) */
+    const pk=(state.event==="month" && CFG && CFG.pick) ? CFG.pick : null;
+    const d=document.querySelector("#step-product .desc"); if(d) d.textContent=(pk&&pk.desc) ? pk.desc : "구매 내역에서 확인된 제품입니다. 이번에 리뷰를 남기신 제품을 선택해 주세요.";
+    const h2=document.querySelector("#step-product > h2"); if(h2) h2.textContent=(pk&&pk.title) ? pk.title : "구매하신 제품";
     return;
   }
+  { const h2=document.querySelector("#step-product > h2"); if(h2) h2.textContent="구매하신 제품"; }     // 한달 사용후기에서 바꾼 제목이 남지 않게
   const cats0=$("#cats"); if(cats0) cats0.style.display="";
 const box=$("#prods");box.innerHTML="";const list=PRODUCTS[state.category]||[];
   if(!list.length){box.innerHTML='<div style="grid-column:1/3;color:#6b7280;font-size:13px;padding:10px 2px">이 카테고리의 제품 목록은 준비 중입니다.</div>';return;}
@@ -2477,6 +2487,10 @@ async function lookupPurchase(){
       const why=(res&&res.reason)||"server";
       if(why==="rate"){
         ivNotice(MSGH("rate","조회를 너무 여러 번 시도하셨습니다.\n잠시 후 다시 시도해 주세요.")+(MSGK("rate",true)?ivKakao():""));
+        return;
+      }
+      if(why==="notstore"){
+        ivNotice(rich("한달 사용후기는 아이닉 스마트스토어에서 구매하신 고객님만 참여하실 수 있습니다.\n구매하신 곳과 구매 정보를 다시 확인해 주세요.")+(MSGK("noTarget",true)?ivKakao():""));
         return;
       }
       if(why==="closed"){
@@ -3438,6 +3452,7 @@ function showPaused(message){
 function showConnError(){ showPaused(""); }     /* 서버 연결 오류도 같은 문구·같은 팝업 */function showApiErr(reason, res){
   if(reason==="paused"){ showPaused(res && res.message); return; }
   if(reason==="unavailable"){ showConnError(); return; }
+  if(reason==="notstore"){ showNotice("notstore","한달 사용후기는 아이닉 스마트스토어에서 구매하신 고객님만 참여하실 수 있습니다.\n구매하신 곳과 구매 정보를 다시 확인해 주세요."); return; }
   if(reason==="closed"){ showNotice("closed","현재 한달 사용후기 이벤트는 접수하지 않습니다.\n다른 이벤트는 처음 화면에서 선택해 주세요."); return; }
   if(reason==="image" && state.type==="coupang") reason="imageSn";
   const [key, dflt] = (reason && Object.prototype.hasOwnProperty.call(API_ERR, reason) && API_ERR[reason]) || API_ERR_ELSE;

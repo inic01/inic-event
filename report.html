@@ -1279,6 +1279,19 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
         <div id="syncBox" style="margin-top:10px"></div>
       </div>
 
+      <!-- 구글폼 기존 참여자 시트 연동 (2026-10-19) — 관리자·QA 만 보입니다 -->
+      <div class="panel" id="lgcPanel" style="margin-bottom:14px;display:none">
+        <div class="ph"><h3>구글폼 기존 참여자 시트 연동</h3>
+          <span><span class="autotag">자동 · 5분마다</span></span></div>
+        <div class="hint">구글폼 시절에 이미 참여(출고)한 고객이 새 접수폼에서 또 참여하지 못하게 합니다. <b>구매 수량을 다 쓴 고객만</b> 막고, 수량이 남은 고객은 그대로 참여할 수 있습니다. 시트는 <b>읽기만</b> 하고, 핸드폰 번호는 <b>되돌릴 수 없게 변환한 값</b>과 참여 횟수만 저장합니다(성함·주소는 읽지 않습니다).</div>
+        <div class="filters" style="margin-top:11px">
+          <button id="lgcRun" class="sm primary">⟳ 지금 읽어서 점검하기</button>
+          <button id="lgcOn" class="sm">차단 켜기</button>
+          <span id="lgcState" style="font-size:12.5px;font-weight:800"></span>
+        </div>
+        <div class="care">점검만 해서는 고객 접수에 아무 영향이 없습니다. 아래 탭 분류와 건수를 확인한 뒤 <b>「차단 켜기」</b>를 누르면 그때부터 막습니다. 문제가 생기면 「차단 끄기」로 바로 멈출 수 있습니다.</div>
+        <div id="lgcBox" style="margin-top:10px"></div>
+      </div>
       <div class="panel od-upload" style="margin-bottom:14px">
         <div class="ph"><h3>파일로 올리기 <span class="mute">(과거 데이터)</span></h3>
           <a class="helplink" href="guide.html#upload" target="_blank" rel="noopener">사용법</a></div>
@@ -7436,13 +7449,82 @@ async function mkSheetNow(){
 }
 $("#mkSheetNow").addEventListener("click", mkSheetNow);
 
+
+/* ══════════ 구글폼 기존 참여자 시트 연동 (2026-10-19) — 서버 ordersApi legacy* 와 짝 ══════════
+   번호·성함은 서버에서도 이 화면으로 오지 않습니다(탭 이름·열 이름·숫자만). */
+const LGC_EV = { month:"한달리뷰", photo:"포토리뷰", coupang:"쿠팡 정품등록", skip:"제외" };
+let LGC_ST = null;
+function lgcRender(st){
+  LGC_ST = st; const box=$("#lgcBox"); if(!box) return;
+  const on = !!(st && st.on);
+  const btn=$("#lgcOn"); if(btn){ btn.textContent = on ? "차단 끄기" : "차단 켜기"; btn.classList.toggle("primary", !on); btn.disabled = !(st && st.configured && st.summary); }
+  if(!st){ box.innerHTML='<div class="hint">상태를 불러오지 못했습니다.</div>'; return; }
+  const ck = st.checkedAt ? new Date(st.checkedAt) : null, at = st.at ? new Date(st.at) : null;
+  const sm = st.summary;
+  let h = '<div style="padding:12px 14px;border-radius:10px;line-height:1.8;background:'+(on?'#eef6ee':'#faf6ee')+';border:1px solid '+(on?'#cfe3cf':'#eadfc5')+'">'
+    + '<b>차단</b> ' + (on ? '<span style="color:#2c6b3c;font-weight:800">켜짐 — 구글폼 참여 횟수만큼 막는 중</span>' : '<span style="color:#9a6212;font-weight:800">꺼짐 — 점검만 하는 중(고객에게 영향 없음)</span>')
+    + '<br><span style="color:var(--sub)">마지막 확인</span> ' + (ck ? ck.toLocaleString("ko-KR") : "-")
+    + ' · <span style="color:var(--sub)">마지막 반영</span> ' + (at ? at.toLocaleString("ko-KR") : "-");
+  if(!st.configured) h += '<br><span style="color:#c1121f;font-weight:700">연결 설정이 아직 없습니다 — 서버 설정(LEGACY_SHEET_ID · LEGACY_HASH_KEY)과 시트 공유가 필요합니다.</span>';
+  if(st.lastError) h += '<br><span style="color:#c1121f;font-weight:700">지난 오류 : '+admEsc(st.lastError)+'</span>';
+  if(sm){
+    h += '<br><span style="color:var(--sub)">참여자</span> <b>'+(sm.people||0).toLocaleString()+'명</b>'
+       + ' (한달리뷰 '+(sm.month||0).toLocaleString()+'명 · 포토리뷰 '+(sm.photo||0).toLocaleString()+'명)'
+       + ' · <span style="color:var(--sub)">반영한 참여</span> <b>'+(sm.used||0).toLocaleString()+'건</b>'
+       + ' · <span style="color:var(--sub)">읽은 줄</span> <b>'+(sm.rows||0).toLocaleString()+'</b>';
+    h += '<div class="tablewrap" style="margin-top:10px"><table class="data"><thead><tr><th>탭</th><th>이벤트</th><th>읽은 줄</th><th>반영</th><th>번호 없음·형식 오류</th><th>출고일자 범위</th><th>날짜 비었음 · 못 읽음</th><th>7월 이전(제외)</th><th>제품 못 찾음</th><th>비고</th></tr></thead><tbody>'
+      + (sm.tabs||[]).map(t=>'<tr><td>'+admEsc(t.title)+'</td><td>'+(LGC_EV[t.ev]||admEsc(t.ev))+'</td>'
+        +'<td>'+(t.rows||0).toLocaleString()+'</td><td><b>'+(t.used||0).toLocaleString()+'</b></td><td>'+(t.noPhone||0).toLocaleString()+'</td>'
+        +'<td>'+(t.dateMin?admEsc(t.dateMin+" ~ "+t.dateMax):"-")+'</td><td>'+(t.noDate||0).toLocaleString()+' · '+(t.badDate||0).toLocaleString()+'</td>'
+        +'<td>'+(t.tooOld||0).toLocaleString()+'</td><td>'+(t.otherProd||0).toLocaleString()+'</td>'
+        +'<td class="wrapcell">'+(t.note?'<span style="color:#c1121f;font-weight:700">'+admEsc(t.note)+'</span>':'')
+        +(t.contentCols&&t.contentCols.length?'<div style="font-size:11.5px;color:#9a6700;margin-top:2px">제목은 번호 열이 아니지만 값이 번호라서 번호 열로 봄 : '+admEsc(t.contentCols.join(", "))+'</div>':'')
+        +(t.badHeaderCols&&t.badHeaderCols.length?'<div style="font-size:11.5px;color:#9a6700;margin-top:2px">제목은 번호 열인데 값이 번호가 아님(건너뜀) : '+admEsc(t.badHeaderCols.join(", "))+'</div>':'')
+        +(t.head&&t.head.length?'<div style="font-size:11.5px;color:var(--sub);margin-top:2px">찾은 열 이름 : <span style="font-family:monospace">'+admEsc(t.head.join(" | "))+'</span></div>':'')+'</td></tr>').join("")
+      + '</tbody></table></div>'
+      + '<div style="margin-top:8px;font-size:12px;color:var(--sub);line-height:1.7">· 탭 이름에 <b>쿠팡·로켓</b>이 있으면 쿠팡 정품등록(쿠팡 정품등록 접수를 막음), <b>한달리뷰</b>가 있으면 한달 사용후기, 그 밖의 탭(수기 포함)은 포토리뷰로 셉니다. 분류가 다르면 알려 주세요.<br>· <b>출고일자</b>는 7월 1일 이전 줄만 제외합니다. 날짜가 <b>비었거나 못 읽은 줄은 셉니다</b>(출고 전이어도 이미 참여한 것이므로). 범위가 이상하면 알려 주세요.<br>· 번호 열이 여러 개인 탭은 번호마다 1건씩 셉니다. · 「제품 못 찾음」은 어느 제품인지 몰라 <b>모든 제품에서 1회 참여한 것으로</b> 셉니다(그 고객은 구매 수량이 1개면 어떤 제품이든 접수가 막힙니다). 많으면 알려 주세요.</div>';
+  } else h += '<br><span style="color:var(--sub)">아직 점검한 적이 없습니다. [⟳ 지금 읽어서 점검하기]를 눌러 주세요.</span>';
+  box.innerHTML = h + '</div>';
+}
+async function lgcStatus(){
+  const p=$("#lgcPanel"); if(!p) return;
+  if(!ME || !["master","qa"].includes(ME.role)){ p.style.display="none"; return; }
+  p.style.display="";
+  const r = await ordApi({action:"legacyStatus"});
+  if(r.ok) lgcRender(r); else $("#lgcBox").innerHTML='<div class="hint">'+admEsc(r.message||agMsg(r.reason))+'</div>';
+}
+async function lgcRun(){
+  $("#lgcRun").disabled=true; $("#lgcState").textContent="시트를 읽는 중… (잠시 걸립니다)"; $("#lgcState").style.color="";
+  const r = await ordApi({action:"legacyRun"});
+  $("#lgcRun").disabled=false;
+  if(!r.ok){ $("#lgcState").textContent="실패"; $("#lgcState").style.color="var(--bad,#c1121f)"; $("#lgcBox").innerHTML='<div style="padding:12px 14px;border-radius:10px;background:#fdecec;border:1px solid #f3c6c6;color:#b23b3b;line-height:1.7">'+admEsc(r.message||agMsg(r.reason))+'</div>'; return; }
+  if(r.skipped==="env"){ $("#lgcState").textContent="설정 없음"; $("#lgcState").style.color="var(--bad,#c1121f)"; lgcRender(r.state||await ordApi({action:"legacyStatus"})); return; }
+  $("#lgcState").textContent="✔ 점검 완료 — 참여 "+(r.used||0).toLocaleString()+"건"; $("#lgcState").style.color="var(--ok)";
+  lgcRender(r.state);
+}
+async function lgcToggle(){
+  const want = !(LGC_ST && LGC_ST.on);
+  const msg = want
+    ? "구글폼 기존 참여자 차단을 켭니다.\n\n지금부터 구글폼 참여 횟수만큼 구매 수량을 쓴 것으로 보고, 수량을 다 쓴 고객은 새 접수폼에서 접수되지 않습니다(안내: 상담사 확인).\n점검 화면의 탭 분류와 건수를 확인하셨나요?"
+    : "차단을 끕니다. 이후에는 구글폼 참여 여부와 상관없이 접수됩니다. 계속할까요?";
+  if(!confirm(msg)) return;
+  $("#lgcOn").disabled=true;
+  const r = await ordApi({action:"legacyOn", on:want});
+  $("#lgcOn").disabled=false;
+  if(!r.ok){ alert(r.message||agMsg(r.reason)); return; }
+  $("#lgcState").textContent = want ? "차단을 켰습니다(약 1분 안에 접수 서버에 반영)" : "차단을 껐습니다(약 1분 안에 반영)";
+  $("#lgcState").style.color="var(--ok)";
+  lgcRender(r);
+}
+$("#lgcRun").addEventListener("click", lgcRun);
+$("#lgcOn").addEventListener("click", lgcToggle);
 $("#resyncBtn").addEventListener("click", resyncGo);
 $("#syncNow").addEventListener("click", syncNow);
 $("#purgeGo").addEventListener("click", purgeGo);
 $("#purgeCheck").addEventListener("click", purgeCheck);
 ["#purgeFrom","#purgeTo"].forEach(x => $(x).addEventListener("change", purgeReset));
 const ordTab=document.querySelector('#tabs .tab[data-tab="orders"]');
-if(ordTab) ordTab.addEventListener("click", ()=>{ syncStatus(); mkRender(); });
+if(ordTab) ordTab.addEventListener("click", ()=>{ syncStatus(); mkRender(); lgcStatus(); });
 
 /* ══════════ 접근 기록 보기 (관리자 전용) ══════════ */
 let LOGS = [];

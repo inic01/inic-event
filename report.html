@@ -7479,6 +7479,7 @@ function lgcRender(st){
         +'<td>'+(t.tooOld||0).toLocaleString()+'</td><td>'+(t.otherProd||0).toLocaleString()+'</td>'
         +'<td class="wrapcell">'+(t.note?'<span style="color:#c1121f;font-weight:700">'+admEsc(t.note)+'</span>':'')
         +(t.contentCols&&t.contentCols.length?'<div style="font-size:11.5px;color:#9a6700;margin-top:2px">제목은 번호 열이 아니지만 값이 번호라서 번호 열로 봄 : '+admEsc(t.contentCols.join(", "))+'</div>':'')
+        +(t.noPhone&&t.usedPhoneCols?'<div style="font-size:11.5px;color:#c1121f;margin-top:2px">번호로 읽은 열 : '+admEsc(t.usedPhoneCols.join(", ")||"(없음)")+(t.phoneLike&&t.phoneLike.length?' · 번호처럼 보이는 열 : '+admEsc(t.phoneLike.join(" | ")):' · 번호처럼 보이는 다른 열 없음')+'</div>'+(t.headAll&&t.headAll.length?'<div style="font-size:11px;color:var(--sub);margin-top:2px">열 이름 : <span style="font-family:monospace">'+admEsc(t.headAll.join(" | "))+'</span></div>':''):'')
         +(t.badHeaderCols&&t.badHeaderCols.length?'<div style="font-size:11.5px;color:#9a6700;margin-top:2px">제목은 번호 열인데 값이 번호가 아님(건너뜀) : '+admEsc(t.badHeaderCols.join(", "))+'</div>':'')
         +(t.head&&t.head.length?'<div style="font-size:11.5px;color:var(--sub);margin-top:2px">찾은 열 이름 : <span style="font-family:monospace">'+admEsc(t.head.join(" | "))+'</span></div>':'')+'</td></tr>').join("")
       + '</tbody></table></div>'

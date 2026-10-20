@@ -7469,12 +7469,12 @@ function lgcRender(st){
   if(st.lastError) h += '<br><span style="color:#c1121f;font-weight:700">지난 오류 : '+admEsc(st.lastError)+'</span>';
   if(sm){
     h += '<br><span style="color:var(--sub)">참여자</span> <b>'+(sm.people||0).toLocaleString()+'명</b>'
-       + ' (한달리뷰 '+(sm.month||0).toLocaleString()+'명 · 포토리뷰 '+(sm.photo||0).toLocaleString()+'명)'
+       + ' (한달리뷰 '+(sm.month||0).toLocaleString()+'명 · 포토리뷰 '+(sm.photo||0).toLocaleString()+'명 · 쿠팡 정품등록 '+(sm.coupang||0).toLocaleString()+'명)'
        + ' · <span style="color:var(--sub)">반영한 참여</span> <b>'+(sm.used||0).toLocaleString()+'건</b>'
        + ' · <span style="color:var(--sub)">읽은 줄</span> <b>'+(sm.rows||0).toLocaleString()+'</b>';
     h += '<div class="tablewrap" style="margin-top:10px"><table class="data"><thead><tr><th>탭</th><th>이벤트</th><th>읽은 줄</th><th>반영</th><th>번호 없음·형식 오류</th><th>출고일자 범위</th><th>날짜 비었음 · 못 읽음</th><th>7월 이전(제외)</th><th>제품 못 찾음</th><th>비고</th></tr></thead><tbody>'
       + (sm.tabs||[]).map(t=>'<tr><td>'+admEsc(t.title)+'</td><td>'+(LGC_EV[t.ev]||admEsc(t.ev))+'</td>'
-        +'<td>'+(t.rows||0).toLocaleString()+'</td><td><b>'+(t.used||0).toLocaleString()+'</b></td><td>'+(t.noPhone||0).toLocaleString()+'</td>'
+        +'<td>'+(t.rows||0).toLocaleString()+'</td><td><b>'+(t.used||0).toLocaleString()+'</b></td><td>'+(t.noPhone||0).toLocaleString()+(t.noPhone?' <span style="color:var(--sub);font-size:11.5px">(칸 비었음 '+((t.noPhone||0)-(t.noPhoneBad||0)).toLocaleString()+' · 값은 있음 '+(t.noPhoneBad||0).toLocaleString()+')</span>':'')+'</td>'
         +'<td>'+(t.dateMin?admEsc(t.dateMin+" ~ "+t.dateMax):"-")+'</td><td>'+(t.noDate||0).toLocaleString()+' · '+(t.badDate||0).toLocaleString()+'</td>'
         +'<td>'+(t.tooOld||0).toLocaleString()+'</td><td>'+(t.otherProd||0).toLocaleString()+'</td>'
         +'<td class="wrapcell">'+(t.note?'<span style="color:#c1121f;font-weight:700">'+admEsc(t.note)+'</span>':'')

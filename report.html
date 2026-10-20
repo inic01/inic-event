@@ -1119,6 +1119,15 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
   <section class="page" id="page-cs">
     <div class="hint">고객이 이벤트에 참여했는지 확인하는 화면입니다. 이름·연락처·주문번호·주소·S/N 무엇이든 입력하면 참여 내역과 심사 상태가 나옵니다.</div>
     <div class="searchbig"><input type="text" id="csSearch" placeholder="예) 홍길동  또는  010-1234-5678  또는  주문번호"><button id="csBtn" class="primary">검색</button></div>
+    <div class="panel" id="csLgPanel" style="margin-top:14px">
+      <div class="ph"><h3>구글폼 참여 확인 <span class="mute">(예전 구글폼으로 참여·출고한 기록)</span></h3></div>
+      <div class="hint">예전 구글폼으로 이미 참여한 고객인지 <b>휴대폰 번호</b>로 확인합니다. 포토리뷰·한달 사용후기·쿠팡 정품등록 중 <b>기록이 있는 것만</b> 나오고, 접수일자·출고날짜·사은품을 보고 고객에게 설명할 수 있습니다. 번호는 저장되지 않고 접근 기록에는 「확인함」만 남습니다.</div>
+      <div class="filters" style="margin-top:10px;gap:8px;align-items:center">
+        <input id="csLgPh" type="tel" inputmode="numeric" autocomplete="off" placeholder="휴대폰 번호 (예: 010-0000-0000)" style="width:230px">
+        <button id="csLgBtn" class="sm primary">구글폼 참여 확인</button>
+      </div>
+      <div id="csLgOut" style="margin-top:10px"></div>
+    </div>
     <div id="csResult"></div><div class="pager" id="pagerCs"></div>
   </section>
 
@@ -7525,6 +7534,54 @@ async function lgcToggle(){
   $("#lgcState").style.color="var(--ok)";
   lgcRender(r);
 }
+/* 고객검색 탭의 「구글폼 참여 확인」 — 상담사용. 조회된 이벤트(포토리뷰·한달 사용후기·쿠팡 정품등록)만 보여 주고, 접수일자·출고날짜·사은품을 한 줄로 설명합니다. 번호는 화면에 남기지 않고 입력칸도 비웁니다. */
+const CSLG_KIND = {p:"포토리뷰", m:"한달 사용후기", c:"쿠팡 정품등록"};
+function csLgProdName(it){
+  if(it.group && it.group!=="*"){
+    if(it.group==="iFD01") return "음식물처리기 (iFD01)";
+    try{ const n = (typeof PNAME!=="undefined" && PNAME[it.group]) || ""; if(n && n!==it.group) return n.indexOf(it.group)>=0 ? n : n+" ("+it.group+")"; }catch(_){}
+    return it.group;
+  }
+  return it.prod || "제품 확인 불가";
+}
+function csLgLine(it){
+  const recv = it.recv ? admEsc(it.recv)+"에 접수" : "접수일자 기록 없음";
+  const ship = it.ship ? admEsc(it.ship)+"에 출고" : "출고 전(예약판매·미출고) 또는 출고날짜 기록 없음";
+  const gift = it.gift ? "사은품 「"+admEsc(it.gift)+"」" : "사은품 기록 없음";
+  return recv+" · "+ship+" · "+gift;
+}
+function csLgRender(r){
+  if(!r.ok) return '<div style="padding:9px 12px;border-radius:9px;background:#fdecec;color:#b23b3b">'+admEsc(r.message||agMsg(r.reason))+'</div>';
+  if(!r.found) return '<div style="padding:10px 13px;border-radius:9px;background:#eef6ee"><b>구글폼 참여 기록이 없습니다.</b><br><span style="color:var(--sub);font-size:12px">7월 1일 이전 참여, 다른 번호로 참여, 시트에 번호가 비어 있는 경우는 찾을 수 없습니다.</span></div>';
+  const list = Array.isArray(r.list)?r.list:[];
+  const kinds = ["p","m","c"].filter(k=>list.some(x=>x.kind===k) || Object.keys(r[k]||{}).length);
+  let h = '<div style="padding:10px 13px;border-radius:9px;background:#fff7e6;line-height:1.8"><b>구글폼 참여 기록이 있습니다.</b> ' + kinds.map(k=>'<span class="pill tp '+(k==="c"?"coupang":(k==="m"?"month":"review"))+'">'+CSLG_KIND[k]+'</span>').join(" ") + '</div>';
+  if(!list.length){
+    h += '<div class="hint" style="margin-top:8px">상세 내역(출고날짜·사은품)은 시트를 다시 읽은 뒤에 표시됩니다. 현재 확인된 횟수 — 포토리뷰 : '+lgcSide(r.p)+' · 한달 사용후기 : '+lgcSide(r.m)+' · 쿠팡 정품등록 : '+lgcSide(r.c)+'</div>';
+    return h;
+  }
+  h += kinds.map(k=>{
+    const rows = list.filter(x=>x.kind===k);
+    if(!rows.length) return "";
+    return '<div style="margin-top:10px"><div style="font-weight:800;margin-bottom:4px">'+CSLG_KIND[k]+' · '+rows.length+'회</div>'
+      + '<div class="tablewrap"><table class="data"><thead><tr><th>제품</th><th>접수일자</th><th>출고날짜</th><th>사은품</th><th>구글폼 탭</th></tr></thead><tbody>'
+      + rows.map(it=>'<tr><td>'+admEsc(csLgProdName(it))+'</td><td>'+(it.recv?admEsc(it.recv):'<span style="color:var(--sub)">기록 없음</span>')+'</td><td>'+(it.ship?admEsc(it.ship):'<span style="color:var(--sub)">출고 전/기록 없음</span>')+'</td><td>'+(it.gift?admEsc(it.gift):'<span style="color:var(--sub)">-</span>')+'</td><td style="color:var(--sub);font-size:12px">'+admEsc(it.tab||"")+'</td></tr>').join("")
+      + '</tbody></table></div>'
+      + '<div style="margin-top:6px;font-size:12.5px;line-height:1.7">고객 안내 예시 : '+rows.slice(0,3).map(it=>admEsc(csLgProdName(it))+' — '+csLgLine(it)).join('<br>')+'</div></div>';
+  }).join("");
+  h += '<div style="margin-top:8px;font-size:12px;color:var(--sub)">지금 차단은 <b>'+(r.on?"켜짐":"꺼짐")+'</b> 상태입니다. 차단이 켜져 있고 구매 수량을 다 쓴 경우에만 새 접수가 막힙니다.</div>';
+  return h;
+}
+async function csLgFind(){
+  const inp=$("#csLgPh"), out=$("#csLgOut"), v=inp.value.trim();
+  if(!v){ out.innerHTML=""; return; }
+  $("#csLgBtn").disabled=true; out.innerHTML='<span style="color:var(--sub)">확인 중…</span>';
+  const r = await ordApi({action:"legacyLookup", phone:v});
+  $("#csLgBtn").disabled=false; inp.value="";
+  out.innerHTML = csLgRender(r);
+}
+$("#csLgBtn").addEventListener("click", csLgFind);
+$("#csLgPh").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); csLgFind(); } });
 /* 번호 하나로 구글폼 참여 횟수 확인 — 상담사가 「참여한 적 없는데 막힌다」 문의를 확인하는 용도. 번호는 화면에 남기지 않고 입력칸도 비웁니다. */
 const LGC_GRP = {"*":"제품 모름(모든 제품에서 1회로 셈)"};
 function lgcSide(o){ const k=Object.keys(o||{}); return k.length?k.map(g=>admEsc(LGC_GRP[g]||g)+" "+(o[g]||0)+"회").join(", "):"없음"; }

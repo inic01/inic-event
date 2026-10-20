@@ -1290,6 +1290,13 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
           <span id="lgcState" style="font-size:12.5px;font-weight:800"></span>
         </div>
         <div class="care">점검만 해서는 고객 접수에 아무 영향이 없습니다. 아래 탭 분류와 건수를 확인한 뒤 <b>「차단 켜기」</b>를 누르면 그때부터 막습니다. 문제가 생기면 「차단 끄기」로 바로 멈출 수 있습니다.</div>
+        <div class="filters" style="margin-top:11px;gap:8px;align-items:center">
+          <b style="font-size:13px">번호로 참여 확인</b>
+          <input id="lgcPh" type="tel" inputmode="numeric" autocomplete="off" placeholder="휴대폰 번호 (예: 010-0000-0000)" style="width:210px">
+          <button id="lgcFind" class="sm">참여 횟수 확인</button>
+          <span style="font-size:11.5px;color:var(--sub)">번호는 저장되지 않고 접근 기록에는 「확인함」만 남습니다.</span>
+        </div>
+        <div id="lgcFindOut" style="margin-top:8px"></div>
         <div id="lgcBox" style="margin-top:10px"></div>
       </div>
       <div class="panel od-upload" style="margin-bottom:14px">
@@ -7479,6 +7486,7 @@ function lgcRender(st){
         +'<td>'+(t.tooOld||0).toLocaleString()+'</td><td>'+(t.otherProd||0).toLocaleString()+'</td>'
         +'<td class="wrapcell">'+(t.note?'<span style="color:#c1121f;font-weight:700">'+admEsc(t.note)+'</span>':'')
         +(t.contentCols&&t.contentCols.length?'<div style="font-size:11.5px;color:#9a6700;margin-top:2px">제목은 번호 열이 아니지만 값이 번호라서 번호 열로 봄 : '+admEsc(t.contentCols.join(", "))+'</div>':'')
+        +(t.otherTop&&t.otherTop.length?'<div style="font-size:11.5px;color:#9a6700;margin-top:2px">제품 못 찾음 내역 : '+admEsc(t.otherTop.map(x=>x[0]+' ×'+x[1]).join(" | "))+'</div>':'')
         +(t.noPhone&&t.usedPhoneCols?'<div style="font-size:11.5px;color:#c1121f;margin-top:2px">번호로 읽은 열 : '+admEsc(t.usedPhoneCols.join(", ")||"(없음)")+(t.phoneLike&&t.phoneLike.length?' · 번호처럼 보이는 열 : '+admEsc(t.phoneLike.join(" | ")):' · 번호처럼 보이는 다른 열 없음')+'</div>'+(t.headAll&&t.headAll.length?'<div style="font-size:11px;color:var(--sub);margin-top:2px">열 이름 : <span style="font-family:monospace">'+admEsc(t.headAll.join(" | "))+'</span></div>':''):'')
         +(t.badHeaderCols&&t.badHeaderCols.length?'<div style="font-size:11.5px;color:#9a6700;margin-top:2px">제목은 번호 열인데 값이 번호가 아님(건너뜀) : '+admEsc(t.badHeaderCols.join(", "))+'</div>':'')
         +(t.head&&t.head.length?'<div style="font-size:11.5px;color:var(--sub);margin-top:2px">찾은 열 이름 : <span style="font-family:monospace">'+admEsc(t.head.join(" | "))+'</span></div>':'')+'</td></tr>').join("")
@@ -7517,6 +7525,23 @@ async function lgcToggle(){
   $("#lgcState").style.color="var(--ok)";
   lgcRender(r);
 }
+/* 번호 하나로 구글폼 참여 횟수 확인 — 상담사가 「참여한 적 없는데 막힌다」 문의를 확인하는 용도. 번호는 화면에 남기지 않고 입력칸도 비웁니다. */
+const LGC_GRP = {"*":"제품 모름(모든 제품에서 1회로 셈)"};
+function lgcSide(o){ const k=Object.keys(o||{}); return k.length?k.map(g=>admEsc(LGC_GRP[g]||g)+" "+(o[g]||0)+"회").join(", "):"없음"; }
+async function lgcFind(){
+  const inp=$("#lgcPh"), out=$("#lgcFindOut"), v=inp.value.trim();
+  if(!v){ out.innerHTML=""; return; }
+  $("#lgcFind").disabled=true; out.innerHTML='<span style="color:var(--sub)">확인 중…</span>';
+  const r = await ordApi({action:"legacyLookup", phone:v});
+  $("#lgcFind").disabled=false; inp.value="";
+  if(!r.ok){ out.innerHTML='<div style="padding:9px 12px;border-radius:9px;background:#fdecec;color:#b23b3b">'+admEsc(r.message||agMsg(r.reason))+'</div>'; return; }
+  out.innerHTML='<div style="padding:10px 13px;border-radius:9px;line-height:1.8;background:'+(r.found?"#fff7e6":"#eef6ee")+'">'
+    +(r.found?'<b>구글폼 참여 기록이 있습니다.</b>':'<b>구글폼 참여 기록이 없습니다.</b>')
+    +(r.found?'<br>포토리뷰 : '+lgcSide(r.p)+' · 한달 사용후기 : '+lgcSide(r.m)+' · 쿠팡 정품등록 : '+lgcSide(r.c):'')
+    +'<br><span style="color:var(--sub);font-size:12px">지금 차단은 <b>'+(r.on?"켜짐":"꺼짐")+'</b> 상태입니다. 차단이 켜져 있고 구매 수량을 다 쓴 경우에만 새 접수가 막힙니다.</span></div>';
+}
+$("#lgcFind").addEventListener("click", lgcFind);
+$("#lgcPh").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); lgcFind(); } });
 $("#lgcRun").addEventListener("click", lgcRun);
 $("#lgcOn").addEventListener("click", lgcToggle);
 $("#resyncBtn").addEventListener("click", resyncGo);

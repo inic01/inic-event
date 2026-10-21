@@ -8689,6 +8689,8 @@ function ruleGiftsSet(r, list){
   r.label = r.gifts[0] ? r.gifts[0].label : "";
   r.type  = r.gifts[0] ? r.gifts[0].type : "gift";
 }
+/* 펼쳐 둔 프로모션 카드 번호 — 기본은 모두 접힘 · 새 카드는 펼친 채로 · 저장하면 전부 접힘 */
+let RULE_OPEN = new Set();
 function paneRule(){
   const d = simDate();
   const cards = (cfg.giftRules || []).map((r, i) => {
@@ -8698,14 +8700,24 @@ function paneRule(){
       onclick:() => { const k = r.srcs.indexOf(x); k >= 0 ? r.srcs.splice(k, 1) : r.srcs.push(x); render(); }
     }, x));
 
+    /* 🔴 카드는 기본으로 접혀 있고(이름·제품·판매처·사은품·기간이 한 줄로 보임), 눌러서 펼칩니다. 저장하면 전부 다시 접힙니다(2026-10-21 담당자 요청 — 카드가 길어져서). */
+    const open = RULE_OPEN.has(i);
+    const gl0 = ruleGiftsView(r).filter(g => g.label.trim());
+    const sumTxt = [r.product || "제품 미선택", (r.srcs || []).length ? r.srcs.join(", ") : "판매처 미선택", gl0.length ? gl0.map(g => g.label).join(" 또는 ") : "사은품 미입력",
+      (r.from || r.to) ? (r.from || "제한 없음") + " ~ " + (r.to || "제한 없음") : "기간 제한 없음"].join(" · ");
     return el("div", { class:"rule" },
       el("div", { class:"head" },
-        el("div", { class:"row", style:"gap:8px" },
-          el("strong", { style:"font-size:13px;color:var(--sub)" }, "프로모션 " + (i + 1)),
-          el("span", { class:"pill", style:"background:var(--sunk2);color:" + st.c }, st.t)),
-        el("button", { class:"btn ghost", type:"button",
-          onclick:() => { cfg.giftRules.splice(i, 1); render(); } }, "규칙 삭제")),
+        el("div", { class:"row", style:"gap:8px;min-width:0;flex:1 1 auto;align-items:center" },
+          el("button", { class:"btn ghost", type:"button", "aria-expanded":String(open), "aria-controls":"rbody" + i, style:"padding:4px 10px;flex:none",
+            onclick:() => { if(RULE_OPEN.has(i)) RULE_OPEN.delete(i); else RULE_OPEN.add(i); render(); } }, open ? "▾ 접기" : "▸ 펼치기"),
+          el("strong", { style:"font-size:13px;color:var(--sub);flex:none" }, "프로모션 " + (i + 1)),
+          el("span", { class:"pill", style:"background:var(--sunk2);color:" + st.c + ";flex:none" }, st.t),
+          el("b", { class:"rsum-name", style:"flex:none;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }, r.name || "(이름 없음)"),
+          open ? "" : el("span", { class:"rsum", style:"color:var(--sub);font-size:12.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }, sumTxt)),
+        el("button", { class:"btn ghost", type:"button", style:"flex:none",
+          onclick:() => { const n = new Set(); RULE_OPEN.forEach(k => { if(k < i) n.add(k); else if(k > i) n.add(k - 1); }); RULE_OPEN = n; cfg.giftRules.splice(i, 1); render(); } }, "규칙 삭제")),
 
+      el("div", { id:"rbody" + i, class:"rulebody", style:open ? "" : "display:none" },
       el("div", { class:"field", style:"margin-bottom:12px" },
         el("label", { for:"rn" + i }, "프로모션 이름"),
         el("input", { id:"rn" + i, class:"rname", type:"text", value:r.name || "",
@@ -8779,7 +8791,7 @@ function paneRule(){
             (r.basis === "buy" ? "구매한" : "접수한"), " 고객은 ",
             el("b", {}, ruleGiftsView(r).filter(g => g.label.trim()).map(g => g.label).join(" 또는 ")),
             ruleGiftsView(r).filter(g => g.label.trim()).length > 1 ? "(고객이 1개 선택)" : "", " 을(를) 받습니다",
-            (r.from || r.to) ? " · " + (r.from || "제한 없음") + " ~ " + (r.to || "제한 없음") : " · 기간 제한 없음", "."));
+            (r.from || r.to) ? " · " + (r.from || "제한 없음") + " ~ " + (r.to || "제한 없음") : " · 기간 제한 없음", ".")));
   });
 
   return [
@@ -8792,6 +8804,7 @@ function paneRule(){
     el("div", { style:"margin-top:16px" },
       el("button", { class:"btn", type:"button", onclick:() => {
         cfg.giftRules.push({ product:"", srcs:[], label:"", type:"gift", from:"", to:"", basis:"apply", name:"", img:"" });   /* gifts 는 사은품을 고칠 때 생깁니다(ruleGiftsSet) */
+        RULE_OPEN.add(cfg.giftRules.length - 1);      // 새 카드는 바로 고칠 수 있게 펼침
         render();
       } }, "+ 프로모션 추가")),
     el("p", { class:"note" }, "종료일을 정하면 ", el("b", {}, "그 날 밤 12시(한국시간)가 지나는 순간"),
@@ -11050,7 +11063,7 @@ $("#saveBtn").addEventListener("click", async () => {
           「고치는 중」은 그 칸이 열려 있다는 표시일 뿐인데,
           저장을 눌러도 그대로 남아 있어 담당자가 「아직 저장이 안 됐나」로 읽었습니다.
           ⚠️ render() 가 화면을 다시 그리므로 안내 문구는 그 뒤에 넣어야 남습니다. */
-    sel = null; editRow = null; editAll = false;
+    sel = null; editRow = null; editAll = false; RULE_OPEN.clear();      // 저장하면 프로모션 카드도 전부 접습니다
     render();
     msg.textContent = "저장했습니다 — 제품 " + cfg.products.length +
       "개 · 프로모션 " + n + "건 · 설문 " + q + "문항";

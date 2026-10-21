@@ -1373,9 +1373,16 @@ function giftOf(code){
   /* 🔴 사진은 **프로모션 사은품 이름**으로 찾습니다 (2026-09-14).
         기본 사은품과 규칙이 같습니다 — gifts/<사은품 이름>.webp(png·jpg)
         예전에는 규칙에 파일 이름을 따로 적었지만, 담당자가 두 군데를 관리해야 해서 없앴습니다. */
-  if(hit) return { label:hit.label, type:hit.type==="coupon"?"coupon":"gift",
-                   fee:(GIFTS[code]||{}).fee,               // 배송비는 제품 기준 (프로모션이어도 같음)
-                   promo:hit.name||"" };
+  if(hit){
+    /* 🔴 프로모션 사은품이 2개 이상이면 고객이 1개를 고릅니다(택1, 2026-10-21 담당자 요청) — 사은품마다 종류(사은품/상품권)가 다를 수 있습니다.
+          하나뿐이면 예전과 같습니다. ⚠️ 서버 eventApi 의 ruleGifts·submitEntry 와 같은 기준입니다(서버가 고른 이름이 등록된 것인지 다시 확인). */
+    const gl=(Array.isArray(hit.gifts)&&hit.gifts.length) ? hit.gifts.map(x=>({label:x.label,type:x.type==="coupon"?"coupon":"gift"})) : [{label:hit.label,type:hit.type==="coupon"?"coupon":"gift"}];
+    if(gl.length>1) return { choice:true, options:gl, label:gl[0].label, type:gl[0].type,
+                             fee:(GIFTS[code]||{}).fee, promo:hit.name||"" };
+    return { label:gl[0].label, type:gl[0].type,
+             fee:(GIFTS[code]||{}).fee,               // 배송비는 제품 기준 (프로모션이어도 같음)
+             promo:hit.name||"" };
+  }
   return GIFTS[code]||null;
 }
 /* 이 제품의 배송비 구분 — 「선불」이라고 적어 둔 제품만 선불, 나머지는 착불. */
@@ -1613,7 +1620,7 @@ function showStep(){
     renderInfo();
     // 송장번호로 확인된 고객정보 자동 입력 (고객이 고칠 수 있게 열어둠)
     if(state.autoName && !$("#name").value) $("#name").value=state.autoName;
-    if(state.autoPhone && !$("#phone").value){ $("#phone").value=state.autoPhone; fmtPhone($("#phone")); }
+    if(state.autoPhone && !$("#phone").value && !/^050/.test(String(state.autoPhone).replace(/\D/g,""))){ $("#phone").value=state.autoPhone; fmtPhone($("#phone")); }   // 안심번호(050)는 연락처로 쓰지 못하므로 채우지 않고 빈칸으로 둡니다(본인 휴대폰 번호를 직접 입력)
   }
   window.scrollTo({top:0,behavior:"smooth"});
   if(typeof syncNavGuard==="function") syncNavGuard();   // 휴대폰 뒤로가기 대비(위 뒤로가기 설명)
@@ -1825,7 +1832,7 @@ function renderInfo(){
     if(state.type!=="coupang" && g && g.choice){
       html+='<div class="consent"><div class="ctitle">사은품 선택<span class="ctag must">필수</span></div>';
       if(g.note) html+='<div class="notice" style="margin:6px 0 4px">'+g.note+'</div>';
-      g.options.forEach((o,i)=>{ html+='<label class="radio"><input type="radio" name="gift" value="'+i+'"><span>'+o.label+'</span></label>'; });
+      g.options.forEach((o,i)=>{ html+='<label class="radio"><input type="radio" name="gift" value="'+i+'"><span>'+o.label+(o.type==='coupon'?' (상품권)':'')+'</span></label>'; });
       html+='<div class="err" id="err-gift">사은품을 선택해 주세요.</div></div>';
     }
     html+='<div id="rewardInner"></div>';
@@ -2703,7 +2710,14 @@ function validateStep(step){
     /* 이메일 — 전원 필수(2026-09-09 확정). 형식이 맞아야 통과합니다. */
     if(REQ.email && !isEmail($("#email").value)){showErr("err-email");ok=false;}else hideErr("err-email");
     if(REQ.name && !$("#name").value.trim()){showErr("err-name");ok=false;}else hideErr("err-name");
-    if(REQ.phone && $("#phone").value.replace(/[^0-9]/g,"").length<10){showErr("err-phone");ok=false;}else hideErr("err-phone");
+    /* 🔴 안심번호(050)는 연락처로 받지 않습니다(2026-10-21) — 구글폼 참여 기록(본인 번호)과 비교해 중복 참여를 막으려면 본인 휴대폰 번호가 필요하고, 출고 문자도 본인 번호로 가야 합니다.
+          접수 서버(eventApi submitEntry)도 같은 기준으로 한 번 더 막습니다(phone050). */
+    { const phD=$("#phone").value.replace(/[^0-9]/g,""), is050=/^050/.test(phD), ep=$("#err-phone");
+      if(ep && ep.dataset.is050!=="1") ep.dataset.orig=ep.textContent;
+      if(REQ.phone && (phD.length<10 || is050)){
+        if(ep){ if(is050){ ep.textContent=PHONE050_MSG; ep.dataset.is050="1"; } else if(ep.dataset.is050==="1"){ ep.textContent=ep.dataset.orig; ep.dataset.is050=""; } }
+        showErr("err-phone"); ok=false;
+      } else { if(ep && ep.dataset.is050==="1"){ ep.textContent=ep.dataset.orig; ep.dataset.is050=""; } hideErr("err-phone"); } }
     if(state.type!=="coupang" && g && g.choice && state.giftChoice==null){showErr("err-gift");ok=false;}
     // 기본주소(주소검색 결과)가 없으면 상세주소만 입력해도 통과시키지 않는다 — 오기재·발송누락 방지
     if(rw==="gift" && REQ.addr){
@@ -3413,6 +3427,8 @@ const API_ERR = {
   token:   ["tokenExpired",    "구매 확인이 만료되었습니다.\n처음 화면에서 구매 내역을 다시 조회한 뒤 접수해 주세요."],
   product: ["productMismatch", "조회하신 구매 내역에 없는 제품입니다.\n구매 내역을 다시 조회해 주세요."],
   input:   ["inputInvalid",    "입력하신 정보를 다시 확인해 주세요."],
+  gift:    ["giftMissing",     "사은품을 선택해 주세요."],
+  phone050:["phone050",        "안심번호(050)는 연락처로 사용할 수 없습니다.\n이벤트 안내와 출고 문자를 받으실 본인 휴대폰 번호를 입력해 주세요."],
   origin:  ["originBlocked",   "접수는 아이닉 공식 접수폼에서만 가능합니다."],
   /* 🔴 2026-10-02 — 서버가 필수 사진·구매내역·S/N 이 없다고 막았을 때.
         쿠팡의 사진은 S/N 라벨 사진이라 문구를 따로 둡니다(아래 showApiErr). */
@@ -3425,6 +3441,7 @@ const API_ERR = {
   /* 🔴 2026-10-06 — 접수 저장 응답이 90초 넘게 없을 때. 입력은 그대로 두고 다시 누르게 합니다. */
   timeout:  ["submitTimeout",   "응답이 늦어지고 있습니다. 입력하신 내용은 그대로 있으니 잠시 후 「접수 신청」을 다시 눌러 주세요.\n이미 접수되었는지는 첫 화면의 「참여 조회」에서 확인하실 수 있습니다."]
 };
+const PHONE050_MSG = "안심번호(050)는 연락처로 사용할 수 없습니다. 이벤트 안내와 출고 문자를 받으실 본인 휴대폰 번호를 입력해 주세요.";
 const API_ERR_ELSE = ["submitErr",
   "접수 중 오류가 발생했습니다.\n잠시 후 다시 시도해 주세요. 계속 실패하면 상담사에게 문의해 주세요."];
 

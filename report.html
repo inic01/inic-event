@@ -3425,6 +3425,7 @@ async function mSha40(s){
 
 let MFIND = null;      // 지금 화면에 떠 있는 포토리뷰 조회 결과
 let MCFIND = null;     // 지금 화면에 떠 있는 쿠팡 조회 결과
+let MC_SEQ = 0;        // 쿠팡 조회를 연달아 눌렀을 때 먼저 누른 결과를 버리기 위한 번호
 let M_IMG = null;      // 올려둔 증빙 이미지 {path,url}
 let M_CTX = {};        // 등록 폼이 무엇을 등록하는 중인지
 
@@ -3509,6 +3510,81 @@ function mUsedFor(g, keys){
   return { used, hits };
 }
 
+/* ══════════ 구글폼 참여 이력 (수기접수용, 2026-10-22 사용자 요청) ══════════
+   수기접수 1단계는 고객DB(구매내역)와 이 시스템의 접수만 봐서, 구글폼으로 이미 참여한 고객도 「남음」으로 보였습니다.
+   서버 ordersApi legacyLookup(상담사도 쓸 수 있음)을 번호별로 불러, 제품 묶음마다 가장 큰 값을 씁니다(서버 eventApi legacyCounts 와 같은 규칙).
+   ⚠️ 못 불러와도 수기접수는 막지 않습니다(안내만 띄움). 번호는 서버로만 보내고 화면·기록에 남기지 않습니다.
+   ⚠️ 제품 묶음 계산(mLgGroup)은 서버 eventApi 의 legacyGroup·PICK_GROUPS 와 같은 규칙입니다(SV_GROUP = 같은 형제 코드). */
+const mLgGroup = codes => { const c = String((codes && codes[0]) || ""); return String(SV_GROUP[c] || (codes.length > 1 ? c.replace(/-[A-Za-z]+$/, "") : c)).toLowerCase(); };
+const mLgName = k => {
+  if(k === "*") return "제품 모름(모든 제품에서 1회로 셈)";
+  const c = Object.keys(PNAME).find(x => x.toLowerCase() === k); if(c) return PNAME[c] || c;
+  const g = Object.keys(SV_GROUP_NAME).find(x => x.toLowerCase() === k); return g ? SV_GROUP_NAME[g] : k;
+};
+/* 휴대폰 번호만 조회합니다(서버 ordersApi legacyPhone 과 같은 기준). 안심번호(050)·일반전화는 구글폼에 적힌 실제 번호와 달라 조회해도 안 잡힙니다. */
+const mLgPhone = raw => {
+  let d = mDigits(raw);
+  if(d.startsWith("82") && (d.length === 12 || d.length === 11)) d = "0" + d.slice(2);
+  if(d.length === 10 && /^1[016789]/.test(d)) d = "0" + d;
+  return /^01[016789]\d{7,8}$/.test(d) ? d : "";
+};
+async function mLegacy(phones, side){           // side: "p" 포토리뷰 · "c" 쿠팡 정품등록
+  const out = { ok:false, on:false, found:false, counts:{}, noPhone:false };
+  const list = [...new Set((phones || []).map(mLgPhone).filter(Boolean))].slice(0, 3);
+  if(!list.length){ out.noPhone = true; return out; }   // 안심번호만 있음 → 실제 번호를 물어 확인해야 함
+  let good = 0;
+  for(const p of list){
+    let r = null; try{ r = await ordApi({ action:"legacyLookup", phone:p }); }catch(_){ r = null; }
+    if(!r || !r.ok) continue;
+    good++; if(r.on === true) out.on = true; if(r.found) out.found = true;
+    const s = r[side] || {};
+    Object.keys(s).forEach(g => { const n = Number(s[g]) || 0, k = String(g).toLowerCase(); if(n > (out.counts[k] || 0)) out.counts[k] = n; });
+  }
+  out.ok = good === list.length;                 // 하나라도 못 불렀으면 「확인 못 함」으로 봅니다
+  return out;
+}
+const mLgOf = (lg, g) => (lg && lg.ok) ? ((lg.counts[mLgGroup(g.codes)] || 0) + (lg.counts["*"] || 0)) : 0;
+function mLgBanner(lg, side){
+  const box = (bg, bd, fg, html) => `<div class="panel" style="margin-bottom:14px;background:${bg};border:1px solid ${bd};color:${fg}">${html}</div>`;
+  if(!lg) return "";
+  /* 포토리뷰는 고객DB에 안심번호만 있을 수 있어, 고객에게 물은 실제 번호로 한 번 더 확인하는 칸을 늘 붙입니다 */
+  const more = side === "p"
+    ? `<div style="margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+         <input id="mLgPh" type="tel" inputmode="numeric" autocomplete="off" placeholder="고객 실제 휴대폰 번호" style="width:190px">
+         <button class="sm" onclick="mLgMore()">이 번호로 구글폼 확인</button>
+         <span id="mLgMoreMsg" style="font-size:12px"></span></div>` : "";
+  if(lg.noPhone) return box("#fff7e6", "#f0e0c0", "#7a6431", side === "p"
+    ? "<b>고객DB에 안심번호만 있어 구글폼 참여를 확인할 수 없습니다.</b><br>구글폼에는 고객이 실제 휴대폰 번호를 적었습니다. <b>고객에게 실제 번호를 물어</b> 아래에서 확인한 뒤 접수해 주세요." + more
+    : "<b>입력하신 번호가 휴대폰 번호(010 등)가 아니라 구글폼 참여를 확인할 수 없습니다.</b> 고객의 실제 휴대폰 번호로 다시 조회해 주세요.");
+  if(!lg.ok) return box("#fdecec", "#f3c6c6", "#8c4b4b", "<b>구글폼 참여 이력을 확인하지 못했습니다.</b> 고객검색 탭의 「구글폼 참여 확인」에서 따로 확인한 뒤 접수해 주세요." + more);
+  const off = lg.on ? "" : " (지금 구글폼 차단은 꺼져 있어 고객 접수폼은 막지 않습니다.)";
+  const hits = Object.keys(lg.counts).filter(k => lg.counts[k] > 0);
+  if(side === "c"){
+    if(hits.length) return box("#fff7e6", "#f0e0c0", "#7a6431", "<b>구글폼 쿠팡 정품등록 참여 기록이 있습니다.</b><br>" + hits.map(k => admEsc(mLgName(k)) + " " + lg.counts[k] + "회").join(" · ") + "<br>쿠팡 정품등록은 <b>제품당 1대</b>이므로 같은 제품이면 중복입니다." + off);
+    return box("#eef6ee", "#cfe3cf", "#3d6b48", lg.found ? "구글폼에 이 고객의 기록은 있지만 <b>쿠팡 정품등록 기록은 없습니다.</b>" : "구글폼 참여 기록이 없습니다.");
+  }
+  if(lg.found && hits.length) return box("#fff7e6", "#f0e0c0", "#7a6431", "<b>구글폼 참여 기록이 있습니다.</b> 아래 표의 「접수」 칸에 <b>구글폼 참여 횟수를 합쳐서</b> 보여 줍니다." + off + more);
+  return box("#eef6ee", "#cfe3cf", "#3d6b48", (lg.found ? "구글폼에 이 고객의 기록은 있지만 <b>포토리뷰 기록은 없습니다.</b>" : "구글폼 참여 기록이 없습니다.")
+    + "<br><span style=\"font-size:12px\">고객이 구글폼에 <b>다른 번호</b>를 적었을 수 있으면 아래에서 그 번호로도 확인해 주세요.</span>" + more);
+}
+/* 실제 번호로 한 번 더 확인 — 결과는 이미 본 번호들과 합칩니다(제품 묶음마다 큰 값). 번호는 칸에서 바로 지우고 어디에도 남기지 않습니다. */
+async function mLgMore(){
+  const inp = $("#mLgPh"), note = $("#mLgMoreMsg"), f = MFIND; if(!inp || !f) return;
+  const ph = mLgPhone(inp.value); inp.value = "";
+  if(!ph){ note.textContent = "휴대폰 번호(010 등)를 넣어 주세요."; note.style.color = "var(--bad,#c1121f)"; return; }
+  note.textContent = "확인 중…"; note.style.color = "";
+  const r = await mLegacy([ph], "p");
+  if(MFIND !== f) return;
+  if(!r.ok){ note.textContent = "확인하지 못했습니다. 고객검색 탭에서 따로 확인해 주세요."; note.style.color = "var(--bad,#c1121f)"; return; }
+  const lg = f.lg && f.lg.ok ? f.lg : { ok:true, on:false, found:false, counts:{}, noPhone:false };
+  lg.on = lg.on || r.on; lg.found = lg.found || r.found;
+  Object.keys(r.counts).forEach(k => { if(r.counts[k] > (lg.counts[k] || 0)) lg.counts[k] = r.counts[k]; });
+  f.lg = lg;
+  mRenderFind();
+  const n2 = $("#mLgMoreMsg"); if(n2){ n2.textContent = r.found ? "✔ 확인했습니다 — 이 번호의 구글폼 기록을 표에 합쳤습니다." : "✔ 확인했습니다 — 이 번호로는 구글폼 기록이 없습니다."; n2.style.color = "var(--ok)"; }
+}
+window.mLgMore = mLgMore;
+
 /* ══════════ 1단계 · 찾기 ══════════ */
 
 async function mFind(){
@@ -3566,7 +3642,11 @@ async function mFind(){
     const ords   = [...new Set(rows.map(r => mNormKey(r.ord)).filter(Boolean))];
     const invs   = [...new Set(rows.map(r => mNormKey(r.inv)).filter(Boolean))];
 
-    MFIND = { label, rows, groups, skipped, keys:{ phones, ords, invs } };
+    const found = { label, rows, groups, skipped, keys:{ phones, ords, invs }, lg:null };
+    MFIND = found;
+    msg.textContent = "구매 내역을 찾았습니다 · 구글폼 참여 이력 확인 중…";
+    found.lg = await mLegacy(phones, "p");          // 못 불러와도 계속합니다(화면에 안내)
+    if(MFIND !== found) return;                      // 확인하는 사이 다시 찾았으면 이 결과는 버립니다
     msg.textContent = "✔ 찾았습니다";
     msg.style.color = "var(--ok)";
     logAccess("고객DB 조회", "수기접수 · " + label, rows.length);
@@ -3693,7 +3773,10 @@ function mRenderFind(){
   /* ── 4단계 · 제품별 접수 현황 ── */
   const rowsHtml = f.groups.map((g, i) => {
     const { used, hits } = mUsedFor(g, f.keys);
-    const left = Math.max(0, g.qty - used);
+    const lgN = mLgOf(f.lg, g), total = used + lgN;       // 구글폼 참여 횟수를 합쳐서 셉니다
+    const left = Math.max(0, g.qty - total);
+    const lgNote = lgN > 0
+      ? `<div style="font-size:12px;color:#b8860b;font-weight:700;margin-top:3px">구글폼 ${lgN}회 참여${total >= g.qty ? ` — 구매 ${g.qty}개 중 이미 ${total}회 참여 (새 접수폼 ${used}회 + 구글폼 ${lgN}회)` : ""}</div>` : "";
     const doneList = hits.map(e => {
       const st = shipStatus(e), meta = STATUS_META[st] || ["", ""];
       return `<div style="font-size:12px;color:var(--sub);margin-top:3px">
@@ -3702,8 +3785,9 @@ function mRenderFind(){
                 ${e.giftQty > 1 ? ` · 수량 ${e.giftQty}` : ""}</div>`;
     }).join("");
 
+    /* 2026-10-22 사용자 결정 — 포토리뷰는 구글폼 참여까지 합쳐 구매 수량을 다 쓰면 버튼을 닫습니다(예외 접수 없음. 예외 접수는 쿠팡 정품등록에만). */
     const btns = left <= 0
-      ? `<span class="pill" style="background:#f0eeec;color:#6b625b">모두 접수됨</span>`
+      ? `<span class="pill" style="background:#f0eeec;color:#6b625b">모두 접수됨${lgN > 0 ? "(구글폼 포함)" : ""}</span>`
       : g.codes.map(c =>
           `<button class="sm primary" onclick="mOpenForm({type:'review',gi:${i},code:'${c}'})">
              ${g.codes.length > 1 ? admEsc(PNAME[c] || c) + "로 " : ""}접수</button>`).join(" ");
@@ -3711,9 +3795,9 @@ function mRenderFind(){
     return `<tr>
       <td><b>${admEsc(mProdLabel(g))}</b>
         ${g.codes.length > 1 ? '<div style="font-size:12px;color:#b8860b;font-weight:700">둘 중 하나만 선택 가능</div>' : ""}
-        ${doneList}</td>
+        ${lgNote}${doneList}</td>
       <td style="text-align:center"><b>${g.qty}</b></td>
-      <td style="text-align:center">${used}</td>
+      <td style="text-align:center">${total}${lgN > 0 ? `<div style="font-size:11px;color:var(--sub)">구글폼 ${lgN} 포함</div>` : ""}</td>
       <td style="text-align:center"><b style="color:${left > 0 ? "var(--ok)" : "var(--sub)"}">${left}</b></td>
       <td style="text-align:right;white-space:nowrap">${btns}</td>
     </tr>`;
@@ -3732,7 +3816,7 @@ function mRenderFind(){
        </div>
      </div>`;
 
-  $("#mFindResult").innerHTML = card + guide + table;
+  $("#mFindResult").innerHTML = card + mLgBanner(f.lg, "p") + guide + table;
 }
 
 /* ── 복사 ── */
@@ -3754,7 +3838,8 @@ window.mCopyGuide = mCopyGuide;
 
 /* ══════════ 쿠팡 정품등록 ══════════ */
 
-function mcFind(){
+async function mcFind(){
+  const seq = ++MC_SEQ;
   const msg = $("#mcMsg"); msg.style.color = ""; msg.textContent = "";
   $("#mcResult").innerHTML = ""; MCFIND = null; mFormClose();
 
@@ -3815,20 +3900,28 @@ function mcFind(){
       ${table(near)}
     </div>` : "";
 
+  /* 🔴 구글폼 참여 이력(2026-10-22) — 이 시스템의 접수와 따로 확인합니다. 못 불러와도 등록은 막지 않고 안내만 띄웁니다. */
+  msg.textContent = "구글폼 참여 이력 확인 중…";
+  const lg = await mLegacy([ph], "c");
+  if(seq !== MC_SEQ) return;                         // 확인하는 사이 다시 조회했으면 이 결과는 버립니다
+  const lgBox = mLgBanner(lg, "c");
+  const legacyHit = !!(lg && lg.ok && Object.keys(lg.counts).some(k => lg.counts[k] > 0));
+  const lgConfirm = legacyHit ? "if(!confirm('구글폼에 쿠팡 정품등록 참여 기록이 있습니다.\\n같은 제품이면 중복입니다. 그래도 등록하시겠습니까?'))return;" : "";
+
   /* ── 이력 없음 ── */
   if(!exact.length){
-    msg.textContent = near.length ? "정확히 일치하는 건 없음 (비슷한 건 " + near.length + "건)" : "✔ 참여 이력 없음";
-    msg.style.color = near.length ? "#8a6d1f" : "var(--ok)";
-    $("#mcResult").innerHTML = phWarn +
+    msg.textContent = legacyHit ? "시스템 접수 이력은 없음 · 구글폼 참여 기록 있음" : (near.length ? "정확히 일치하는 건 없음 (비슷한 건 " + near.length + "건)" : "✔ 참여 이력 없음");
+    msg.style.color = legacyHit ? "var(--bad,#c1121f)" : (near.length ? "#8a6d1f" : "var(--ok)");
+    $("#mcResult").innerHTML = phWarn + lgBox +
       `<div class="panel" style="background:#eef6ee;border:1px solid #cfe3cf">
-         <h3 style="color:#2c6b3c">참여 이력이 없습니다 — 등록할 수 있습니다</h3>
+         <h3 style="color:#2c6b3c">${legacyHit ? "이 시스템에는 접수 이력이 없습니다 — 위 구글폼 참여 기록을 확인하세요" : "참여 이력이 없습니다 — 등록할 수 있습니다"}</h3>
          <div class="hint" style="color:#3d6b48">
            그래도 <b>고객이 직접 접수</b>하는 것이 원칙입니다. 접수폼 주소를 먼저 안내해 주세요.<br>
            직접 하기 어려운 경우에만 아래에서 등록하시고, <b>시리얼번호 라벨 사진</b>을 함께 받아 두세요.
          </div>
          <div style="margin-top:11px">
            <button class="sm" onclick="mCopy('${FORM_URL}',this)">접수폼 주소 복사</button>
-           <button class="sm primary" onclick="mOpenForm({type:'coupang'})">정품등록 접수</button>
+           <button class="sm primary" onclick="${lgConfirm}mOpenForm({type:'coupang'})">정품등록 접수</button>
          </div>
        </div>` + nearBox;
     return;
@@ -3846,7 +3939,7 @@ function mcFind(){
     : `쿠팡 정품등록 이력은 없지만 <b>포토리뷰로 ${rv.length}건</b> 참여하신 분입니다.
        <b>같은 제품</b>이면 중복이라 등록하시면 안 됩니다. 아래 제품을 확인해 주세요.`;
 
-  $("#mcResult").innerHTML = phWarn +
+  $("#mcResult").innerHTML = phWarn + lgBox +
     `<div class="panel" style="background:#fdf6ec;border:1px solid #f0e0c0">
        <h3 style="color:#8a6d1f">참여 이력이 있습니다</h3>
        <div class="hint" style="color:#7a6431">
@@ -4016,12 +4109,13 @@ function mOpenForm(ctx){
     const f = MFIND, g = f && f.groups[M_CTX.gi];
     if(!f || !g){ alert("조회 결과가 사라졌습니다. 다시 찾아 주세요."); return; }
     const { used } = mUsedFor(g, f.keys);
-    const left = Math.max(0, g.qty - used);
+    const lgN = mLgOf(f.lg, g);                          // 구글폼 참여 횟수도 쓴 것으로 셉니다(한 번에 받을 수 있는 최대 수량이 그만큼 줄어듦)
+    const left = Math.max(0, g.qty - used - lgN);
     const r0 = f.rows[0] || {};
     const rowFor = f.rows.find(r => (r.code === M_CTX.code) || (Array.isArray(r.pick) && r.pick.includes(M_CTX.code))) || r0;
 
     title = "포토리뷰 · 등록";
-    lead = `<b>${admEsc(PNAME[M_CTX.code] || M_CTX.code)}</b> — 원장 구매 <b>${g.qty}</b> · 이미 접수 <b>${used}</b> · 남은 <b>${left}</b>건.
+    lead = `<b>${admEsc(PNAME[M_CTX.code] || M_CTX.code)}</b> — 원장 구매 <b>${g.qty}</b> · 이미 접수 <b>${used}</b>${lgN ? ` · 구글폼 <b>${lgN}</b>` : ""} · 남은 <b>${left}</b>건.
             성함·연락처·제품·번호는 원장에서 자동으로 채웠습니다. <b>주소만</b> 넣으시면 됩니다.`;
 
     $("#mCategory").value = mCategoryOf(M_CTX.code); onCategoryChange();

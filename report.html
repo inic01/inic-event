@@ -1616,7 +1616,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
         · <b>관리자</b> — 전부 (사람 추가·삭제, <b>밤에도 이용 가능</b>)<br>
         · <b>QA담당자</b> — 고객DB·관리자만 빼고 전부<br>
         · <b>발주담당자 / 회계담당자</b> — 전체 · 사은품 · 상품권 · 예약발송 · 고객DB<br>
-        · <b>상담사</b> — 전체 · 부적합 · 고객검색 · 수기접수<br>
+        · <b>상담사</b> — 부적합 · 고객검색 · 수기접수<br>
         관리자를 뺀 나머지는 <b>오전 9시~밤 10시</b>에만 들어올 수 있습니다.
       </div>
       <div id="admNew"></div>
@@ -1829,6 +1829,8 @@ const FIREBASE_CONFIG={apiKey:"AIzaSyDEp7NfsOHEHwsqW4r0NNRtJ2x4S7yrwjE",authDoma
 const COLLECTION="reviewEntries";
 const CONFIG_DOC=["eventConfig","settings"];
 const PAGE_SIZE=20;
+/* 2026-10-22 사용자 요청 — 「전체」 탭은 10건이 넘으면 다음 쪽으로 넘어갑니다. 다른 목록은 그대로 20건씩입니다. */
+const pageSizeOf=key=>key==="all"?10:PAGE_SIZE;
 
 /* ===== 접수폼 기준 제품 카탈로그 (코드, 표시명) ===== */
 const PRODUCTS={
@@ -2202,7 +2204,7 @@ function computeDups(){
 function allProducts(){const s=[];for(const c in PRODUCTS)PRODUCTS[c].forEach(([code])=>s.push(code));ALL.forEach(e=>{if(e.product&&!s.includes(e.product))s.push(e.product);});return s;}
 
 function pager(navId,total,key){
-  const el=$(navId);const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  const el=$(navId);const pages=Math.max(1,Math.ceil(total/pageSizeOf(key)));
   if(pageState[key]>pages)pageState[key]=pages;const cur=pageState[key];
   if(pages<=1){el.innerHTML="";return;}
   const go=n=>`onclick="__page('${key}',${n})"`;
@@ -2254,9 +2256,9 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeImg();if(typeo
 /* 2026-10-06 — 마지막 쪽의 건을 다 처리하면 쪽 수가 줄어드는데, 예전에는 줄어든 쪽 번호로 고치기(pager) 전에 잘라서
    「총 N건」인데 표가 비어 보였습니다. 자르기 전에 쪽 번호를 먼저 맞춥니다(pager 의 보정과 같은 규칙). */
 function slice(rows,key){
-  const pages=Math.max(1,Math.ceil(rows.length/PAGE_SIZE));
+  const ps=pageSizeOf(key), pages=Math.max(1,Math.ceil(rows.length/ps));
   if(pageState[key]>pages)pageState[key]=pages;
-  return rows.slice((pageState[key]-1)*PAGE_SIZE,pageState[key]*PAGE_SIZE);}
+  return rows.slice((pageState[key]-1)*ps,pageState[key]*ps);}
 
 /* 전체 (필터 없음 — 전체 리스트) */
 function filteredAll(){return ALL;}
@@ -5627,7 +5629,7 @@ const TABS_BY_ROLE = {
   qa:     null,                                                   // 관리자와 같음(2026-10-06)
   order:  ["all","order","acct","reserve","orders"],
   acct:   ["all","order","acct","reserve","orders"],
-  agent:  ["all","bad","cs","manual"]        // 2026-10-06 확정: 전체·부적합·고객검색·수기접수 (조장은 여기에 관리자 탭이 더해짐)
+  agent:  ["bad","cs","manual"]              // 2026-10-22 사용자 요청: 부적합·고객검색·수기접수만 (10/06에는 전체 탭도 있었음). 조장은 여기에 관리자 탭이 더해짐
 };
 function applyTabsForRole(){
   const allow = TABS_BY_ROLE[(ME&&ME.role)||"agent"];

@@ -2143,7 +2143,7 @@ function buildCatalog(){
       const a=PRODREWARD[e.product]=PRODREWARD[e.product]||[];
       if(!a.some(x=>x.name===e.giftItem))a.push({name:e.giftItem,rewardType:e.rewardType||"gift"});
     }
-    if(e.source)src.add(e.source);
+    if(srcOf(e))src.add(srcOf(e));
   });
   SOURCES=[...src];
   computeDups();
@@ -2288,11 +2288,14 @@ const SN_COL=["S/N (입력 / AI판독)",e=>{
    ⚠️ 표시만 합니다. 저장된 giftQty 를 사방넷 엑셀 합산(aggShipRows)과 같은 방식으로 읽습니다(값이 없는 예전 건 = 1). */
 function giftQtyOf(e){return Math.max(1,parseInt(e.giftQty,10)||1);}
 function giftQtyHtml(e){const q=giftQtyOf(e);return q>1?`<b style="color:#c0392b">${q}</b>`:String(q);}
+/* 판매처 표시 (2026-10-23 사용자 결정) — 쿠팡 정품등록은 「쿠팡 로켓배송」(수기접수와 같은 값, COUPANG_SRC).
+   접수폼으로 들어온 옛 쿠팡 건은 판매처가 비어 저장돼 있어서, 화면에서만 채워 보여 줍니다(저장된 값·엑셀·CSV 는 그대로). */
+const srcOf = e => (e && e.source) || ((e && e.type === "coupang") ? COUPANG_SRC : "");
 const COLS=[
-  ["접수일시",e=>fmtDate(e._date)],["판매처",e=>admEsc(e.source||"-"),"wrapcell"],["출고",e=>shipBadge(e)],["출고일자",e=>shippedDate(e)],
+  ["접수일시",e=>fmtDate(e._date)],["판매처",e=>admEsc(srcOf(e)||"-"),"wrapcell"],["출고",e=>shipBadge(e)],["출고일자",e=>shippedDate(e)],
   TYPE_COL,["제품",e=>admEsc(e.product||"-")],
   ["보상",e=>`<span class="pill ${clsRw(e.rewardType)}">${REWARD_LABEL[clsRw(e.rewardType)]||"-"}</span>`],["사은품/상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],["수량",e=>giftQtyHtml(e)],
-  ["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["심사",e=>statusBadge(e)]
+  ["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["심사",e=>statusBadge(e)+(e.overrideEligible?' <span class="pill approved">수동승인</span>':"")]   /* 2026-10-23 — 심사 값(부적합)은 그대로 두고, 출고 승인한 건은 「수동승인」을 옆에 같이 보여 줍니다(상세·고객검색과 같은 표시) */
 ];
 function headHtml(cols){return "<tr>"+cols.map(c=>`<th class="${c[2]||""}">${c[0]}</th>`).join("")+"</tr>";}
 function rowHtml(cols,e,attrs){return `<tr${attrs||""}>`+cols.map(c=>`<td class="${c[2]||""}">${c[1](e)}</td>`).join("")+"</tr>";}
@@ -2308,7 +2311,7 @@ function renderTableAll(){
 }
 
 /* 리포트 */
-function renderReport(){renderTiles();aggTable("#byProduct",e=>e.product);aggTable("#bySource",e=>e.source);renderSurvey();}
+function renderReport(){renderTiles();aggTable("#byProduct",e=>e.product);aggTable("#bySource",e=>srcOf(e));renderSurvey();}
 function renderTiles(){
   const a=ALL;
   const month=a.filter(e=>e.type==="review"&&e.event==="month").length;
@@ -2364,7 +2367,7 @@ function svBuild(){
       if(isEtc){ const t=a.replace(/^기타\s*:?\s*/,"").trim(); if(t) p.q[q].etc[t]=(p.q[q].etc[t]||0)+1; }
     };
     (e.survey||[]).forEach(s=>{ if(s&&s.q) put(s.q, s.a||"(무응답)"); });
-    put(SV_SRC_Q, e.source||"(미상)");
+    put(SV_SRC_Q, srcOf(e)||"(미상)");
   });
   return out;
 }
@@ -3078,7 +3081,7 @@ function openDetail(id, readOnly){
   $("#dtMeta").innerHTML="접수 "+fmtDate(e._date)+" · "+cell(e,"phone");
   $("#dtReward").textContent=(REWARD_LABEL[e.rewardType]||"사은품/상품권")+" : "+(e.giftItem||"-");
   $("#dtProduct").textContent=e.product||"-";
-  $("#dtSource").textContent=e.source||"-";
+  $("#dtSource").textContent=srcOf(e)||"-";
   /* 출고 승인 버튼을 누른 기록이 있을 때만 보입니다 (담당자 = 누른 상담사) */
   const hasApv=!!(e.approvedAt||e.approvedBy);
   $("#dtApvByRow").style.display=hasApv?"":"none"; $("#dtApvAtRow").style.display=(hasApv&&e.approvedAt)?"":"none";
@@ -3389,7 +3392,7 @@ function renderCS(){
         <div><b>제품</b>${admEsc(e.product||"-")}</div>
         <div><b>${REWARD_LABEL[clsRw(e.rewardType)]||"사은품/상품권"}</b>${admEsc(e.giftItem||"-")}</div>
         <div><b>수량</b>${giftQtyHtml(e)}</div>
-        <div><b>판매처</b>${admEsc(e.source||"-")}</div>
+        <div><b>판매처</b>${admEsc(srcOf(e)||"-")}</div>
         <div><b>주문번호</b>${admEsc(e.orderNo||"-")}</div>
         ${e.type==="coupang"?`<div><b>S/N</b><span style="${MONO}">${admEsc(e.serial||"(미입력)")}</span></div>`:""}
         <div><b>배송구분</b>${shipFeeBadge(e)}</div>

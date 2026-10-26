@@ -1073,7 +1073,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
     <div id="badUnassigned" style="display:none;margin:0 0 10px;padding:9px 13px;border:1.5px solid #f0c9c9;background:#fff7f7;color:#b3252a;border-radius:10px;font-size:12.5px;line-height:1.6"></div>
     <div class="filters stick">
       <select id="bfReward"><option value="">보상 전체</option><option value="gift">사은품</option><option value="coupon">상품권</option></select>
-      <select id="bfReason"><option value="">사유 전체</option><option value="notcap">리뷰 캡처·S/N 사진 아님</option><option value="ratingunread">별점 미확인</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="snmismatch">S/N 불일치</option><option value="snunread">S/N 미확인</option><option value="dup">중복 참여</option></select>
+      <select id="bfReason"><option value="">사유 전체</option><option value="notcap">리뷰 캡처·S/N 사진 아님</option><option value="ratingunread">별점 미확인</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="snmismatch">S/N 불일치</option><option value="snunread">S/N 미확인</option><option value="buyunread">구매내역 확인 불가(정정 후)</option><option value="dup">중복 참여</option></select>
       <select id="bfAgent"><option value="">담당자 전체</option><option value="__none__">미지정</option></select>
       <select id="bfSort"><option value="wait">경과 긴 순 (오래 기다린 고객부터)</option><option value="due">기한일 순</option><option value="date">접수일 순</option><option value="agent">담당자 순</option></select>
       <input type="text" id="bfSearch" placeholder="이름·연락처·제품 검색">
@@ -1981,6 +1981,9 @@ const REASON_RULES=[
   {key:"buyship",  label:"배송완료 아님",   hit:e=>e.aiBuyDelivered===false,     text:()=>"배송완료 아님"},
   {key:"buyprod",  label:"구매내역 제품 다름", hit:e=>e.aiBuyProductMatch===false,
                                                                                  text:e=>"구매내역 다른 제품"+(e.aiBuyProductInImage?` (${e.aiBuyProductInImage})`:"")},
+  /* 2026-10-26 — S/N 정정 뒤 구매내역을 AI 가 못 읽어 부적합에 남은 건. 위 구매내역 3가지(확실히 안 맞음)가 걸리면 그쪽이 먼저 나옵니다 */
+  {key:"buyunread",label:"구매내역 확인 불가(정정 후)", hit:e=>e.type==="coupang"&&e.snFixed===true&&shipStatus(e)==="ineligible"&&!snBuyBad(e)&&(!buyJudged(e)||buyUnread(e)),
+                                                                                 text:()=>"구매내역 확인 불가 (S/N은 정정함) — 구매내역을 직접 확인"},
   {key:"abuse",    label:"욕설·비방",       hit:e=>e.aiAbuseFree===false,        text:()=>"욕설·비방"},
   {key:"wrongprod",label:"다른 제품 리뷰",  hit:e=>e.aiProductMatch===false,     text:()=>"다른 제품 리뷰"},
   {key:"photo",    label:"사진 없음",       hit:e=>e.aiPhotoPass===false,        text:()=>"사진 없음"},
@@ -2005,6 +2008,7 @@ function reasonOf(e){
   if(st==="review"){
     const em=aiErrOf(e); if(em) return em;
     if(e.type==="coupang"){
+      if(e.snFixed) return "구매내역 AI 판정 필요 (S/N은 정정함) — 재심사";   // 2026-10-26: 정정한 건의 확인필요는 S/N 때문이 아닙니다
       if(buyUnread(e)) return "구매내역 판독 불가";
       return e.aiSerialMatch===false ? "S/N 불일치" : "S/N 판독 불가";
     }
@@ -6956,13 +6960,27 @@ function snFindDups(id, key){
 }
 
 /* 번호가 통과했다고 치고, 구매내역 캡처까지 봐서 이 건의 새 상태를 정합니다 (심사 함수 mergeVerdict 와 같은 순서) */
+/* 🔴 2026-10-26 사용자 결정 — 정정 뒤 이동:
+      · 구매내역 정상 판독 → 적합
+      · AI 가 **아직 판정하지 못함**(미판정·오류·쿼터) → **확인필요** — 재심사를 누르면 AI 가 구매내역만 다시 읽습니다
+        (정정한 S/N 은 다시 읽지 않습니다 — 서버 index.js runJudgeFixedSn, 같이 배포해야 합니다)
+      · AI 가 **읽었는데 일부를 못 읽음** → 부적합 (같은 사진을 다시 읽어도 같은 결과라서 상담사가 사진을 직접 확인)
+      · 주문목록 아님·배송완료 아님·다른 제품 → 부적합 / 구매내역 캡처 없음 → 부적합(확인할 근거가 없음) */
 function snStatusAfterFix(e){
   const hasBuy = !!(e.buyImagePath || e.buyImageUrl);
-  if(!hasBuy) return "eligible";
-  if(!buyJudged(e)) return "review";                   // 구매내역을 AI 가 본 적이 없으면 사람이 확인
+  if(!hasBuy) return "ineligible";                     // 구매내역 캡처가 없으면 확인할 근거가 없어 부적합에 남김(새 접수는 서버가 캡처를 필수로 받으므로 예전 접수건 정도)
+  if(!buyJudged(e) || e.aiBuyErrorDetail) return "review";   // AI 가 아직 판정하지 못함 — 재심사로 구매내역만 다시 읽게 함
   if(e.aiBuyCapture === false || e.aiBuyDelivered === false || e.aiBuyProductMatch === false) return "ineligible";
-  if(e.aiBuyDelivered == null || e.aiBuyProductMatch == null) return "review";
+  if(e.aiBuyDelivered == null || e.aiBuyProductMatch == null) return "ineligible";   // 읽었는데 일부를 못 읽음 — 사진을 직접 확인
   return "eligible";
+}
+/* 정정 뒤 부적합에 남는 이유가 「구매내역이 확실히 안 맞음」인지 「AI 가 못 읽음」인지 */
+const snBuyBad = e => e.aiBuyCapture === false || e.aiBuyDelivered === false || e.aiBuyProductMatch === false;
+/* 정정 뒤 부적합에 남는 이유를 상담사에게 한 줄로 알려 줍니다 */
+function snKeepNote(e){
+  if(!(e.buyImagePath || e.buyImageUrl)) return "구매내역 캡처가 없어 부적합 목록에 남습니다. 구매내역을 직접 확인한 뒤 출고 승인해 주세요.";
+  if(snBuyBad(e)) return "구매내역 캡처가 부적합이라 부적합 목록에 남습니다.";
+  return "구매내역을 AI가 판독하지 못해 부적합 목록에 남습니다. 구매내역 사진을 직접 확인한 뒤 출고 승인해 주세요.";
 }
 
 function snFillBox(e, show){
@@ -7003,8 +7021,8 @@ async function snFix(){
   const ns = snStatusAfterFix(e);
   const same = snKey(e.serial) === key && !e.snFixed;
   const tail = ns === "eligible" ? "적합(발송대상)으로 이동합니다."
-             : ns === "review"   ? "구매내역을 사람이 확인해야 해서 「확인필요」로 이동합니다."
-             :                     "다만 구매내역 캡처가 부적합이라 부적합 목록에 남습니다.";
+             : ns === "review"   ? "구매내역을 AI가 아직 판정하지 못해 「확인필요」로 이동합니다. 관리자·QA가 「재심사」를 누르면 구매내역만 다시 읽습니다(정정한 S/N은 다시 읽지 않습니다)."
+             :                     "다만 " + snKeepNote(e);
   if(!confirm((same ? "S/N 확인 완료로 처리합니다." : "S/N 를 정정합니다.\n"+(e.serial||"(미입력)")+" → "+raw)
       + "\n\n사진의 번호를 직접 확인하셨나요? AI 심사는 다시 하지 않습니다.\n"+tail)) return;
   const btn = $("#dtSnFixBtn"); btn.disabled = true; msg.textContent = "저장 중…";
@@ -7017,7 +7035,8 @@ async function snFix(){
   if(ns === "ineligible"){
     /* 부적합이 남았으므로 창을 다시 그려 정정 기록을 보여 줍니다 */
     openDetail(id); renderActiveTab();
-    $("#dtSnFixMsg").innerHTML = '<span style="color:var(--ok,#12a150);font-weight:800">✔ S/N 를 정정했습니다.</span> <span style="color:var(--sub)">구매내역 캡처가 부적합이라 부적합 목록에 남습니다.</span>';
+    $("#dtSnFixMsg").innerHTML = '<span style="color:var(--ok,#12a150);font-weight:800">✔ S/N 를 정정했습니다.</span> <span style="color:var(--sub)">'
+      + snKeepNote(e) + '</span>';
   } else {
     closeDetail(); renderActiveTab();
     opsToast(ns === "eligible" ? "S/N 정정 완료 — 적합(발송대상)으로 이동했습니다" : "S/N 정정 완료 — 확인필요로 이동했습니다");
@@ -7029,16 +7048,22 @@ window.snFix = snFix;
    관리자 탭 → 「부적합 운영」 : 고정 배분 규칙 + 월별 처리 리포트   (2026-09-29)
    ▣ 리포트는 관리자만 봅니다(조장도 못 봅니다).
    ▣ 월 기준 = 배정된 달. 다음 달에 출고 승인해도 배정된 달에 잡힙니다.
-   ▣ 처리건 = 출고 승인까지 끝낸 건 중 인콜이 아닌 것 (아웃콜로 끝낸 건)
+   ▣ 처리건 = 출고 승인까지 끝낸 건 + 쿠팡 S/N 정정을 저장한 건(2026-10-26, 정정한 사람의 실적) 중 인콜이 아닌 것 (아웃콜로 끝낸 건)
    ▣ 인콜은 조장 확인 전이라도 인콜로 셉니다 — 처리건·셈에 넣는 건에서 뺍니다.
    ══════════════════════════════════════════════════════════════════════ */
 let repMonth = "";
+/* 🔴 2026-10-26 CS 요청 — 쿠팡 S/N 정정으로 처리한 건도 처리건에 넣습니다(사용자 확정: 정정을 **저장한 사람**의 실적, 정정하면 결과와 상관없이 1건).
+   정정하면 그 건은 적합(또는 확인필요)이 돼 부적합 목록에서 빠지므로, 정정한 건은 상태와 상관없이 리포트 대상에 남깁니다.
+   한 건은 한 번만 셉니다 — 정정 뒤에 출고 승인까지 하면 마지막에 끝낸 쪽(출고 승인 = 배정된 담당자)으로 셉니다. */
+const opsIsFixed = e => e.snFixed === true && !!e.snFixedBy;
+const opsDoerOf = e => e.overrideEligible === true ? (e.agent || "") : (opsIsFixed(e) ? e.snFixedBy : "");   // 처리건을 세는 사람
+const opsClosedAt = e => e.overrideEligible === true ? tsDate(e.approvedAt) : (opsIsFixed(e) ? tsDate(e.snFixedAt) : null);   // 처리를 끝낸 때
 function opsReportTarget(ym){
-  return ALL.filter(e => !e.manual && e.agent && shipStatus(e) === "ineligible" && opsMonthOf(e) === ym);
+  return ALL.filter(e => !e.manual && (e.agent || opsIsFixed(e)) && (shipStatus(e) === "ineligible" || opsIsFixed(e)) && opsMonthOf(e) === ym);
 }
 function opsReportRows(ym){
   const T = opsReportTarget(ym);
-  const names = [...new Set([...AGENTS.map(a => a.name), ...T.map(e => e.agent), ...T.map(e => e.inCallFrom).filter(Boolean)])]
+  const names = [...new Set([...AGENTS.map(a => a.name), ...T.map(e => e.agent), ...T.map(e => e.inCallFrom).filter(Boolean), ...T.map(opsDoerOf)])]
     .filter(Boolean).sort((a, b) => a.localeCompare(b, "ko"));
   const today = opsTodayIdx();
   return names.map(a => {
@@ -7047,23 +7072,25 @@ function opsReportRows(ym){
     const gone = T.filter(e => e.inCall === true && e.inCallFrom === a && e.agent !== a).length;
     const own  = held.length + gone;
     const cnt  = own - inc;
-    const done = held.filter(e => e.overrideEligible === true && e.inCall !== true);
+    const done = T.filter(e => e.inCall !== true && opsDoerOf(e) === a);          // 이 사람이 끝낸 건(남의 배정 건을 정정해 준 것 포함)
     const mine = done.length;
+    const mineOwn = done.filter(e => e.agent === a).length;                       // 그중 본인에게 배정된 건 — 처리율 계산용
     const fix  = T.filter(e => e.assignKind === "fixed" && e.agent0 === a).length;
-    const days = done.map(e => { const ap = tsDate(e.approvedAt); return (ap && e._date) ? (kstIdx(ap) - kstIdx(e._date)) : null; }).filter(x => x !== null);
+    const days = done.map(e => { const ap = opsClosedAt(e); return (ap && e._date) ? (kstIdx(ap) - kstIdx(e._date)) : null; }).filter(x => x !== null);
     const avg  = days.length ? Math.round(days.reduce((s, x) => s + x, 0) / days.length * 10) / 10 : null;
     const over = held.filter(e => {
       if(e.inCall === true || !e._date) return false;
       const di = dueIdxOf(e._date);
-      const ap = e.overrideEligible ? tsDate(e.approvedAt) : null;
-      return e.overrideEligible ? (ap ? kstIdx(ap) > di : false) : today > di;
+      const closed = e.overrideEligible === true || opsIsFixed(e);
+      const ap = opsClosedAt(e);
+      return closed ? (ap ? kstIdx(ap) > di : false) : today > di;
     }).length;
-    return { a, lead:opsIsLeaderName(a), own, inc, cnt, mine, gone, fix, avg, over, rate: cnt > 0 ? Math.round(mine / cnt * 100) : 0 };
-  }).filter(r => r.own || r.inc || r.gone);
+    return { a, lead:opsIsLeaderName(a), own, inc, cnt, mine, gone, fix, avg, over, rate: cnt > 0 ? Math.round(mineOwn / cnt * 100) : 0 };
+  }).filter(r => r.own || r.inc || r.gone || r.mine);
 }
 function opsReportMonths(){
   const s = new Set([opsYmOf(new Date())]);
-  ALL.forEach(e => { if(!e.manual && e.agent && shipStatus(e) === "ineligible"){ const m = opsMonthOf(e); if(m) s.add(m); } });
+  ALL.forEach(e => { if(!e.manual && (e.agent || opsIsFixed(e)) && (shipStatus(e) === "ineligible" || opsIsFixed(e))){ const m = opsMonthOf(e); if(m) s.add(m); } });
   return [...s].sort().reverse();
 }
 const opsCard = (k, v, cls) => '<div class="ocard'+(cls?" "+cls:"")+'"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>';
@@ -7260,7 +7287,7 @@ function renderOpsAdmin(){
           +'<td class="num">'+(r.over?'<span class="opill r">'+r.over+'</span>':'-')+'</td></tr>').join("")
         +'</tbody></table></div>'
       : '<div class="empty" style="display:block">이 달에 배정된 부적합 건이 없습니다.</div>')
-    +'<div class="hint" style="margin-top:10px"><b>처리건</b> = 아웃콜로 돌아서 출고 승인까지 끝낸 건 (주 숫자). <b>인콜</b>은 따로 세고 실적에는 넣지 않습니다. '
+    +'<div class="hint" style="margin-top:10px"><b>처리건</b> = 아웃콜로 돌아서 출고 승인까지 끝낸 건 + <b>쿠팡 S/N 정정을 저장한 건</b>(정정한 사람의 실적, 결과와 상관없이 1건) (주 숫자). 처리율은 <b>본인에게 배정된 건</b> 중 본인이 끝낸 비율입니다. <b>인콜</b>은 따로 세고 실적에는 넣지 않습니다. '
     +'<b>남이 가져감</b>이 많으면 배정받고 손을 안 댄 것입니다. 달 기준은 <b>배정된 달</b>입니다(다음 달에 승인해도 배정된 달에 잡힙니다).</div></div>';
   const ms = $("#repMonthSel"); if(ms) ms.addEventListener("change", () => { repMonth = ms.value; renderOpsAdmin(); });
   const xl = $("#repXl"); if(xl) xl.addEventListener("click", () => {

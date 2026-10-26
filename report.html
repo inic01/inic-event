@@ -2622,11 +2622,13 @@ function reasonCell(e){
   return det ? `${base}<div style="font-size:11px;color:var(--sub);margin-top:3px;white-space:normal">원인: ${admEsc(det)}</div>` : base;
 }
 /* 담당자 칸 = 출고 승인 버튼을 누른 상담사 (승인 뒤 정정이 필요할 때 누가 눌렀는지 찾기 위함). 2026-09-29 이전 승인은 기록이 없어 「-」 */
-const apvBy=e=>e.overrideEligible?(e.approvedBy||"-"):"-";
+/* 담당자 — 출고 승인한 사람. S/N 정정으로 적합이 된 건(승인 기록 없음)은 정정을 저장한 사람을 보여 줍니다(2026-10-26 CS 담당자 요청 — 실적 확인용). */
+const apvBy=e=>e.overrideEligible?(e.approvedBy||"-"):((e.snFixed&&e.snFixedBy)?e.snFixedBy:"-");
+const apvCell=e=>admEsc(apvBy(e))+((!e.overrideEligible&&e.snFixed&&e.snFixedBy)?' <span style="color:var(--sub);font-size:11px">(S/N 정정)</span>':"");
 const apvAt=e=>e.overrideEligible&&e.approvedAt?opsMD(tsDate(e.approvedAt)):"-";
-const ELIG_ORDER=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>admEsc(apvBy(e))],TYPE_COL,["검수",e=>eligCheck(e)],["배송구분",e=>shipFeeBadge(e)],["사은품",e=>admEsc(e.giftItem||"-"),"wrapcell"],
+const ELIG_ORDER=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>apvCell(e)],TYPE_COL,["검수",e=>eligCheck(e)],["배송구분",e=>shipFeeBadge(e)],["사은품",e=>admEsc(e.giftItem||"-"),"wrapcell"],
   SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
-const ELIG_ACCT=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>admEsc(apvBy(e))],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
+const ELIG_ACCT=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>apvCell(e)],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
   SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
 /* 확인필요 = 재심사 담당. 재심사 누르면 결과에 따라 적합/부적합으로 자동 이동 */
 const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>admEsc(e.product||"-")],SN_COL,
@@ -3092,8 +3094,10 @@ function openDetail(id, readOnly){
   $("#dtSource").textContent=srcOf(e)||"-";
   /* 출고 승인 버튼을 누른 기록이 있을 때만 보입니다 (담당자 = 누른 상담사) */
   const hasApv=!!(e.approvedAt||e.approvedBy);
-  $("#dtApvByRow").style.display=hasApv?"":"none"; $("#dtApvAtRow").style.display=(hasApv&&e.approvedAt)?"":"none";
+  const snBy=(!hasApv&&e.snFixed&&e.snFixedBy)?e.snFixedBy:"";      // S/N 정정으로 적합이 된 건 — 정정을 저장한 사람(2026-10-26)
+  $("#dtApvByRow").style.display=(hasApv||snBy)?"":"none"; $("#dtApvAtRow").style.display=(hasApv&&e.approvedAt)?"":"none";
   if(hasApv){ $("#dtApvBy").textContent=e.approvedBy||e.agent||"-"; $("#dtApvAt").textContent=e.approvedAt?fmtDate(tsDate(e.approvedAt)):"-"; }
+  else if(snBy){ $("#dtApvBy").textContent=snBy+" (S/N 정정)"; }
   $("#dtOrder").textContent=e.orderNo||"-";
   $("#dtFee").innerHTML=shipFeeBadge(e);
   $("#dtQty").innerHTML=giftQtyHtml(e);
@@ -3711,12 +3715,12 @@ async function mFind(){
       아래 값은 **설정을 못 읽었을 때** 쓰는 기본입니다.
    자리 표시 두 개 — 지우면 그 내용이 안 들어갑니다.
       {주소}     → 접수폼 주소
-      {조회정보} → 성함+연락처 · 송장번호 · 주문번호 (있는 것만 줄줄이) */
+      {조회정보} → 송장번호만 (제품별로 줄줄이 — 2026-10-26부터 성함·연락처·주문번호는 넣지 않습니다) */
 const MANUAL_GUIDE_DEFAULT =
   "안녕하세요, 아이닉입니다.\n" +
   "포토리뷰 이벤트는 아래 주소에서 직접 접수해 주시면 됩니다.\n\n" +
   "{주소}\n\n" +
-  "구매 확인 단계에서 아래 세 가지 중 편하신 방법 하나로 조회해 주세요.\n" +
+  "구매 확인 단계에서 아래 송장번호로 조회해 주세요.\n" +
   "{조회정보}\n\n" +
   "리뷰 캡처 이미지를 함께 올려 주시면 접수가 완료됩니다.\n" +
   "감사합니다.";
@@ -3739,27 +3743,18 @@ async function manualGuideTpl(){
 /* 조회에 쓸 수 있는 것 세 가지를 모읍니다 — 있는 것만 나옵니다 */
 function mLookupInfo(){
   if(!MFIND) return "";
-  const f = MFIND, r0 = f.rows[0] || {};
-  const out = [];
-
-  const nm = String(r0.name || "").trim();
-  const ph = String(r0.phone || r0.phone2 || "").trim();
-  if(nm && ph) out.push("· 성함 + 연락처 : " + nm + " / " + ph);
-  else if(ph)  out.push("· 연락처 : " + ph);
-
-  /* 송장번호·주문번호는 제품마다 다를 수 있어 제품 이름과 함께 적습니다 */
-  const invLines = [], ordLines = [];
+  const f = MFIND;
+  /* 🔴 2026-10-26 담당자 요청 — 고객에게 보내는 안내에 성함·연락처·주문번호가 들어가면 개인정보 유출 우려가 있어,
+        **송장번호만** 넣습니다(CS팀과 같은 기준). 송장번호는 제품마다 다를 수 있어 제품 이름과 함께 적습니다. */
+  const invLines = [];
   f.groups.forEach(g => {
     /* 후보가 2종인 행(음식물처리기)은 고객이 실제로 산 이름을 그대로 씁니다 */
     const label = g.codes.length > 1 ? ([...g.raw][0] || mProdLabel(g)) : mProdLabel(g);
-    const iv = [...g.invs], od = [...g.ords];
+    const iv = [...g.invs];
     if(iv.length) invLines.push("   - " + label + " : " + iv.join(", "));
-    if(od.length) ordLines.push("   - " + label + " : " + od.join(", "));
   });
-  if(invLines.length) out.push("· 송장번호\n" + invLines.join("\n"));
-  if(ordLines.length) out.push("· 주문번호\n" + ordLines.join("\n"));
-
-  return out.join("\n") || "· 성함 + 연락처로 조회해 주세요.";
+  return invLines.length ? "· 송장번호\n" + invLines.join("\n")
+                         : "· 송장번호 : [고객DB에 송장번호가 없습니다 — 직접 확인해 이 줄을 고쳐서 보내 주세요]";
 }
 
 function mGuideText(){
@@ -8308,7 +8303,7 @@ const DEFAULTS = {
       "안녕하세요, 아이닉입니다.\n" +
       "포토리뷰 이벤트는 아래 주소에서 직접 접수해 주시면 됩니다.\n\n" +
       "{주소}\n\n" +
-      "구매 확인 단계에서 아래 세 가지 중 편하신 방법 하나로 조회해 주세요.\n" +
+      "구매 확인 단계에서 아래 송장번호로 조회해 주세요.\n" +
       "{조회정보}\n\n" +
       "리뷰 캡처 이미지를 함께 올려 주시면 접수가 완료됩니다.\n" +
       "감사합니다.",
@@ -9302,13 +9297,11 @@ function pvManualBody(){
   const filled = t
     .split("{주소}").join("https://inic01.github.io/inic-event/")
     .split("{조회정보}").join(
-      "· 성함 + 연락처 : 홍길동 / 010-1234-5678\n" +
-      "· 송장번호\n   - 무선청소기 맥스제로 i90 : 1234567890\n" +
-      "· 주문번호\n   - 무선청소기 맥스제로 i90 : 2026083181163561");
+      "· 송장번호\n   - 무선청소기 맥스제로 i90 : 1234567890");
   return '<div class="wrap"><div class="card">'
   + '<h2>상담사가 고객에게 보내는 글</h2>'
   + '<p class="desc">고객 화면이 아닙니다. 「이 문구 복사」를 눌러 카톡·문자로 보내는 글입니다.<br>'
-  +   '<b>{주소}</b> 와 <b>{조회정보}</b> 는 아래처럼 자동으로 채워집니다.</p>'
+  +   '<b>{주소}</b> 와 <b>{조회정보}</b>(송장번호만) 는 아래처럼 자동으로 채워집니다.</p>'
   + '<div class="pvhl" style="margin-top:12px;padding:13px 15px;background:#fff;border:1px solid #e6e2de;'
   +   'border-radius:12px;white-space:pre-wrap;line-height:1.85;font-size:13px">'
   +   (filled ? pvE(filled) : '<span style="color:#b3aaa2">(문구가 비어 있습니다)</span>')

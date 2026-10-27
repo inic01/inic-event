@@ -1847,7 +1847,7 @@ const PRODUCTS={
   "생활가전":[["i50T","무선청소기 아이타워 i50"],["i50D","무선청소기 AI 디텍트 i50"],["i90","무선청소기 맥스제로 i90"],
     ["iV10","무선청소기 iV10"],["iv11","무선청소기 iv11"]],
   "계절가전":[["iH05","복합식가습기 iH05UV"],["iAP22","공기청정기 iAP22"],["iC01","유선 서큘레이터 iC01"],
-    ["iH12","복합식가습기 iH12"],["iSC02","서큘레이터 iSC02"]],
+    ["iH12","복합식가습기 iH12"],["iSC02","서큘레이터 iSC02"],["iAH01","공청가습기 iAH01"]],
   "이미용가전":[["iHD01","헤어드라이어 iHD01"]]
 };
 /* 제품별 사은품/상품권 (name, gift|coupon) — 사은품표 기준 */
@@ -1865,6 +1865,7 @@ const PRODUCT_REWARD={
   "iEK01":[["배민 3,000원","coupon"]],
   "iH12":[["전용 관리 set 가습기용","gift"]],
   "iAP22":[["배민 3,000원","coupon"]],
+  "iAH01":[["배민 3,000원","coupon"]],
   "iSC02":[["보관백 iSC01,iSC02","gift"]],
   "iC01":[["배민 3,000원","coupon"]],
   "iH05":[["배민 3,000원","coupon"]],
@@ -5136,13 +5137,13 @@ const SHEET_PRODUCT=[
   [/iH12/i,                    "iH12"],
   [/iSC02|서큘레이터/i,        "iSC02"],   // '유선 서큘레이터 iC01'은 아래에서 먼저 걸림
   [/iAP22|공기청정기/i,        "iAP22"],
+  [/iAH01|공청가습기/i,        "iAH01"],
 ];
 function mapSheetProduct(raw){
   const t=String(raw||"").trim();
   if(!t) return {code:"",pick:null,note:"제품군 비어 있음 — 고객이 선택"};
   if(/iC01|유선\s*서큘/i.test(t)) return {code:"iC01",pick:null,note:""};
   if(/음식물처리기|iFD01/i.test(t)) return {code:"",pick:["iFD01-H","iFD01-F"],note:"밀폐키친홀더 / 활성탄필터 — 고객이 선택"};
-  if(/iAH01|공청가습기/i.test(t)) return {code:"",pick:null,note:"이벤트 대상 아님"};
   for(const [re,code] of SHEET_PRODUCT) if(re.test(t)) return {code,pick:null,note:""};
   return {code:"",pick:null,note:"매칭 실패 — 고객이 선택"};
 }
@@ -8042,6 +8043,7 @@ const FORM_PRODUCTS = [
   ["iAP22",           "공기청정기 iAP22"],
   ["iC01",            "유선 서큘레이터 iC01"],
   ["iSC02",           "서큘레이터 iSC02"],
+  ["iAH01",           "공청가습기 iAH01"],
   ["iHD01",           "헤어드라이어 iHD01"]
 ];
 
@@ -8117,6 +8119,7 @@ const DEFAULTS = {
     { ledger:"공기청정기 iAP22",        codes:["iAP22"],   cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
     { ledger:"유선 서큘레이터 iC01",    codes:["iC01"],    cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
     { ledger:"서큘레이터 iSC02",        codes:["iSC02"],   cat:"계절가전",  gift:"보관백 iSC01,iSC02",           type:"gift" },
+    { ledger:"공청가습기 iAH01",        codes:["iAH01"],   cat:"계절가전",  gift:"배민 3,000원",                 type:"coupon" },
     { ledger:"헤어드라이어 iHD01",      codes:["iHD01"],   cat:"이미용가전", gift:"CU 3,000원",                  type:"coupon" }
   ],
   giftRules: [

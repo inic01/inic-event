@@ -8621,7 +8621,14 @@ function paneGift(){
                 "여기에는 ", el("b", {}, "접수폼에 들어 있는 제품"), " 만 나옵니다. ",
                 "원장에는 있지만 이벤트를 안 하는 제품(공청가습기 등)은 ",
                 el("b", {}, "「이벤트 대상 아님」"), " 을 고르세요. ",
-                "고르지 않으면 사은품·설문·프로모션이 고객 화면에 반영되지 않습니다."))),
+                "고르지 않으면 사은품·설문·프로모션이 고객 화면에 반영되지 않습니다."),
+              /* 🔴 숨김(2026-10-27) — 신제품을 확정하기 전에 관리자만 시험해 보기 위한 표시. 저장해야 적용됩니다.
+                    켜면 고객에게는 접수폼 제품 카드가 안 보이고 서버도 접수·구매조회를 받지 않습니다. 아래 「관리자 미리보기 링크」로 열 때만 보입니다. */
+              el("label", { style:"display:flex;gap:6px;align-items:flex-start;margin-top:8px;font-size:12px;line-height:1.5;cursor:pointer" },
+                el("input", { type:"checkbox", "aria-label":"숨김 — 관리자만 보기", ...(p.hidden === true ? { checked:"" } : {}),
+                  onchange:e => { if(e.target.checked) p.hidden = true; else delete p.hidden; softRefresh(); } }),
+                el("span", {}, el("b", {}, "숨김 — 관리자만 보기"),
+                  " (확정 전 시험용) 켜고 저장하면 고객에게 이 제품이 안 보입니다. 시험이 끝나면 끄고 저장해야 공개됩니다.")))),
           el("td", { class:"tight" },
             el("select", { "aria-label":"카테고리", onchange:e => { p.cat = e.target.value; softRefresh(); } },
               CATS.map(c => el("option", { value:c, ...(p.cat === c ? { selected:"" } : {}) }, c)))),
@@ -8684,6 +8691,7 @@ function paneGift(){
                   : "한 상자에 " + Number(p.box) + "개까지"))) ]
       : [ el("td", {},
             el("span", { style:"font-weight:700" }, p.ledger || el("span", { style:"color:var(--bad)" }, "(제품군 없음)")),
+            p.hidden === true ? el("span", { class:"pill", title:"고객에게 안 보입니다(관리자 미리보기 링크로만 보임)", style:"margin-left:6px;background:#f5e1e1;color:#a33a3a" }, "숨김") : "",
             dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : "",
             (p.codes || []).length
               ? el("div", { style:"font-size:11px;color:var(--sub);margin-top:2px" },
@@ -8772,6 +8780,40 @@ function paneGift(){
       el("span", { style:"font-size:12px;color:var(--sub)" },
         "현재 " + cfg.products.filter(x => x.gift.trim()).length + "개 제품이 이벤트를 실시합니다."))
     ,
+    /* 🔴 관리자 미리보기 링크 (2026-10-27) — 「숨김」을 켠 제품을 관리자만 접수폼에서 보고 시험하는 링크.
+          열쇠는 저장해야 서버에 적용되고, 서버가 열쇠가 맞는지 확인합니다. 열쇠를 바꾸면 예전 링크는 안 됩니다. */
+    (function(){
+      const key = typeof cfg.previewKey === "string" ? cfg.previewKey : "";
+      const link = key ? location.href.replace(/[?#].*$/, "").replace(/[^/]*$/, "") + "index.html?preview=" + key : "";
+      const nHid = cfg.products.filter(x => x && x.hidden === true).length;
+      return el("div", { class:"linkbox", style:"flex-direction:column;align-items:stretch;gap:6px" },
+        el("div", {}, el("b", {}, "관리자 미리보기 링크"),
+          el("span", { style:"font-size:12px;color:var(--sub);margin-left:6px" }, "「숨김」을 켠 제품이 " + nHid + "개 있습니다.")),
+        el("div", { style:"font-size:12px;color:var(--sub);line-height:1.6" },
+          "이 링크로 접수폼을 열면 숨김 제품이 보이고 접수할 수 있습니다. ",
+          el("b", {}, "저장한 뒤 1분쯤 지나야"), " 적용됩니다. 링크를 아는 사람은 누구나 숨김 제품을 볼 수 있으니 담당자끼리만 쓰세요. ",
+          "시험으로 접수하면 실제 접수로 저장되니, 끝나면 「접수 취소」해 주세요."),
+        key
+          ? el("input", { type:"text", readonly:"", value:link, "aria-label":"관리자 미리보기 링크", style:"width:100%;font-size:12px",
+              onclick:e => e.target.select() })
+          : el("div", { style:"font-size:12px;color:var(--sub)" }, "아직 열쇠가 없습니다. 아래 「링크 만들기」를 누르고 화면 아래 「저장」까지 눌러 주세요."),
+        el("div", { class:"row", style:"gap:8px;flex-wrap:wrap" },
+          el("button", { class:"btn", type:"button", onclick:() => {
+            if(key && !confirm("열쇠를 바꾸면 지금 링크는 더 이상 안 됩니다(저장한 뒤부터). 바꿀까요?")) return;
+            const abc = "abcdefghijklmnopqrstuvwxyz0123456789", b = new Uint8Array(24);
+            (window.crypto || window.msCrypto).getRandomValues(b);
+            cfg.previewKey = Array.from(b).map(x => abc[x % abc.length]).join("");
+            softRefresh(); render();
+          } }, key ? "열쇠 바꾸기" : "링크 만들기"),
+          key ? el("button", { class:"btn ghost", type:"button", onclick:async () => {
+            try { await navigator.clipboard.writeText(link); alert("링크를 복사했습니다. 저장 전이면 먼저 화면 아래 「저장」을 눌러 주세요."); }
+            catch(e){ alert("복사하지 못했습니다. 위 칸을 눌러 직접 복사해 주세요."); }
+          } }, "링크 복사") : "",
+          key ? el("button", { class:"btn ghost", type:"button", onclick:() => {
+            if(!confirm("열쇠를 지웁니다. 저장하면 미리보기 링크가 모두 막힙니다. 계속할까요?")) return;
+            delete cfg.previewKey; softRefresh(); render();
+          } }, "열쇠 지우기") : ""));
+    })(),
     el("div", { class:"linkbox" },
       el("div", {},
         el("b", {}, "발송 안내 문구는 여기 없습니다."),
@@ -11090,7 +11132,7 @@ const DIF_FIELD = { title:"제목", desc:"설명", tip:"주의 문구", warn:"�
   ackGift:"동의 문구(착불)", ackGiftPre:"확인 문구(선불)", ackCoupon:"확인 문구(기프티콘)", noticeGiftLabel:"사은품 안내 제목",
   noticeCouponLabel:"기프티콘 안내 제목", warnCoupon:"노란 상자(상품권)", warnGift:"노란 상자(사은품)" };
 const DIF_PROD = { ledger:"제품군 이름", cat:"카테고리", gift:"사은품 대표 이름", type:"종류", shipFee:"배송비",
-  box:"합배송", codes:"접수폼 제품", giftEach:"코드별 사은품 이름" };
+  box:"합배송", codes:"접수폼 제품", giftEach:"코드별 사은품 이름", hidden:"숨김(관리자만 보기)" };
 const DIF_RULE = { name:"이름", product:"제품", srcs:"판매처", label:"프로모션 사은품", gifts:"프로모션 사은품 목록(택1)", type:"종류", from:"시작일",
   to:"종료일", basis:"기간 기준", img:"사진" };
 const NT_NAME = (() => { const m = {}; NOTICE_GROUPS.forEach(([t, rows]) => rows.forEach(([k, n]) => { m[k] = n; })); return m; })();
@@ -11167,6 +11209,7 @@ function difLabel(path){
     return "한달 사용후기 · " + nm + (r.length > 2 ? " · " + (FI[r[2]] || r[2]) : " 줄");
   }
   if(h === "ratingSrcs") return "심사 규칙 · 별점을 꼭 봐야 하는 판매처";
+  if(h === "previewKey") return "제품·사은품 · 관리자 미리보기 열쇠(링크)";
   if(h === "kakaoMain") return "상담 채널 · 메인 카카오 채널 주소";
   if(h === "kakao") return "상담 채널 · 카테고리별 주소(화면에서 감춤) · " + (r[0] || "");
   return path.join(" · ");
@@ -11175,7 +11218,7 @@ function difLabel(path){
 function difSec(path){
   const h = path[0];
   if(h === "survey") return "form:cover";
-  if(h === "products") return "gift";
+  if(h === "products" || h === "previewKey") return "gift";
   if(h === "giftRules") return "rule";
   if(h === "month") return (path[1] === "form" || path[1] === "cover" || path[1] === "title" || path[1] === "note" || path[1] === "sub") ? "form" : "month";
   if(h === "entrySurvey" || h === "surveys") return "form:entry";
@@ -11197,7 +11240,10 @@ function diffUnits(){
     A[k] = base[k]; B[k] = cfg[k];
   });
   difWalk(A, B, [], raw);
-  raw.forEach(d => units.push({ sec:difSec(d.path), label:difLabel(d.path), m:difFmt(d.a), p:difFmt(d.b) }));
+  /* 미리보기 열쇠는 값을 화면에 적지 않습니다(있음/없음만) */
+  const keyFmt = v => v ? "있음(값은 숨김)" : "(없음)";
+  raw.forEach(d => units.push({ sec:difSec(d.path), label:difLabel(d.path),
+    m:d.path[0] === "previewKey" ? keyFmt(d.a) : difFmt(d.a), p:d.path[0] === "previewKey" ? keyFmt(d.b) : difFmt(d.b) }));
   const nb = base.notices || {}, nc = cfg.notices || {};
   [...new Set([...Object.keys(nb), ...Object.keys(nc)])].forEach(k => {
     const x = nb[k] || {}, y = nc[k] || {};

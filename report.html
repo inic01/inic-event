@@ -1821,10 +1821,32 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
 
         <!-- 🔴 접수 취소 (2026-10-26 사용자 요청) — 관리자·QA, 그리고 조장(2026-10-27 추가). 일반 상담사는 못 씁니다. 잘못 접수한 건(예: 유형을 잘못 골라 쿠팡 정품등록으로 접수)을 없애 고객이 다시 접수할 수 있게 합니다.
              실제 차단은 firestore.rules 의 reviewEntries delete(isMaster = 관리자·QA, isLeader = 조장)입니다. 화면은 이 셋이 아니면 이 상자를 감춥니다. -->
+        <!-- 🔴 2026-10-27 사용자 요청 — 같은 줄에 「고객정보 수정」 단추를 둡니다(성함·연락처·주소를 출고 전까지 상담사가 고침).
+             이 상자는 접수 취소 권한(관리자·QA·조장)이 있거나 고객정보를 고칠 수 있으면(관리자·QA·상담사, 출고 전) 보이고, 단추는 각자 권한에 따라 따로 보입니다.
+             실제 차단은 firestore.rules 의 reviewEntries update(agentKeys + infoKeys, infoEditOk)입니다. -->
         <div id="dtCancelBox" style="display:none;margin-top:14px;padding-top:11px;border-top:1px dashed var(--line)">
-          <div style="font-size:12px;color:var(--sub);line-height:1.6;margin-bottom:7px">잘못 접수된 건이면 취소(삭제)하세요. 이 접수의 중복 기록도 같이 사라져 고객이 다시 접수할 수 있습니다. <b>되돌릴 수 없습니다.</b></div>
-          <button id="dtCancelBtn" class="sm" style="background:#fdeeee;border-color:#f0c4c4;color:#b03636;font-weight:800" onclick="cancelEntry()">접수 취소(삭제)</button>
-          <span id="dtCancelHint" style="font-size:11.5px;color:#c1121f;font-weight:700;margin-left:6px"></span>
+          <div id="dtCancelTxt" style="font-size:12px;color:var(--sub);line-height:1.6;margin-bottom:7px">잘못 접수된 건이면 취소(삭제)하세요. 이 접수의 중복 기록도 같이 사라져 고객이 다시 접수할 수 있습니다. <b>되돌릴 수 없습니다.</b></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button id="dtEditOpen" class="sm" style="display:none;font-weight:800" onclick="infoEditOpen()">고객정보 수정</button>
+            <button id="dtCancelBtn" class="sm" style="background:#fdeeee;border-color:#f0c4c4;color:#b03636;font-weight:800" onclick="cancelEntry()">접수 취소(삭제)</button>
+            <span id="dtCancelHint" style="font-size:11.5px;color:#c1121f;font-weight:700"></span>
+          </div>
+          <div id="dtEditForm" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#faf8f6">
+            <div style="font-size:12.5px;font-weight:800;margin-bottom:7px">고객정보 수정 <span style="font-weight:600;color:var(--sub)">— 성함·연락처·주소 · 출고 전까지만</span></div>
+            <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">성함</label>
+            <input id="dtEdName" type="text" maxlength="50" autocomplete="off" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 8px">
+            <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">연락처</label>
+            <input id="dtEdPhone" type="tel" inputmode="numeric" maxlength="30" autocomplete="off" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 8px">
+            <div id="dtEdAddrWrap">
+              <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">주소</label>
+              <input id="dtEdAddr" type="text" maxlength="300" autocomplete="off" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 8px">
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button id="dtEdSave" class="primary sm" onclick="infoEditSave()">저장</button>
+              <button class="sm" onclick="infoEditCancel()">취소</button>
+            </div>
+            <div id="dtEdMsg" style="font-size:12px;font-weight:700;margin-top:7px;line-height:1.65"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -3266,10 +3288,13 @@ function openDetail(id, readOnly){
   $("#dtMemo").value=e.callMemo||"";
   syncApproveBtn();          /* 「기타」 안내·승인 단추 상태를 열 때 바로 맞춥니다 */
   $("#dtSaved").textContent="";
-  { const cb=$("#dtCancelBox");                 /* 접수 취소 — 관리자·QA·조장만 보이고, 출고된 건은 막습니다 */
-    if(cb){ cb.style.display=canCancelEntry()?"":"none";
+  { const cb=$("#dtCancelBox");                 /* 접수 취소 — 관리자·QA·조장만 보이고, 출고된 건은 막습니다. 고객정보 수정 단추는 같은 줄(관리자·QA·상담사, 출고 전) */
+    if(cb){ const canCx=canCancelEntry(), canEd=canEditInfo(e);
+      cb.style.display=(canCx||canEd)?"":"none";
+      $("#dtCancelTxt").style.display=canCx?"":"none"; $("#dtCancelBtn").style.display=canCx?"":"none";
       $("#dtCancelBtn").disabled=isShipped;
-      $("#dtCancelHint").textContent=isShipped?"이미 출고된 건은 취소할 수 없습니다.":(e.overrideEligible?"출고 승인된 건입니다(아직 출고 전).":""); } }
+      $("#dtCancelHint").textContent=!canCx?"":(isShipped?"이미 출고된 건은 취소할 수 없습니다.":(e.overrideEligible?"출고 승인된 건입니다(아직 출고 전).":""));
+      infoEditFill(e); } }
   $("#detailModal").style.display="flex";
 }
 function closeDetail(){$("#detailModal").style.display="none";detailId=null;}
@@ -3297,6 +3322,115 @@ async function cancelEntry(){
   alert("접수를 취소(삭제)했습니다.\n고객이 같은 제품으로 다시 접수할 수 있습니다.");
 }
 window.cancelEntry=cancelEntry;
+
+/* 🔴 고객정보 수정 (2026-10-27 사용자 요청) — 고객이 연락처 등을 잘못 적은 건을 상담사가 출고 전에 고칩니다.
+   · 권한: 관리자·QA·상담사(조장 포함). 발주·회계는 못 합니다. 실제 차단은 firestore.rules reviewEntries update 의 agentKeys + infoKeys(infoEditOk).
+   · 고칠 수 있는 것: 성함·연락처·주소(상품권 건은 주소가 없어 성함·연락처만). 이메일·제품·사은품은 못 고칩니다.
+   · 출고된 건은 못 고칩니다(이미 사방넷 엑셀·시트로 나간 값).
+   · 연락처·성함·주소에서 나온 중복 확인 열쇠(phoneKey·kPhone·nameAddrKey·kNA)도 같이 다시 계산합니다.
+     ⚠️ 서버 eventApi submitEntry 의 열쇠와 같은 규칙입니다(수기접수 건은 수기접수 때 만든 모양 그대로) — 한쪽만 고치면 중복 차단이 어긋납니다.
+   · 새 연락처·성함·주소가 같은 제품의 다른 접수와 겹치면(중복) 고치지 않습니다. 구글폼 참여 번호도 막습니다(수기접수 건 제외).
+   · 사유는 받지 않습니다(사용자 결정). 누가·언제·어느 칸(이름만)을 고쳤는지 건에 남기고(infoEdited*), 접근 기록에도 번호·이름 없이 남깁니다.
+   · ⚠️ 이미 마케팅 시트·수신동의 장부에 올라간 예전 연락처는 자동으로 고쳐지지 않습니다(저장 전 안내). */
+const INFO_EDIT_ROLES=["master","qa","agent"];
+const canEditInfo=e=>!!(ME&&INFO_EDIT_ROLES.includes(ME.role)&&e&&!(e.shipped||e.shipState==="shipped"));
+const infoAddrEditable=e=>!!(e&&e.rewardType!=="coupon");          // 상품권 건은 주소를 받지 않습니다
+function infoEditFill(e){                            // 「고객정보 수정」 단추(접수 취소 단추 옆) — 권한이 있고 출고 전인 건에만
+  const on=canEditInfo(e);
+  $("#dtEditForm").style.display="none"; $("#dtEditOpen").style.display=on?"":"none"; $("#dtEdMsg").textContent="";
+}
+function infoEditOpen(){
+  const e=ALL.find(x=>x._id===detailId); if(!e||!canEditInfo(e)) return;
+  $("#dtEdName").value=e.name||""; $("#dtEdPhone").value=e.phone||""; $("#dtEdAddr").value=e.address||"";
+  $("#dtEdAddrWrap").style.display=infoAddrEditable(e)?"":"none";
+  $("#dtEdMsg").textContent=""; $("#dtEditForm").style.display="";
+  $("#dtEdPhone").focus();
+}
+function infoEditCancel(){ $("#dtEditForm").style.display="none"; $("#dtEdMsg").textContent=""; }
+/* 새 값에서 나오는 중복 확인 열쇠 — 서버 eventApi(naKey·evKey)와 같은 규칙. 수기접수 건은 수기접수 때 만든 모양을 따릅니다. */
+function infoKeysOf(e,name,phoneKey,addr){
+  const prod=String(e.product||""), ek=(e.event==="month"?"M:":"")+prod;
+  const o={phoneKey, kPhone:ek+"|"+phoneKey};
+  if(addr){
+    if(e.manual){ o.nameAddrKey=name+"|"+addr; o.kNA=prod+"|"+name+"|"+addr; }
+    else{ const na=(name.trim()+"|"+addr.replace(/\s+/g,"")).toLowerCase(); o.nameAddrKey=na; o.kNA=ek+"|"+na; }
+  } else { o.nameAddrKey=null; o.kNA=null; }
+  return o;
+}
+/* 같은 제품(형제 코드 포함)·같은 구분(한달 사용후기는 따로)의 다른 접수와 겹치는지 — 겹치면 이유 글을, 아니면 "" 를 돌려줍니다 */
+function infoDupReason(e,name,phoneKey,addr,phoneChanged,naChanged){
+  const sibs=SV_GROUP[e.product]?Object.keys(SV_GROUP).filter(k=>SV_GROUP[k]===SV_GROUP[e.product]):[String(e.product||"")];
+  const isMo=x=>x.event==="month";
+  const others=ALL.filter(x=>x._id!==e._id&&sibs.includes(String(x.product||""))&&isMo(x)===isMo(e));
+  const cap=Math.max(1,parseInt(e.buyQty,10)||1), mine=Math.max(1,parseInt(e.giftQty,10)||1);
+  const sum=l=>l.reduce((s,x)=>s+Math.max(1,parseInt(x.giftQty,10)||1),0);
+  if(phoneChanged){
+    const byP=others.filter(x=>(x.phoneKey||mDigits(x.phone))===phoneKey);
+    if(sum(byP)+mine>cap) return "이 연락처로 같은 제품이 이미 접수되어 있습니다(중복). 잘못 접수된 건이면 그 건을 먼저 접수 취소해 주세요.";
+  }
+  if(naChanged&&addr){
+    const ak=addr.replace(/\s+/g,""), nk=mNameKey(name);
+    const byNA=others.filter(x=>x.address&&String(x.address).replace(/\s+/g,"")===ak&&mNameKey(x.name)===nk);
+    if(sum(byNA)+mine>cap) return "이 성함·주소로 같은 제품이 이미 접수되어 있습니다(중복). 잘못 접수된 건이면 그 건을 먼저 접수 취소해 주세요.";
+  }
+  return "";
+}
+async function infoEditSave(){
+  const id=detailId, e=ALL.find(x=>x._id===id), msg=$("#dtEdMsg"), btn=$("#dtEdSave");
+  if(!e) return;
+  const bad=t=>{ msg.style.color="var(--bad,#c0392b)"; msg.textContent=t; return false; };
+  if(!canEditInfo(e)) return bad("고객정보를 고칠 수 없는 건입니다(권한이 없거나 이미 출고됨).");
+  const name=$("#dtEdName").value.trim(), phone=$("#dtEdPhone").value.trim(), pk=mDigits(phone);
+  const addrOn=infoAddrEditable(e), addr=addrOn?$("#dtEdAddr").value.trim():String(e.address||"");
+  if(!name) return bad("성함을 입력해 주세요.");
+  if(pk.length<10||pk.length>12) return bad("연락처는 숫자 10~12자리로 입력해 주세요(예: 010-1234-5678).");
+  if(!e.manual&&/^050/.test(pk)) return bad("안심번호(050)는 연락처로 쓸 수 없습니다. 고객의 실제 휴대폰 번호를 입력해 주세요.");
+  if(addrOn&&String(e.address||"").trim()&&!addr) return bad("주소를 비울 수 없습니다. 주소를 입력해 주세요.");
+  const phoneChanged=pk!==(e.phoneKey||mDigits(e.phone)), nameChanged=name!==String(e.name||"").trim(), addrChanged=addrOn&&addr!==String(e.address||"").trim();
+  const phoneTextChanged=phone!==String(e.phone||"").trim();
+  if(!phoneTextChanged&&!nameChanged&&!addrChanged) return bad("바뀐 내용이 없습니다.");
+  const dupMsg=infoDupReason(e,name,pk,addr,phoneChanged,nameChanged||addrChanged);
+  if(dupMsg) return bad(dupMsg);
+  /* 구글폼 참여 이력 — 접수폼으로 들어온 건만(서버 접수와 같은 기준). 번호는 서버로만 보내고 화면·기록에 남기지 않습니다. */
+  if(phoneChanged&&!e.manual&&mLgPhone(phone)){
+    btn.disabled=true; msg.style.color="var(--sub)"; msg.textContent="구글폼 참여 이력 확인 중…";
+    let lg=null; try{ lg=await mLegacy([phone], e.type==="coupang"?"c":"p"); }catch(_){ lg=null; }
+    btn.disabled=false;
+    const sibs=SV_GROUP[e.product]?Object.keys(SV_GROUP).filter(k=>SV_GROUP[k]===SV_GROUP[e.product]):[String(e.product||"")];
+    if(lg&&lg.ok&&mLgOf(lg,{codes:sibs})>0) return bad("구글폼으로 이미 이 제품에 참여한 번호입니다. 이 번호로는 바꿀 수 없습니다.");
+    if(!lg||!lg.ok){ msg.textContent=""; if(!confirm("구글폼 참여 이력을 확인하지 못했습니다.\n그래도 이 번호로 바꿀까요?")) return false; }
+  }
+  const fields=[phoneChanged||phoneTextChanged?"연락처":"", nameChanged?"성함":"", addrChanged?"주소":""].filter(Boolean);
+  const warn=(phoneChanged&&(e.mkSheetAt||e.cnSyncAt))?"\n\n※ 이미 마케팅 시트·수신동의 장부에 올라간 예전 연락처는 자동으로 고쳐지지 않습니다.":"";
+  if(!confirm("고객정보를 수정합니다.\n\n고치는 항목: "+fields.join(" · ")+"\n"
+    +(nameChanged?"성함: "+(e.name||"-")+" → "+name+"\n":"")
+    +(phoneChanged||phoneTextChanged?"연락처: "+(e.phone||"-")+" → "+phone+"\n":"")
+    +(addrChanged?"주소: "+(e.address||"-")+" → "+addr+"\n":"")
+    +"\n중복 확인 기준도 새 값으로 바뀝니다."+warn+"\n\n수정할까요?")) return false;
+  const patch=Object.assign({ name, phone },
+    infoKeysOf(e,name,pk,addrOn?addr:String(e.address||"").trim()),
+    addrOn?{ address:addr }:{},
+    { infoEditedAt:firebase.firestore.FieldValue.serverTimestamp(), infoEditedBy:(ME&&ME.name)||"", infoEditedByUid:(ME&&ME.uid)||"",
+      infoEditedFields:fields, infoEditCount:(parseInt(e.infoEditCount,10)||0)+1 });
+  /* 상품권 건은 주소가 없어 열쇠가 null 입니다 — 처음부터 없던 칸을 새로 만들지 않도록 */
+  if(!addrOn&&!String(e.address||"").trim()){ delete patch.nameAddrKey; delete patch.kNA; }
+  btn.disabled=true; msg.style.color="var(--sub)"; msg.textContent="저장 중…";
+  try{
+    const db=await initFirebase();
+    await db.collection(COLLECTION).doc(id).update(patch);
+  }catch(err){
+    btn.disabled=false;
+    return bad("저장 실패: "+(err.message||err)+" (이미 출고되었거나 권한이 없을 수 있습니다.)");
+  }
+  btn.disabled=false;
+  Object.assign(e,patch,{ infoEditedAt:new Date() });
+  logAccess("고객정보 수정",[typeText(e),e.product||"-",e.manual?"수기":"접수폼","항목: "+fields.join("·")].join(" · "),1);   // 이름·번호·주소는 적지 않습니다
+  $("#dtName").textContent=e.name||"(이름없음)"; $("#dtMeta").innerHTML="접수 "+fmtDate(e._date)+" · "+cell(e,"phone"); $("#dtAddr").innerHTML=cell(e,"addr");
+  infoEditFill(e); msg.style.color="var(--ok,#12a150)"; msg.textContent="";
+  computeDups(); renderActiveTab();
+  alert("고객정보를 수정했습니다.");
+}
+window.infoEditOpen=infoEditOpen; window.infoEditCancel=infoEditCancel; window.infoEditSave=infoEditSave;
 async function reJudgeDetail(){
   if(!detailId)return;const id=detailId;closeDetail();await reJudge(id);
 }

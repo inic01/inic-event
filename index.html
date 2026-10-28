@@ -1088,14 +1088,22 @@ function applyConfig(){
   }
 
   /* ③단계 — 사은품 이름·종류 */
-  if(CFG.gifts) Object.keys(CFG.gifts).forEach(c=>{
-    const g=CFG.gifts[c]||{}, cur=GIFTS[c]||{};
-    GIFTS[c]=Object.assign({},cur,
+  const mergeGifts=(dst,src)=>Object.keys(src||{}).forEach(c=>{
+    const g=src[c]||{}, cur=dst[c]||{};
+    const n=Object.assign({},cur,
       g.label?{label:g.label}:{},
       g.type ?{type:g.type} :{},
       g.fee  ?{fee:g.fee}   :{},       // 착불 / 선불 (관리자 「사은품」 탭에서 정합니다)
       (Number(g.box)>=1) ? {box:Number(g.box)} : {});   // 합배송 — 한 상자에 몇 개까지 (2026-09-28)
+    /* 🔴 2026-10-28 — 사은품 2개 이상(택1)·비워 둔 선택지(off)는 설정을 다시 받을 때마다 새로 정합니다 */
+    if(Array.isArray(g.opts)&&g.opts.length>1) n.opts=g.opts.map(x=>({label:String(x.label||""),type:x.type==="coupon"?"coupon":"gift"})); else delete n.opts;
+    if(g.off===true) n.off=true; else delete n.off;
+    dst[c]=n;
   });
+  if(CFG.gifts) mergeGifts(GIFTS, CFG.gifts);
+  /* 쿠팡 정품등록 — 서버가 giftsCp 를 주면 그 값, 안 주면(예전 서버) 포토리뷰와 같은 값 */
+  GIFTS_CP=JSON.parse(JSON.stringify(GIFTS_DFLT));
+  mergeGifts(GIFTS_CP, CFG.giftsCp || CFG.gifts || {});
   /* 한달 사용후기 — 켜져 있을 때만 카드를 보입니다(서버가 「켬 + 사은품 있음」일 때만 on:true 를 줍니다). */
   {
     const m=CFG.month;
@@ -1353,6 +1361,10 @@ const GIFTS={
   "iH05":{label:"배민 3,000원",type:"coupon"},
   "iHD01":{label:"CU 3,000원",type:"coupon"}
 };
+/* 🔴 유형별 사은품(2026-10-28) — 쿠팡 정품등록은 관리자 「쿠팡 사은품」 탭(서버 giftsCp)을 씁니다. 처음엔 위 기본값과 같습니다.
+      opts = 사은품 2개 이상(고객 택1), off = 그 유형에서 사은품을 비워 둔 선택지(카드를 안 보임). giftRow·giftOf 로만 꺼내 씁니다. */
+const GIFTS_DFLT=JSON.parse(JSON.stringify(GIFTS));
+let GIFTS_CP=JSON.parse(JSON.stringify(GIFTS));
 /* ══════════ 판매처 예외 규칙(프로모션) ══════════
    「이 기간에 · 이 판매처에서 · 이 제품을 산 고객」은 사은품이 바뀝니다.
    판매처는 고객이 고르는 것이 아니라 원장에 적힌 값이며, 조회할 때 창구가 알려 줍니다.
@@ -1391,7 +1403,9 @@ function promoFor(code){
 /* 사은품을 묻는 곳은 전부 이 함수 하나를 거칩니다.
    그래서 여기서 한 번만 바꿔 주면 화면·착불 안내·저장값이 모두 따라옵니다. */
 /* 한달 사용후기는 포토리뷰와 사은품 목록이 따로입니다(MONTH.gifts) — 이 함수로만 꺼내 씁니다. */
-function giftRow(code){ return ((state.event==="month") ? MONTH.gifts : GIFTS)[code]; }
+function giftRow(code){ return ((state.event==="month") ? MONTH.gifts : (state.type==="coupang" ? GIFTS_CP : GIFTS))[code]; }
+/* 이 유형에서 사은품을 비워 둔 선택지 — 제품 카드에서 뺍니다(서버도 접수를 받지 않음). 한달 사용후기는 자기 설정을 씁니다. */
+function giftOff(code){ return state.event!=="month" && !!((giftRow(code)||{}).off); }
 function giftOf(code){
   if(state.event==="month") return MONTH.gifts[code]||null;   // 판매처 예외(프로모션)는 적용하지 않습니다
   const hit = promoFor(code);
@@ -1408,7 +1422,11 @@ function giftOf(code){
              fee:(GIFTS[code]||{}).fee,               // 배송비는 제품 기준 (프로모션이어도 같음)
              promo:hit.name||"" };
   }
-  return GIFTS[code]||null;
+  /* 🔴 유형별 사은품(2026-10-28) — 사은품이 2개 이상이면 프로모션 택1과 같은 모양으로 돌려줍니다(고객이 하나를 고름). */
+  const row = giftRow(code);
+  if(row && Array.isArray(row.opts) && row.opts.length>1)
+    return { choice:true, options:row.opts, label:row.opts[0].label, type:row.opts[0].type, fee:row.fee, box:row.box };
+  return row||null;
 }
 /* 이 제품의 배송비 구분 — 「선불」이라고 적어 둔 제품만 선불, 나머지는 착불. */
 function feeOf(code){ return ((giftRow(code)||{}).fee==="선불") ? "선불" : "착불"; }
@@ -1764,7 +1782,7 @@ function renderProds(){
   // 구매 확인으로 후보가 좁혀진 경우 그 제품만 보여준다 (수량도 함께 표시)
   if(state.prodCodes && state.prodCodes.length){
     const box=$("#prods"); const all=[];
-    for(const c in PRODUCTS) PRODUCTS[c].forEach(p=>{ if(state.prodCodes.includes(p.code)) all.push(p); });
+    for(const c in PRODUCTS) PRODUCTS[c].forEach(p=>{ if(state.prodCodes.includes(p.code) && !giftOff(p.code)) all.push(p); });   // 사은품을 비워 둔 선택지는 빼고(2026-10-28)
     box.innerHTML="";
     all.forEach(p=>{const el=document.createElement("div");el.className="prod"+(state.product===p.code?" on":"");
       const q=Math.max(1,(state.qtyByCode[p.code]||1)-(state.usedByCode[p.code]||0));
@@ -1786,7 +1804,7 @@ function renderProds(){
   }
   { const h2=document.querySelector("#step-product > h2"); if(h2) h2.textContent="구매하신 제품"; }     // 한달 사용후기에서 바꾼 제목이 남지 않게
   const cats0=$("#cats"); if(cats0) cats0.style.display="";
-const box=$("#prods");box.innerHTML="";const list=PRODUCTS[state.category]||[];
+const box=$("#prods");box.innerHTML="";const list=(PRODUCTS[state.category]||[]).filter(p=>!giftOff(p.code));   // 🔴 이 유형에서 사은품을 비워 둔 선택지는 카드에서 뺍니다(2026-10-28)
   if(!list.length){box.innerHTML='<div style="grid-column:1/3;color:#6b7280;font-size:13px;padding:10px 2px">이 카테고리의 제품 목록은 준비 중입니다.</div>';return;}
   list.forEach(p=>{const el=document.createElement("div");el.className="prod"+(state.product===p.code?" on":"");
     const imgHtml=p.img?`<img class="pimg" src="${p.img}">`:`<div class="pph">이미지 준비중</div>`;
@@ -1854,7 +1872,7 @@ function renderInfo(){
   if(state.infoFor!==key){
     state.infoFor=key; state.giftChoice=null; if(state.consent) delete state.consent.reward;
     let html="";
-    if(state.type!=="coupang" && g && g.choice){
+    if(g && g.choice){                     // 🔴 2026-10-28 — 쿠팡 정품등록도 사은품이 2개 이상이면 고객이 고릅니다(유형별 사은품)
       html+='<div class="consent"><div class="ctitle">사은품 선택<span class="ctag must">필수</span></div>';
       if(g.note) html+='<div class="notice" style="margin:6px 0 4px">'+g.note+'</div>';
       g.options.forEach((o,i)=>{ html+='<label class="radio"><input type="radio" name="gift" value="'+i+'"><span>'+o.label+(o.type==='coupon'?' (상품권)':'')+'</span></label>'; });
@@ -2744,7 +2762,7 @@ function validateStep(step){
         if(ep){ if(is050){ ep.textContent=PHONE050_MSG; ep.dataset.is050="1"; } else if(ep.dataset.is050==="1"){ ep.textContent=ep.dataset.orig; ep.dataset.is050=""; } }
         showErr("err-phone"); ok=false;
       } else { if(ep && ep.dataset.is050==="1"){ ep.textContent=ep.dataset.orig; ep.dataset.is050=""; } hideErr("err-phone"); } }
-    if(state.type!=="coupang" && g && g.choice && state.giftChoice==null){showErr("err-gift");ok=false;}
+    if(g && g.choice && state.giftChoice==null){showErr("err-gift");ok=false;}
     // 기본주소(주소검색 결과)가 없으면 상세주소만 입력해도 통과시키지 않는다 — 오기재·발송누락 방지
     if(rw==="gift" && REQ.addr){
       const road=($("#addrRoad").value||"").trim(), det=($("#addrDetail").value||"").trim();

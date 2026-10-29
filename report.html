@@ -1834,6 +1834,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
           </div>
           <div id="dtEditForm" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#faf8f6">
             <div style="font-size:12.5px;font-weight:800;margin-bottom:7px">고객정보 수정 <span style="font-weight:600;color:var(--sub)">— 성함·연락처·주소 · 출고 전까지만</span></div>
+            <div id="dtEdPend" style="display:none;font-size:12px;line-height:1.6;margin-bottom:8px;padding:8px 10px;border-radius:8px;background:#fff6dc;border:1px solid #ecd9a0"></div>
             <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">성함</label>
             <input id="dtEdName" type="text" maxlength="50" autocomplete="off" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 8px">
             <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">연락처</label>
@@ -1842,6 +1843,8 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
               <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">주소</label>
               <input id="dtEdAddr" type="text" maxlength="300" autocomplete="off" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 8px">
             </div>
+            <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">변경 사유 <span style="color:#c1121f">(필수)</span></label>
+            <textarea id="dtEdMemo" maxlength="200" rows="2" placeholder="예: 고객이 연락처를 잘못 입력해 정정 요청 (이름·연락처·주소는 적지 마세요)" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 8px;font:inherit"></textarea>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <button id="dtEdSave" class="primary sm" onclick="infoEditSave()">저장</button>
               <button class="sm" onclick="infoEditCancel()">취소</button>
@@ -1850,9 +1853,11 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
           </div>
           <!-- 🔴 사은품 변경 (2026-10-28 사용자 요청) — 출고 전까지, 이 유형(포토리뷰/쿠팡)의 사은품과 예외사은품 중에서 같은 종류(사은품↔사은품, 상품권↔상품권)로만 바꿉니다. -->
           <div id="dtGiftForm" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#faf8f6">
-            <div style="font-size:12.5px;font-weight:800;margin-bottom:7px">사은품 변경 <span style="font-weight:600;color:var(--sub)">— 출고 전까지 · 같은 종류(사은품/상품권)끼리만</span></div>
+            <div style="font-size:12.5px;font-weight:800;margin-bottom:7px">사은품 변경 <span style="font-weight:600;color:var(--sub)">— 출고 전까지 · 사은품↔상품권도 가능</span></div>
             <div id="dtGfNow" style="font-size:12px;color:var(--sub);margin-bottom:6px"></div>
             <select id="dtGfSel" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 8px"></select>
+            <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">변경 사유 <span style="color:#c1121f">(필수)</span></label>
+            <textarea id="dtGfMemo" maxlength="200" rows="2" placeholder="예: 고객 요청으로 상세페이지 안내 사은품으로 변경 (이름·연락처·주소는 적지 마세요)" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 8px;font:inherit"></textarea>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <button id="dtGfSave" class="primary sm" onclick="giftEditSave()">저장</button>
               <button class="sm" onclick="giftEditCancel()">취소</button>
@@ -1967,7 +1972,11 @@ function gsCanonSettings(raw){
 /* 🔴 프로모션 「전 사이트」(2026-10-28 사용자 요청) — 이 글자를 고른 규칙은 판매처와 상관없이 걸립니다(판매처가 적힌 구매 기록이면 모두).
    ⚠️ 서버 eventApi · 접수폼 index 의 SRC_ALL·srcHit 와 같은 글자·규칙입니다. */
 const SRC_ALL="*";
-const srcText=l=>(Array.isArray(l)?l:[]).map(x=>x===SRC_ALL?"전 사이트":x).join(", ");
+const srcText=(l,ex)=>(Array.isArray(l)?l:[]).map(x=>x===SRC_ALL?"전 사이트"+((ex&&ex.length)?"(제외: "+ex.join(", ")+")":""):x).join(", ");
+/* 🔴 2026-10-29 「전 사이트」에서 판매처를 해제하면 r.exSrcs 에 쌓입니다(이름이 똑같은 곳만 제외, 쿠팡·로켓배송은 항상 빠짐, 새 판매처는 자동 포함).
+   ⚠️ 서버 eventApi srcAllHit · 접수폼 index srcAllHit 와 같은 규칙입니다. */
+const SRC_NEVER=["쿠팡","로켓"];
+const srcNever=name=>SRC_NEVER.some(w=>mSrcKey(name).includes(w));
 /* 구매 기록 한 줄의 코드들 — 예전 코드는 지금 코드로, 같은 코드는 한 번 */
 const rowCodes=r=>[...new Set((r&&r.code?[r.code]:(r&&Array.isArray(r.pick)?r.pick:[])).map(canonCode))];
 function gsListRaw(v, dfee){
@@ -2218,12 +2227,12 @@ async function loadData(){
         const n=Number(it.box); mm[it.code]=(n>=1)?n:1;
       });
       /* 🔴 유형별 사은품(2026-10-28) — 수기접수·사은품 변경이 쓸 목록과, 쿠팡 정품등록 건의 합배송(쿠팡 사은품 기준) */
-      const gs={rv:{},cp:{},extra:{},month:{}}, mc={};
+      const gs={rv:{},cp:{},extra:{},extraCp:{},month:{}}, mc={};      // extra = 포토리뷰 예외사은품, extraCp = 쿠팡 예외사은품(2026-10-29)
       (raw&&Array.isArray(raw.products)?raw.products:[]).forEach(p2=>{
         if(!p2) return;
-        const rv=gsSetOfRaw(p2,"rv"), cp=gsSetOfRaw(p2,"cp"), ex=gsListRaw(p2.extra,rv.fee);
+        const rv=gsSetOfRaw(p2,"rv"), cp=gsSetOfRaw(p2,"cp"), ex=gsListRaw(p2.extra,rv.fee), exCp=gsListRaw(p2.cp&&p2.cp.extra,cp.fee);
         Object.keys(rv.byCode).forEach(c2=>{
-          gs.rv[c2]=rv.byCode[c2]; gs.cp[c2]=cp.byCode[c2]; gs.extra[c2]=ex;
+          gs.rv[c2]=rv.byCode[c2]; gs.cp[c2]=cp.byCode[c2]; gs.extra[c2]=ex; gs.extraCp[c2]=exCp;
           const l=cp.byCode[c2], hasGift=Array.isArray(l) ? l.some(g=>g.type==="gift") : (l===null && p2.type!=="coupon");
           if(hasGift){ const n=Number(cp.box); mc[c2]=(n>=1)?n:1; }
         });
@@ -3274,6 +3283,7 @@ function openDetail(id, readOnly){
 
   $("#dtCallBox").style.display = (isBad && !RO) ? "" : "none";
   snFillBox(e, e.type==="coupang" && isBad && !RO);      /* S/N 정정 상자 — 쿠팡 정품등록 부적합 건에만 */
+  DT_PAST_ONLY = !!(isBad && !RO);          // 부적합 탭에서 연 건은 응대 기록 입력 칸이 따로 있어, 이 상자에는 변경 기록만 보입니다
   $("#dtInfoBox").style.display = (isBad && !RO) ? "none" : "";
   if(isBad && RO){
     /* 전체 탭에서 부적합 건을 연 경우 — 내용만 보여 주고 기록은 못 하게 합니다 */
@@ -3281,12 +3291,9 @@ function openDetail(id, readOnly){
     $("#dtManualBox").style.display="none";
     $("#dtInfoMsg").innerHTML =
       "<b>부적합</b> 건입니다. 응대 기록과 출고 승인은 <b>「부적합」 탭</b>에서 하실 수 있습니다.";
-    const pc=$("#dtPastCall");
-    if(e.callStatus||e.callMemo){
-      pc.style.display="";
-      pc.innerHTML=`<b style="color:var(--sub)">지난 응대 기록</b><br>${e.callStatus?`상태 : ${admEsc(e.callStatus)}<br>`:""}${e.callMemo?`메모 : ${admEsc(e.callMemo)}`:""}`;
-    }else pc.style.display="none";
+    pastCallRender(e);
   }
+  if(isBad && !RO) pastCallRender(e);
   if(!isBad){
     const canRe=(e.type==="review"||e.type==="coupang")&&imgUrlsOf(e).length&&st==="review";
     $("#dtReJudge").style.display = canRe ? "" : "none";
@@ -3301,11 +3308,7 @@ function openDetail(id, readOnly){
       : e.overrideEligible ? "상담 후 <b>출고 승인</b>된 건입니다. 발송목록에서 일괄출고하면 출고완료로 바뀝니다."
       : isReserve(e) ? "<b>예약발송</b> 지정 제품입니다. 재고 입고 후 예약발송 탭에서 제품 지정을 해제하면 일반 발송목록으로 이동합니다."
       : "<b>적격(발송 대상)</b> 건입니다. 발송목록에서 일괄출고하면 출고완료로 바뀝니다.";
-    const pc=$("#dtPastCall");
-    if(e.callStatus||e.callMemo){
-      pc.style.display="";
-      pc.innerHTML=`<b style="color:var(--sub)">지난 응대 기록</b><br>${e.callStatus?`상태 : ${admEsc(e.callStatus)}<br>`:""}${e.callMemo?`메모 : ${admEsc(e.callMemo)}`:""}`;
-    }else pc.style.display="none";
+    pastCallRender(e);
   }
 
   const img=$("#dtImg");
@@ -3435,6 +3438,7 @@ const canEditInfo=e=>!!(ME&&INFO_EDIT_ROLES.includes(ME.role)&&e&&!(e.shipped||e
 const infoAddrEditable=e=>!!(e&&e.rewardType!=="coupon");          // 상품권 건은 주소를 받지 않습니다
 function infoEditFill(e){                            // 「고객정보 수정」·「사은품 변경」 단추(접수 취소 단추 옆) — 권한이 있고 출고 전인 건에만
   const on=canEditInfo(e);
+  GIFT_PENDING=null; $("#dtEdPend").style.display="none";
   $("#dtEditForm").style.display="none"; $("#dtEditOpen").style.display=on?"":"none"; $("#dtEdMsg").textContent="";
   $("#dtGiftForm").style.display="none"; $("#dtGiftOpen").style.display=on?"":"none"; $("#dtGfMsg").textContent="";
 }
@@ -3449,19 +3453,42 @@ function giftEditChoices(e){
   /* 한달 사용후기 건은 한달 사용후기 사은품 목록(2026-10-28 — 예전에는 포토리뷰 목록이 나왔음) */
   const sl=(e.event==="month")?(GSET&&GSET.month?GSET.month[code]:undefined):(GSET&&GSET[t]?GSET[t][code]:undefined);
   const cur=Array.isArray(sl)?sl:((PRODREWARD[code]||[]).map(x=>({label:x.name,type:x.rewardType})));
-  const ex=((GSET&&GSET.extra&&GSET.extra[code])||[]).filter(g=>!cur.some(x=>x.label===g.label));
+  /* 예외사은품은 그 건의 유형(포토리뷰/쿠팡) 것만(2026-10-29 — 한달 사용후기 건은 포토리뷰 예외사은품) */
+  const exSet=(t==="cp"&&e.event!=="month")?(GSET&&GSET.extraCp):(GSET&&GSET.extra);
+  const ex=((exSet&&exSet[code])||[]).filter(g=>!cur.some(x=>x.label===g.label));
   return { cur, ex };
+}
+/* 🔴 2026-10-29 변경 기록(editLog) — 사은품 변경·고객정보 수정 때 사유 메모와 함께 건에 한 줄씩 쌓고(추가만, firestore.rules editLogOk), 상세의 「지난 응대 기록」 상자에 보입니다.
+   사유는 이름·연락처·주소를 적지 않도록 안내합니다(입력 칸 안내문). 접근 기록에는 사유를 남기지 않습니다. */
+const EDIT_MEMO_MAX=200;
+let GIFT_PENDING=null;      // 상품권 → 사은품 변경 중 — 고객정보 수정 창에서 주소를 받은 뒤 한 번에 저장합니다
+let DT_PAST_ONLY=false;
+function editLogAdd(e,kind,desc,memo){
+  return [...(Array.isArray(e.editLog)?e.editLog:[]),
+    { at:new Date().toISOString(), by:(ME&&ME.name)||"", byUid:(ME&&ME.uid)||"", kind, desc:String(desc).slice(0,300), memo:String(memo).slice(0,EDIT_MEMO_MAX) }];
+}
+function pastCallRender(e){
+  const pc=$("#dtPastCall"); if(!pc) return;
+  const callOn=!DT_PAST_ONLY&&!!(e.callStatus||e.callMemo);
+  const log=Array.isArray(e.editLog)?e.editLog:[];
+  if(!callOn&&!log.length){ pc.style.display="none"; return; }
+  const p2=n=>String(n).padStart(2,"0");
+  const fd=v=>{ const d=new Date(v); return isNaN(d)?"":d.getFullYear()+"."+p2(d.getMonth()+1)+"."+p2(d.getDate()); };
+  pc.style.display="";
+  pc.innerHTML='<b style="color:var(--sub)">지난 응대 기록</b><br>'
+    +(callOn?((e.callStatus?`상태 : ${admEsc(e.callStatus)}<br>`:"")+(e.callMemo?`메모 : ${admEsc(e.callMemo)}<br>`:"")):"")
+    +log.map(x=>`변경 : *${admEsc(fd(x.at))} ${admEsc(x.by||"")} / ${admEsc(x.desc||"")}${x.memo?` / 사유 : ${admEsc(x.memo)}`:""}`).join("<br>");
 }
 function giftEditOpen(){
   const e=ALL.find(x=>x._id===detailId); if(!e||!canEditInfo(e)) return;
   const rt=e.rewardType==="coupon"?"coupon":"gift", {cur,ex}=giftEditChoices(e);
-  const op=(g,extra)=>{ const dis=g.type!==rt; return '<option value="'+admEsc(g.label)+'"'+(extra?' data-extra="1"':'')+(dis?' disabled':'')+(g.label===e.giftItem?' selected':'')+'>'
-    +admEsc(g.label)+' ('+REWARD_LABEL[g.type]+')'+(extra?' · 예외':'')+(dis?' — 종류가 달라 고를 수 없음':'')+'</option>'; };
+  const op=(g,extra)=>{ const diff=g.type!==rt; return '<option value="'+admEsc(g.label)+'"'+(extra?' data-extra="1"':'')+(g.label===e.giftItem?' selected':'')+'>'
+    +admEsc(g.label)+' ('+REWARD_LABEL[g.type]+')'+(extra?' · 예외':'')+(diff?(rt==="coupon"?' — 사은품으로 변경(주소 입력 필요)':' — 상품권으로 변경(주소·배송비 삭제)'):'')+'</option>'; };
   $("#dtGfNow").innerHTML='지금 사은품: <b>'+admEsc(e.giftItem||"-")+'</b> ('+admEsc(REWARD_LABEL[rt])+')';
   $("#dtGfSel").innerHTML=(cur.length?'<optgroup label="지금 사은품">'+cur.map(g=>op(g,false)).join("")+'</optgroup>':'')
-    +(ex.length?'<optgroup label="예외사은품">'+ex.map(g=>op(g,true)).join("")+'</optgroup>':'');
+    +(ex.length?'<optgroup label="'+(e.type==="coupang"&&e.event!=="month"?"쿠팡 ":"포토리뷰 ")+'예외사은품">'+ex.map(g=>op(g,true)).join("")+'</optgroup>':'');
   if(!cur.length&&!ex.length) $("#dtGfSel").innerHTML='<option value="">(고를 수 있는 사은품이 없습니다 — 설정 「제품별 사은품」을 확인하세요)</option>';
-  $("#dtGfMsg").textContent=""; $("#dtGiftForm").style.display="";
+  $("#dtGfMemo").value=""; $("#dtGfMsg").textContent=""; $("#dtGiftForm").style.display="";
 }
 function giftEditCancel(){ $("#dtGiftForm").style.display="none"; $("#dtGfMsg").textContent=""; }
 async function giftEditSave(){
@@ -3472,38 +3499,65 @@ async function giftEditSave(){
   const sel=$("#dtGfSel"), o=sel.selectedOptions[0], to=String((o&&o.value)||"").trim();
   if(!to) return bad("바꿀 사은품을 골라 주세요.");
   if(to===String(e.giftItem||"").trim()) return bad("지금 사은품과 같습니다.");
+  const memo=$("#dtGfMemo").value.trim();
+  if(!memo) return bad("변경 사유를 적어 주세요(예: 고객 요청으로 상세페이지 안내 사은품으로 변경).");
   const rt=e.rewardType==="coupon"?"coupon":"gift", {cur,ex}=giftEditChoices(e);
   const hit=[...cur,...ex].find(g=>g.label===to);
-  if(!hit||hit.type!==rt) return bad("같은 종류의 사은품으로만 바꿀 수 있습니다.");
-  const isEx=!!(o&&o.dataset.extra);
-  /* 🔴 사은품마다 배송비(2026-10-28 사용자 결정) — 바꾼 사은품의 배송비로 같이 바꿉니다(사방넷 엑셀 착불/선불도 따라감). 사은품 건만 */
-  const feeTo=(rt==="gift"&&(hit.fee==="선불"||hit.fee==="착불")&&hit.fee!==shipFeeOf(e))?hit.fee:"";
-  if(!confirm("사은품을 바꿉니다.\n\n"+(e.giftItem||"-")+"  →  "+to+(isEx?"  (예외사은품)":"")
-    +(feeTo?"\n배송비도 바뀝니다: "+shipFeeOf(e)+"  →  "+feeTo:"")+"\n\n수정할까요?")) return false;
-  const patch={ giftItem:to, giftEditedFrom:String(e.giftItem||""), giftExtra:isEx,
-    giftEditedAt:firebase.firestore.FieldValue.serverTimestamp(), giftEditedBy:(ME&&ME.name)||"", giftEditedByUid:(ME&&ME.uid)||"",
-    giftEditCount:(parseInt(e.giftEditCount,10)||0)+1, ...(feeTo?{ shipFee:feeTo }:{}) };
+  if(!hit) return bad("고를 수 없는 사은품입니다.");
+  const typeChg=hit.type!==rt, isEx=!!(o&&o.dataset.extra), from=String(e.giftItem||"");
+  const ts=()=>firebase.firestore.FieldValue.serverTimestamp();
+  const base={ giftItem:to, giftEditedFrom:from, giftExtra:isEx,
+    giftEditedAt:ts(), giftEditedBy:(ME&&ME.name)||"", giftEditedByUid:(ME&&ME.uid)||"", giftEditCount:(parseInt(e.giftEditCount,10)||0)+1 };
   const feeFrom=shipFeeOf(e);
+  if(typeChg&&hit.type==="gift"){
+    /* 상품권 → 사은품: 배송 주소가 필요하므로 고객정보 수정 창을 이어서 엽니다(주소를 넣고 저장하면 사은품 변경도 함께 저장) */
+    if(!confirm("상품권을 사은품으로 바꿉니다.\n\n"+from+"  →  "+to+(isEx?"  (예외사은품)":"")+"\n\n사은품은 배송 주소가 필요합니다. 확인을 누르면 고객정보 수정 창이 이어서 열립니다. 주소를 넣고 저장하면 사은품 변경도 함께 저장됩니다.")) return false;
+    GIFT_PENDING={ id, to, from, isEx, fee:(hit.fee==="선불"?"선불":"착불"), memo };
+    giftEditCancel(); infoEditOpen(true); return;
+  }
+  let patch, feeTo="", desc;
+  if(typeChg){
+    /* 사은품 → 상품권: 배송 주소와 배송비를 지웁니다(상품권은 배송이 없음) */
+    if(!confirm("사은품을 상품권으로 바꿉니다.\n\n"+from+"  →  "+to+(isEx?"  (예외사은품)":"")+"\n\n배송 주소와 배송비가 지워지고, 출고 목록이 사은품(사방넷)에서 상품권으로 옮겨 갑니다.\n\n수정할까요?")) return false;
+    patch={ ...base, rewardType:"coupon", address:"", nameAddrKey:null, kNA:null, shipFee:firebase.firestore.FieldValue.delete(),
+      infoEditedAt:ts(), infoEditedBy:(ME&&ME.name)||"", infoEditedByUid:(ME&&ME.uid)||"", infoEditedFields:["주소(상품권 전환으로 삭제)"], infoEditCount:(parseInt(e.infoEditCount,10)||0)+1 };
+    desc="사은품 변경(사은품→상품권·주소 삭제) — "+from+" → "+to+(isEx?" (예외)":"");
+  }else{
+    /* 🔴 사은품마다 배송비(2026-10-28 사용자 결정) — 바꾼 사은품의 배송비로 같이 바꿉니다(사방넷 엑셀 착불/선불도 따라감). 사은품 건만 */
+    feeTo=(rt==="gift"&&(hit.fee==="선불"||hit.fee==="착불")&&hit.fee!==feeFrom)?hit.fee:"";
+    if(!confirm("사은품을 바꿉니다.\n\n"+from+"  →  "+to+(isEx?"  (예외사은품)":"")
+      +(feeTo?"\n배송비도 바뀝니다: "+feeFrom+"  →  "+feeTo:"")+"\n\n수정할까요?")) return false;
+    patch={ ...base, ...(feeTo?{ shipFee:feeTo }:{}) };
+    desc="사은품 변경 — "+from+" → "+to+(isEx?" (예외)":"")+(feeTo?" · 배송비 "+feeFrom+" → "+feeTo:"");
+  }
+  patch.editLog=editLogAdd(e,"gift",desc,memo);
   btn.disabled=true; msg.style.color="var(--sub)"; msg.textContent="저장 중…";
   try{ const db=await initFirebase(); await db.collection(COLLECTION).doc(id).update(patch); }
   catch(err){ btn.disabled=false; return bad("저장 실패: "+(err.message||err)+" (이미 출고되었거나 권한이 없을 수 있습니다.)"); }
   btn.disabled=false;
-  Object.assign(e,patch,{ giftEditedAt:new Date() });
-  logAccess("사은품 변경",[typeText(e),e.product||"-",(patch.giftEditedFrom||"-")+" → "+to+(isEx?" (예외)":""),...(feeTo?["배송비 "+feeFrom+" → "+feeTo]:[])].join(" · "),1);   // 사은품 이름·배송비만 — 개인정보 없음
+  const loc=Object.assign({},patch); if(typeChg){ delete loc.shipFee; delete e.shipFee; }
+  Object.assign(e,loc,{ giftEditedAt:new Date(), ...(typeChg?{ infoEditedAt:new Date() }:{}) });
+  logAccess("사은품 변경",[typeText(e),e.product||"-",from+" → "+to+(isEx?" (예외)":""),...(typeChg?["종류 변경 사은품→상품권"]:[]),...(feeTo?["배송비 "+feeFrom+" → "+feeTo]:[])].join(" · "),1);   // 사은품 이름·배송비만 — 개인정보·사유 없음
   $("#dtReward").textContent=(REWARD_LABEL[e.rewardType]||"사은품/상품권")+" : "+(e.giftItem||"-");
-  if(feeTo) $("#dtFee").innerHTML=shipFeeBadge(e);
-  infoEditFill(e); renderActiveTab();
+  $("#dtFee").innerHTML=shipFeeBadge(e); if(typeChg){ $("#dtAddr").innerHTML=cell(e,"addr"); computeDups(); }
+  infoEditFill(e); pastCallRender(e); renderActiveTab();
   alert("사은품을 바꿨습니다.");
 }
 window.giftEditOpen=giftEditOpen; window.giftEditCancel=giftEditCancel; window.giftEditSave=giftEditSave;
-function infoEditOpen(){
+function infoEditOpen(pend){
   const e=ALL.find(x=>x._id===detailId); if(!e||!canEditInfo(e)) return;
+  if(pend!==true) GIFT_PENDING=null;
+  const PG=(GIFT_PENDING&&GIFT_PENDING.id===e._id)?GIFT_PENDING:null;
   $("#dtEdName").value=e.name||""; $("#dtEdPhone").value=e.phone||""; $("#dtEdAddr").value=e.address||"";
-  $("#dtEdAddrWrap").style.display=infoAddrEditable(e)?"":"none";
+  $("#dtEdAddrWrap").style.display=(PG||infoAddrEditable(e))?"":"none";
+  $("#dtEdMemo").value=PG?PG.memo:"";
+  const pn=$("#dtEdPend");
+  if(PG){ pn.style.display=""; pn.innerHTML='사은품 변경 진행 중: <b>'+admEsc(PG.from)+' → '+admEsc(PG.to)+'</b> (상품권 → 사은품). <b>배송 주소</b>를 넣고 저장하면 사은품 변경도 함께 저장됩니다. 취소하면 아무것도 바뀌지 않습니다.'; }
+  else pn.style.display="none";
   $("#dtEdMsg").textContent=""; $("#dtEditForm").style.display="";
-  $("#dtEdPhone").focus();
+  (PG?$("#dtEdAddr"):$("#dtEdPhone")).focus();
 }
-function infoEditCancel(){ $("#dtEditForm").style.display="none"; $("#dtEdMsg").textContent=""; }
+function infoEditCancel(){ GIFT_PENDING=null; $("#dtEdPend").style.display="none"; $("#dtEditForm").style.display="none"; $("#dtEdMsg").textContent=""; }
 /* 새 값에서 나오는 중복 확인 열쇠 — 서버 eventApi(naKey·evKey)와 같은 규칙. 수기접수 건은 수기접수 때 만든 모양을 따릅니다. */
 function infoKeysOf(e,name,phoneKey,addr){
   const prod=String(e.product||""), ek=(e.event==="month"?"M:":"")+prod;
@@ -3537,12 +3591,16 @@ async function infoEditSave(){
   if(!e) return;
   const bad=t=>{ msg.style.color="var(--bad,#c0392b)"; msg.textContent=t; return false; };
   if(!canEditInfo(e)) return bad("고객정보를 고칠 수 없는 건입니다(권한이 없거나 이미 출고됨).");
+  const PG=(GIFT_PENDING&&GIFT_PENDING.id===id)?GIFT_PENDING:null;     // 상품권 → 사은품 변경과 함께 저장하는 경우(주소 필수)
   const name=$("#dtEdName").value.trim(), phone=$("#dtEdPhone").value.trim(), pk=mDigits(phone);
-  const addrOn=infoAddrEditable(e), addr=addrOn?$("#dtEdAddr").value.trim():String(e.address||"");
+  const addrOn=PG?true:infoAddrEditable(e), addr=addrOn?$("#dtEdAddr").value.trim():String(e.address||"");
+  const memo=$("#dtEdMemo").value.trim();
   if(!name) return bad("성함을 입력해 주세요.");
   if(pk.length<10||pk.length>12) return bad("연락처는 숫자 10~12자리로 입력해 주세요(예: 010-1234-5678).");
   if(!e.manual&&/^050/.test(pk)) return bad("안심번호(050)는 연락처로 쓸 수 없습니다. 고객의 실제 휴대폰 번호를 입력해 주세요.");
   if(addrOn&&String(e.address||"").trim()&&!addr) return bad("주소를 비울 수 없습니다. 주소를 입력해 주세요.");
+  if(PG&&!addr) return bad("사은품은 배송 주소가 필요합니다. 주소를 입력해 주세요.");
+  if(!memo) return bad("변경 사유를 적어 주세요(예: 고객이 연락처를 잘못 입력해 정정 요청).");
   const phoneChanged=pk!==(e.phoneKey||mDigits(e.phone)), nameChanged=name!==String(e.name||"").trim(), addrChanged=addrOn&&addr!==String(e.address||"").trim();
   const phoneTextChanged=phone!==String(e.phone||"").trim();
   if(!phoneTextChanged&&!nameChanged&&!addrChanged) return bad("바뀐 내용이 없습니다.");
@@ -3563,6 +3621,7 @@ async function infoEditSave(){
     +(nameChanged?"성함: "+(e.name||"-")+" → "+name+"\n":"")
     +(phoneChanged||phoneTextChanged?"연락처: "+(e.phone||"-")+" → "+phone+"\n":"")
     +(addrChanged?"주소: "+(e.address||"-")+" → "+addr+"\n":"")
+    +(PG?"사은품: "+PG.from+" → "+PG.to+" (상품권 → 사은품)\n":"")
     +"\n중복 확인 기준도 새 값으로 바뀝니다."+warn+"\n\n수정할까요?")) return false;
   const patch=Object.assign({ name, phone },
     infoKeysOf(e,name,pk,addrOn?addr:String(e.address||"").trim()),
@@ -3571,6 +3630,9 @@ async function infoEditSave(){
       infoEditedFields:fields, infoEditCount:(parseInt(e.infoEditCount,10)||0)+1 });
   /* 상품권 건은 주소가 없어 열쇠가 null 입니다 — 처음부터 없던 칸을 새로 만들지 않도록 */
   if(!addrOn&&!String(e.address||"").trim()){ delete patch.nameAddrKey; delete patch.kNA; }
+  if(PG) Object.assign(patch,{ giftItem:PG.to, giftEditedFrom:PG.from, giftExtra:PG.isEx, rewardType:"gift", shipFee:PG.fee,
+    giftEditedAt:firebase.firestore.FieldValue.serverTimestamp(), giftEditedBy:(ME&&ME.name)||"", giftEditedByUid:(ME&&ME.uid)||"", giftEditCount:(parseInt(e.giftEditCount,10)||0)+1 });
+  patch.editLog=editLogAdd(e, PG?"gift":"info", PG?("사은품 변경(상품권→사은품·주소 입력) — "+PG.from+" → "+PG.to+(PG.isEx?" (예외)":"")):("고객정보 수정 — "+fields.join("·")), memo);
   btn.disabled=true; msg.style.color="var(--sub)"; msg.textContent="저장 중…";
   try{
     const db=await initFirebase();
@@ -3580,12 +3642,14 @@ async function infoEditSave(){
     return bad("저장 실패: "+(err.message||err)+" (이미 출고되었거나 권한이 없을 수 있습니다.)");
   }
   btn.disabled=false;
-  Object.assign(e,patch,{ infoEditedAt:new Date() });
-  logAccess("고객정보 수정",[typeText(e),e.product||"-",e.manual?"수기":"접수폼","항목: "+fields.join("·")].join(" · "),1);   // 이름·번호·주소는 적지 않습니다
+  Object.assign(e,patch,{ infoEditedAt:new Date(), ...(PG?{ giftEditedAt:new Date() }:{}) });
+  GIFT_PENDING=null; $("#dtEdPend").style.display="none";
+  if(PG){ logAccess("사은품 변경",[typeText(e),e.product||"-",PG.from+" → "+PG.to+(PG.isEx?" (예외)":""),"종류 변경 상품권→사은품"].join(" · "),1); $("#dtReward").textContent=(REWARD_LABEL[e.rewardType]||"사은품/상품권")+" : "+(e.giftItem||"-"); $("#dtFee").innerHTML=shipFeeBadge(e); }
+  logAccess("고객정보 수정",[typeText(e),e.product||"-",e.manual?"수기":"접수폼","항목: "+fields.join("·")].join(" · "),1);   // 이름·번호·주소·사유는 적지 않습니다
   $("#dtName").textContent=e.name||"(이름없음)"; $("#dtMeta").innerHTML="접수 "+fmtDate(e._date)+" · "+cell(e,"phone"); $("#dtAddr").innerHTML=cell(e,"addr");
-  infoEditFill(e); msg.style.color="var(--ok,#12a150)"; msg.textContent="";
+  infoEditFill(e); msg.style.color="var(--ok,#12a150)"; msg.textContent=""; pastCallRender(e);
   computeDups(); renderActiveTab();
-  alert("고객정보를 수정했습니다.");
+  alert(PG?"사은품과 고객정보를 수정했습니다.":"고객정보를 수정했습니다.");
 }
 window.infoEditOpen=infoEditOpen; window.infoEditCancel=infoEditCancel; window.infoEditSave=infoEditSave;
 async function reJudgeDetail(){
@@ -4335,7 +4399,7 @@ function mPromoHit(code, src, buyDate){
   if(!prod || !prod.ledger) return null;
   const sk = mSrcKey(src), d = buyDate || new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
   return rules.find(r => r && r.product === prod.ledger && mRuleGifts(r).length
-    && Array.isArray(r.srcs) && (r.srcs.includes(SRC_ALL) || r.srcs.some(s => { const k = mSrcKey(s); return k && sk.includes(k); }))   // 「전 사이트」(2026-10-28)
+    && Array.isArray(r.srcs) && (r.srcs.includes(SRC_ALL) ? (!SRC_NEVER.some(w => sk.includes(w)) && !(r.exSrcs || []).some(x => mSrcKey(x) === sk)) : r.srcs.some(s => { const k = mSrcKey(s); return k && sk.includes(k); }))   // 「전 사이트」(2026-10-28·10-29 제외)
     && !(r.from && d < r.from) && !(r.to && d > r.to)) || null;
 }
 function onProductChange(){
@@ -4354,7 +4418,7 @@ function onProductChange(){
     const t = $("#mType").value === "coupang" ? "cp" : "rv";
     const sl = GSET && GSET[t] ? GSET[t][code] : undefined;
     const cur = Array.isArray(sl) ? sl.map(g => ({ name:g.label, rewardType:g.type, fee:g.fee })) : list;
-    const ex = ((GSET && GSET.extra && GSET.extra[code]) || []).filter(g => !cur.some(x => x.name === g.label));
+    const ex = ((GSET && (t === "cp" ? GSET.extraCp : GSET.extra) && (t === "cp" ? GSET.extraCp : GSET.extra)[code]) || []).filter(g => !cur.some(x => x.name === g.label));   // 이 유형의 예외사은품만(2026-10-29)
     /* data-fee = 사은품마다 배송비(2026-10-28) — 고르면 「배송구분」이 그 값으로 맞춰집니다(mGiftFeeSync, 담당자가 다시 바꿀 수 있음) */
     const opt = (x, extra) => `<option value="${admEsc(x.name)}" data-reward="${x.rewardType}"${(x.fee === "선불" || x.fee === "착불") ? ` data-fee="${x.fee}"` : ""}${extra ? ' data-extra="1"' : ""}>${admEsc(x.name)} (${REWARD_LABEL[x.rewardType]})${extra ? " · 예외" : ""}</option>`;
     const curHtml = cur.map(x => opt(x, false)).join(""), exHtml = ex.map(g => opt({ name:g.label, rewardType:g.type, fee:g.fee }, true)).join("");
@@ -8873,7 +8937,7 @@ const pname  = c => c;
 function resolveGift(code, ledgerSrc, d){
   d = d || simDate();
   const hit = (cfg.giftRules || []).find(r =>
-    r.product === code && ((r.srcs || []).includes(SRC_ALL) || (r.srcs || []).includes(ledgerSrc)) && r.label && ruleActive(r, d));
+    r.product === code && (((r.srcs || []).includes(SRC_ALL) && !srcNever(ledgerSrc) && !(r.exSrcs || []).includes(ledgerSrc)) || (r.srcs || []).includes(ledgerSrc)) && r.label && ruleActive(r, d));
   if(hit) return { label:hit.label, type:hit.type, rule:hit };
   const p = prodOf(code);
   return p ? { label:p.gift, type:p.type, rule:null } : null;
@@ -8931,7 +8995,9 @@ function gsEnsure(p){
   codes.forEach(c => { if(!Array.isArray(p.cp.byCode[c])) p.cp.byCode[c] = clone(p.rv.byCode[c] || []); });
   Object.keys(p.cp.byCode).forEach(c => { if(!codes.includes(c)) delete p.cp.byCode[c]; });
   if(!Array.isArray(p.extra)) p.extra = [];
+  if(!Array.isArray(p.cp.extra)) p.cp.extra = [];      // 🔴 2026-10-29 쿠팡 예외사은품은 따로(p.extra = 포토리뷰 예외사은품)
 }
+const gsExtraOf = (p, t) => t === "coupang" ? p.cp.extra : p.extra;
 function gsSyncLegacy(p){
   const codes = gsCodes(p);
   const firstOf = c => ((p.rv.byCode[c] || []).find(g => String(g.label || "").trim())) || null;
@@ -8955,7 +9021,7 @@ function gsSyncFee(p, t){
   const set = t === "coupang" ? p.cp.byCode : p.rv.byCode;
   const gl = gsCodes(p).flatMap(c => set[c] || []).filter(g => g.type !== "coupon");
   if(!gl.length || !gl.every(g => g.fee === "선불" || g.fee === "착불")) return;
-  if(t !== "coupang") (p.extra || []).forEach(g => { if(g.type !== "coupon" && !(g.fee === "선불" || g.fee === "착불")) g.fee = gsFee(p, "review"); });   // 예외사은품이 따라 바뀌지 않게 먼저 적어 둠
+  (gsExtraOf(p, t) || []).forEach(g => { if(g.type !== "coupon" && !(g.fee === "선불" || g.fee === "착불")) g.fee = gsFee(p, t); });   // 같은 탭의 예외사은품이 따라 바뀌지 않게 먼저 적어 둠
   gsSetFee(p, t, gl[0].fee);
 }
 const gsBox = (p, t) => t === "coupang" ? p.cp.box : p.box;
@@ -8968,7 +9034,7 @@ function gsSame(p){
   const a = gsCodes(p).map(c => norm(p.rv.byCode[c], "review")), b = gsCodes(p).map(c => norm(p.cp.byCode[c], "coupang"));
   return JSON.stringify(a) === JSON.stringify(b) && gsFee(p, "review") === gsFee(p, "coupang") && bx(p.box) === bx(p.cp.box);
 }
-function gsCopyToCp(p){ p.cp = { byCode:clone(p.rv.byCode), shipFee:gsFee(p, "review"), box:(p.box == null ? "" : p.box) }; }
+function gsCopyToCp(p){ p.cp = { byCode:clone(p.rv.byCode), shipFee:gsFee(p, "review"), box:(p.box == null ? "" : p.box), extra:clone(p.extra || []) }; }   // 예외사은품도 같이 복사(2026-10-29)
 /* 저장 직전 — 빈 이름은 버리고(사은품 칸을 추가만 하고 비워 둔 것), 예전 칸을 포토리뷰 첫 사은품으로 맞춥니다 */
 function gsBeforeSave(c){
   (c.products || []).forEach(p => {
@@ -8977,7 +9043,7 @@ function gsBeforeSave(c){
     const clean = l => (l || []).filter(g => String(g.label || "").trim()).map(g => Object.assign({ label:String(g.label).trim(), type:g.type === "coupon" ? "coupon" : "gift" },
       (g.type !== "coupon" && (g.fee === "선불" || g.fee === "착불")) ? { fee:g.fee } : {}));
     gsCodes(p).forEach(k => { p.rv.byCode[k] = clean(p.rv.byCode[k]); p.cp.byCode[k] = clean(p.cp.byCode[k]); });
-    p.extra = clean(p.extra);
+    p.extra = clean(p.extra); p.cp.extra = clean(p.cp.extra);
     /* 포토리뷰 목록이 예전 칸과 같으면(안 고친 줄) 예전 칸을 건드리지 않습니다 — 음식물처리기의 대표 이름(「밀폐키친홀더 / 활성탄필터」) 같은 표시 글이 바뀌지 않게.
        이름·종류만 비교합니다(배송비만 고친 줄도 대표 이름은 그대로) */
     const nameOnly = l => (l || []).map(g => ({ label:g.label, type:g.type }));
@@ -9036,8 +9102,9 @@ function paneGift(){
       : codes.length > 1
         ? el("div", {}, codes.map(c => el("div", { style:"margin-bottom:4px" }, el("div", { style:"font-size:11px;color:var(--sub)" }, codeName(c)), listView(set[c] || [], true))))
         : listView(set[codes[0]] || [], false);
-    const exNames = (p.extra || []).map(g => String(g.label || "").trim()).filter(Boolean);
-    const exView = exNames.length ? el("div", { style:"font-size:11px;color:var(--sub);margin-top:4px" }, "예외사은품: " + exNames.join(", ")) : "";
+    const exList = gsExtraOf(p, giftTab);                                    // 이 탭(포토리뷰/쿠팡)의 예외사은품
+    const exNames = (exList || []).map(g => String(g.label || "").trim()).filter(Boolean);
+    const exView = exNames.length ? el("div", { style:"font-size:11px;color:var(--sub);margin-top:4px" }, (CPT ? "쿠팡 " : "포토리뷰 ") + "예외사은품: " + exNames.join(", ")) : "";
     const listEdit = (c, multi) => {
       if(!Array.isArray(set[c])) set[c] = [];
       const list = set[c];
@@ -9063,16 +9130,16 @@ function paneGift(){
         list.filter(g => String(g.label || "").trim()).map(g => giftImgHint(g.label, g.label)));
     };
     const exEdit = () => el("div", { style:"margin-top:10px;padding:9px 10px;border:1px dashed var(--line);border-radius:9px;background:#fbfaf6" },
-      el("b", { style:"font-size:12px" }, "예외사은품"),
-      el("span", { style:"font-size:11px;color:var(--sub);margin-left:6px" }, "수기접수·사은품 변경에서만 고를 수 있고, 고객 화면에는 안 나옵니다(포토리뷰·쿠팡 공통)"),
-      p.extra.map((g, k) => el("div", { style:"display:flex;gap:6px;align-items:center;margin:4px 0;flex-wrap:wrap" },
+      el("b", { style:"font-size:12px" }, (CPT ? "쿠팡 " : "포토리뷰 ") + "예외사은품"),
+      el("span", { style:"font-size:11px;color:var(--sub);margin-left:6px" }, "수기접수·사은품 변경에서만 고를 수 있고, 고객 화면에는 안 나옵니다(" + (CPT ? "쿠팡 정품등록 건" : "포토리뷰 건") + "에만 나옴)"),
+      exList.map((g, k) => el("div", { style:"display:flex;gap:6px;align-items:center;margin:4px 0;flex-wrap:wrap" },
         el("input", { type:"text", value:g.label, placeholder:"예: 예전에 주던 사은품 이름", style:"flex:1;min-width:170px", "aria-label":"예외사은품 이름 " + (k + 1),
           oninput:e => { g.label = e.target.value; softRefresh(); } }),
         el("select", { "aria-label":"예외사은품 종류 " + (k + 1), onchange:e => { g.type = e.target.value; render(); } }, TYPE_OPTS(g)),
         g.type === "coupon" ? el("span", { style:"font-size:11px;color:var(--sub);min-width:52px" }, "배송 없음")
-          : el("select", { "aria-label":"예외사은품 배송비 " + (k + 1), onchange:e => { g.fee = e.target.value; softRefresh(); } }, FEE_OPTS(gsItemFee(p, "review", g))),
-        el("button", { class:"btn ghost", type:"button", "aria-label":"예외사은품 삭제 " + (k + 1), onclick:() => { p.extra.splice(k, 1); render(); } }, "삭제"))),
-      p.extra.length < 10 ? el("button", { class:"btn ghost", type:"button", onclick:() => { p.extra.push({ label:"", type:"gift" }); render(); } }, "+ 예외사은품 추가") : "");
+          : el("select", { "aria-label":"예외사은품 배송비 " + (k + 1), onchange:e => { g.fee = e.target.value; softRefresh(); } }, FEE_OPTS(gsItemFee(p, giftTab, g))),
+        el("button", { class:"btn ghost", type:"button", "aria-label":"예외사은품 삭제 " + (k + 1), onclick:() => { exList.splice(k, 1); render(); } }, "삭제"))),
+      exList.length < 10 ? el("button", { class:"btn ghost", type:"button", onclick:() => { exList.push({ label:"", type:"gift" }); render(); } }, "+ 예외사은품 추가") : "");
     const statePill = CPT ? (same
       ? el("span", { class:"pill", style:"margin-left:6px;background:#f0eeec;color:#8a827c" }, "포토리뷰와 같음")
       : el("span", { class:"pill", style:"margin-left:6px;background:#fff3cf;color:#8a6a10" }, "포토리뷰와 다름")) : "";
@@ -9408,21 +9475,29 @@ function paneRule(){
     const st = ruleState(r, d);
     /* 🔴 2026-10-28 사용자 요청 — 맨 앞 「전 사이트」(판매처 상관없이 모두, 고르면 다른 칩은 풀림), 그다음 고객DB 판매처(건수 많은 순).
           이미 고른 판매처가 고객DB 목록에 없으면 그것도 칩으로 남깁니다(끄고 켤 수 있게). 고객DB 목록을 못 읽으면 예전 기본 목록. */
+    /* 🔴 2026-10-29 — 「전 사이트」를 누르면 판매처 칩이 전부 켜지고, 빼고 싶은 곳을 하나씩 누르면 그 곳만 해제(제외)됩니다.
+          쿠팡·로켓배송은 칩에서 뺍니다(쿠팡 정품등록 탭에서 따로 설정). 새 판매처는 자동 포함. 이름이 똑같은 판매처만 제외됩니다. */
     const all = r.srcs.includes(SRC_ALL);
-    const pool = srcChipPool(), names = pool.map(x => x.name);
-    r.srcs.filter(x => x !== SRC_ALL && !names.includes(x)).forEach(x => pool.push({ name:x, n:null }));
+    const exs = Array.isArray(r.exSrcs) ? r.exSrcs : [];   // 🔴 칩을 그리기만 할 때는 규칙에 아무것도 쓰지 않습니다(열기만 해도 「변경 있음」이 뜨지 않게)
+    const pool = srcChipPool().filter(x => !srcNever(x.name)), names = pool.map(x => x.name);
+    r.srcs.filter(x => x !== SRC_ALL && !names.includes(x)).forEach(x => pool.push({ name:x, n:null }));   // 이미 골라 둔 쿠팡 판매처도 칩으로 남겨 눌러서 뺄 수 있게
+    exs.filter(x => !names.includes(x) && !srcNever(x)).forEach(x => { if(!pool.some(p => p.name === x)) pool.push({ name:x, n:null }); });
     const chips = [el("button", { class:"chip", type:"button", "aria-pressed":String(all), style:"font-weight:800",
-        onclick:() => { r.srcs.splice(0, r.srcs.length, ...(all ? [] : [SRC_ALL])); render(); } }, "전 사이트")]
-      .concat(pool.map(x => el("button", {
-        class:"chip", type:"button", "aria-pressed":String(!all && r.srcs.includes(x.name)),
-        onclick:() => { const a = r.srcs.indexOf(SRC_ALL); if(a >= 0) r.srcs.splice(a, 1);
-          const k = r.srcs.indexOf(x.name); k >= 0 ? r.srcs.splice(k, 1) : r.srcs.push(x.name); render(); }
-      }, x.name, x.n != null ? el("span", { style:"font-size:11px;opacity:.7;margin-left:4px" }, Number(x.n).toLocaleString()) : "")));
+        onclick:() => { r.srcs.splice(0, r.srcs.length, ...(all ? [] : [SRC_ALL])); delete r.exSrcs; render(); } }, "전 사이트")]
+      .concat(pool.map(x => {
+        const on = all ? !exs.includes(x.name) : r.srcs.includes(x.name);
+        return el("button", { class:"chip", type:"button", "aria-pressed":String(on),
+          onclick:() => {
+            if(all){ const cur = Array.isArray(r.exSrcs) ? r.exSrcs.slice() : []; const k = cur.indexOf(x.name); k >= 0 ? cur.splice(k, 1) : cur.push(x.name); if(cur.length) r.exSrcs = cur; else delete r.exSrcs; }
+            else { const k = r.srcs.indexOf(x.name); k >= 0 ? r.srcs.splice(k, 1) : r.srcs.push(x.name); }
+            render(); }
+        }, x.name, x.n != null ? el("span", { style:"font-size:11px;opacity:.7;margin-left:4px" }, Number(x.n).toLocaleString()) : "");
+      }));
 
     /* 🔴 카드는 기본으로 접혀 있고(이름·제품·판매처·사은품·기간이 한 줄로 보임), 눌러서 펼칩니다. 저장하면 전부 다시 접힙니다(2026-10-21 담당자 요청 — 카드가 길어져서). */
     const open = RULE_OPEN.has(i);
     const gl0 = ruleGiftsView(r).filter(g => g.label.trim());
-    const sumTxt = [r.product || "제품 미선택", (r.srcs || []).length ? srcText(r.srcs) : "판매처 미선택", gl0.length ? gl0.map(g => g.label).join(" 또는 ") : "사은품 미입력",
+    const sumTxt = [r.product || "제품 미선택", (r.srcs || []).length ? srcText(r.srcs, r.exSrcs) : "판매처 미선택", gl0.length ? gl0.map(g => g.label).join(" 또는 ") : "사은품 미입력",
       (r.from || r.to) ? (r.from || "제한 없음") + " ~ " + (r.to || "제한 없음") : "기간 제한 없음"].join(" · ");
     return el("div", { class:"rule" },
       el("div", { class:"head" },
@@ -9495,7 +9570,7 @@ function paneRule(){
       el("div", { class:"field", style:"margin-top:14px" },
         el("label", {}, "어느 판매처일 때"),
         el("p", { class:"note", style:"margin:0 0 6px" },
-          el("b", {}, "「전 사이트」"), "는 판매처와 상관없이 모두 걸립니다. 판매처는 고객DB에 들어 있는 것이 건수 많은 순으로 나오고, 여러 개 고를 수 있습니다. ",
+          el("b", {}, "「전 사이트」"), "를 누르면 판매처가 모두 켜지고, 빼고 싶은 곳을 누르면 그 곳만 해제됩니다(해제한 곳은 다른 프로모션 규칙으로 따로 정하세요). 새 판매처는 자동으로 포함되고, 쿠팡·로켓배송은 쿠팡 정품등록 탭에서 따로 설정하므로 여기에 없습니다. 판매처는 고객DB에 들어 있는 것이 건수 많은 순입니다. ",
           el("b", {}, "이름이 들어 있기만 하면 걸립니다"),
           " — 「스마트스토어」를 고르면 원장에 ",
           el("b", {}, "「풀필먼트(스마트스토어)」"), " 처럼 적힌 것도 함께 걸립니다."),
@@ -9506,7 +9581,7 @@ function paneRule(){
         ? el("p", { class:"note", style:"color:var(--bad)" }, "제품 · 판매처 · 사은품을 모두 채워야 이 규칙이 동작합니다.")
         : el("p", { class:"note" },
             r.name ? el("b", {}, "「" + r.name + "」 ") : "",
-            el("b", {}, r.product), "을(를) ", el("b", {}, all ? "어느 판매처" : srcText(r.srcs)), "에서 ",
+            el("b", {}, r.product), "을(를) ", el("b", {}, all ? "어느 판매처" + (exs.length ? "(" + exs.join(", ") + " 제외)" : "") : srcText(r.srcs)), "에서 ",
             (r.basis === "buy" ? "구매한" : "접수한"), " 고객은 ",
             el("b", {}, ruleGiftsView(r).filter(g => g.label.trim()).map(g => g.label).join(" 또는 ")),
             ruleGiftsView(r).filter(g => g.label.trim()).length > 1 ? "(고객이 1개 선택)" : "", " 을(를) 받습니다",
@@ -11225,7 +11300,8 @@ function paneImages(){
       (p.rv.byCode[c] || []).forEach(g => addGift(g.label, p.ledger));
       (p.cp.byCode[c] || []).forEach(g => addGift(g.label, p.ledger + " · 쿠팡"));
     });
-    (p.extra || []).forEach(g => addGift(g.label, p.ledger + " · 예외사은품"));
+    (p.extra || []).forEach(g => addGift(g.label, p.ledger + " · 포토리뷰 예외사은품"));
+    ((p.cp && p.cp.extra) || []).forEach(g => addGift(g.label, p.ledger + " · 쿠팡 예외사은품"));
   });
   (cfg.giftRules || []).forEach(r => ruleGiftsView(r).forEach(g => addGift(g.label, "프로모션 · " + (r.name || r.product || ""))));
   /* 한달 사용후기 사은품(2026-10-19) — 포토리뷰와 사은품 이름이 같으면 한 줄로 합쳐지고 「쓰이는 곳」에 한달 사용후기가 더해집니다 */
@@ -11336,10 +11412,10 @@ function drawSim(){
       el("dt", {}, "설문"),   el("dd", {}, ((cfg.surveys[code] || []).length + cfg.entrySurvey.length) + "문항")),
     g.rule
       ? el("p", { class:"why" }, el("b", {}, "예외 규칙이 적용되었습니다."), " ",
-          (g.rule.name || (code + " + " + srcText(g.rule.srcs))),
+          (g.rule.name || (code + " + " + srcText(g.rule.srcs, g.rule.exSrcs))),
           (g.rule.to ? el("span", {}, el("br", {}), g.rule.to + " 밤 12시에 자동으로 풀립니다") : ""))
       : el("p", { class:"why" }, (() => {
-          const off = (cfg.giftRules || []).find(r => r.product === code && ((r.srcs || []).includes(SRC_ALL) || (r.srcs || []).includes(src)) && r.label);
+          const off = (cfg.giftRules || []).find(r => r.product === code && (((r.srcs || []).includes(SRC_ALL) && !srcNever(src) && !(r.exSrcs || []).includes(src)) || (r.srcs || []).includes(src)) && r.label);
           return off ? "기본 사은품입니다. 예외 규칙이 있지만 이 날짜에는 " + ruleState(off, simDate()).t + " 상태입니다."
                      : "기본 사은품입니다. 이 판매처에 걸리는 예외 규칙이 없습니다.";
         })()));
@@ -11632,7 +11708,7 @@ const DIF_FIELD = { title:"제목", desc:"설명", tip:"주의 문구", warn:"�
   noticeCouponLabel:"기프티콘 안내 제목", warnCoupon:"노란 상자(상품권)", warnGift:"노란 상자(사은품)" };
 const DIF_PROD = { ledger:"제품군 이름", cat:"카테고리", gift:"사은품 대표 이름", type:"종류", shipFee:"배송비",
   box:"합배송", codes:"접수폼 제품", giftEach:"코드별 사은품 이름", hidden:"숨김(관리자만 보기)",
-  rv:"포토리뷰 사은품", cp:"쿠팡 사은품", extra:"예외사은품" };
+  rv:"포토리뷰 사은품", cp:"쿠팡 사은품", extra:"포토리뷰 예외사은품" };
 const DIF_RULE = { name:"이름", product:"제품", srcs:"판매처", label:"프로모션 사은품", gifts:"프로모션 사은품 목록(택1)", type:"종류", from:"시작일",
   to:"종료일", basis:"기간 기준", img:"사진" };
 const NT_NAME = (() => { const m = {}; NOTICE_GROUPS.forEach(([t, rows]) => rows.forEach(([k, n]) => { m[k] = n; })); return m; })();

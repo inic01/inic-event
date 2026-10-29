@@ -3477,7 +3477,7 @@ function pastCallRender(e){
   pc.style.display="";
   pc.innerHTML='<b style="color:var(--sub)">지난 응대 기록</b><br>'
     +(callOn?((e.callStatus?`상태 : ${admEsc(e.callStatus)}<br>`:"")+(e.callMemo?`메모 : ${admEsc(e.callMemo)}<br>`:"")):"")
-    +log.map(x=>`변경 : *${admEsc(fd(x.at))} ${admEsc(x.by||"")} / ${admEsc(x.desc||"")}${x.memo?` / 사유 : ${admEsc(x.memo)}`:""}`).join("<br>");
+    +log.map(x=>`${x.kind==="dup"?"등록":"변경"} : *${admEsc(fd(x.at))} ${admEsc(x.by||"")} / ${admEsc(x.desc||"")}${x.memo?` / 사유 : ${admEsc(x.memo)}`:""}`).join("<br>");
 }
 function giftEditOpen(){
   const e=ALL.find(x=>x._id===detailId); if(!e||!canEditInfo(e)) return;
@@ -4036,7 +4036,7 @@ async function mFind(){
            </div>
            <div style="margin-top:12px;padding-top:11px;border-top:1px dashed #e8c4c4;color:#7a3b3b;line-height:1.7">
              <b>고객DB에 구매 내역이 없는 고객</b>이면, <b>구매 증빙(주문 캡처 등)을 확인한 뒤</b> 조회 없이 직접 등록할 수 있습니다.
-             사유와 증빙 이미지는 필수이고, 이미 접수했거나 구글폼에 참여한 고객은 등록되지 않습니다.<br>
+             사유와 증빙 이미지는 필수이고, 이미 접수했거나 구글폼에 참여한 이력이 있으면 「ERP 구매내역을 확인해 주세요. 이어서 접수를 진행할까요?」로 확인한 뒤 등록할 수 있습니다.<br>
              <button class="sm primary" style="margin-top:8px" onclick="mOpenForm({type:'review',free:true})">고객DB 없이 수기접수</button>
            </div>
          </div>`;
@@ -4523,7 +4523,7 @@ function mOpenForm(ctx){
     /* 판매처는 onTypeChange() 가 「쿠팡 로켓배송」으로 고정합니다 */
   }else if(M_CTX.free){
     title = "고객DB 없이 직접 등록";
-    lead = "<b>고객DB에 구매 내역이 없는 고객</b>입니다(예: 가져오기 전 구매). <b>구매 증빙(주문 캡처 등)을 확인한 뒤에만</b> 등록하세요. 제품·판매처·사은품은 직접 고르고, <b>사유와 증빙 이미지는 필수</b>입니다. 수량은 1개 고정이며, 이미 접수했거나 구글폼에 참여한 고객은 등록되지 않습니다.";
+    lead = "<b>고객DB에 구매 내역이 없는 고객</b>입니다(예: 가져오기 전 구매). <b>구매 증빙(주문 캡처 등)을 확인한 뒤에만</b> 등록하세요. 제품·판매처·사은품은 직접 고르고, <b>사유와 증빙 이미지는 필수</b>입니다. 수량은 1개 고정이며, 이미 접수했거나 구글폼에 참여한 이력이 있으면 ERP 구매내역을 확인하라는 안내가 뜨고, 확인하면 이어서 등록할 수 있습니다.";
   }else{
     const f = MFIND, g = f && f.groups[M_CTX.gi];
     if(!f || !g){ alert("조회 결과가 사라졌습니다. 다시 찾아 주세요."); return; }
@@ -4698,20 +4698,29 @@ async function submitManual(){
 
   const phoneKey = mDigits(phone);
 
-  /* 🔴 고객DB 없이 등록하는 건은 구매 수량 기준이 없어서 「한 번이라도 참여했으면」 막습니다(수량 1 가정).
-        ① 이 시스템의 접수(같은 제품·형제 코드 + 같은 번호/주문번호/이름·주소) ② 구글폼 참여 이력. 잘못 접수된 건이면 관리자가 먼저 「접수 취소」를 해야 합니다. */
+  /* 🔴 고객DB 없이 등록하는 건은 구매 수량 기준이 없습니다. 예전에는 「한 번이라도 참여했으면」 막았지만(수량 1 가정),
+        2026-10-29 사용자 요청으로 막지 않고 **확인 후 등록**합니다 — 상담사가 ERP 구매내역으로 수량을 확인하는 업무라서요.
+        ① 이 시스템의 접수(같은 제품·형제 코드 + 같은 번호/주문번호/이름·주소) ② 구글폼 참여 이력이 있으면 「중복 참여 이력이 있습니다. ERP 구매내역을 확인해 주세요. 이어서 접수를 진행할까요?」로 묻고,
+        사유(필수)와 함께 접수에 「중복 이력 확인 후 등록」 표시(dupConfirm)와 기록(editLog)을 남깁니다. 연락처가 안심번호면 구글폼을 확인할 수 없어 예전처럼 막습니다. */
+  let dupConfirm = "";
   if(M_CTX.free){
     const sibs = SV_GROUP[product] ? Object.keys(SV_GROUP).filter(k => SV_GROUP[k] === SV_GROUP[product]) : [product];
     const { used } = mUsedFor({ codes:sibs }, { phones:[phoneKey], ords: orderNo ? [mNormKey(orderNo)] : [], invs: invoiceNo ? [invoiceNo] : [] });
     const ak = address.replace(/\s+/g, ""), nk = mNameKey(name);
     const byNA = ak ? ALL.some(e => sibs.includes(String(e.product || "")) && e.address && String(e.address).replace(/\s+/g, "") === ak && mNameKey(e.name) === nk) : false;
-    if(used > 0 || byNA) return bad("이미 이 제품으로 접수된 고객입니다. 잘못 접수된 건이면 먼저 그 건을 「접수 취소」(관리자·QA·조장)한 뒤 등록하세요.");
+    const dupNotes = [];
+    if(used > 0 || byNA) dupNotes.push("이 시스템에 같은 제품으로 이미 접수된 건이 있습니다" + (used > 0 ? "(" + used + "개)" : ""));
     if(!mLgPhone(phone)) return bad("연락처에 실제 휴대폰 번호(010 등)를 넣어 주세요. 안심번호는 구글폼 참여 이력을 확인할 수 없습니다.");
     msg.className = "msg"; msg.textContent = "구글폼 참여 이력 확인 중…";
     const lgc = await mLegacy([phone], "p");
-    if(lgc.ok && mLgOf(lgc, { codes:sibs }) > 0) return bad("구글폼으로 이미 이 제품에 참여한 번호입니다. 등록할 수 없습니다.");
+    const lgN = lgc.ok ? mLgOf(lgc, { codes:sibs }) : 0;
+    if(lgN > 0) dupNotes.push("구글폼 참여 이력이 있습니다(" + lgN + "건)");
     if(!lgc.ok && !confirm("구글폼 참여 이력을 확인하지 못했습니다.\n고객검색 탭의 「구글폼 참여 확인」으로 따로 확인하셨나요?\n그래도 등록할까요?")) return bad("등록하지 않았습니다.");
     msg.textContent = "";
+    if(dupNotes.length){
+      if(!confirm("중복 참여 이력이 있습니다.\n\n- " + dupNotes.join("\n- ") + "\n\nERP 구매내역을 확인해 주세요.\n구매 수량이 이 이력보다 많아 추가 접수가 맞다면, 이어서 접수를 진행할까요?\n\n사유: " + reason)) return bad("등록하지 않았습니다.");
+      dupConfirm = dupNotes.join(" · ");
+    }
   }
 
   /* 시리얼은 예외 없이 1회 — 수기접수도 같은 번호를 두 번 넣을 수 없습니다 */
@@ -4737,6 +4746,8 @@ async function submitManual(){
     kPhone:(product + "|" + phoneKey),
     status:"eligible", manual:true, reason, shipState:"pending",
     ...(M_CTX.free ? { noLedger:true } : {}),       // 고객DB 없이 직접 등록한 건 표시(감사용)
+    ...(dupConfirm ? { dupConfirm:true, dupConfirmNote:dupConfirm,                                     // 중복 참여 이력을 보고도 상담사가 확인 후 등록한 건(2026-10-29) — 이름·번호는 적지 않습니다
+        editLog:[{ at:new Date().toISOString(), by:agent, byUid:agentUid, kind:"dup", desc:("중복 참여 이력 확인 후 직접 등록 — " + dupConfirm).slice(0, 300), memo:String(reason).slice(0, EDIT_MEMO_MAX) }] } : {}),
     ...((o && o.dataset.promo) ? { promoName:o.dataset.promo } : {}),
     ...((o && o.dataset.extra) ? { giftExtra:true } : {}),          // 예외사은품으로 등록한 건 표시(2026-10-28)
     consent:{ privacy:"agree", marketing:"", reward:rewardType, agreedAt:new Date().toISOString(), manual:true },
@@ -4754,7 +4765,7 @@ async function submitManual(){
     const id = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}_${product}_${(phoneKey.slice(-4) || "0000")}`
              + `_${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}_manual`;
     await db.collection(COLLECTION).doc(id).set(payload);
-    logAccess("수기접수", product + " · " + (M_CTX.type === "coupang" ? "쿠팡" : "포토리뷰") + (M_CTX.free ? " · 고객DB 없이 직접 등록" : ""), giftQty);
+    logAccess("수기접수", product + " · " + (M_CTX.type === "coupang" ? "쿠팡" : "포토리뷰") + (M_CTX.free ? " · 고객DB 없이 직접 등록" : "") + (dupConfirm ? " · 중복 이력 확인 후 등록" : ""), giftQty);
 
     msg.className = "msg ok"; msg.textContent = "✔ 등록 완료";
     mImgClear();

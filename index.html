@@ -1385,10 +1385,13 @@ const srcKeyOf = v => String(v==null?"":v)
    담당자가 「스마트스토어」 하나만 골라도 그 말이 든 값은 전부 걸립니다. */
 /* 🔴 2026-10-28 — 「전 사이트」(SRC_ALL)를 고른 규칙은 판매처와 상관없이 걸립니다. ⚠️ 서버 eventApi 의 SRC_ALL·srcHit 와 같은 글자·규칙 */
 const SRC_ALL="*";
+/* 🔴 2026-10-29 「전 사이트」 = 판매처 전부에서 제외(rule.exSrcs, 이름이 똑같은 곳만)한 곳 빼고. 쿠팡·로켓배송은 항상 빠짐. ⚠️ 서버 eventApi srcAllHit 와 같은 규칙 */
+const SRC_NEVER=["쿠팡","로켓"];
+function srcAllHit(rule, sk){ return !SRC_NEVER.some(w=>sk.includes(w)) && !(rule.exSrcs||[]).some(x=>srcKeyOf(x)===sk); }
 function srcHit(rule, src){
   const sk = srcKeyOf(src);
   if(!sk) return false;
-  if((rule.srcs||[]).includes(SRC_ALL)) return true;
+  if((rule.srcs||[]).includes(SRC_ALL)) return srcAllHit(rule, sk);
   return (rule.srcs||[]).some(x=>{ const k=srcKeyOf(x); return k && sk.includes(k); });
 }
 function promoFor(code){

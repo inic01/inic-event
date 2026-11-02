@@ -1096,7 +1096,7 @@ function applyConfig(){
       g.fee  ?{fee:g.fee}   :{},       // 착불 / 선불 (관리자 「사은품」 탭에서 정합니다)
       (Number(g.box)>=1) ? {box:Number(g.box)} : {});   // 합배송 — 한 상자에 몇 개까지 (2026-09-28)
     /* 🔴 2026-10-28 — 사은품 2개 이상(택1)·비워 둔 선택지(off)는 설정을 다시 받을 때마다 새로 정합니다 */
-    if(Array.isArray(g.opts)&&g.opts.length>1) n.opts=g.opts.map(x=>Object.assign({label:String(x.label||""),type:x.type==="coupon"?"coupon":"gift"},
+    if(Array.isArray(g.opts)&&g.opts.length>1) n.opts=g.opts.map(x=>Object.assign({label:String(x.label||""),type:rwOf(x.type)},
       (x.fee==="선불"||x.fee==="착불")?{fee:x.fee}:{})); else delete n.opts;   // fee = 사은품마다 배송비(2026-10-28)
     if(g.off===true) n.off=true; else delete n.off;
     dst[c]=n;
@@ -1426,7 +1426,7 @@ function giftOf(code){
   if(hit){
     /* 🔴 프로모션 사은품이 2개 이상이면 고객이 1개를 고릅니다(택1, 2026-10-21 담당자 요청) — 사은품마다 종류(사은품/상품권)가 다를 수 있습니다.
           하나뿐이면 예전과 같습니다. ⚠️ 서버 eventApi 의 ruleGifts·submitEntry 와 같은 기준입니다(서버가 고른 이름이 등록된 것인지 다시 확인). */
-    const gl=(Array.isArray(hit.gifts)&&hit.gifts.length) ? hit.gifts.map(x=>({label:x.label,type:x.type==="coupon"?"coupon":"gift"})) : [{label:hit.label,type:hit.type==="coupon"?"coupon":"gift"}];
+    const gl=(Array.isArray(hit.gifts)&&hit.gifts.length) ? hit.gifts.map(x=>({label:x.label,type:rwOf(x.type)})) : [{label:hit.label,type:rwOf(hit.type)}];
     if(gl.length>1) return { choice:true, options:gl, label:gl[0].label, type:gl[0].type,
                              fee:(GIFTS[code]||{}).fee, promo:hit.name||"" };
     return { label:gl[0].label, type:gl[0].type,
@@ -1511,6 +1511,17 @@ const CONSENT_DENY_DEFAULT =
 + '※ 사은품 수령을 위한 설문에 계속 참여하시려면 바로 위에서 {{“동의합니다”}}에 체크 부탁드립니다.\n'
 + '※ “동의”에 체크하시면 다음 단계로 넘어갈 수 있습니다.';
 let COUPON_NOTICE="기프티콘은 <b>수령인 휴대폰으로 카카오톡 발송</b>(기프티쇼비즈)됩니다. 발송일: 매주 월요일(월요일 신청 건은 익주 월요일). 사용 기한: 수령 후 30일, 경과 후 재발송이 어렵습니다.";
+/* 🔴 포인트 지급 (2026-11-02 사용자 요청) — 아이닉 공식몰 적립금. 고객이 적은 공식몰 아이디로 지급합니다(배송 없음 — 상품권처럼 주소를 받지 않음).
+   종류 값: gift 사은품 · coupon 상품권 · point 포인트. ⚠️ 서버 eventApi · 관리자 report 의 rwOf 와 같은 규칙입니다.
+   아래 포인트 문구는 아직 설정(안내 문구 탭)에서 고칠 수 없습니다 — 바꿀 때는 여기서 고칩니다. */
+const rwOf=t=>(t==="coupon"||t==="point")?t:"gift";
+/* 공식몰 아이디 — 일반 가입(영문 소문자·숫자 4~16자)과 카카오·네이버 가입(예: 1234567890@k). ⚠️ 서버 eventApi 의 POINT_ID_RE 와 같은 규칙 */
+const POINT_ID_RE=/^[A-Za-z0-9][A-Za-z0-9@._-]{3,59}$/;
+const POINT_NOTICE="적립금은 고객님의 <b>아이닉 공식몰 아이디</b>로 지급됩니다. 아이디는 공식몰 <b>마이페이지 → 회원 정보 수정</b>에서 확인하실 수 있습니다. 카카오·네이버로 가입하신 경우 그 화면에 보이는 아이디(예: 1234567890@k)를 그대로 적어 주세요. 아이디가 조회되지 않으면 지급이 어렵습니다.";
+const POINT_ACK="네, 확인했습니다";
+const POINT_WARN="{{적립금은 아래 공식몰 아이디로 지급됩니다.}} 아이디가 조회되지 않으면 지급이 어려우니 한 번 더 확인해 주세요.";
+const POINT_PAID="신청하신 ○○이 {{○○}} 지급되었습니다.\n아이닉 공식몰 마이페이지에서 적립금을 확인해 주세요.\n확인이 안 되시면 아래 채널을 통해 ‘채팅상담’을 선택하여 문의해 주세요.";
+const POINT_GUIDE_IMG="guide/inic-id.webp";    // 공식몰 아이디 확인 방법 안내 이미지(담당자 제작 — 깃허브 guide 폴더에 이 이름으로)
 /* ============================================================ */
 
 /* 🔴 한달 사용후기(2026-10): 카드는 「month」이지만 접수 유형(type)은 포토리뷰와 같은 「review」이고, event:"month" 표시만 더합니다.
@@ -1526,7 +1537,7 @@ const state={type:null,card:"",event:"",category:"주방가전",product:null,fil
   files:[],          // 포토리뷰 캡처 여러 장 (2026-09-22) — state.file 은 그중 첫 장
   srcByCode:{},buyByCode:{},        // 원장의 판매처·구매일자 (프로모션 판단용)
   invNo:"",ordNo:"",autoName:"",autoPhone:"",token:"",
-  consent:{},esurvey:{},esurveyInit:false,survey:{},surveyFor:null,giftChoice:null};
+  consent:{},esurvey:{},esurveyInit:false,survey:{},surveyFor:null,giftChoice:null,pointId:""};
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 /* 오류 안내 : 빨간 문구 + 해당 입력칸에 빨간 테두리까지 표시한다.
    글씨만으로는 어디가 문제인지 못 알아채는 경우가 많아서. */
@@ -1704,7 +1715,7 @@ $$(".type").forEach(t=>t.addEventListener("click",()=>{
 function clearForTypeChange(){
   clearLookup(); state.surveyKeep=null;
   state.product=null; state.file=null; state.files=[]; state.buyFile=null;
-  state.survey={}; state.surveyFor=null; state.esurvey={}; state.esurveyInit=false; state.giftChoice=null; state.infoFor=null;
+  state.survey={}; state.surveyFor=null; state.esurvey={}; state.esurveyInit=false; state.giftChoice=null; state.infoFor=null; state.pointId="";
   {const eb=$("#entryBox"); if(eb) eb.innerHTML="";}
   ["#serial","#file","#buyFile","#vName","#vPhone","#vOrd","#vInv"].forEach(s=>{const el=$(s); if(el) el.value="";});
   {const sa=$("#serialAck"); if(sa) sa.checked=false;}
@@ -1894,7 +1905,7 @@ function renderInfo(){
     if(g && g.choice){                     // 🔴 2026-10-28 — 쿠팡 정품등록도 사은품이 2개 이상이면 고객이 고릅니다(유형별 사은품)
       html+='<div class="consent"><div class="ctitle">사은품 선택<span class="ctag must">필수</span></div>';
       if(g.note) html+='<div class="notice" style="margin:6px 0 4px">'+g.note+'</div>';
-      g.options.forEach((o,i)=>{ html+='<label class="radio"><input type="radio" name="gift" value="'+i+'"><span>'+o.label+(o.type==='coupon'?' (상품권)':'')+'</span></label>'; });
+      g.options.forEach((o,i)=>{ html+='<label class="radio"><input type="radio" name="gift" value="'+i+'"><span>'+o.label+(o.type==='coupon'?' (상품권)':o.type==='point'?' (적립금)':'')+'</span></label>'; });
       html+='<div class="err" id="err-gift">사은품을 선택해 주세요.</div></div>';
     }
     html+='<div id="rewardInner"></div>';
@@ -1964,7 +1975,7 @@ function giftImgNext(im){
 window.giftImgNext = giftImgNext;
 
 function giftCardHtml(item, rw, img){
-  const label = rw==="gift" ? "사은품" : "상품권";
+  const label = rw==="gift" ? "사은품" : rw==="point" ? "적립금" : "상품권";
   /* 프로모션 사은품은 이름이 새것이라 GIFT_IMG 에 없습니다.
      규칙에 적어 둔 사진 파일이 있으면 그것을 먼저 씁니다. */
   /* 사진 찾는 순서 (2026-09-14)
@@ -2156,27 +2167,45 @@ function renderRewardInner(){
   else if(g) item = g.choice ? (state.giftChoice!=null?g.options[state.giftChoice].label:"") : g.label;
   /* 선불로 나가는 제품(가습기 iH12 등)은 배송비 이야기를 아예 안 합니다. */
   const pre=(rw==="gift") && isPrepaid(state.product);
-  const title=rw!=="gift" ? "기프티콘 발송 안내" : (pre ? "사은품 발송 안내" : "착불 발송 안내");
-  const notice=rw!=="gift" ? COUPON_NOTICE : (pre ? GIFT_NOTICE_PRE : GIFT_NOTICE);
-  const ack=rw!=="gift" ? COUPON_ACK : (pre ? GIFT_ACK_PRE : GIFT_ACK);
+  const pnt=rw==="point";               // 포인트(공식몰 적립금, 2026-11-02) — 「기프티콘 발송 안내」 자리에 「적립금 지급 안내」 + 공식몰 아이디 칸
+  const title=pnt ? "적립금 지급 안내" : rw!=="gift" ? "기프티콘 발송 안내" : (pre ? "사은품 발송 안내" : "착불 발송 안내");
+  const notice=pnt ? POINT_NOTICE : rw!=="gift" ? COUPON_NOTICE : (pre ? GIFT_NOTICE_PRE : GIFT_NOTICE);
+  const ack=pnt ? POINT_ACK : rw!=="gift" ? COUPON_ACK : (pre ? GIFT_ACK_PRE : GIFT_ACK);
   const itemHtml= item ? giftCardHtml(item, rw, (g&&g.img)||"") : '';
   $("#rewardInner").innerHTML= itemHtml+qtyPickHtml(rw)+'<div class="consent"><div class="ctitle">'+title+'<span class="ctag must">필수</span></div>'+
-    '<div class="notice" style="margin:6px 0 4px">'+notice+'</div>'+
+    '<div class="notice" style="margin:6px 0 4px">'+notice+'</div>'+(pnt?pointIdHtml():'')+
     '<label class="chk"><input type="checkbox" id="rewardChk"><span>'+ack+' <span class="req">*</span></span></label>'+
     '<div class="err" id="err-reward">발송 안내에 확인·동의해 주세요.</div></div>';
   $("#rewardChk").addEventListener("change",e=>{ state.consent.reward=e.target.checked?rw:null; hideErr("err-reward"); });
   bindQtyPick();
+  if(pnt) bindPointId();
   const af=$("#addrField"); if(af) af.classList.toggle("hide", rw!=="gift");
   /* 화면 이름은 사은품·상품권과 상관없이 「정보 입력」 하나로 둡니다(2026-09-09 담당자 요청). */
   $("#infoTitle").innerHTML=(CFG&&CFG.info&&CFG.info.title?esc(CFG.info.title):"정보 입력");
 }
+
+/* 공식몰 아이디 칸 (포인트 건만, 2026-11-02) — 사은품 선택을 바꾸면 위 화면이 다시 그려지므로 적은 값은 state.pointId 에 두었다가 되살립니다. */
+function pointIdHtml(){
+  return '<div class="field" style="margin:12px 0 4px">'
+    +'<label class="fld" for="pointId">아이닉 공식몰 아이디 <span class="req">*</span></label>'
+    +'<input type="text" id="pointId" maxlength="60" placeholder="예) inic1234 · 1234567890@k" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(state.pointId||"")+'">'
+    +'<div class="hint">공식몰 마이페이지 → 회원 정보 수정에 보이는 아이디를 그대로 적어 주세요.</div>'
+    +'<div class="err" id="err-pointId">아이닉 공식몰 아이디를 정확히 입력해 주세요.</div>'
+    +'<button type="button" class="ogbtn" onclick="openPointIdEx()">🔍 공식몰 아이디 확인 방법 보기</button></div>';
+}
+function bindPointId(){
+  const el=$("#pointId"); if(!el) return;
+  el.addEventListener("input",()=>{ state.pointId=el.value; hideErr("err-pointId"); });
+}
+function openPointIdEx(){ exOpen(POINT_GUIDE_IMG,"아이닉 공식몰 아이디 확인 방법",false,false); }
+window.openPointIdEx=openPointIdEx;
 
 /* 수량 2개 이상 구매 고객 — 한 번에 받을지, 나눠서 접수할지 고르게 한다.
    나눠서 받으면 접수 건마다 따로 발송되므로 배송비(착불)가 각각 부과된다. */
 function leftQty(){ return Math.max(1,(state.buyQty||1)-(state.usedQty||0)); }
 function qtyPickHtml(rw){
   if(state.type!=="review" || !(leftQty()>1)) return "";
-  const n=leftQty(), unit=(rw==="gift")?"사은품":"기프티콘";
+  const n=leftQty(), unit=(rw==="gift")?"사은품":(rw==="point")?"적립금":"기프티콘";
   /* 선불 제품은 배송비를 안 받으므로 배송비 문장 자체를 빼야 합니다. */
   const showFee = (rw==="gift") && !isPrepaid(state.product);
   /* 🔴 2026-09-28 과장님·담당자 확정 문구 (프로토타입 ㉯ 「합친 안」)
@@ -2195,7 +2224,7 @@ function qtyPickHtml(rw){
   let allHead;
   if(rw !== "gift"){                       /* 기프티콘 — 배송이 없습니다 */
     allHead = '<b>한 번에 접수하기</b>'
-      + S('리뷰 1건으로 접수하고 기프티콘 <b>'+n+'개</b>를 보내드립니다.');
+      + S(rw==="point" ? '리뷰 1건으로 접수하고 구매 수량 <b>'+n+'개</b>만큼 적립금을 지급해 드립니다.' : '리뷰 1건으로 접수하고 기프티콘 <b>'+n+'개</b>를 보내드립니다.');
   } else if(cap === 1){                    /* 합배송 불가 사은품 */
     allHead = '<b>한 번에 접수하기</b> (배송은 각각)'
       + S('이 사은품은 합배송이 되지 않아 <b>각각 발송</b>'
@@ -2791,6 +2820,8 @@ function validateStep(step){
     } else hideErr("err-addr");
     if(state.type==="review" && leftQty()>1 && !state.qtyMode){showErr("err-qty");ok=false;}else hideErr("err-qty");
     if(REQ.rewardAck && state.consent.reward!==rw){showErr("err-reward");ok=false;}else hideErr("err-reward");
+    if(rw==="point"){ const pid=(($("#pointId")||{}).value||"").trim(); state.pointId=pid;
+      if(!POINT_ID_RE.test(pid)){showErr("err-pointId");ok=false;}else hideErr("err-pointId"); }
     return ok;
   } return true;
 }
@@ -2950,24 +2981,24 @@ async function lookupParticipation(){
                 서버가 아예 안 내려보냅니다. 날짜만 보여 줍니다.
              ⚠️ 예전에 손으로 발송 처리한 건은 날짜가 없어 「이미 출고되었습니다」로 나갑니다. */
           /* 🔴 상품권은 택배가 아니라 알림톡으로 갑니다. 문구를 갈라 씁니다 (2026-09-22 2차). */
-          const cpn=e.rewardType==="coupon";
-          const what=cpn?"기프티콘":"사은품";
+          const cpn=e.rewardType==="coupon", pnt=e.rewardType==="point";
+          const what=pnt?"적립금":cpn?"기프티콘":"사은품";
           const sKey=cpn?"checkShippedCoupon":"checkShipped";
           const sDfl=cpn
             ? "신청하신 ○○이 {{○○}} 발송되었습니다.\n문자(알림톡)로 보내 드린 번호를 확인해 주세요.\n못 받으셨거나 번호가 안 보이시면 아래 채널을 통해 ‘채팅상담’을 선택하여 문의해 주세요."
             : "신청하신 ○○이 {{○○}} 출고되었습니다.\n택배사 사정에 따라 수령까지 1~3일 정도 걸릴 수 있습니다.\n배송 조회가 필요하시면 아래 채널을 통해 ‘채팅상담’을 선택하여 문의해 주세요.";
           h+=`<div style="${MSG}">`
-            +MSGH(sKey, sDfl, [what, shipWhen(e.shippedYmd)])
-            +(MSGK(sKey,true)?kakao:"")+`</div>`;
+            +(pnt ? MSGH("", POINT_PAID, [what, shipWhen(e.shippedYmd)]) : MSGH(sKey, sDfl, [what, shipWhen(e.shippedYmd)]))     // 포인트 지급 완료 문구는 설정에 없어 고정 문구(빈 열쇠 → 기본 문구)
+            +((pnt || MSGK(sKey,true))?kakao:"")+`</div>`;
         } else if(st.cls==="wait"){
           // 정상 접수 · 아직 미발송
           const ev=e.type==="coupang"?"쿠팡 로켓배송 정품등록":(e.event==="month"?"한달 사용후기 이벤트":"포토리뷰 이벤트");
-          const what=e.rewardType==="coupon"?"기프티콘":"사은품";
+          const what=e.rewardType==="point"?"적립금":e.rewardType==="coupon"?"기프티콘":"사은품";
           /* 🔴 예약발송 제품이면 초록 문구를 **갈아끼웁니다** (2026-09-22 2차).
                 1차에서는 아래에 주황 상자로 덧붙였는데, 그러면 한 화면에서
                 「일주일 이내」와 「10월 중순」을 동시에 말하게 됩니다.
                 완료 팝업과 똑같은 문구가 나가도록 맞췄습니다. */
-          const cpn2=e.rewardType==="coupon";
+          const cpn2=rwOf(e.rewardType)!=="gift";     // 상품권·포인트는 예약발송이 없습니다
           const rsvAt=cpn2?"":String(e.reserveAt||"").trim();
           const rsvOn=!cpn2 && (e.reserved===true || !!rsvAt);
           /* ⚠️ 상담 버튼 스위치도 **그 문구의 것**을 봐야 합니다.
@@ -3021,13 +3052,13 @@ function renderConfirm(){
   const rw   = rewardType(state.type, state.product);
   const g    = giftOf(state.product);
   const gift = g ? (g.choice ? (state.giftChoice!=null ? g.options[state.giftChoice].label : "") : g.label) : "";
-  const coupon = rw === "coupon";
+  const coupon = rw === "coupon", pnt = rw === "point";
   const addr = getAddress();
-  const fee  = coupon ? "" : (feeOf(state.product)==="선불" ? "선불 · 배송비 없음" : "착불 · 배송비는 수령 시 결제");
+  const fee  = (coupon || pnt) ? "" : (feeOf(state.product)==="선불" ? "선불 · 배송비 없음" : "착불 · 배송비는 수령 시 결제");
 
   /* 노란 상자 — 첫 문단은 공통, 둘째 문단만 상품권/사은품으로 갈립니다.
      🔴 문구는 리포트 → 설정 → 안내 문구 → 「신청 확인」 에서 고치십시오. */
-  const each = coupon ? CONFIRM.warnCoupon : CONFIRM.warnGift;
+  const each = pnt ? POINT_WARN : coupon ? CONFIRM.warnCoupon : CONFIRM.warnGift;
   $("#ckWarn").innerHTML =
       (CONFIRM.warn ? "<p>" + rich(CONFIRM.warn) + "</p>" : "")
     + (each          ? "<p>" + rich(each)          + "</p>" : "");
@@ -3040,6 +3071,7 @@ function renderConfirm(){
         + ckRow("이메일", $("#email").value.trim(), "", "info", "#email");
   /* 주소는 사은품일 때만 받습니다 — 상품권이면 줄 자체를 안 보여 줍니다 */
   if(rw === "gift") h += ckRow("주소", addr, "", "info", "#addrRoad");
+  if(pnt) h += ckRow("공식몰 아이디", state.pointId || "", "", "info", "#pointId");
   h += '</div>';
 
   /* 🔴 「신청 내용」에는 수정 단추를 두지 않습니다 (2026-09-14 담당자 요청).
@@ -3048,7 +3080,7 @@ function renderConfirm(){
   h += '<div class="ckgrp"><div class="gh">신청 내용</div>'
      + ckRow("유형", (state.event==="month" ? "한달 사용후기 작성" : (CK_TYPE[state.type] || state.type)), "", "", "")
      + ckRow("제품", prodNameOf(state.product) || "-", "", "", "")
-     + ckRow(coupon ? "상품권" : "사은품", gift || "-", fee, "", "")
+     + ckRow(pnt ? "적립금" : coupon ? "상품권" : "사은품", gift || "-", fee, "", "")
      + '</div>';
 
   $("#ckBody").innerHTML = h;
@@ -3162,6 +3194,7 @@ async function submit(){
   if(state.invNo){ entry.invoiceNo=state.invNo; entry.kInv=state.product+"|"+state.invNo; }   // 제품+송장 단위
   const addr=getAddress();
   entry.address=rw==="gift"?addr:""; entry.nameAddrKey=rw==="gift"?naKey($("#name").value,addr):null;
+  if(rw==="point") entry.pointId=String(state.pointId||"").trim();     // 공식몰 아이디(포인트 건만 — 서버가 형식을 다시 확인)
   /* 배송비 구분 — 창구가 설정값으로 다시 정하지만, 완료 화면이 쓰도록 여기서도 넣습니다. */
   if(rw==="gift") entry.shipFee=feeOf(state.product);
   /* ── 마케팅 관련 답을 용도 기준으로 따로 적어 둡니다 ──
@@ -3245,7 +3278,7 @@ function resetBtn(){const b=$("#submitBtn");b.disabled=false;b.textContent="접�
 function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅";
   $("#mTitle").innerHTML=rich(MSGT("doneTitle","참여가 접수되었습니다"));state.lastModal="done";
   const review=e.type==="review";
-  const coupon=e.rewardType==="coupon";
+  const coupon=e.rewardType==="coupon", pnt=e.rewardType==="point";
   const rlabel=coupon?"기프티콘(상품권)이":"사은품이";
   /* 심사 방법(포토리뷰/쿠팡)과 받는 것(사은품/상품권)에 따라 문구가 넷으로 나뉩니다.
      ⚠️ 예전에는 둘뿐이라 「사은품이 발송됩니다」와 「기프티콘이 발송됩니다」를
@@ -3258,23 +3291,23 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
   const dHead = review ? "리뷰 참여 내용 확인 후 " : "정품등록 확인 후 ";
   /* 선불 칸이 아직 비어 있으면 착불 문구로 대신합니다(빈 화면이 나가지 않게). */
   const dFall = prepaid ? MSGT(dKey.replace(/Pre$/,""), dHead + "○○ 발송됩니다.") : (dHead + "○○ 발송됩니다.");
-  const pre   = MSGT(dKey, dFall);
+  const pre   = pnt ? (dHead + "적립금이 지급됩니다.") : MSGT(dKey, dFall);     // 포인트 문구는 아직 설정에서 못 고칩니다(위 POINT_ 문구들과 같음)
   /* 줄바꿈·강조를 다른 문구와 똑같이 씁니다(2026-09-09 — 예전에는 글자만 넣어 한 줄로 붙었습니다). */
   /* 🔴 예약발송 제품이면 위 여섯 문구 대신 예약발송 문구를 씁니다 (2026-09-22 2차).
         서버가 상품권 건에는 시점도 reserved 도 안 보냅니다.
         {{○○}} 안의 ○○ 가 시점으로 바뀌고, rich() 가 그 부분을 굵게 표시합니다. */
   /* 상품권에는 절대 안 씁니다 — 서버도 안 보내지만 화면에서도 한 번 더 막습니다. */
-  const rsvAt = coupon ? "" : String(e.reserveAt || "").trim();
+  const rsvAt = (coupon || pnt) ? "" : String(e.reserveAt || "").trim();
   /* 🔴 시점을 안 적어 두셔도 **예약발송이면** 예약발송 문구를 씁니다 (2026-09-22 2차).
         서버가 reserved 로 알려 줍니다. 옛 서버(reserved 를 안 보냄)와도 맞물리도록
         시점이 있으면 그것만으로도 예약발송으로 봅니다. */
-  const rsvOn = !coupon && (e.reserved === true || !!rsvAt);
+  const rsvOn = !coupon && !pnt && (e.reserved === true || !!rsvAt);
   const body  = rsvOn ? fill(MSGT("doneGiftReserve", RESERVE_DFLT), [rsvAt || RESERVE_TBD])
                       : fill(pre, [rlabel]);
   $("#mDesc").innerHTML=rich(body)+(demo?" ※ 데모라 실제 저장은 안 됩니다.":"");
   const prod=(PRODUCTS[e.category]||[]).find(p=>p.code===e.product);
   const pname=(prod&&prod.name)||e.productName||e.product;
-  const unit=e.rewardType==="coupon"?"기프티콘":"사은품";
+  const unit=pnt?"적립금":e.rewardType==="coupon"?"기프티콘":"사은품";
   const rname=e.giftItem||unit;
   const q=Math.max(1,e.giftQty||1), cap=Math.max(1,e.buyQty||1), left=cap-Math.max(0,e.usedBefore||0)-q;
   /* 수량 2개 이상 구매 고객에게는 몇 개가 나가는지 한 번 더 알려준다 */
@@ -3294,7 +3327,8 @@ function showDone(e,demo){$("#box").className="box";$("#mIcon").textContent="✅
   let kv=head
     +`<div><b>유형</b> ${review?(state.event==="month"?"한달 사용후기 이벤트":"포토리뷰 이벤트"):"쿠팡·로켓배송 정품 등록"}</div>`
     +`<div><b>제품</b> ${esc(pname)}</div>`
-    +(e.giftItem?`<div><b>${e.rewardType==="coupon"?"상품권":"사은품"}</b> ${esc(e.giftItem)}${q>1?` · ${q}개`:""}</div>`:``)
+    +(e.giftItem?`<div><b>${pnt?"적립금":e.rewardType==="coupon"?"상품권":"사은품"}</b> ${esc(e.giftItem)}${q>1?` · ${q}개`:""}</div>`:``)
+    +(pnt&&e.pointId?`<div><b>공식몰 아이디</b> ${esc(e.pointId)}</div>`:``)
     +(e.orderNo?`<div><b>주문번호</b> ${esc(e.orderNo)}</div>`:``)
     +`<div><b>수령인</b> ${esc(e.name)}</div><div><b>연락처</b> ${esc(e.phone)}</div>`;
   /* 🔴 2026-09-22 — 팝업 맨 아래 회색 상자(「완료 문구」)를 없앴습니다 (담당자 요청).
@@ -3402,7 +3436,7 @@ function resetForm(){
      state 는 np 인데 화면은 다른 탭이 열리는 어긋남이 있었습니다. */
   $$("#vtabs .vtab").forEach(b=>b.classList.toggle("on",b.dataset.vt==="np"));
   ["np","ord","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k==="np");});
-  state.consent={};state.survey={};state.surveyFor=null;state.giftChoice=null;state.infoFor=null;
+  state.consent={};state.survey={};state.surveyFor=null;state.giftChoice=null;state.infoFor=null;state.pointId="";
   state.esurvey={};state.esurveyInit=false;{const eb=$("#entryBox");if(eb)eb.innerHTML="";}
   /* ⚠️ #email 이 빠져 있어서, 접수를 끝내고 처음 화면으로 돌아와도 앞사람 이메일이
      그대로 남아 있었습니다(2026-09-09 발견). 같은 기기로 다른 분이 접수하면 남의 이메일이 들어갑니다.
@@ -3493,6 +3527,7 @@ const API_ERR = {
   product: ["productMismatch", "조회하신 구매 내역에 없는 제품입니다.\n구매 내역을 다시 조회해 주세요."],
   input:   ["inputInvalid",    "입력하신 정보를 다시 확인해 주세요."],
   gift:    ["giftMissing",     "사은품을 선택해 주세요."],
+  pointId: ["pointIdInvalid",  "아이닉 공식몰 아이디를 다시 확인해 주세요.\n공식몰 마이페이지 → 회원 정보 수정에 보이는 아이디를 그대로 적어 주세요."],   // 2026-11-02 포인트 지급
   phone050:["phone050",        "안심번호(050)는 연락처로 사용할 수 없습니다.\n이벤트 안내와 출고 문자를 받으실 본인 휴대폰 번호를 입력해 주세요."],
   origin:  ["originBlocked",   "접수는 아이닉 공식 접수폼에서만 가능합니다."],
   /* 🔴 2026-10-02 — 서버가 필수 사진·구매내역·S/N 이 없다고 막았을 때.

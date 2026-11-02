@@ -133,7 +133,7 @@
   /* 머리줄의 발송 배지는 「상태」 줄과 같은 작은 크기로 (기본 .shipbig 는 17px) */
   .dtchk .ch .shipbig{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;vertical-align:middle}
   .pill{font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;white-space:nowrap}
-  .pill.gift{background:#eaf3ee;color:var(--ok)} .pill.coupon{background:#fdf0e3;color:var(--warn)}
+  .pill.gift{background:#eaf3ee;color:var(--ok)} .pill.coupon{background:#fdf0e3;color:var(--warn)} .pill.point{background:#e9f0fb;color:#2f6df6}
   .pill.review{background:#eef1f5;color:#4a5568} .pill.coupang{background:#e9f0fb;color:var(--blue)}
   .pill.month{background:#fff3e0;color:#b45309}   /* 한달 사용후기 딱지 */
   .pill.eligible{background:#eaf3ee;color:var(--ok)} .pill.ineligible{background:#fdeaea;color:var(--bad)}
@@ -342,6 +342,7 @@
   #evtCfg .pill{display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap}
   #evtCfg .pill.gift{background:var(--okbg); color:var(--ok)}
   #evtCfg .pill.coupon{background:var(--warnbg); color:var(--warn)}
+  #evtCfg .pill.point{background:#e9f0fb; color:#2f6df6}
   #evtCfg .pill.mute{background:var(--sunk2); color:var(--sub)}
 
   #evtCfg .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
@@ -784,6 +785,7 @@
   #tabs .tab[data-tab="report"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M5 20V11M12 20V4M19 20v-6'/%3E%3C/svg%3E")}
   #tabs .tab[data-tab="order"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linejoin='round'%3E%3Crect x='4' y='9' width='16' height='11' rx='1'/%3E%3Cpath d='M12 9v11M3 9h18'/%3E%3C/svg%3E")}
   #tabs .tab[data-tab="acct"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M3 8h18v3a2 2 0 000 4v3H3v-3a2 2 0 000-4z'/%3E%3C/svg%3E")}
+  #tabs .tab[data-tab="point"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M10 16.5V8h3a2.5 2.5 0 010 5h-3'/%3E%3C/svg%3E")}
   #tabs .tab[data-tab="bad"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l10 18H2z'/%3E%3Cpath d='M12 10v5M12 18v.5'/%3E%3C/svg%3E")}
   #tabs .tab[data-tab="reserve"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E")}
   #tabs .tab[data-tab="cs"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-4-4'/%3E%3C/svg%3E")}
@@ -831,13 +833,13 @@
   table.data tr.cur td:first-child{box-shadow:inset 2px 0 0 var(--in-primary)}
 
   /* ── 상태: 점 + 글자색 (적합 녹색 · 부적합 적색 · 확인필요 호박색 · 그 외 중립) ── */
-  .pill.eligible,.pill.shipped,.pill.gift,.pill.ineligible,.pill.needreview,.pill.coupon,.pill.pending,.pill.unshipped,.pill.review,
+  .pill.eligible,.pill.shipped,.pill.gift,.pill.ineligible,.pill.needreview,.pill.coupon,.pill.point,.pill.pending,.pill.unshipped,.pill.review,
   .pill.approved,.pill.accent,.pill.reserved,.pill.manual,.pill.coupang{background:none;padding:0 2px;font-weight:600;font-size:12px}
   .pill.eligible,.pill.shipped,.pill.gift{color:var(--ok)}
   .pill.ineligible{color:var(--bad)}
   .pill.needreview,.pill.coupon{color:var(--warnfg)}
   .pill.pending,.pill.unshipped,.pill.review{color:var(--sub)}
-  .pill.approved,.pill.accent,.pill.reserved,.pill.manual,.pill.coupang{color:var(--in-primary)}
+  .pill.approved,.pill.accent,.pill.reserved,.pill.manual,.pill.coupang,.pill.point{color:var(--in-primary)}
   /* 유형 칩(typePill) — 포토리뷰 연한 초록 · 쿠팡 정품등록 연한 파랑 · 한달 사용후기 연한 주황 (2026-10-19 담당자 요청: 한달 사용후기만 색이 있어 혼자 튀었음) */
   .pill.tp{padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
   .pill.tp.review{background:#e4f4ea;color:#2a7d4b}
@@ -1006,6 +1008,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
     <div class="tab" data-tab="report">포토리뷰 리포트</div>
     <div class="tab" data-tab="order">사은품<span class="tcs" data-tcs="order"></span></div>
     <div class="tab" data-tab="acct">상품권<span class="tcs" data-tcs="acct"></span></div>
+    <div class="tab" data-tab="point">포인트<span class="tcs" data-tcs="point"></span></div>
     <div class="tab" data-tab="bad">부적합<span class="tcs" data-tcs="bad"></span></div>
     <div class="tab" data-tab="reserve">예약발송<span class="tcs" data-tcs="reserve"></span></div>
     <div class="tab" data-tab="cs">고객검색</div>
@@ -1072,6 +1075,18 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
     <div class="pager" id="pagerAcct"></div>
   </section>
 
+  <!-- 포인트 (2026-11-02 사용자 요청) — 아이닉 공식몰 적립금. 배송이 없고, 지급 목록(성함·핸드폰·아이디·금액)을 내려받아 공식몰에서 지급합니다 -->
+  <section class="page" id="page-point">
+    <div class="subtabs"><div class="subtab active" data-sub="point" data-v="elig">적합(지급대상)</div><div class="subtab" data-sub="point" data-v="inelig">확인필요</div></div>
+    <div class="hint" id="pointHint"></div>
+    <div class="filters stick"><span id="pCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
+      <button id="reAllPoint" class="sm" style="display:none">🔄 확인필요 전체 재심사 (사은품+상품권)</button>
+      <button id="dlPoint" class="sm primary">💰 지급 목록 내려받기</button></div>
+    <div class="tablewrap"><table class="data" id="tablePoint"><thead></thead><tbody></tbody></table>
+      <div class="empty" id="emptyPoint" style="display:none">대상 데이터가 없습니다.</div></div>
+    <div class="pager" id="pagerPoint"></div>
+  </section>
+
   <!-- 부적합 (아웃콜 응대) -->
   <section class="page" id="page-bad">
     <div class="hint">심사에서 <b>부적합</b>으로 판정된 고객을 한 곳에 모았습니다. 전화 응대(아웃콜) 후 <b>응대상태·처리상태</b>를 기록하고, 수정에 응하면 <b>출고 승인</b>을 누르세요. (AI가 애매·오류로 판정 못한 건은 각 사은품/상품권 탭의 '확인필요'에 있습니다.)<br>
@@ -1080,7 +1095,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
     <div id="badPanelA"></div>
     <div id="badUnassigned" style="display:none;margin:0 0 10px;padding:9px 13px;border:1.5px solid #f0c9c9;background:#fff7f7;color:#b3252a;border-radius:10px;font-size:12.5px;line-height:1.6"></div>
     <div class="filters stick">
-      <select id="bfReward"><option value="">보상 전체</option><option value="gift">사은품</option><option value="coupon">상품권</option></select>
+      <select id="bfReward"><option value="">보상 전체</option><option value="gift">사은품</option><option value="coupon">상품권</option><option value="point">포인트</option></select>
       <select id="bfReason"><option value="">사유 전체</option><option value="notcap">리뷰 캡처·S/N 사진 아님</option><option value="ratingunread">별점 미확인</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="snmismatch">S/N 불일치</option><option value="snunread">S/N 미확인</option><option value="buyunread">구매내역 확인 불가(정정 후)</option><option value="dup">중복 참여</option></select>
       <select id="bfAgent"><option value="">담당자 전체</option><option value="__none__">미지정</option></select>
       <select id="bfSort"><option value="wait">경과 긴 순 (오래 기다린 고객부터)</option><option value="due">기한일 순</option><option value="date">접수일 순</option><option value="agent">담당자 순</option></select>
@@ -1216,6 +1231,9 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
           <div class="field"><label>카테고리 <span class="req">*</span></label><select id="mCategory"></select></div>
           <div class="field"><label>제품 <span class="req">*</span></label><select id="mProduct"></select></div>
           <div class="field full"><label>사은품/상품권 (제품 선택 시 자동)</label><select id="mGift" onchange="mGiftFeeSync()"></select><div id="mPromoNote" class="hint" style="display:none;margin-top:6px"></div></div>
+          <!-- 포인트(공식몰 적립금, 2026-11-02) — 포인트를 고르면 보입니다(mGiftFeeSync) -->
+          <div class="field full" id="mPointField" style="display:none"><label>아이닉 공식몰 아이디 <span class="req">*</span> <span style="font-weight:600;color:var(--sub)">(포인트 건만 · 고객에게 받은 아이디 그대로)</span></label>
+            <input type="text" id="mPointId" maxlength="60" placeholder="예) inic1234 · 1234567890@k" autocomplete="off" spellcheck="false"></div>
           <div class="field"><label>수령인(성함) <span class="req">*</span></label><input type="text" id="mName" placeholder="예) 홍길동"></div>
           <div class="field"><label>연락처 <span class="req">*</span></label><input type="text" id="mPhone" placeholder="예) 010-1234-5678 · 0504-1234-5678(안심번호)" oninput="fmtPhone(this)" maxlength="14"></div>
           <div class="field"><label>주문번호</label><input type="text" id="mOrder" placeholder="예) 123456789"></div>
@@ -1925,10 +1943,17 @@ let ALL=[], curTab="all";
 let reserveProducts=new Set(), reserveSavedAt=null;
 /* 제품코드 → 입고예정 시점 (예: { "i50T": "10월 중순" })  2026-09-22 */
 let reserveNote={};
-const subView={order:"elig",acct:"elig",reserve:"elig"};
-const pageState={all:1,order:1,acct:1,reserve:1,cs:1,bad:1};
+const subView={order:"elig",acct:"elig",point:"elig",reserve:"elig"};
+const pageState={all:1,order:1,acct:1,point:1,reserve:1,cs:1,bad:1};
 const TYPE_LABEL={review:"포토리뷰",coupang:"쿠팡 정품등록"};
-const REWARD_LABEL={gift:"사은품",coupon:"상품권"};
+const REWARD_LABEL={gift:"사은품",coupon:"상품권",point:"포인트"};
+/* 🔴 보상 종류 (2026-11-02 사용자 요청 — 「포인트 지급」 추가) — gift 사은품(택배) · coupon 상품권(기프티콘) · point 포인트(아이닉 공식몰 적립금, 고객이 적은 공식몰 아이디로 지급).
+   상품권·포인트는 배송이 없습니다. 포인트는 「포인트」 탭에서 지급 목록을 내려받아 공식몰에서 지급합니다(사방넷·예약발송과 무관).
+   ⚠️ 서버 eventApi · 접수폼 index 의 rwOf · POINT_ID_RE 와 같은 규칙입니다. 한쪽만 고치지 마세요. */
+const rwOf=t=>(t==="coupon"||t==="point")?t:"gift";
+const POINT_ID_RE=/^[A-Za-z0-9][A-Za-z0-9@._-]{3,59}$/;
+/* 상세 화면의 「보상」 한 줄 — 포인트면 공식몰 아이디를 함께(글자로만 넣습니다 — textContent) */
+const rwText=e=>[REWARD_LABEL[e.rewardType]||"사은품/상품권", e.giftItem||"-"].join(" : ")+(e.rewardType==="point"?" · 공식몰 아이디 "+(e.pointId||"(없음)"):"");
 let PRODREWARD={}, SOURCES=[], PNAME={}, dupIds=new Set(), dupReasonMap={};
 /* ══════════ 합배송 (2026-09-23 담당자 결정) ══════════
    사은품 코드 → **한 상자에 담기는 수량**. 관리자 「사은품」 탭에서 정합니다.
@@ -1959,7 +1984,7 @@ function gsCanonProd(p){
   const q={...p,codes};
   if(p.rv&&typeof p.rv==="object"&&p.rv.byCode&&typeof p.rv.byCode==="object") q.rv=mergeSet(p.rv);
   else{
-    const type=p.type==="coupon"?"coupon":"gift", byCode={};
+    const type=rwOf(p.type), byCode={};
     codes.forEach(nc=>{ byCode[nc]=join([p.codes.filter(oc=>canonCode(oc)===nc).map(oc=>String((p.giftEach&&p.giftEach[oc])||(p.codes.length===1?p.gift:"")||"").trim()).filter(Boolean).map(label=>({label,type}))]); });
     if(Object.values(byCode).some(l=>l.length)) q.rv={byCode};
   }
@@ -1990,7 +2015,7 @@ const rowCodes=r=>[...new Set((r&&r.code?[r.code]:(r&&Array.isArray(r.pick)?r.pi
 function gsListRaw(v, dfee){
   const out=[], seen=new Set();
   (Array.isArray(v)?v:[]).forEach(g=>{ const label=String((g&&g.label)||"").trim().slice(0,100); if(!label||seen.has(label)) return; seen.add(label);
-    out.push({label,type:(g&&g.type==="coupon")?"coupon":"gift",fee:(g.fee==="선불"||g.fee==="착불")?g.fee:(dfee==="선불"?"선불":"착불")}); });
+    out.push({label,type:rwOf(g&&g.type),fee:(g.fee==="선불"||g.fee==="착불")?g.fee:(dfee==="선불"?"선불":"착불")}); });
   return out.slice(0,5);
 }
 function gsSetOfRaw(p, which){
@@ -2000,7 +2025,7 @@ function gsSetOfRaw(p, which){
   codes.forEach(c=>{
     if(hasRv){ rv.byCode[c]=gsListRaw(p.rv.byCode[c],rv.fee); return; }
     const l=String((p.giftEach&&p.giftEach[c])||(codes.length===1?p.gift:"")||"").trim().slice(0,100);
-    rv.byCode[c]=l?[{label:l,type:p.type==="coupon"?"coupon":"gift",fee:rv.fee}]:null;
+    rv.byCode[c]=l?[{label:l,type:rwOf(p.type),fee:rv.fee}]:null;
   });
   if(which!=="cp") return rv;
   const hasCp=p.cp&&typeof p.cp==="object"&&p.cp.byCode&&typeof p.cp.byCode==="object";
@@ -2223,7 +2248,7 @@ async function loadData(){
       const raw=gsCanonSettings((d2.exists&&d2.data().json)?JSON.parse(d2.data().json):null);   // 예전 코드(음식물처리기 iFD01-H·F)는 지금 코드로(2026-10-28)
       const m={};
       (raw&&Array.isArray(raw.products)?raw.products:[]).forEach(p2=>{
-        if(!p2||p2.type==="coupon")return;
+        if(!p2||rwOf(p2.type)!=="gift")return;      // 상품권·포인트는 배송이 없어 합배송 없음
         const n=Number(p2.box), c=(n>=1)?n:1;
         (Array.isArray(p2.codes)?p2.codes:[]).forEach(c2=>{ if(c2) m[c2]=c; });
       });
@@ -2241,7 +2266,7 @@ async function loadData(){
         const rv=gsSetOfRaw(p2,"rv"), cp=gsSetOfRaw(p2,"cp"), ex=gsListRaw(p2.extra,rv.fee), exCp=gsListRaw(p2.cp&&p2.cp.extra,cp.fee);
         Object.keys(rv.byCode).forEach(c2=>{
           gs.rv[c2]=rv.byCode[c2]; gs.cp[c2]=cp.byCode[c2]; gs.extra[c2]=ex; gs.extraCp[c2]=exCp;
-          const l=cp.byCode[c2], hasGift=Array.isArray(l) ? l.some(g=>g.type==="gift") : (l===null && p2.type!=="coupon");
+          const l=cp.byCode[c2], hasGift=Array.isArray(l) ? l.some(g=>g.type==="gift") : (l===null && rwOf(p2.type)==="gift");
           if(hasGift){ const n=Number(cp.box); mc[c2]=(n>=1)?n:1; }
         });
       });
@@ -2957,7 +2982,8 @@ async function svMakePpt(all){
 
 /* 사은품/상품권 */
 function isShippable(e){return shipStatus(e)==="eligible"||e.overrideEligible===true;}   // 적격 또는 수동 출고승인
-function teamElig(rw){return ALL.filter(e=>e.rewardType===rw&&isShippable(e)&&!isReserve(e)&&shipStateOf(e)!=="shipped");}
+/* 포인트(2026-11-02)는 재고와 상관없어 예약발송 제품이어도 포인트 탭에 둡니다(예약발송 목록에는 안 넣음 — reserveBase) */
+function teamElig(rw){return ALL.filter(e=>e.rewardType===rw&&isShippable(e)&&(rw==="point"||!isReserve(e))&&shipStateOf(e)!=="shipped");}
 /* 확인필요(AI 애매·오류). 🔴 2026-10 — 예약발송 제품도 여기에 포함합니다(예약 탭은 확인필요를 안 받으므로, 재심사는 여기서 합니다).
    ⚠️ teamElig(출고 목록)는 그대로 예약 제품을 뺍니다. */
 function teamInelig(rw){return ALL.filter(e=>e.rewardType===rw&&(shipStatus(e)==="review"||shipStatus(e)==="pending")&&!e.overrideEligible);}
@@ -3030,6 +3056,9 @@ const apvCell=e=>admEsc(apvBy(e))+((!e.overrideEligible&&e.snFixed&&e.snFixedBy)
 const apvAt=e=>e.overrideEligible&&e.approvedAt?opsMD(tsDate(e.approvedAt)):"-";
 const ELIG_ORDER=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>apvCell(e)],TYPE_COL,["검수",e=>eligCheck(e)],["배송구분",e=>shipFeeBadge(e)],["사은품",e=>admEsc(e.giftItem||"-"),"wrapcell"],
   SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
+/* 포인트 — 배송·S/N 대신 공식몰 아이디 */
+const ELIG_POINT=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>apvCell(e)],TYPE_COL,["검수",e=>eligCheck(e)],["포인트",e=>admEsc(e.giftItem||"-"),"wrapcell"],
+  ["공식몰 아이디",e=>admEsc(e.pointId||"-")],["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")]];
 const ELIG_ACCT=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>apvCell(e)],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
   SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
 /* 확인필요 = 재심사 담당. 재심사 누르면 결과에 따라 적합/부적합으로 자동 이동 */
@@ -3040,7 +3069,7 @@ const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>ad
 function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
   let all,cols;
   if(view==="inelig"){all=teamInelig(reward);cols=INELIG_COLS;}
-  else{all=teamElig(reward);cols=(reward==="gift"?ELIG_ORDER:ELIG_ACCT);}
+  else{all=teamElig(reward);cols=(reward==="gift"?ELIG_ORDER:reward==="point"?ELIG_POINT:ELIG_ACCT);}
   const rows=slice(all,key);
   $(countId).textContent="총 "+all.length+"건";
   $(tableId+" thead").innerHTML=headHtml(cols);
@@ -3062,6 +3091,13 @@ function renderAcct(){
   $("#dlAcct").style.display=(v==="elig")?"":"none";
   $("#reAllAcct").style.display=(v==="inelig")?"":"none";
   renderTeam("coupon","#tableAcct","#emptyAcct","#aCount","#pagerAcct","acct",v);
+}
+function renderPoint(){
+  const v=subView.point;
+  $("#pointHint").innerHTML=v==="inelig"?"포인트 대상 중 <b>확인필요</b> 건입니다. <b>AI 심사가 실패한 건만</b> 여기 남습니다(일시 오류·사용량 초과). '재심사'로 다시 판정하고, 계속 실패하면 행을 클릭해 <b>직접 판정</b>하세요. (별점·사진 등 기준 미충족은 '부적합' 탭에 있습니다.)":"포인트(아이닉 공식몰 적립금) 대상 <b>적합·미지급</b> 건입니다. '지급 목록 내려받기'를 누르면 목록(성함·핸드폰·아이디·금액)을 내려받고 전부 <b>지급완료</b> 처리되어 목록에서 사라집니다. 받은 목록으로 공식몰에서 적립금을 지급해 주세요.";
+  $("#dlPoint").style.display=(v==="elig")?"":"none";
+  $("#reAllPoint").style.display=(v==="inelig")?"":"none";
+  renderTeam("point","#tablePoint","#emptyPoint","#pCount","#pagerPoint","point",v);
 }
 async function setShipState(id,state){
   try{
@@ -3128,7 +3164,7 @@ function startCdTicker(){
   syncReAllButtons();
 }
 function syncReAllButtons(){
-  [["#reAllOrder","gift"],["#reAllAcct","coupon"]].forEach(([sel,rw])=>{
+  [["#reAllOrder","gift"],["#reAllAcct","coupon"],["#reAllPoint","coupon"]].forEach(([sel,rw])=>{   // 포인트 탭 버튼도 같은 전체 재심사(잠금 시간은 상품권과 같이 씀)
     const b=$(sel);if(!b)return;
     const left=cdLeft(reJudgeAllUntil[rw]);
     b.disabled=left>0;
@@ -3308,7 +3344,7 @@ async function saveReserve(){
    ⚠️ 페이지는 「고객 10명」 기준(제품 묶음이 페이지를 넘어가면 다음 페이지에서 이어집니다). */
 const R_PER=10;
 /* 예약 제품이면 상품권 건도 넣습니다 — 상품권 발송목록(teamElig)도 예약 제품을 빼므로, 여기 없으면 어디에도 안 보입니다(기존 동작 유지) */
-function reserveBase(e){return isReserve(e)&&shipStateOf(e)!=="shipped";}
+function reserveBase(e){return isReserve(e)&&e.rewardType!=="point"&&shipStateOf(e)!=="shipped";}
 function reserveList(q){return ALL.filter(e=>reserveBase(e)&&(e.overrideEligible===true||shipStatus(e)==="eligible"||shipStatus(e)==="ineligible")&&matchSearch(e,q));}
 function reserveHold(q){return ALL.filter(e=>reserveBase(e)&&!e.overrideEligible&&(shipStatus(e)==="review"||shipStatus(e)==="pending")&&matchSearch(e,q));}
 function rName(p){return PNAME[p]||p||"(제품 미상)";}
@@ -3491,7 +3527,7 @@ function openDetail(id, readOnly){
   const RO=!!readOnly;
   $("#dtName").textContent=e.name||"(이름없음)";
   $("#dtMeta").innerHTML="접수 "+fmtDate(e._date)+" · "+cell(e,"phone");
-  $("#dtReward").textContent=(REWARD_LABEL[e.rewardType]||"사은품/상품권")+" : "+(e.giftItem||"-");
+  $("#dtReward").textContent=rwText(e);
   $("#dtProduct").textContent=e.product||"-";
   $("#dtSource").textContent=srcOf(e)||"-";
   /* 출고 승인 버튼을 누른 기록이 있을 때만 보입니다 (담당자 = 누른 상담사) */
@@ -3574,7 +3610,7 @@ function openDetail(id, readOnly){
       : st==="pending" ? "아직 <b>AI 심사 대기</b> 중인 건입니다. 잠시 후 새로고침하면 결과가 반영됩니다."
       : isShipped ? "이미 <b>출고완료</b>된 건입니다. 응대 기록·출고 승인은 부적합 건에서만 사용합니다."
       : e.overrideEligible ? "상담 후 <b>출고 승인</b>된 건입니다. 발송목록에서 일괄출고하면 출고완료로 바뀝니다."
-      : isReserve(e) ? "<b>예약발송</b> 지정 제품입니다. 재고 입고 후 예약발송 탭에서 제품 지정을 해제하면 일반 발송목록으로 이동합니다."
+      : (isReserve(e)&&e.rewardType!=="point") ? "<b>예약발송</b> 지정 제품입니다. 재고 입고 후 예약발송 탭에서 제품 지정을 해제하면 일반 발송목록으로 이동합니다."
       : "<b>적격(발송 대상)</b> 건입니다. 발송목록에서 일괄출고하면 출고완료로 바뀝니다.";
     pastCallRender(e);
   }
@@ -3703,7 +3739,7 @@ window.cancelEntry=cancelEntry;
    · ⚠️ 이미 마케팅 시트·수신동의 장부에 올라간 예전 연락처는 자동으로 고쳐지지 않습니다(저장 전 안내). */
 const INFO_EDIT_ROLES=["master","qa","agent"];
 const canEditInfo=e=>!!(ME&&INFO_EDIT_ROLES.includes(ME.role)&&e&&!(e.shipped||e.shipState==="shipped"));
-const infoAddrEditable=e=>!!(e&&e.rewardType!=="coupon");          // 상품권 건은 주소를 받지 않습니다
+const infoAddrEditable=e=>!!(e&&rwOf(e.rewardType)==="gift");      // 상품권·포인트 건은 주소를 받지 않습니다
 function infoEditFill(e){                            // 「고객정보 수정」·「사은품 변경」 단추(접수 취소 단추 옆) — 권한이 있고 출고 전인 건에만
   const on=canEditInfo(e);
   GIFT_PENDING=null; $("#dtEdPend").style.display="none";
@@ -3724,7 +3760,9 @@ function giftEditChoices(e){
   /* 예외사은품은 그 건의 유형(포토리뷰/쿠팡) 것만(2026-10-29 — 한달 사용후기 건은 포토리뷰 예외사은품) */
   const exSet=(t==="cp"&&e.event!=="month")?(GSET&&GSET.extraCp):(GSET&&GSET.extra);
   const ex=((exSet&&exSet[code])||[]).filter(g=>!cur.some(x=>x.label===g.label));
-  return { cur, ex };
+  /* 🔴 포인트(2026-11-02) — 포인트 건은 포인트끼리만 바꾸고, 다른 건은 포인트로 못 바꿉니다(공식몰 아이디를 받아야 해서 — 접수 취소 후 다시 접수 또는 수기접수) */
+  const same=g=>(rwOf(g.type)==="point")===(rwOf(e.rewardType)==="point");
+  return { cur:cur.filter(same), ex:ex.filter(same) };
 }
 /* 🔴 2026-10-29 변경 기록(editLog) — 사은품 변경·고객정보 수정 때 사유 메모와 함께 건에 한 줄씩 쌓고(추가만, firestore.rules editLogOk), 상세의 「지난 응대 기록」 상자에 보입니다.
    사유는 이름·연락처·주소를 적지 않도록 안내합니다(입력 칸 안내문). 접근 기록에는 사유를 남기지 않습니다. */
@@ -3749,7 +3787,7 @@ function pastCallRender(e){
 }
 function giftEditOpen(){
   const e=ALL.find(x=>x._id===detailId); if(!e||!canEditInfo(e)) return;
-  const rt=e.rewardType==="coupon"?"coupon":"gift", {cur,ex}=giftEditChoices(e);
+  const rt=rwOf(e.rewardType), {cur,ex}=giftEditChoices(e);
   const op=(g,extra)=>{ const diff=g.type!==rt; return '<option value="'+admEsc(g.label)+'"'+(extra?' data-extra="1"':'')+(g.label===e.giftItem?' selected':'')+'>'
     +admEsc(g.label)+' ('+REWARD_LABEL[g.type]+')'+(extra?' · 예외':'')+(diff?(rt==="coupon"?' — 사은품으로 변경(주소 입력 필요)':' — 상품권으로 변경(주소·배송비 삭제)'):'')+'</option>'; };
   $("#dtGfNow").innerHTML='지금 사은품: <b>'+admEsc(e.giftItem||"-")+'</b> ('+admEsc(REWARD_LABEL[rt])+')';
@@ -3769,7 +3807,7 @@ async function giftEditSave(){
   if(to===String(e.giftItem||"").trim()) return bad("지금 사은품과 같습니다.");
   const memo=$("#dtGfMemo").value.trim();
   if(!memo) return bad("변경 사유를 적어 주세요(예: 고객 요청으로 상세페이지 안내 사은품으로 변경).");
-  const rt=e.rewardType==="coupon"?"coupon":"gift", {cur,ex}=giftEditChoices(e);
+  const rt=rwOf(e.rewardType), {cur,ex}=giftEditChoices(e);
   const hit=[...cur,...ex].find(g=>g.label===to);
   if(!hit) return bad("고를 수 없는 사은품입니다.");
   const typeChg=hit.type!==rt, isEx=!!(o&&o.dataset.extra), from=String(e.giftItem||"");
@@ -3806,7 +3844,7 @@ async function giftEditSave(){
   const loc=Object.assign({},patch); if(typeChg){ delete loc.shipFee; delete e.shipFee; }
   Object.assign(e,loc,{ giftEditedAt:new Date(), ...(typeChg?{ infoEditedAt:new Date() }:{}) });
   logAccess("사은품 변경",[typeText(e),e.product||"-",from+" → "+to+(isEx?" (예외)":""),...(typeChg?["종류 변경 사은품→상품권"]:[]),...(feeTo?["배송비 "+feeFrom+" → "+feeTo]:[])].join(" · "),1);   // 사은품 이름·배송비만 — 개인정보·사유 없음
-  $("#dtReward").textContent=(REWARD_LABEL[e.rewardType]||"사은품/상품권")+" : "+(e.giftItem||"-");
+  $("#dtReward").textContent=rwText(e);
   $("#dtFee").innerHTML=shipFeeBadge(e); if(typeChg){ $("#dtAddr").innerHTML=cell(e,"addr"); computeDups(); }
   infoEditFill(e); pastCallRender(e); renderActiveTab();
   alert("사은품을 바꿨습니다.");
@@ -3912,7 +3950,7 @@ async function infoEditSave(){
   btn.disabled=false;
   Object.assign(e,patch,{ infoEditedAt:new Date(), ...(PG?{ giftEditedAt:new Date() }:{}) });
   GIFT_PENDING=null; $("#dtEdPend").style.display="none";
-  if(PG){ logAccess("사은품 변경",[typeText(e),e.product||"-",PG.from+" → "+PG.to+(PG.isEx?" (예외)":""),"종류 변경 상품권→사은품"].join(" · "),1); $("#dtReward").textContent=(REWARD_LABEL[e.rewardType]||"사은품/상품권")+" : "+(e.giftItem||"-"); $("#dtFee").innerHTML=shipFeeBadge(e); }
+  if(PG){ logAccess("사은품 변경",[typeText(e),e.product||"-",PG.from+" → "+PG.to+(PG.isEx?" (예외)":""),"종류 변경 상품권→사은품"].join(" · "),1); $("#dtReward").textContent=rwText(e); $("#dtFee").innerHTML=shipFeeBadge(e); }
   logAccess("고객정보 수정",[typeText(e),e.product||"-",e.manual?"수기":"접수폼","항목: "+fields.join("·")].join(" · "),1);   // 이름·번호·주소·사유는 적지 않습니다
   $("#dtName").textContent=e.name||"(이름없음)"; $("#dtMeta").innerHTML="접수 "+fmtDate(e._date)+" · "+cell(e,"phone"); $("#dtAddr").innerHTML=cell(e,"addr");
   infoEditFill(e); msg.style.color="var(--ok,#12a150)"; msg.textContent=""; pastCallRender(e);
@@ -4041,7 +4079,7 @@ document.addEventListener("keydown",e=>{
 function csShipBadge(e){
   if(e.shipped||e.shipState==="shipped")return '<span class="shipbig done">✓ 발송</span>';
   if(shipStatus(e)==="ineligible" && !e.overrideEligible)return '<span class="shipbig hold">출고대기</span>';
-  if(isReserve(e))return '<span class="shipbig resv">예약발송</span>';
+  if(isReserve(e)&&e.rewardType!=="point")return '<span class="shipbig resv">예약발송</span>';
   return '<span class="shipbig wait">미발송</span>';
 }
 function renderCS(){
@@ -4059,6 +4097,7 @@ function renderCS(){
       <div class="csdetail">
         <div><b>제품</b>${admEsc(e.product||"-")}</div>
         <div><b>${REWARD_LABEL[clsRw(e.rewardType)]||"사은품/상품권"}</b>${admEsc(e.giftItem||"-")}</div>
+        ${e.rewardType==="point"?`<div><b>공식몰 아이디</b>${admEsc(e.pointId||"-")}</div>`:""}
         <div><b>수량</b>${giftQtyHtml(e)}</div>
         <div><b>판매처</b>${admEsc(srcOf(e)||"-")}</div>
         <div><b>주문번호</b>${admEsc(e.orderNo||"-")}</div>
@@ -4657,7 +4696,7 @@ const mSrcKey = v => String(v == null ? "" : v).replace(/\s/g, "").replace(/（/
 function mRuleGifts(r){
   const src = (r && Array.isArray(r.gifts) && r.gifts.length) ? r.gifts : [{ label:r && r.label, type:r && r.type }];
   const out = [], seen = new Set();
-  src.forEach(g => { const label = String((g && g.label) || "").trim(); if(!label || seen.has(label)) return; seen.add(label); out.push({ label, type:(g && g.type === "coupon") ? "coupon" : "gift" }); });
+  src.forEach(g => { const label = String((g && g.label) || "").trim(); if(!label || seen.has(label)) return; seen.add(label); out.push({ label, type:rwOf(g && g.type) }); });
   return out.slice(0, 5);
 }
 function mPromoHit(code, src, buyDate){
@@ -4703,6 +4742,7 @@ function onProductChange(){
 /* 수기접수 — 고른 사은품의 배송비(설정 「제품·사은품」의 사은품마다 배송비)로 「배송구분」을 맞춥니다(2026-10-28). 프로모션·옛 표는 그대로 둡니다 */
 function mGiftFeeSync(){
   const o = $("#mGift").selectedOptions[0], f = o && o.dataset.fee;
+  const pf = $("#mPointField"); if(pf) pf.style.display = (o && o.dataset.reward === "point") ? "" : "none";     // 포인트면 공식몰 아이디 칸(2026-11-02)
   if(f === "선불" || f === "착불") $("#mShipFee").value = f;
 }
 function onTypeChange(){
@@ -4956,6 +4996,8 @@ async function submitManual(){
 
   if(!category || !product || !name || !phone) return bad("카테고리·제품·수령인·연락처는 필수입니다.");
   if(!giftItem && $("#mGift").querySelector('option[value]:not([value=""])')) return bad("사은품/상품권을 선택하세요.");
+  const pointId = rewardType === "point" ? $("#mPointId").value.trim() : "";
+  if(rewardType === "point" && !POINT_ID_RE.test(pointId)) return bad("포인트 건은 고객의 아이닉 공식몰 아이디를 정확히 넣어 주세요(예: inic1234 · 1234567890@k).");
   if(type === "coupang" && !serial) return bad("쿠팡 정품등록은 시리얼번호(S/N)가 필요합니다.");
   /* 🔴 고객DB 없이 직접 등록(2026-10-26 사용자 요청) — 구매 기록이 없으니 증빙이 곧 근거입니다. 사유·판매처·증빙 이미지가 없으면 등록하지 않습니다. */
   if(M_CTX.free){
@@ -5018,6 +5060,7 @@ async function submitManual(){
         editLog:[{ at:new Date().toISOString(), by:agent, byUid:agentUid, kind:"dup", desc:("중복 참여 이력 확인 후 직접 등록 — " + dupConfirm).slice(0, 300), memo:String(reason).slice(0, EDIT_MEMO_MAX) }] } : {}),
     ...((o && o.dataset.promo) ? { promoName:o.dataset.promo } : {}),
     ...((o && o.dataset.extra) ? { giftExtra:true } : {}),          // 예외사은품으로 등록한 건 표시(2026-10-28)
+    ...(rewardType === "point" ? { pointId } : {}),                  // 공식몰 아이디(포인트 건만, 2026-11-02)
     consent:{ privacy:"agree", marketing:"", reward:rewardType, agreedAt:new Date().toISOString(), manual:true },
     survey:[],
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -5126,6 +5169,7 @@ function shipFeeOf(e){return e.shipFee==="선불"?"선불":"착불";}  // 기본
 /* 선불/착불은 발송 준비에 직결되므로 조회·목록 어디서나 바로 보이게 한다 */
 function shipFeeBadge(e){
   if(e.rewardType==="coupon") return '<span class="pill" style="background:#eef2fb;color:#2f6df6">기프티콘</span>';
+  if(e.rewardType==="point") return '<span class="pill" style="background:#e9f0fb;color:#2f6df6">적립금</span>';
   const pre=shipFeeOf(e)==="선불";
   return `<span class="pill" style="background:${pre?"#e9f0fb":"#f2eeea"};color:${pre?"#2f6df6":"#6b625b"}">${pre?"선불":"착불"}</span>`;
 }
@@ -5248,6 +5292,25 @@ async function dlShipTemplate(rw,fname){
   if(!ok){ alert("출고완료 처리를 하지 않았습니다. 목록은 그대로입니다.\n방금 받은 파일은 사방넷에 올리지 마시고, 일괄출고를 다시 눌러 주세요."); return; }
   await shipCommit(flat);
 }
+/* 🔴 포인트 지급 목록 (2026-11-02 사용자 요청) — 아이닉 공식몰 적립금은 사방넷이 아니라 공식몰에서 지급합니다.
+   칸: 성함 · 핸드폰(가운데 4자리 *) · 아이디 · 금액 (사용자 결정). 접수 1건 = 1줄(아이디가 건마다 다를 수 있어 합치지 않음).
+   금액 = 포인트 이름의 「10,000원」 숫자 × 수량. 이름에서 금액을 못 읽으면 빈칸이고, 내려받기 전에 알려 줍니다.
+   내려받은 뒤에는 일괄출고와 같이 지급완료(shipState=shipped)로 기록합니다 — 같은 목록을 다시 받아 두 번 지급하지 않게. */
+const maskMid=p=>{ const d=String(p||"").replace(/\D/g,""); if(d.length===11) return d.slice(0,3)+"-****-"+d.slice(7); if(d.length===10) return d.slice(0,3)+"-***-"+d.slice(6); return d.length>4?"*".repeat(d.length-4)+d.slice(-4):""; };
+const pointWon=e=>{ const m=String(e.giftItem||"").match(/([\d,]+)\s*원/); const n=m?parseInt(m[1].replace(/,/g,""),10):NaN; return (isFinite(n)&&n>0) ? n*Math.max(1,parseInt(e.giftQty,10)||1) : null; };
+async function dlPointList(){
+  if(SHIP2_OPEN) return;
+  const list0=teamElig("point");
+  if(!list0.length){alert("대상 데이터가 없습니다.");return;}
+  const f=await shipFresh(list0); if(!f) return; const list=f.out;
+  const noId=list.filter(e=>!e.pointId).length, noWon=list.filter(e=>pointWon(e)==null).length;
+  const rows=list.map(e=>{ const w=pointWon(e); return {"성함":e.name||"","핸드폰":maskMid(e.phone),"아이디":e.pointId||"","금액":w==null?"":w.toLocaleString("ko-KR")}; });
+  if(!confirm(list.length+"건의 지급 목록을 내려받고 '지급완료' 처리합니다.\n지급완료된 건은 목록에서 사라집니다. 계속할까요?"+f.note
+    +(noId?"\n\n⚠️ 공식몰 아이디가 없는 건이 "+noId+"건 있습니다 — 아이디 칸이 비어 나갑니다.":"")
+    +(noWon?"\n\n⚠️ 포인트 이름에서 금액을 읽지 못한 건이 "+noWon+"건 있습니다 — 금액 칸이 비어 나갑니다.":"")))return;
+  if(!downloadSheets([{name:"포인트",rows}],"아이닉_포인트지급"))return;
+  await shipCommit(list);
+}
 /* 두 번째 파일 안내창 — 버튼 누름으로 받아야 브라우저가 막지 않습니다. 결과: true = 두 파일 받음 확인 → 출고완료, false = 그만두기 */
 let SHIP2_OPEN=false;
 function ship2Dialog(first,second,dlSecond){
@@ -5288,7 +5351,7 @@ function ship2Dialog(first,second,dlSecond){
 function updateTabCounts(){
   const put=(k,html)=>{const el=document.querySelector('[data-tcs="'+k+'"]');if(el)el.innerHTML=html;};
   const b=(n,c)=>n>0?`<i class="${c||""}">${n}</i>`:"";
-  ["order","acct"].forEach(k=>{const rw=k==="order"?"gift":"coupon";put(k,b(teamElig(rw).length)+b(teamInelig(rw).length,"w"));});
+  [["order","gift"],["acct","coupon"],["point","point"]].forEach(([k,rw])=>{put(k,b(teamElig(rw).length)+b(teamInelig(rw).length,"w"));});
   put("bad",b(badBase().length,"b"));
   put("reserve",b(reserveList("").length,"a"));
 }
@@ -5308,6 +5371,7 @@ function renderActiveTab(){
   else if(curTab==="report")renderReport();
   else if(curTab==="order")renderOrder();
   else if(curTab==="acct")renderAcct();
+  else if(curTab==="point")renderPoint();
   else if(curTab==="reserve")renderReserve();
   else if(curTab==="bad")renderBad();
   else if(curTab==="cs")renderCS();
@@ -6363,7 +6427,7 @@ $("#odClear").addEventListener("click",odReset);
 $("#gfCheck").addEventListener("click",gfScan);
 $("#gfApply").addEventListener("click",gfApply);
 $$(".subtab").forEach(t=>t.addEventListener("click",()=>{const sub=t.dataset.sub;subView[sub]=t.dataset.v;$$(`.subtab[data-sub="${sub}"]`).forEach(x=>x.classList.toggle("active",x===t));pageState[sub]=1;
-  const fn={order:renderOrder,acct:renderAcct,reserve:renderReserve}[sub];if(fn)fn();}));
+  const fn={order:renderOrder,acct:renderAcct,point:renderPoint,reserve:renderReserve}[sub];if(fn)fn();}));
 $("#rSearch").addEventListener("input",reset("reserve",renderReserve));
 ["#bfReward","#bfReason"].forEach(s=>$(s).addEventListener("change",reset("bad",renderBad)));
 $("#bfSearch").addEventListener("input",reset("bad",renderBad));
@@ -6414,6 +6478,8 @@ $("#dlOrder").addEventListener("click",()=>dlShipTemplate("gift","아이닉_사�
 $("#dlAcct").addEventListener("click",()=>dlShipTemplate("coupon","아이닉_상품권_사방넷"));
 $("#reAllOrder").addEventListener("click",()=>reJudgeAll());
 $("#reAllAcct").addEventListener("click",()=>reJudgeAll());
+$("#dlPoint").addEventListener("click",()=>dlPointList());
+$("#reAllPoint").addEventListener("click",()=>reJudgeAll());
 $("#reload").addEventListener("click",loadData);
 onTypeChange();
 
@@ -6451,12 +6517,12 @@ const DL_BY_ROLE = {
   master: null,                              // 전부
   /* 2026-10-13 — 전체 CSV(csvBtn)는 마스터(관리자 역할 master)만. QA 는 나머지는 관리자와 같지만 이 버튼만 뺍니다.
      ⚠️ 버튼 숨김은 화면 편의일 뿐이고, 실제 막는 곳은 서버(ordersApi exportAllCsv — master 만 허용)입니다. */
-  qa:     ["svPpt","svPptAll","dlOrder","dlAcct","dlBad","dlReserve"],   // 2026-10-13: 전체 CSV·전체 엑셀 모두 마스터만
-  order:  ["dlOrder","dlAcct","dlReserve"],  // 사은품·상품권 일괄출고 · 예약발송 문자 안내 목록
-  acct:   ["dlOrder","dlAcct","dlReserve"],
+  qa:     ["svPpt","svPptAll","dlOrder","dlAcct","dlPoint","dlBad","dlReserve"],   // 2026-10-13: 전체 CSV·전체 엑셀 모두 마스터만
+  order:  ["dlOrder","dlAcct","dlPoint","dlReserve"],  // 사은품·상품권 일괄출고 · 포인트 지급 목록(2026-11-02) · 예약발송 문자 안내 목록
+  acct:   ["dlOrder","dlAcct","dlPoint","dlReserve"],
   agent:  []                                 // 없음
 };
-const DL_BUTTONS = ["csvBtn","xlsxBtn","svPpt","svPptAll","dlOrder","dlAcct","dlBad","dlReserve"];
+const DL_BUTTONS = ["csvBtn","xlsxBtn","svPpt","svPptAll","dlOrder","dlAcct","dlPoint","dlBad","dlReserve"];
 function applyDownloadsForRole(){
   const allow = DL_BY_ROLE[(ME&&ME.role)||"agent"];
   DL_BUTTONS.forEach(id=>{
@@ -6468,8 +6534,8 @@ function applyDownloadsForRole(){
 const TABS_BY_ROLE = {
   master: null,                                                   // 전부
   qa:     null,                                                   // 관리자와 같음(2026-10-06)
-  order:  ["all","order","acct","reserve","orders"],
-  acct:   ["all","order","acct","reserve","orders"],
+  order:  ["all","order","acct","point","reserve","orders"],
+  acct:   ["all","order","acct","point","reserve","orders"],
   agent:  ["bad","cs","manual"]              // 2026-10-22 사용자 요청: 부적합·고객검색·수기접수만 (10/06에는 전체 탭도 있었음). 조장은 여기에 관리자 탭이 더해짐
 };
 function applyTabsForRole(){
@@ -9097,6 +9163,8 @@ const DEFAULTS = {
     snImageMissing: { t:"S/N 라벨 사진을 업로드해 주세요.", k:false },
     buyImageMissing:{ t:"구매내역 캡처를 업로드해 주세요.", k:false },
     serialMissing:  { t:"시리얼번호(S/N)를 입력해 주세요.", k:false },
+    /* 2026-11-02 — 포인트 건의 공식몰 아이디 형식이 맞지 않아 서버가 받지 않았을 때 (접수폼 API_ERR 과 같은 글자) */
+    pointIdInvalid: { t:"아이닉 공식몰 아이디를 다시 확인해 주세요.\n공식몰 마이페이지 → 회원 정보 수정에 보이는 아이디를 그대로 적어 주세요.", k:false },
     /* 2026-10-06 — 접수 중에 동의 항목이 바뀌어 서버가 받지 않았을 때 (접수폼 API_ERR 과 같은 글자) */
     consentChanged: { t:"참여 안내 내용이 변경되었습니다.\n화면을 새로고침한 뒤 다시 접수해 주세요.", k:false },
     /* 2026-10-06 — 접수 저장 응답이 90초 넘게 없을 때 (접수폼 API_ERR 과 같은 글자) */
@@ -9224,7 +9292,7 @@ function resolveGift(code, ledgerSrc, d){
   const p = prodOf(code);
   return p ? { label:p.gift, type:p.type, rule:null } : null;
 }
-const typeName = t => t === "coupon" ? "상품권·기프티콘" : "사은품";
+const typeName = t => t === "coupon" ? "상품권·기프티콘" : t === "point" ? "포인트(공식몰 적립금)" : "사은품";
 
 /* ══════ 사은품 ══════ */
 let editRow = null;                 // 지금 고치고 있는 줄 번호
@@ -9264,7 +9332,7 @@ const gsCodes = p => ((p && p.codes) || []).filter(Boolean);
 function gsLegacyList(p, c){
   const codes = gsCodes(p);
   const l = String(((codes.length > 1) ? (p.giftEach || {})[c] : p.gift) || "").trim();
-  return l ? [{ label:l, type:p.type === "coupon" ? "coupon" : "gift" }] : [];
+  return l ? [{ label:l, type:rwOf(p.type) }] : [];
 }
 function gsEnsure(p){
   if(!p || typeof p !== "object") return;
@@ -9287,7 +9355,7 @@ function gsSyncLegacy(p){
     p.giftEach = {}; codes.forEach(c => { const f = firstOf(c); p.giftEach[c] = f ? String(f.label).trim() : ""; });
     p.gift = codes.map(firstOf).filter(Boolean).map(f => String(f.label).trim()).join(" / ");
   } else if(codes.length === 1){ const f = firstOf(codes[0]); p.gift = f ? String(f.label).trim() : ""; }
-  const f0 = codes.map(firstOf).find(Boolean); if(f0) p.type = f0.type === "coupon" ? "coupon" : "gift";
+  const f0 = codes.map(firstOf).find(Boolean); if(f0) p.type = rwOf(f0.type);
 }
 const gsFee = (p, t) => ((t === "coupang" ? p.cp.shipFee : p.shipFee) === "선불") ? "선불" : "착불";
 /* 🔴 사은품마다 배송비(2026-10-28 사용자 결정) — 사은품 줄마다 착불/선불(fee). 안 적힌 사은품은 그 탭의 배송비(gsFee)입니다.
@@ -9296,14 +9364,14 @@ const gsItemFee = (p, t, g) => (g && (g.fee === "선불" || g.fee === "착불"))
 /* 한 사은품의 배송비를 바꿀 때, 같은 탭의 다른 사은품은 지금 보이는 값을 그대로 적어 둡니다 — 탭 기본값이 바뀌어도 다른 사은품이 따라 바뀌지 않게 */
 function gsPinFees(p, t){
   const set = t === "coupang" ? p.cp.byCode : p.rv.byCode;
-  gsCodes(p).forEach(c => (set[c] || []).forEach(g => { if(g.type !== "coupon") g.fee = gsItemFee(p, t, g); }));
+  gsCodes(p).forEach(c => (set[c] || []).forEach(g => { if(rwOf(g.type) === "gift") g.fee = gsItemFee(p, t, g); }));
 }
 /* 탭 기본 배송비(예전 칸 shipFee·cp.shipFee)를 첫 사은품의 배송비로 맞춥니다 — 모든 사은품에 배송비가 적혀 있을 때만(안 고친 줄은 그대로) */
 function gsSyncFee(p, t){
   const set = t === "coupang" ? p.cp.byCode : p.rv.byCode;
-  const gl = gsCodes(p).flatMap(c => set[c] || []).filter(g => g.type !== "coupon");
+  const gl = gsCodes(p).flatMap(c => set[c] || []).filter(g => rwOf(g.type) === "gift");
   if(!gl.length || !gl.every(g => g.fee === "선불" || g.fee === "착불")) return;
-  (gsExtraOf(p, t) || []).forEach(g => { if(g.type !== "coupon" && !(g.fee === "선불" || g.fee === "착불")) g.fee = gsFee(p, t); });   // 같은 탭의 예외사은품이 따라 바뀌지 않게 먼저 적어 둠
+  (gsExtraOf(p, t) || []).forEach(g => { if(rwOf(g.type) === "gift" && !(g.fee === "선불" || g.fee === "착불")) g.fee = gsFee(p, t); });   // 같은 탭의 예외사은품이 따라 바뀌지 않게 먼저 적어 둠
   gsSetFee(p, t, gl[0].fee);
 }
 const gsBox = (p, t) => t === "coupang" ? p.cp.box : p.box;
@@ -9311,7 +9379,7 @@ function gsSetFee(p, t, v){ if(t === "coupang") p.cp.shipFee = v; else p.shipFee
 function gsSetBox(p, t, v){ if(t === "coupang") p.cp.box = v; else p.box = v; }
 const gsHasGift = (p, t) => gsCodes(p).some(c => ((t === "coupang" ? p.cp.byCode : p.rv.byCode)[c] || []).some(g => g.type === "gift"));
 function gsSame(p){
-  const norm = (l, t) => (l || []).map(g => [String(g.label || "").trim(), g.type === "coupon" ? "coupon" : "gift", g.type === "coupon" ? "" : gsItemFee(p, t, g)]);
+  const norm = (l, t) => (l || []).map(g => [String(g.label || "").trim(), rwOf(g.type), rwOf(g.type) !== "gift" ? "" : gsItemFee(p, t, g)]);
   const bx = v => (v == null || v === "") ? "" : String(Number(v));
   const a = gsCodes(p).map(c => norm(p.rv.byCode[c], "review")), b = gsCodes(p).map(c => norm(p.cp.byCode[c], "coupang"));
   return JSON.stringify(a) === JSON.stringify(b) && gsFee(p, "review") === gsFee(p, "coupang") && bx(p.box) === bx(p.cp.box);
@@ -9322,8 +9390,8 @@ function gsBeforeSave(c){
   (c.products || []).forEach(p => {
     gsEnsure(p);
     /* 사은품마다 배송비(fee)는 사은품(배송 있는 것)에 적혀 있을 때만 남깁니다(2026-10-28) */
-    const clean = l => (l || []).filter(g => String(g.label || "").trim()).map(g => Object.assign({ label:String(g.label).trim(), type:g.type === "coupon" ? "coupon" : "gift" },
-      (g.type !== "coupon" && (g.fee === "선불" || g.fee === "착불")) ? { fee:g.fee } : {}));
+    const clean = l => (l || []).filter(g => String(g.label || "").trim()).map(g => Object.assign({ label:String(g.label).trim(), type:rwOf(g.type) },
+      (rwOf(g.type) === "gift" && (g.fee === "선불" || g.fee === "착불")) ? { fee:g.fee } : {}));
     gsCodes(p).forEach(k => { p.rv.byCode[k] = clean(p.rv.byCode[k]); p.cp.byCode[k] = clean(p.cp.byCode[k]); });
     p.extra = clean(p.extra); p.cp.extra = clean(p.cp.extra);
     /* 포토리뷰 목록이 예전 칸과 같으면(안 고친 줄) 예전 칸을 건드리지 않습니다 — 음식물처리기의 대표 이름(「밀폐키친홀더 / 활성탄필터」) 같은 표시 글이 바뀌지 않게.
@@ -9361,8 +9429,9 @@ function paneGift(){
   const CPT = giftTab === "coupang";
   cfg.products.forEach(gsEnsure);
   const codeName = c => (typeof PNAME !== "undefined" && PNAME[c]) ? PNAME[c] : c;
-  const TYPE_OPTS = g => [el("option", { value:"gift", ...(g.type !== "coupon" ? { selected:"" } : {}) }, "사은품"),
-                          el("option", { value:"coupon", ...(g.type === "coupon" ? { selected:"" } : {}) }, "상품권")];
+  const TYPE_OPTS = g => [el("option", { value:"gift", ...(rwOf(g.type) === "gift" ? { selected:"" } : {}) }, "사은품"),
+                          el("option", { value:"coupon", ...(g.type === "coupon" ? { selected:"" } : {}) }, "상품권"),
+                          el("option", { value:"point", ...(g.type === "point" ? { selected:"" } : {}) }, "포인트")];     // 포인트 = 아이닉 공식몰 적립금(2026-11-02)
   /* 배송비 고르기·표시 (사은품마다, 2026-10-28) */
   const FEE_OPTS = f => [el("option", { value:"착불", ...(f !== "선불" ? { selected:"" } : {}) }, "착불"),
                          el("option", { value:"선불", ...(f === "선불" ? { selected:"" } : {}) }, "선불")];
@@ -9378,8 +9447,8 @@ function paneGift(){
       : el("div", {}, list.map((g, k) => el("div", { style:"margin:2px 0" },
           list.length > 1 ? el("span", { class:"pill", style:"margin-right:4px;background:#f0eeec;color:#6b625b" }, "택1 · " + (k + 1)) : "",
           String(g.label || "").trim() ? el("span", {}, g.label) : el("span", { style:"color:var(--bad)" }, "(이름 없음)"), " ",
-          el("span", { class:"pill " + (g.type === "coupon" ? "coupon" : "gift") }, g.type === "coupon" ? "상품권" : "사은품"),
-          g.type === "coupon" ? "" : feePill(gsItemFee(p, giftTab, g)))));
+          el("span", { class:"pill " + rwOf(g.type) }, REWARD_LABEL[rwOf(g.type)]),
+          rwOf(g.type) !== "gift" ? "" : feePill(gsItemFee(p, giftTab, g)))));
     const giftsView = () => !codes.length ? el("span", { style:"color:var(--sub)" }, "이벤트 대상 아님")
       : codes.length > 1
         ? el("div", {}, codes.map(c => el("div", { style:"margin-bottom:4px" }, el("div", { style:"font-size:11px;color:var(--sub)" }, codeName(c)), listView(set[c] || [], true))))
@@ -9401,7 +9470,7 @@ function paneGift(){
             oninput:e => { g.label = e.target.value; touch(); softRefresh(); } }),
           el("select", { "aria-label":(multi ? codeName(c) + " " : "") + "종류 " + (k + 1), onchange:e => { g.type = e.target.value; touch(); render(); } }, TYPE_OPTS(g)),
           /* 🔴 배송비 — 사은품마다(2026-10-28). 상품권은 배송이 없습니다 */
-          g.type === "coupon" ? el("span", { style:"font-size:11px;color:var(--sub);min-width:52px" }, "배송 없음")
+          rwOf(g.type) !== "gift" ? el("span", { style:"font-size:11px;color:var(--sub);min-width:52px" }, "배송 없음")
             : el("select", { "aria-label":(multi ? codeName(c) + " " : "") + "배송비 " + (k + 1),
                 onchange:e => { gsPinFees(p, giftTab); g.fee = e.target.value; touch(); render(); } }, FEE_OPTS(gsItemFee(p, giftTab, g))),
           el("button", { class:"btn ghost", type:"button", "aria-label":(multi ? codeName(c) + " " : "") + "사은품 삭제 " + (k + 1),
@@ -9418,7 +9487,7 @@ function paneGift(){
         el("input", { type:"text", value:g.label, placeholder:"예: 예전에 주던 사은품 이름", style:"flex:1;min-width:170px", "aria-label":"예외사은품 이름 " + (k + 1),
           oninput:e => { g.label = e.target.value; softRefresh(); } }),
         el("select", { "aria-label":"예외사은품 종류 " + (k + 1), onchange:e => { g.type = e.target.value; render(); } }, TYPE_OPTS(g)),
-        g.type === "coupon" ? el("span", { style:"font-size:11px;color:var(--sub);min-width:52px" }, "배송 없음")
+        rwOf(g.type) !== "gift" ? el("span", { style:"font-size:11px;color:var(--sub);min-width:52px" }, "배송 없음")
           : el("select", { "aria-label":"예외사은품 배송비 " + (k + 1), onchange:e => { g.fee = e.target.value; softRefresh(); } }, FEE_OPTS(gsItemFee(p, giftTab, g))),
         el("button", { class:"btn ghost", type:"button", "aria-label":"예외사은품 삭제 " + (k + 1), onclick:() => { exList.splice(k, 1); render(); } }, "삭제"))),
       exList.length < 10 ? el("button", { class:"btn ghost", type:"button", onclick:() => { exList.push({ label:"", type:"gift" }); render(); } }, "+ 예외사은품 추가") : "");
@@ -9429,7 +9498,7 @@ function paneGift(){
       ? el("div", { style:"font-size:11px;color:var(--sub);margin-top:2px" }, (FORM_PRODUCTS.find(([v]) => v === codes.join(",")) || [null, codes.join(", ")])[1])
       : el("div", { class:"warn-inline" }, "접수폼 제품 미지정 — 「수정」에서 골라 주세요");
     /* 배송비 칸 — 사은품마다 정하므로(2026-10-28) 여기서는 요약만 보입니다(예: 「착불」 또는 「착불」「선불」) */
-    const fees = [...new Set(codes.flatMap(c => (set[c] || []).filter(g => g.type !== "coupon").map(g => gsItemFee(p, giftTab, g))))];
+    const fees = [...new Set(codes.flatMap(c => (set[c] || []).filter(g => rwOf(g.type) === "gift").map(g => gsItemFee(p, giftTab, g))))];
     /* 🔴 합배송 (2026-09-23) — ⚠️ 고객 화면 문구와 발주 엑셀 줄 나누기에 같이 쓰입니다. 안 정하시면 합배송 불가(1개씩)로 봅니다. */
     const boxCell = () => !hasGift ? el("span", { style:"color:var(--sub)" }, "해당 없음")
       : el("div", {},
@@ -9492,7 +9561,7 @@ function paneGift(){
           el("td", { class:"tight" }, el("span", { style:"color:var(--sub)" }, p.cat)),
           el("td", {}, giftsView(), exView),
           el("td", { class:"tight" }, types.length
-            ? types.map(t => el("span", { class:"pill " + (t === "coupon" ? "coupon" : "gift"), style:"margin-right:3px" }, t === "coupon" ? "상품권" : "사은품"))
+            ? types.map(t => el("span", { class:"pill " + rwOf(t), style:"margin-right:3px" }, REWARD_LABEL[rwOf(t)]))
             : el("span", { class:"pill mute" }, "대상 아님")),
           el("td", { class:"tight" }, !hasGift || !fees.length
             ? el("span", { style:"color:var(--sub)" }, "-")
@@ -9552,7 +9621,7 @@ function paneGift(){
     /* 🔴 합배송을 아직 안 정한 사은품 알림 (2026-09-23)
           안 정하면 1개씩 따로 나갑니다 = 착불비가 개수만큼. 빠뜨리시면 안 되는 값이라 눈에 띄게 둡니다. */
     (function(){
-      const un = cfg.products.filter(p => p && p.gift && p.type !== "coupon" && boxUnset(p));
+      const un = cfg.products.filter(p => p && p.gift && rwOf(p.type) === "gift" && boxUnset(p));
       if(!un.length) return el("div", { class:"hint",
         style:"background:#e8f5ea;border:1px solid #c3e3ca;border-radius:9px;padding:9px 12px;margin:0 0 11px;color:#2c6b3c;font-weight:700" },
         "✅ 모든 사은품의 합배송을 정하셨습니다.");
@@ -9742,10 +9811,10 @@ function syncImgName(r, change){
    ⚠️ 서버 eventApi 의 ruleGifts 와 같은 모양입니다. 최대 5개. */
 function ruleGiftsView(r){
   const list = (Array.isArray(r.gifts) && r.gifts.length) ? r.gifts : [{ label:r.label || "", type:r.type }];
-  return list.slice(0, 5).map(g => ({ label:String((g && g.label) || ""), type:(g && g.type === "coupon") ? "coupon" : "gift" }));
+  return list.slice(0, 5).map(g => ({ label:String((g && g.label) || ""), type:rwOf(g && g.type) }));
 }
 function ruleGiftsSet(r, list){
-  r.gifts = list.slice(0, 5).map(g => ({ label:g.label, type:g.type === "coupon" ? "coupon" : "gift" }));
+  r.gifts = list.slice(0, 5).map(g => ({ label:g.label, type:rwOf(g.type) }));
   r.label = r.gifts[0] ? r.gifts[0].label : "";
   r.type  = r.gifts[0] ? r.gifts[0].type : "gift";
 }
@@ -9837,8 +9906,9 @@ function paneRule(){
               oninput:e => { const list = ruleGiftsView(r); list[k].label = e.target.value; ruleGiftsSet(r, list); softRefresh(); } }),
             el("select", { "aria-label":"종류 " + (k + 1),
               onchange:e => { const list = ruleGiftsView(r); list[k].type = e.target.value; ruleGiftsSet(r, list); render(); } },
-              el("option", { value:"gift",   ...(g.type !== "coupon" ? { selected:"" } : {}) }, "사은품"),
-              el("option", { value:"coupon", ...(g.type === "coupon" ? { selected:"" } : {}) }, "상품권")),
+              el("option", { value:"gift",   ...(rwOf(g.type) === "gift" ? { selected:"" } : {}) }, "사은품"),
+              el("option", { value:"coupon", ...(g.type === "coupon" ? { selected:"" } : {}) }, "상품권"),
+              el("option", { value:"point",  ...(g.type === "point" ? { selected:"" } : {}) }, "포인트")),     // 포인트 = 아이닉 공식몰 적립금(2026-11-02)
             ruleGiftsView(r).length > 1
               ? el("button", { class:"btn ghost", type:"button", "aria-label":"사은품 " + (k + 1) + " 삭제",
                   onclick:() => { ruleGiftsSet(r, ruleGiftsView(r).filter((_, j) => j !== k)); render(); } }, "삭제")
@@ -10772,6 +10842,7 @@ const NOTICE_GROUPS = [
     ["snImageMissing", "S/N 사진 없음",        "쿠팡 정품등록 · 필수인 S/N 라벨 사진 없이 접수됐을 때"],
     ["buyImageMissing","구매내역 캡처 없음",   "쿠팡 정품등록 · 필수인 구매내역 캡처 없이 접수됐을 때"],
     ["serialMissing",  "S/N 미입력",           "쿠팡 정품등록 · 필수인 S/N 없이 접수됐을 때"],
+    ["pointIdInvalid", "공식몰 아이디 오류",   "포인트 · 공식몰 아이디 형식이 맞지 않을 때"],
     ["consentChanged", "동의 항목 변경",       "고객이 접수하는 사이 동의 항목 설정이 바뀌었을 때"],
     ["submitTimeout",  "응답 지연",            "접수 저장 응답이 90초 넘게 없을 때 · 입력은 그대로 남습니다"],
     ["submitErr",      "접수 중 오류",         "그 밖의 오류일 때"]
@@ -11208,7 +11279,7 @@ const NT_KAKAO_KEYS = new Set([
   "rate","noTarget","readFail","dupAll","checkConsult","checkWait","doneGiftReserve",
   "fileTooBig","netFail","uploadFail","fileNotImage",
   "submitRate","tokenExpired","productMismatch","inputInvalid","originBlocked",
-  "imageMissing","snImageMissing","buyImageMissing","serialMissing","consentChanged","submitTimeout","submitErr"
+  "imageMissing","snImageMissing","buyImageMissing","serialMissing","pointIdInvalid","consentChanged","submitTimeout","submitErr"
 ]);
 const ntKakaoOk = k => NT_KAKAO_KEYS.has(k) || /^(notFound|checkShipped|dupAsk)/.test(k);
 const phN = t => (String(t == null ? "" : t).match(/○○|○/g) || []).length;

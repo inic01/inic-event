@@ -1081,7 +1081,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
     <div class="hint" id="pointHint"></div>
     <div class="filters stick"><span id="pCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
       <button id="reAllPoint" class="sm" style="display:none">🔄 확인필요 전체 재심사 (사은품+상품권)</button>
-      <button id="dlPoint" class="sm primary">💰 지급 목록 내려받기</button></div>
+      <button id="dlPoint" class="sm primary">💰 포인트 명단 내려받기</button></div>
     <div class="tablewrap"><table class="data" id="tablePoint"><thead></thead><tbody></tbody></table>
       <div class="empty" id="emptyPoint" style="display:none">대상 데이터가 없습니다.</div></div>
     <div class="pager" id="pagerPoint"></div>
@@ -2009,7 +2009,9 @@ const srcText=(l,ex)=>(Array.isArray(l)?l:[]).map(x=>x===SRC_ALL?"전 사이트"
 /* 🔴 2026-10-29 「전 사이트」에서 판매처를 해제하면 r.exSrcs 에 쌓입니다(이름이 똑같은 곳만 제외, 쿠팡·로켓배송은 항상 빠짐, 새 판매처는 자동 포함).
    ⚠️ 서버 eventApi srcAllHit · 접수폼 index srcAllHit 와 같은 규칙입니다. */
 const SRC_NEVER=["쿠팡","로켓"];
-const srcNever=name=>SRC_NEVER.some(w=>mSrcKey(name).includes(w));
+/* 🔴 2026-11-03 사용자 요청 — 원장 거래처명 「쿠팡2」는 빼지 않습니다(이름이 똑같을 때만 — 원장에 구매 기록이 있어 포토리뷰로 접수되는 쿠팡 판매처). 칩으로 고를 수 있고 「전 사이트」에도 들어갑니다. ⚠️ 서버 eventApi · 접수폼 index 의 SRC_KEEP 와 같은 목록 */
+const SRC_KEEP=["쿠팡2"];
+const srcNever=name=>{ const k=mSrcKey(name); return SRC_NEVER.some(w=>k.includes(w)) && !SRC_KEEP.some(x=>mSrcKey(x)===k); };
 /* 구매 기록 한 줄의 코드들 — 예전 코드는 지금 코드로, 같은 코드는 한 번 */
 const rowCodes=r=>[...new Set((r&&r.code?[r.code]:(r&&Array.isArray(r.pick)?r.pick:[])).map(canonCode))];
 function gsListRaw(v, dfee){
@@ -3094,7 +3096,7 @@ function renderAcct(){
 }
 function renderPoint(){
   const v=subView.point;
-  $("#pointHint").innerHTML=v==="inelig"?"포인트 대상 중 <b>확인필요</b> 건입니다. <b>AI 심사가 실패한 건만</b> 여기 남습니다(일시 오류·사용량 초과). '재심사'로 다시 판정하고, 계속 실패하면 행을 클릭해 <b>직접 판정</b>하세요. (별점·사진 등 기준 미충족은 '부적합' 탭에 있습니다.)":"포인트(아이닉 공식몰 적립금) 대상 <b>적합·미지급</b> 건입니다. '지급 목록 내려받기'를 누르면 목록(성함·핸드폰·아이디·금액)을 내려받고 전부 <b>지급완료</b> 처리되어 목록에서 사라집니다. 받은 목록으로 공식몰에서 적립금을 지급해 주세요.";
+  $("#pointHint").innerHTML=v==="inelig"?"포인트 대상 중 <b>확인필요</b> 건입니다. <b>AI 심사가 실패한 건만</b> 여기 남습니다(일시 오류·사용량 초과). '재심사'로 다시 판정하고, 계속 실패하면 행을 클릭해 <b>직접 판정</b>하세요. (별점·사진 등 기준 미충족은 '부적합' 탭에 있습니다.)":"포인트(아이닉 공식몰 적립금) 대상 <b>적합·미지급</b> 건입니다. '포인트 명단 내려받기'를 누르면 목록(성함·핸드폰·아이디·금액)을 내려받고 전부 <b>지급완료</b> 처리되어 목록에서 사라집니다. 받은 목록으로 공식몰에서 적립금을 지급해 주세요.";
   $("#dlPoint").style.display=(v==="elig")?"":"none";
   $("#reAllPoint").style.display=(v==="inelig")?"":"none";
   renderTeam("point","#tablePoint","#emptyPoint","#pCount","#pagerPoint","point",v);
@@ -4706,7 +4708,7 @@ function mPromoHit(code, src, buyDate){
   if(!prod || !prod.ledger) return null;
   const sk = mSrcKey(src), d = buyDate || new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
   return rules.find(r => r && r.product === prod.ledger && mRuleGifts(r).length
-    && Array.isArray(r.srcs) && (r.srcs.includes(SRC_ALL) ? (!SRC_NEVER.some(w => sk.includes(w)) && !(r.exSrcs || []).some(x => mSrcKey(x) === sk)) : r.srcs.some(s => { const k = mSrcKey(s); return k && sk.includes(k); }))   // 「전 사이트」(2026-10-28·10-29 제외)
+    && Array.isArray(r.srcs) && (r.srcs.includes(SRC_ALL) ? (!srcNever(sk) && !(r.exSrcs || []).some(x => mSrcKey(x) === sk)) : r.srcs.some(s => { const k = mSrcKey(s); return k && sk.includes(k); }))   // 「전 사이트」(2026-10-28·10-29 제외)
     && !(r.from && d < r.from) && !(r.to && d > r.to)) || null;
 }
 function onProductChange(){
@@ -5293,19 +5295,20 @@ async function dlShipTemplate(rw,fname){
   await shipCommit(flat);
 }
 /* 🔴 포인트 지급 목록 (2026-11-02 사용자 요청) — 아이닉 공식몰 적립금은 사방넷이 아니라 공식몰에서 지급합니다.
-   칸: 성함 · 핸드폰(가운데 4자리 *) · 아이디 · 금액 (사용자 결정). 접수 1건 = 1줄(아이디가 건마다 다를 수 있어 합치지 않음).
+   칸: 성함 · 핸드폰(가운데 4자리 *) · 아이디 · 금액 · 사유 (2026-11-03 사용자 결정 — 금액은 쉼표 없는 숫자, 사유는 POINT_XLS_REASON 고정). 접수 1건 = 1줄(아이디가 건마다 다를 수 있어 합치지 않음).
    금액 = 포인트 이름의 「10,000원」 숫자 × 수량. 이름에서 금액을 못 읽으면 빈칸이고, 내려받기 전에 알려 줍니다.
    내려받은 뒤에는 일괄출고와 같이 지급완료(shipState=shipped)로 기록합니다 — 같은 목록을 다시 받아 두 번 지급하지 않게. */
 const maskMid=p=>{ const d=String(p||"").replace(/\D/g,""); if(d.length===11) return d.slice(0,3)+"-****-"+d.slice(7); if(d.length===10) return d.slice(0,3)+"-***-"+d.slice(6); return d.length>4?"*".repeat(d.length-4)+d.slice(-4):""; };
 const pointWon=e=>{ const m=String(e.giftItem||"").match(/([\d,]+)\s*원/); const n=m?parseInt(m[1].replace(/,/g,""),10):NaN; return (isFinite(n)&&n>0) ? n*Math.max(1,parseInt(e.giftQty,10)||1) : null; };
+const POINT_XLS_REASON="포토리뷰 이벤트 적립금";      // 공식몰 적립금 일괄 등록의 사유 칸(고정)
 async function dlPointList(){
   if(SHIP2_OPEN) return;
   const list0=teamElig("point");
   if(!list0.length){alert("대상 데이터가 없습니다.");return;}
   const f=await shipFresh(list0); if(!f) return; const list=f.out;
   const noId=list.filter(e=>!e.pointId).length, noWon=list.filter(e=>pointWon(e)==null).length;
-  const rows=list.map(e=>{ const w=pointWon(e); return {"성함":e.name||"","핸드폰":maskMid(e.phone),"아이디":e.pointId||"","금액":w==null?"":w.toLocaleString("ko-KR")}; });
-  if(!confirm(list.length+"건의 지급 목록을 내려받고 '지급완료' 처리합니다.\n지급완료된 건은 목록에서 사라집니다. 계속할까요?"+f.note
+  const rows=list.map(e=>{ const w=pointWon(e); return {"성함":e.name||"","핸드폰":maskMid(e.phone),"아이디":e.pointId||"","금액":w==null?"":w,"사유":POINT_XLS_REASON}; });
+  if(!confirm(list.length+"건의 포인트 명단을 내려받고 '지급완료' 처리합니다.\n지급완료된 건은 목록에서 사라집니다. 계속할까요?"+f.note
     +(noId?"\n\n⚠️ 공식몰 아이디가 없는 건이 "+noId+"건 있습니다 — 아이디 칸이 비어 나갑니다.":"")
     +(noWon?"\n\n⚠️ 포인트 이름에서 금액을 읽지 못한 건이 "+noWon+"건 있습니다 — 금액 칸이 비어 나갑니다.":"")))return;
   if(!downloadSheets([{name:"포인트",rows}],"아이닉_포인트지급"))return;

@@ -1077,10 +1077,12 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
 
   <!-- 포인트 (2026-11-02 사용자 요청) — 아이닉 공식몰 적립금. 배송이 없고, 지급 목록(성함·핸드폰·아이디·금액)을 내려받아 공식몰에서 지급합니다 -->
   <section class="page" id="page-point">
-    <div class="subtabs"><div class="subtab active" data-sub="point" data-v="elig">적합(지급대상)</div><div class="subtab" data-sub="point" data-v="inelig">확인필요</div></div>
+    <div class="subtabs"><div class="subtab active" data-sub="point" data-v="elig">적합(지급대상)</div><div class="subtab" data-sub="point" data-v="planned">지급예정</div><div class="subtab" data-sub="point" data-v="unpayable">지급불가</div><div class="subtab" data-sub="point" data-v="inelig">확인필요</div></div>
     <div class="hint" id="pointHint"></div>
     <div class="filters stick"><span id="pCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
       <button id="reAllPoint" class="sm" style="display:none">🔄 확인필요 전체 재심사 (사은품+상품권)</button>
+      <button id="reDlPoint" class="sm">📄 명단 다시 받기</button>
+      <button id="upPoint" class="sm primary">📤 미지급 명단 올리기</button><input type="file" id="upPointFile" accept=".xlsx,.xls,.csv" style="display:none">
       <button id="dlPoint" class="sm primary">💰 포인트 명단 내려받기</button></div>
     <div class="tablewrap"><table class="data" id="tablePoint"><thead></thead><tbody></tbody></table>
       <div class="empty" id="emptyPoint" style="display:none">대상 데이터가 없습니다.</div></div>
@@ -1096,7 +1098,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
     <div id="badUnassigned" style="display:none;margin:0 0 10px;padding:9px 13px;border:1.5px solid #f0c9c9;background:#fff7f7;color:#b3252a;border-radius:10px;font-size:12.5px;line-height:1.6"></div>
     <div class="filters stick">
       <select id="bfReward"><option value="">보상 전체</option><option value="gift">사은품</option><option value="coupon">상품권</option><option value="point">포인트</option></select>
-      <select id="bfReason"><option value="">사유 전체</option><option value="notcap">리뷰 캡처·S/N 사진 아님</option><option value="ratingunread">별점 미확인</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="snmismatch">S/N 불일치</option><option value="snunread">S/N 미확인</option><option value="buyunread">구매내역 확인 불가(정정 후)</option><option value="dup">중복 참여</option></select>
+      <select id="bfReason"><option value="">사유 전체</option><option value="notcap">리뷰 캡처·S/N 사진 아님</option><option value="ratingunread">별점 미확인</option><option value="rating">별점 미달</option><option value="photo">사진 없음</option><option value="abuse">욕설·비방</option><option value="wrongprod">다른 제품 리뷰</option><option value="snmismatch">S/N 불일치</option><option value="snunread">S/N 미확인</option><option value="buyunread">구매내역 확인 불가(정정 후)</option><option value="dup">중복 참여</option><option value="pointfail">포인트 지급불가</option></select>
       <select id="bfAgent"><option value="">담당자 전체</option><option value="__none__">미지정</option></select>
       <select id="bfSort"><option value="wait">경과 긴 순 (오래 기다린 고객부터)</option><option value="due">기한일 순</option><option value="date">접수일 순</option><option value="agent">담당자 순</option></select>
       <input type="text" id="bfSearch" placeholder="이름·연락처·제품 검색">
@@ -1865,6 +1867,11 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
             <input id="dtEdName" type="text" maxlength="50" autocomplete="off" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 8px">
             <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">연락처</label>
             <input id="dtEdPhone" type="tel" inputmode="numeric" maxlength="30" autocomplete="off" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 8px">
+            <div id="dtEdPointWrap" style="display:none">
+              <label style="font-size:11.5px;font-weight:800;color:#c1121f;display:block">공식몰 아이디 <span style="font-weight:600;color:var(--sub)">(포인트 건 — 지급불가 건은 바른 아이디로 고쳐 저장하면 「적합(지급대상)」으로 돌아갑니다)</span></label>
+              <input id="dtEdPoint" type="text" maxlength="60" autocomplete="off" spellcheck="false" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 6px;border:2px solid #e5484d;border-radius:8px;background:#fff8f8">
+              <label id="dtEdPointRe" style="display:none;font-size:12px;font-weight:700;margin:0 0 8px;cursor:pointer"><input type="checkbox" id="dtEdPointOk"> 아이디는 그대로 두고 다시 지급 대기로 돌립니다(아이디가 맞는데 조회만 실패한 경우)</label>
+            </div>
             <div id="dtEdAddrWrap">
               <label style="font-size:11.5px;font-weight:800;color:var(--sub);display:block">주소</label>
               <input id="dtEdAddr" type="text" maxlength="300" autocomplete="off" style="padding:8px;width:100%;box-sizing:border-box;margin:3px 0 8px">
@@ -1953,7 +1960,13 @@ const REWARD_LABEL={gift:"사은품",coupon:"상품권",point:"포인트"};
 const rwOf=t=>(t==="coupon"||t==="point")?t:"gift";
 const POINT_ID_RE=/^[A-Za-z0-9][A-Za-z0-9@._-]{3,59}$/;
 /* 상세 화면의 「보상」 한 줄 — 포인트면 공식몰 아이디를 함께(글자로만 넣습니다 — textContent) */
-const rwText=e=>[REWARD_LABEL[e.rewardType]||"사은품/상품권", e.giftItem||"-"].join(" : ")+(e.rewardType==="point"?" · 공식몰 아이디 "+(e.pointId||"(없음)"):"");
+const rwText=e=>[REWARD_LABEL[e.rewardType]||"사은품/상품권", e.giftItem||"-"].join(" : ")+(e.rewardType==="point"?" · 공식몰 아이디 "+(e.pointId||"(없음)")+(e.pointState==="planned"?" · 지급예정":e.pointState==="unpayable"?" · ⚠ 지급불가("+(e.pointUnpaidReason||"사유 없음")+")":""):"");
+/* 🔴 포인트 지급 3단계 (2026-11-03 사용자 구도) — 접수 건의 pointState:
+     (없음) = 「적합(지급대상)」 · planned = 「지급예정」(명단을 내려받음) · unpayable = 「지급불가」(공식몰에서 아이디 조회 안 됨 — status 를 ineligible 로 바꿔 부적합 탭에서 상담사가 처리).
+   지급완료 = 출고완료(shipState=shipped)와 같은 표시이고 pointState 는 지웁니다. ⚠️ firestore.rules 의 point*Ok 함수들과 같이 고치세요. */
+const pointUnpayable=e=>!!e&&e.rewardType==="point"&&e.pointState==="unpayable";
+const pointPlannedList=()=>ALL.filter(e=>e.rewardType==="point"&&e.pointState==="planned"&&shipStateOf(e)!=="shipped");
+const pointUnpayableList=()=>ALL.filter(pointUnpayable).sort((a,b)=>((tsDate(a.pointUnpaidAt)||0)-(tsDate(b.pointUnpaidAt)||0)));
 let PRODREWARD={}, SOURCES=[], PNAME={}, dupIds=new Set(), dupReasonMap={};
 /* ══════════ 합배송 (2026-09-23 담당자 결정) ══════════
    사은품 코드 → **한 상자에 담기는 수량**. 관리자 「사은품」 탭에서 정합니다.
@@ -2116,6 +2129,7 @@ function aiChecklist(e){
    여기 REASON_RULES 하나만 고치면 사유 문구·부적합 탭 필터가 같이 바뀝니다.
    위에서부터가 우선순위. 해당되는 것은 모두 표시하되 문구는 짧게. */
 const REASON_RULES=[
+  {key:"pointfail",label:"포인트 지급불가",solo:true,hit:e=>e.pointState==="unpayable"&&e.rewardType==="point",text:e=>e.pointUnpaidReason||"포인트 지급불가(공식몰 아이디 조회 안 됨)"},
   {key:"dup",      label:"중복 참여",       hit:e=>!e.manual&&dupIds.has(e._id), text:e=>dupReasonMap[e._id]||"중복 참여"},
   /* solo: 이 사유가 걸리면 단독 표시. 애초에 리뷰 캡처가 아니면 '사진 없음·별점 미달'은 의미가 없음 */
   {key:"notcap",   label:"캡처·사진 아님",  solo:true,
@@ -2985,7 +2999,7 @@ async function svMakePpt(all){
 /* 사은품/상품권 */
 function isShippable(e){return shipStatus(e)==="eligible"||e.overrideEligible===true;}   // 적격 또는 수동 출고승인
 /* 포인트(2026-11-02)는 재고와 상관없어 예약발송 제품이어도 포인트 탭에 둡니다(예약발송 목록에는 안 넣음 — reserveBase) */
-function teamElig(rw){return ALL.filter(e=>e.rewardType===rw&&isShippable(e)&&(rw==="point"||!isReserve(e))&&shipStateOf(e)!=="shipped");}
+function teamElig(rw){return ALL.filter(e=>e.rewardType===rw&&isShippable(e)&&(rw==="point"||!isReserve(e))&&shipStateOf(e)!=="shipped"&&!(rw==="point"&&e.pointState));}
 /* 확인필요(AI 애매·오류). 🔴 2026-10 — 예약발송 제품도 여기에 포함합니다(예약 탭은 확인필요를 안 받으므로, 재심사는 여기서 합니다).
    ⚠️ teamElig(출고 목록)는 그대로 예약 제품을 뺍니다. */
 function teamInelig(rw){return ALL.filter(e=>e.rewardType===rw&&(shipStatus(e)==="review"||shipStatus(e)==="pending")&&!e.overrideEligible);}
@@ -3071,13 +3085,15 @@ const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>ad
 function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
   let all,cols;
   if(view==="inelig"){all=teamInelig(reward);cols=INELIG_COLS;}
+  else if(view==="planned"){all=pointPlannedList();cols=PLANNED_COLS;}
+  else if(view==="unpayable"){all=pointUnpayableList();cols=UNPAYABLE_COLS;}
   else{all=teamElig(reward);cols=(reward==="gift"?ELIG_ORDER:reward==="point"?ELIG_POINT:ELIG_ACCT);}
   const rows=slice(all,key);
   $(countId).textContent="총 "+all.length+"건";
   $(tableId+" thead").innerHTML=headHtml(cols);
   // 확인필요 행은 클릭 → 상세(이미지 + 담당자 직접 판정)
   $(tableId+" tbody").innerHTML=rows.map(e=>rowHtml(cols,e,
-    view==="inelig"?` class="clickrow" data-act="detail" data-id="${admEsc(e._id)}"`:"")).join("");
+    (view==="inelig"||view==="unpayable")?` class="clickrow" data-act="detail" data-id="${admEsc(e._id)}"${view==="unpayable"&&!isAdm(ME&&ME.role)?` data-ro="1"`:""}`:"")).join("");
   $(emptyId).style.display=all.length?"none":"block";pager(pagerId,all.length,key);
 }
 function renderOrder(){
@@ -3094,10 +3110,21 @@ function renderAcct(){
   $("#reAllAcct").style.display=(v==="inelig")?"":"none";
   renderTeam("coupon","#tableAcct","#emptyAcct","#aCount","#pagerAcct","acct",v);
 }
+const PLANNED_COLS=[["접수일자",e=>fmtDate(e._date)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["공식몰 아이디",e=>admEsc(e.pointId||"-")],["포인트",e=>admEsc(e.giftItem||"-"),"wrapcell"],["명단 받은 시각",e=>admEsc(e.pointBatch||"-")]];
+const UNPAYABLE_COLS=[["접수일자",e=>fmtDate(e._date)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["공식몰 아이디",e=>admEsc(e.pointId||"-")],["지급불가 사유",e=>admEsc(e.pointUnpaidReason||"-"),"wrapcell"],
+  ["처리",e=>admEsc(e.pointUnpaidBy||"-")+'<br><span style="color:var(--sub);font-size:11px">'+admEsc(fmtDate(tsDate(e.pointUnpaidAt)))+"</span>"],["담당 상담사",e=>admEsc(e.agent||"미배정")],["응대",e=>callBadge(e)]];
 function renderPoint(){
   const v=subView.point;
-  $("#pointHint").innerHTML=v==="inelig"?"포인트 대상 중 <b>확인필요</b> 건입니다. <b>AI 심사가 실패한 건만</b> 여기 남습니다(일시 오류·사용량 초과). '재심사'로 다시 판정하고, 계속 실패하면 행을 클릭해 <b>직접 판정</b>하세요. (별점·사진 등 기준 미충족은 '부적합' 탭에 있습니다.)":"포인트(아이닉 공식몰 적립금) 대상 <b>적합·미지급</b> 건입니다. '포인트 명단 내려받기'를 누르면 목록(성함·핸드폰·아이디·금액)을 내려받고 전부 <b>지급완료</b> 처리되어 목록에서 사라집니다. 받은 목록으로 공식몰에서 적립금을 지급해 주세요.";
+  const H={
+    elig:"포인트(아이닉 공식몰 적립금) 대상 <b>적합·미지급</b> 건입니다. '포인트 명단 내려받기'를 누르면 명단(아이디·금액·사유 — 공식몰 적립금 업로드 양식)을 내려받고, 그 명단에 있는 건이 <b>「지급예정」</b>으로 옮겨집니다.",
+    planned:"명단을 내려받아 <b>공식몰에 올리는 중인 건</b>입니다. 공식몰에서 <b>아이디 조회가 안 된 사람</b>이 있으면 <b>그 사람 줄만 엑셀에 남기고 「사유」 칸에 사유</b>를 적어 「미지급 명단 올리기」로 올려 주세요. 올린 사람은 <b>지급불가</b>(사유 그대로 부적합 탭에 등록), <b>나머지는 지급완료</b>가 되어 목록에서 사라집니다. 조회 실패가 없으면 <b>사유 없이 그대로 올려도</b> 전부 지급완료가 됩니다.",
+    unpayable:"공식몰에서 <b>아이디가 조회되지 않아 지급하지 못한</b> 건입니다. 이 건들은 <b>「부적합」 탭</b>에도 올라가 있고, 상담사가 고객에게 연락해 <b>고객정보 수정에서 공식몰 아이디</b>를 고칩니다. 저장하면 부적합에서 빠지고 <b>「적합(지급대상)」</b>으로 돌아와 다음 명단에 들어갑니다.",
+    inelig:"포인트 대상 중 <b>확인필요</b> 건입니다. <b>AI 심사가 실패한 건만</b> 여기 남습니다(일시 오류·사용량 초과). '재심사'로 다시 판정하고, 계속 실패하면 행을 클릭해 <b>직접 판정</b>하세요. (별점·사진 등 기준 미충족은 '부적합' 탭에 있습니다.)"};
+  $("#pointHint").innerHTML=H[v]||H.elig;
+  $$("#page-point .subtab").forEach(x=>x.classList.toggle("active",x.dataset.v===v));
   $("#dlPoint").style.display=(v==="elig")?"":"none";
+  $("#upPoint").style.display=(v==="planned")?"":"none";
+  $("#reDlPoint").style.display=(v==="planned")?"":"none";
   $("#reAllPoint").style.display=(v==="inelig")?"":"none";
   renderTeam("point","#tablePoint","#emptyPoint","#pCount","#pagerPoint","point",v);
 }
@@ -3134,6 +3161,7 @@ window.setOverride=setOverride;
       (조장·관리자는 담당자를 정하는 사람이라 이 잠금에서 뺍니다. 확인창은 똑같이 뜹니다.) */
 function approveGuard(id){
   const e=ALL.find(x=>x._id===id); if(!e) return true;
+  if(e.rewardType==="point"){ alert("포인트 건은 출고 승인을 쓰지 않습니다.\n고객정보 수정에서 공식몰 아이디를 고쳐 저장하면 「적합(지급대상)」으로 돌아갑니다."); return false; }
   if(opsRole()==="agent" && !e.manual){
     const me=opsMe();
     if(!e.agent){ alert("아직 담당자가 없는 건입니다.\n\n담당자를 본인으로 선택한 뒤 [출고 승인]을 눌러 주세요."); return false; }
@@ -3408,7 +3436,7 @@ function renderReserve(){
 /* 부적합 목록에 아직 남아 있는 건 = 아직 처리가 안 끝난 건.
    출고 승인을 누르면 목록에서 빠지므로 담당자별 숫자가 자동으로 줄어든다. */
 function badBase(){
-  return ALL.filter(e=>shipStatus(e)==="ineligible" && !e.overrideEligible);
+  return ALL.filter(e=>(shipStatus(e)==="ineligible" && !e.overrideEligible) || pointUnpayable(e));
 }
 function badRows(){
   const rw=$("#bfReward").value, rs=$("#bfReason").value, q=$("#bfSearch").value;
@@ -3555,7 +3583,8 @@ function openDetail(id, readOnly){
      부적합(출고승인 안 된 건)만 응대상태·결과메모·출고승인 노출.
      적격·발송완료·확인필요 건은 상태 안내만(확인필요는 재심사 버튼). */
   const st=shipStatus(e);
-  const isBad = st==="ineligible" && !e.overrideEligible;
+  const ptFail=pointUnpayable(e);           // 포인트 지급불가 건 — 부적합 카드에서 처리하고, 고객정보 수정(공식몰 아이디)·응대 기록을 씁니다. 출고 승인은 없습니다
+  const isBad = (st==="ineligible" && !e.overrideEligible) || ptFail;
   const isShipped = !!(e.shipped||e.shipState==="shipped");
   const stateHtml = statusBadge(e)+(e.overrideEligible?' <span class="pill approved">수동승인</span>':"")+" "+csShipBadge(e);
   $("#dtState").innerHTML = stateHtml;
@@ -3582,15 +3611,17 @@ function openDetail(id, readOnly){
             : (e.manualVerdict==="ineligible" && e.manualReason) ? rsn
             : (aiErrOf(e) || (st==="pending" ? rsn : ""));
   }
+  if(ptFail) rsnShow=rsn;
   $("#dtReasonRow").style.display = rsnShow ? "" : "none";
   $("#dtReasonLabel").textContent = isBad ? "부적합 사유" : (st==="review" ? "확인필요 사유" : "심사 메모");
   $("#dtReason").textContent = rsnShow||"-";
   $("#dtReason").style.color = isBad ? "var(--bad,#c0392b)" : "var(--sub)";
 
   $("#dtCallBox").style.display = (isBad && !RO) ? "" : "none";
+  { const ab=$("#dtApprove"); if(ab) ab.style.display=ptFail?"none":""; const ah=$("#dtApproveHint"); if(ah&&ptFail) ah.textContent=""; }   // 포인트 건은 출고 승인 없음
   snFillBox(e, e.type==="coupang" && isBad && !RO);      /* S/N 정정 상자 — 쿠팡 정품등록 부적합 건에만 */
   DT_PAST_ONLY = !!(isBad && !RO);          // 부적합 탭에서 연 건은 응대 기록 입력 칸이 따로 있어, 이 상자에는 변경 기록만 보입니다
-  $("#dtInfoBox").style.display = (isBad && !RO) ? "none" : "";
+  $("#dtInfoBox").style.display = (isBad && !RO && !ptFail) ? "none" : "";   // 포인트 지급불가 건은 고객정보 수정 단추를 보입니다(공식몰 아이디 수정)
   if(isBad && RO){
     /* 전체 탭에서 부적합 건을 연 경우 — 내용만 보여 주고 기록은 못 하게 합니다 */
     $("#dtReJudge").style.display="none";
@@ -3859,6 +3890,8 @@ function infoEditOpen(pend){
   $("#dtEdName").value=e.name||""; $("#dtEdPhone").value=e.phone||""; $("#dtEdAddr").value=e.address||"";
   $("#dtEdAddrWrap").style.display=(PG||infoAddrEditable(e))?"":"none";
   $("#dtEdMemo").value=PG?PG.memo:"";
+  { const ptOn=e.rewardType==="point"&&e.pointState!=="planned";      // 지급예정 중에는 아이디를 고칠 수 없습니다(공식몰에 올리는 중)
+    $("#dtEdPointWrap").style.display=ptOn?"":"none"; $("#dtEdPoint").value=e.pointId||""; $("#dtEdPointOk").checked=false; $("#dtEdPointRe").style.display=pointUnpayable(e)?"":"none"; }
   const pn=$("#dtEdPend");
   if(PG){ pn.style.display=""; pn.innerHTML='사은품 변경 진행 중: <b>'+admEsc(PG.from)+' → '+admEsc(PG.to)+'</b> (상품권 → 사은품). <b>배송 주소</b>를 넣고 저장하면 사은품 변경도 함께 저장됩니다. 취소하면 아무것도 바뀌지 않습니다.'; }
   else pn.style.display="none";
@@ -3911,7 +3944,10 @@ async function infoEditSave(){
   if(!memo) return bad("변경 사유를 적어 주세요(예: 고객이 연락처를 잘못 입력해 정정 요청).");
   const phoneChanged=pk!==(e.phoneKey||mDigits(e.phone)), nameChanged=name!==String(e.name||"").trim(), addrChanged=addrOn&&addr!==String(e.address||"").trim();
   const phoneTextChanged=phone!==String(e.phone||"").trim();
-  if(!phoneTextChanged&&!nameChanged&&!addrChanged) return bad("바뀐 내용이 없습니다.");
+  const ptOn=e.rewardType==="point"&&e.pointState!=="planned", nid=ptOn?$("#dtEdPoint").value.trim():String(e.pointId||"").trim();
+  const idChanged=ptOn&&nid!==String(e.pointId||"").trim(), reQueue=ptOn&&pointUnpayable(e)&&$("#dtEdPointOk").checked;
+  if(ptOn&&!POINT_ID_RE.test(nid)) return bad("공식몰 아이디 형식이 맞지 않습니다(영문·숫자로 시작, 4~60자).");
+  if(!phoneTextChanged&&!nameChanged&&!addrChanged&&!idChanged&&!reQueue) return bad("바뀐 내용이 없습니다.");
   const dupMsg=infoDupReason(e,name,pk,addr,phoneChanged,nameChanged||addrChanged);
   if(dupMsg) return bad(dupMsg);
   /* 구글폼 참여 이력 — 접수폼으로 들어온 건만(서버 접수와 같은 기준). 번호는 서버로만 보내고 화면·기록에 남기지 않습니다. */
@@ -3923,19 +3959,25 @@ async function infoEditSave(){
     if(lg&&lg.ok&&mLgOf(lg,{codes:sibs})>0) return bad("구글폼으로 이미 이 제품에 참여한 번호입니다. 이 번호로는 바꿀 수 없습니다.");
     if(!lg||!lg.ok){ msg.textContent=""; if(!confirm("구글폼 참여 이력을 확인하지 못했습니다.\n그래도 이 번호로 바꿀까요?")) return false; }
   }
-  const fields=[phoneChanged||phoneTextChanged?"연락처":"", nameChanged?"성함":"", addrChanged?"주소":""].filter(Boolean);
+  const fields=[phoneChanged||phoneTextChanged?"연락처":"", nameChanged?"성함":"", addrChanged?"주소":"", idChanged?"공식몰 아이디":"", reQueue&&!idChanged?"재지급 대기":""].filter(Boolean);
   const warn=(phoneChanged&&(e.mkSheetAt||e.cnSyncAt))?"\n\n※ 이미 마케팅 시트·수신동의 장부에 올라간 예전 연락처는 자동으로 고쳐지지 않습니다.":"";
   if(!confirm("고객정보를 수정합니다.\n\n고치는 항목: "+fields.join(" · ")+"\n"
     +(nameChanged?"성함: "+(e.name||"-")+" → "+name+"\n":"")
     +(phoneChanged||phoneTextChanged?"연락처: "+(e.phone||"-")+" → "+phone+"\n":"")
     +(addrChanged?"주소: "+(e.address||"-")+" → "+addr+"\n":"")
     +(PG?"사은품: "+PG.from+" → "+PG.to+" (상품권 → 사은품)\n":"")
+    +(idChanged?"공식몰 아이디를 고칩니다.\n":"")+((idChanged||reQueue)&&pointUnpayable(e)?"저장하면 부적합에서 빠지고 「적합(지급대상)」으로 돌아갑니다.\n":"")
     +"\n중복 확인 기준도 새 값으로 바뀝니다."+warn+"\n\n수정할까요?")) return false;
   const patch=Object.assign({ name, phone },
     infoKeysOf(e,name,pk,addrOn?addr:String(e.address||"").trim()),
     addrOn?{ address:addr }:{},
     { infoEditedAt:firebase.firestore.FieldValue.serverTimestamp(), infoEditedBy:(ME&&ME.name)||"", infoEditedByUid:(ME&&ME.uid)||"",
       infoEditedFields:fields, infoEditCount:(parseInt(e.infoEditCount,10)||0)+1 });
+  /* 🔴 포인트: 공식몰 아이디 수정 · 지급불가 건은 미지급 표시를 지우고 상태(status)를 원래대로 되돌립니다 → 다시 「적합(지급대상)」 */
+  const ptFixed=ptOn&&(idChanged||reQueue);
+  if(ptFixed){ const fv=firebase.firestore.FieldValue;
+    Object.assign(patch,{ pointId:nid, pointFixedAt:fv.serverTimestamp(), pointFixedBy:(ME&&ME.name)||"", pointFixedByUid:(ME&&ME.uid)||"", pointFixCount:(parseInt(e.pointFixCount,10)||0)+1 });
+    if(pointUnpayable(e)){ patch.pointState=fv.delete(); patch.status=e.pointPrevStatus||"eligible"; } }
   /* 상품권 건은 주소가 없어 열쇠가 null 입니다 — 처음부터 없던 칸을 새로 만들지 않도록 */
   if(!addrOn&&!String(e.address||"").trim()){ delete patch.nameAddrKey; delete patch.kNA; }
   if(PG) Object.assign(patch,{ giftItem:PG.to, giftEditedFrom:PG.from, giftExtra:PG.isEx, rewardType:"gift", shipFee:PG.fee,
@@ -3951,6 +3993,7 @@ async function infoEditSave(){
   }
   btn.disabled=false;
   Object.assign(e,patch,{ infoEditedAt:new Date(), ...(PG?{ giftEditedAt:new Date() }:{}) });
+  if(ptFixed){ e.pointFixedAt=new Date(); if(patch.pointState&&typeof patch.pointState==="object") delete e.pointState; logAccess("포인트 아이디 수정",pointUnpayable(e)?"지급불가 유지":"지급불가 → 재지급 대기",1); }   // 이름·아이디·사유는 남기지 않습니다
   GIFT_PENDING=null; $("#dtEdPend").style.display="none";
   if(PG){ logAccess("사은품 변경",[typeText(e),e.product||"-",PG.from+" → "+PG.to+(PG.isEx?" (예외)":""),"종류 변경 상품권→사은품"].join(" · "),1); $("#dtReward").textContent=rwText(e); $("#dtFee").innerHTML=shipFeeBadge(e); }
   logAccess("고객정보 수정",[typeText(e),e.product||"-",e.manual?"수기":"접수폼","항목: "+fields.join("·")].join(" · "),1);   // 이름·번호·주소·사유는 적지 않습니다
@@ -5300,19 +5343,118 @@ async function dlShipTemplate(rw,fname){
    내려받은 뒤에는 일괄출고와 같이 지급완료(shipState=shipped)로 기록합니다 — 같은 목록을 다시 받아 두 번 지급하지 않게. */
 const maskMid=p=>{ const d=String(p||"").replace(/\D/g,""); if(d.length===11) return d.slice(0,3)+"-****-"+d.slice(7); if(d.length===10) return d.slice(0,3)+"-***-"+d.slice(6); return d.length>4?"*".repeat(d.length-4)+d.slice(-4):""; };
 const pointWon=e=>{ const m=String(e.giftItem||"").match(/([\d,]+)\s*원/); const n=m?parseInt(m[1].replace(/,/g,""),10):NaN; return (isFinite(n)&&n>0) ? n*Math.max(1,parseInt(e.giftQty,10)||1) : null; };
-const POINT_XLS_REASON="포토리뷰 이벤트 적립금";      // 공식몰 적립금 일괄 등록의 사유 칸(고정)
+/* 🔴 포인트 명단 엑셀 = 공식몰(카페24) 적립금 업로드 양식 그대로: 아이디 · 금액 · 사유 (2026-11-03 사용자 요청). 사유는 항상 아래 글자, 금액은 10000(포인트 이름의 「○○원」이 있으면 그 금액 × 수량). */
+const POINT_XLS_REASON="포토리뷰 적립 지급";
+const POINT_XLS_WON=10000;
+const pointRowsOf=list=>list.map(e=>{ const w=pointWon(e); return {"아이디":e.pointId||"","금액":w==null?POINT_XLS_WON:w,"사유":POINT_XLS_REASON}; });
+const pointBatchId=()=>{ const d=new Date(), p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes()); };
 async function dlPointList(){
   if(SHIP2_OPEN) return;
   const list0=teamElig("point");
   if(!list0.length){alert("대상 데이터가 없습니다.");return;}
   const f=await shipFresh(list0); if(!f) return; const list=f.out;
-  const noId=list.filter(e=>!e.pointId).length, noWon=list.filter(e=>pointWon(e)==null).length;
-  const rows=list.map(e=>{ const w=pointWon(e); return {"성함":e.name||"","핸드폰":maskMid(e.phone),"아이디":e.pointId||"","금액":w==null?"":w,"사유":POINT_XLS_REASON}; });
-  if(!confirm(list.length+"건의 포인트 명단을 내려받고 '지급완료' 처리합니다.\n지급완료된 건은 목록에서 사라집니다. 계속할까요?"+f.note
+  const noId=list.filter(e=>!e.pointId).length, noWon=0;
+  if(!confirm(list.length+"건의 포인트 명단을 내려받고 「지급예정」으로 옮깁니다.\n받은 엑셀을 공식몰에 올린 뒤, 「지급예정」 탭의 「미지급 명단 올리기」로 마무리해 주세요."+f.note
     +(noId?"\n\n⚠️ 공식몰 아이디가 없는 건이 "+noId+"건 있습니다 — 아이디 칸이 비어 나갑니다.":"")
     +(noWon?"\n\n⚠️ 포인트 이름에서 금액을 읽지 못한 건이 "+noWon+"건 있습니다 — 금액 칸이 비어 나갑니다.":"")))return;
-  if(!downloadSheets([{name:"포인트",rows}],"아이닉_포인트지급"))return;
-  await shipCommit(list);
+  /* 먼저 지급예정으로 기록하고(실패하면 파일도 받지 않습니다), 그다음 엑셀을 받습니다 */
+  const batch=pointBatchId();
+  try{
+    const db=await initFirebase(), fv=firebase.firestore.FieldValue;
+    for(let i=0;i<list.length;i+=300){
+      const b=db.batch();
+      list.slice(i,i+300).forEach(e=>b.update(db.collection(COLLECTION).doc(e._id),{pointState:"planned",pointBatch:batch,pointPlannedAt:fv.serverTimestamp(),pointPlannedBy:(ME&&ME.name)||"",pointPlannedByUid:(ME&&ME.uid)||""}));
+      await b.commit();
+    }
+  }catch(err){ alert("지급예정으로 옮기지 못했습니다: "+(err.message||err)+"\n엑셀은 받지 않았습니다. 새로고침한 뒤 다시 시도해 주세요."); return; }
+  list.forEach(e=>{ e.pointState="planned"; e.pointBatch=batch; });
+  logAccess("포인트 명단 내려받기","지급예정 "+list.length+"건",list.length);
+  downloadSheets([{name:"포인트",rows:pointRowsOf(list)}],"아이닉_포인트지급");
+  subView.point="planned"; $$("#page-point .subtab").forEach(x=>x.classList.toggle("active",x.dataset.v==="planned")); renderActiveTab();
+}
+/* 지급예정 건의 명단을 다시 받습니다(파일을 못 받았거나 잃어버렸을 때) — 상태는 바꾸지 않습니다 */
+function dlPointAgain(){
+  const list=pointPlannedList();
+  if(!list.length){alert("지급예정 건이 없습니다.");return;}
+  if(!confirm("지급예정 "+list.length+"건의 명단을 다시 받습니다.\n상태는 바뀌지 않습니다."))return;
+  downloadSheets([{name:"포인트",rows:pointRowsOf(list)}],"아이닉_포인트지급_다시");
+  logAccess("포인트 명단 다시 받기","지급예정 "+list.length+"건",list.length);
+}
+/* 가운데 창 — 글자는 호출하는 쪽이 admEsc 로 이스케이프해서 넘깁니다 */
+function ptDialog(title,html,buttons){
+  const bg=document.createElement("div"); bg.setAttribute("role","dialog"); bg.setAttribute("aria-modal","true");
+  bg.style.cssText="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px";
+  const box=document.createElement("div"); box.style.cssText="background:#fff;border-radius:12px;max-width:620px;width:100%;max-height:88vh;overflow:auto;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:14px;line-height:1.6";
+  const h=document.createElement("div"); h.style.cssText="font-weight:800;font-size:16px;margin-bottom:8px"; h.textContent=title;
+  const body=document.createElement("div"); body.innerHTML=html;
+  const bar=document.createElement("div"); bar.style.cssText="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap";
+  const close=()=>bg.remove();
+  (buttons||[]).forEach(b=>{ const x=document.createElement("button"); x.type="button"; x.className=b.primary?"primary":""; x.textContent=b.t; x.style.cssText="min-height:40px;padding:0 16px";
+    x.onclick=async()=>{ if(!b.fn){ close(); return; } x.disabled=true; try{ await b.fn(close,body); } finally{ x.disabled=false; } }; bar.append(x); });
+  box.append(h,body,bar); bg.append(box); document.body.append(bg); return { close, body };
+}
+/* 올린 명단 읽기 — 사유가 적힌 줄 = 지급불가, 지급예정의 나머지 = 지급완료.
+   · 사유가 비었거나 「포토리뷰 이벤트 적립금」 그대로인 줄은 지급 완료로 보고 건드리지 않습니다.
+   · 성함 + 핸드폰 끝 4자리 + 아이디로 지급예정 건을 찾습니다(핸드폰 가운데는 가려져 있음).
+   · 안전장치: 못 찾은 줄이나 헷갈리는 줄이 하나라도 있으면 아무것도 처리하지 않습니다(엉뚱한 건이 지급완료되는 것을 막기 위해). */
+function pointUnpaidPlan(rows){
+  const ik=s=>String(s==null?"":s).trim().toLowerCase();
+  const planned=pointPlannedList(), pm=new Map(), already=new Set();
+  planned.forEach(e=>{ const k=ik(e.pointId); if(!pm.has(k)) pm.set(k,[]); pm.get(k).push(e); });
+  ALL.forEach(e=>{ if(pointUnpayable(e)) already.add(ik(e.pointId)); });
+  const want=new Map(); let skipped=0;
+  rows.forEach(r=>{ const why=String(r["사유"]==null?"":r["사유"]).trim(); if(!why||why===POINT_XLS_REASON){ skipped++; return; }
+    const id=ik(r["아이디"]); if(!want.has(id)) want.set(id,{ id:String(r["아이디"]==null?"":r["아이디"]).trim(), why }); });
+  /* 아이디가 조회 실패이면 같은 아이디의 지급예정 건은 모두 지급불가입니다(한 고객이 두 번 접수했어도 아이디는 같음) */
+  const fails=[], notFound=[], dup=[];
+  want.forEach((w,id)=>{ const c=pm.get(id)||[];
+    if(!c.length){ (id&&already.has(id)?dup:notFound).push(w); return; }
+    c.forEach(e=>fails.push({e,why:w.why})); });
+  const failIds=new Set(fails.map(x=>x.e._id)), rest=planned.filter(e=>!failIds.has(e._id));
+  return { fails, rest, notFound, ambiguous:[], dup, skipped, total:rows.length, batches:[...new Set(planned.map(e=>e.pointBatch||"-"))] };
+}
+async function pointUploadPick(file){
+  if(!file) return;
+  let rows;
+  try{
+    if(typeof XLSX==="undefined") throw new Error("엑셀 읽기 도구를 불러오지 못했습니다(인터넷 연결을 확인해 주세요)");
+    const wb=XLSX.read(await file.arrayBuffer(),{type:"array"}); rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
+  }catch(err){ alert("파일을 읽지 못했습니다: "+(err.message||err)); return; }
+  if(!rows.length){ alert("줄이 없는 파일입니다."); return; }
+  const heads=Object.keys(rows[0]), miss=["아이디","사유"].filter(h=>!heads.includes(h));
+  if(miss.length){ alert("명단 파일에 필요한 칸이 없습니다: "+miss.join(", ")+"\n「포인트 명단 내려받기」로 받은 파일 그대로(칸 이름 아이디·금액·사유를 바꾸지 말고) 올려 주세요."); return; }
+  const pl=pointUnpaidPlan(rows);
+  if(!pl.fails.length&&!pl.rest.length&&!pl.notFound.length){ alert("지급예정 건이 없습니다."); return; }
+  const blocked=pl.notFound.length>0;
+  const failHtml=pl.fails.length?'<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#fdecec"><b>지급불가로 바꿈 '+pl.fails.length+'건</b> — 사유를 그대로 읽어 부적합 탭에 등록합니다.<ul style="margin:6px 0 0 18px;padding:0">'
+    +pl.fails.slice(0,30).map(x=>"<li>"+admEsc(x.e.name)+" · 아이디 "+admEsc(x.e.pointId||"-")+" — "+admEsc(x.why)+"</li>").join("")+(pl.fails.length>30?"<li>…외 "+(pl.fails.length-30)+"건</li>":"")+'</ul></div>'
+    :'<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#eef6ee">사유가 적힌 줄이 <b>없습니다</b> — 조회 실패가 없는 것으로 봅니다.</div>';
+  const html='<div>올린 줄 <b>'+pl.total+'</b>줄 · 사유가 없거나 「'+admEsc(POINT_XLS_REASON)+'」 그대로인 줄 '+pl.skipped+'줄(지급 완료로 봄)</div>'+failHtml
+    +'<div style="margin-top:8px;padding:10px 12px;border-radius:10px;background:#eef6ee"><b>지급완료로 바뀜 '+pl.rest.length+'건</b> — 지급예정에서 사라집니다(공식몰에 정상 적립된 것으로 봅니다).'+(pl.batches.length>1?'<div style="color:#b26a00;font-weight:700;margin-top:4px">⚠️ 서로 다른 명단('+pl.batches.map(admEsc).join(", ")+')이 지급예정에 섞여 있습니다 — 모두 지급완료가 됩니다.</div>':'')+'</div>'
+    +(pl.notFound.length?'<div style="margin-top:8px;padding:10px 12px;border-radius:10px;background:#fff7e6"><b>못 찾음 '+pl.notFound.length+'건</b> — 지급예정에 이 아이디의 건이 없습니다.<ul style="margin:6px 0 0 18px;padding:0">'+pl.notFound.slice(0,15).map(x=>"<li>"+admEsc(x.id||"(아이디 칸 비어 있음)")+" — "+admEsc(x.why)+"</li>").join("")+(pl.notFound.length>15?"<li>…외 "+(pl.notFound.length-15)+"건</li>":"")+'</ul></div>':'')
+    +(pl.dup.length?'<div style="margin-top:8px;color:var(--sub)">이미 지급불가 처리된 아이디 '+pl.dup.length+'건은 건너뜁니다.</div>':'')
+    +(blocked?'<div style="margin-top:10px;font-weight:800;color:#b23b3b">⚠️ 지급예정에 없는 아이디가 있어 <b>아무것도 처리하지 않습니다.</b> 파일을 확인한 뒤 다시 올려 주세요(내려받은 파일 그대로, 아이디 글자를 바꾸지 마세요).</div>':'<div style="margin-top:10px">진행할까요?</div>');
+  if(blocked||(!pl.rest.length&&!pl.fails.length)){ ptDialog("미지급 명단 확인",html,[{t:"닫기"}]); return; }
+  ptDialog("미지급 명단 확인",html,[{t:"취소"},{t:"처리 (지급불가 "+pl.fails.length+" · 지급완료 "+pl.rest.length+")",primary:true,fn:async(close)=>{ if(await pointUnpaidApply(pl)){ close(); alert("처리했습니다.\n지급불가 "+pl.fails.length+"건 · 지급완료 "+pl.rest.length+"건"); } }}]);
+}
+async function pointUnpaidApply(pl){
+  const db=await initFirebase(), fv=firebase.firestore.FieldValue; let nf=0, nd=0;
+  try{
+    for(let i=0;i<pl.fails.length;i+=250){
+      const b=db.batch();
+      pl.fails.slice(i,i+250).forEach(({e,why})=>b.update(db.collection(COLLECTION).doc(e._id),{pointState:"unpayable",pointUnpaidReason:why.slice(0,100),pointUnpaidAt:fv.serverTimestamp(),pointUnpaidBy:(ME&&ME.name)||"",pointUnpaidByUid:(ME&&ME.uid)||"",pointPrevStatus:e.status||"eligible",status:"ineligible"}));
+      await b.commit(); nf+=Math.min(250,pl.fails.length-i);
+    }
+    for(let i=0;i<pl.rest.length;i+=250){
+      const b=db.batch();
+      pl.rest.slice(i,i+250).forEach(e=>b.update(db.collection(COLLECTION).doc(e._id),{pointState:fv.delete(),shipState:"shipped",shipped:true,shippedAt:fv.serverTimestamp(),mkShipNeed:true}));
+      await b.commit(); nd+=Math.min(250,pl.rest.length-i);
+    }
+  }catch(err){ alert("처리 중 오류가 났습니다: "+(err.message||err)+"\n지급불가 "+nf+"건 · 지급완료 "+nd+"건까지 처리됐습니다. 화면을 새로고침해 확인한 뒤, 같은 파일을 다시 올리면 남은 건을 이어서 처리합니다."); return false; }
+  pl.fails.forEach(({e,why})=>{ e.pointPrevStatus=e.status||"eligible"; e.status="ineligible"; e.pointState="unpayable"; e.pointUnpaidReason=why.slice(0,100); e.pointUnpaidAt=new Date(); e.pointUnpaidBy=(ME&&ME.name)||""; });
+  pl.rest.forEach(e=>{ delete e.pointState; e.shipState="shipped"; e.shipped=true; e.shippedAt=new Date(); });
+  logAccess("포인트 지급불가·지급완료 처리","지급불가 "+nf+"건 · 지급완료 "+nd+"건",nf+nd);      // 건수만 — 이름·아이디·사유는 남기지 않습니다
+  subView.point=nf?"unpayable":"elig"; renderActiveTab(); return true;
 }
 /* 두 번째 파일 안내창 — 버튼 누름으로 받아야 브라우저가 막지 않습니다. 결과: true = 두 파일 받음 확인 → 출고완료, false = 그만두기 */
 let SHIP2_OPEN=false;
@@ -5354,7 +5496,9 @@ function ship2Dialog(first,second,dlSecond){
 function updateTabCounts(){
   const put=(k,html)=>{const el=document.querySelector('[data-tcs="'+k+'"]');if(el)el.innerHTML=html;};
   const b=(n,c)=>n>0?`<i class="${c||""}">${n}</i>`:"";
-  [["order","gift"],["acct","coupon"],["point","point"]].forEach(([k,rw])=>{put(k,b(teamElig(rw).length)+b(teamInelig(rw).length,"w"));});
+  [["order","gift"],["acct","coupon"],["point","point"]].forEach(([k,rw])=>{
+    if(k==="point"){ put(k,b(teamElig(rw).length)+b(pointPlannedList().length,"a")+b(pointUnpayableList().length,"b")+b(teamInelig(rw).length,"w")); return; }
+    put(k,b(teamElig(rw).length)+b(teamInelig(rw).length,"w")); });
   put("bad",b(badBase().length,"b"));
   put("reserve",b(reserveList("").length,"a"));
 }
@@ -6482,6 +6626,9 @@ $("#dlAcct").addEventListener("click",()=>dlShipTemplate("coupon","아이닉_상
 $("#reAllOrder").addEventListener("click",()=>reJudgeAll());
 $("#reAllAcct").addEventListener("click",()=>reJudgeAll());
 $("#dlPoint").addEventListener("click",()=>dlPointList());
+$("#reDlPoint").addEventListener("click",()=>dlPointAgain());
+$("#upPoint").addEventListener("click",()=>$("#upPointFile").click());
+$("#upPointFile").addEventListener("change",e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=""; pointUploadPick(f); });
 $("#reAllPoint").addEventListener("click",()=>reJudgeAll());
 $("#reload").addEventListener("click",loadData);
 onTypeChange();
@@ -6520,12 +6667,12 @@ const DL_BY_ROLE = {
   master: null,                              // 전부
   /* 2026-10-13 — 전체 CSV(csvBtn)는 마스터(관리자 역할 master)만. QA 는 나머지는 관리자와 같지만 이 버튼만 뺍니다.
      ⚠️ 버튼 숨김은 화면 편의일 뿐이고, 실제 막는 곳은 서버(ordersApi exportAllCsv — master 만 허용)입니다. */
-  qa:     ["svPpt","svPptAll","dlOrder","dlAcct","dlPoint","dlBad","dlReserve"],   // 2026-10-13: 전체 CSV·전체 엑셀 모두 마스터만
-  order:  ["dlOrder","dlAcct","dlPoint","dlReserve"],  // 사은품·상품권 일괄출고 · 포인트 지급 목록(2026-11-02) · 예약발송 문자 안내 목록
-  acct:   ["dlOrder","dlAcct","dlPoint","dlReserve"],
+  qa:     ["svPpt","svPptAll","dlOrder","dlAcct","dlPoint","upPoint","reDlPoint","dlBad","dlReserve"],   // 2026-10-13: 전체 CSV·전체 엑셀 모두 마스터만
+  order:  ["dlOrder","dlAcct","dlPoint","upPoint","reDlPoint","dlReserve"],  // 사은품·상품권 일괄출고 · 포인트 지급 목록(2026-11-02) · 예약발송 문자 안내 목록
+  acct:   ["dlOrder","dlAcct","dlPoint","upPoint","reDlPoint","dlReserve"],
   agent:  []                                 // 없음
 };
-const DL_BUTTONS = ["csvBtn","xlsxBtn","svPpt","svPptAll","dlOrder","dlAcct","dlPoint","dlBad","dlReserve"];
+const DL_BUTTONS = ["csvBtn","xlsxBtn","svPpt","svPptAll","dlOrder","dlAcct","dlPoint","upPoint","reDlPoint","dlBad","dlReserve"];
 function applyDownloadsForRole(){
   const allow = DL_BY_ROLE[(ME&&ME.role)||"agent"];
   DL_BUTTONS.forEach(id=>{

@@ -1387,7 +1387,9 @@ const srcKeyOf = v => String(v==null?"":v)
 const SRC_ALL="*";
 /* 🔴 2026-10-29 「전 사이트」 = 판매처 전부에서 제외(rule.exSrcs, 이름이 똑같은 곳만)한 곳 빼고. 쿠팡·로켓배송은 항상 빠짐. ⚠️ 서버 eventApi srcAllHit 와 같은 규칙 */
 const SRC_NEVER=["쿠팡","로켓"];
-function srcAllHit(rule, sk){ return !SRC_NEVER.some(w=>sk.includes(w)) && !(rule.exSrcs||[]).some(x=>srcKeyOf(x)===sk); }
+/* 🔴 2026-11-03 사용자 요청 — 원장 거래처명 「쿠팡2」는 빼지 않습니다(이름이 똑같을 때만 — 원장에 구매 기록이 있어 포토리뷰로 접수되는 쿠팡 판매처). 칩으로 고를 수 있고 「전 사이트」에도 들어갑니다. ⚠️ 서버 eventApi 의 SRC_KEEP 와 같은 목록 */
+const SRC_KEEP=["쿠팡2"];
+function srcAllHit(rule, sk){ return !(SRC_NEVER.some(w=>sk.includes(w)) && !SRC_KEEP.some(x=>srcKeyOf(x)===sk)) && !(rule.exSrcs||[]).some(x=>srcKeyOf(x)===sk); }
 function srcHit(rule, src){
   const sk = srcKeyOf(src);
   if(!sk) return false;

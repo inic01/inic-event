@@ -1523,6 +1523,8 @@ const POINT_NOTICE="적립금은 고객님의 <b>아이닉 공식몰 아이디</
 const POINT_ACK="네, 확인했습니다";
 const POINT_WARN="{{적립금은 아래 공식몰 아이디로 지급됩니다.}} 아이디가 조회되지 않으면 지급이 어려우니 한 번 더 확인해 주세요.";
 const POINT_PAID="신청하신 ○○이 {{○○}} 지급되었습니다.\n아이닉 공식몰 마이페이지에서 적립금을 확인해 주세요.\n확인이 안 되시면 아래 채널을 통해 ‘채팅상담’을 선택하여 문의해 주세요.";
+/* 🔴 공식몰 로그인 주소(2026-11-03) — 로그인하면 마이페이지(/myshop/index.html)로 이동합니다. 공식몰(카페24) 쪽 주소가 바뀌면 여기를 고치세요. */
+const POINT_LOGIN_URL="https://i-nic.co.kr/member/login.html?returnUrl=%2Fmyshop%2Findex.html";
 const POINT_GUIDE_IMG="guide/inic-id.webp";    // 공식몰 아이디 확인 방법 안내 이미지(담당자 제작 — 깃허브 guide 폴더에 이 이름으로)
 /* ============================================================ */
 
@@ -2193,6 +2195,7 @@ function pointIdHtml(){
     +'<input type="text" id="pointId" maxlength="60" placeholder="예) inic1234 · 1234567890@k" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(state.pointId||"")+'">'
     +'<div class="hint">공식몰 마이페이지 → 회원 정보 수정에 보이는 아이디를 그대로 적어 주세요.</div>'
     +'<div class="err" id="err-pointId">아이닉 공식몰 아이디를 정확히 입력해 주세요.</div>'
+    +'<a class="ogbtn" id="pointLogin" href="'+POINT_LOGIN_URL+'" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">🔑 공식몰 아이디 확인하기 (새 창)</a>'
     +'<button type="button" class="ogbtn" onclick="openPointIdEx()">🔍 공식몰 아이디 확인 방법 보기</button></div>';
 }
 function bindPointId(){

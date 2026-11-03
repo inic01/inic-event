@@ -1960,6 +1960,9 @@ const REWARD_LABEL={gift:"사은품",coupon:"상품권",point:"포인트"};
 const rwOf=t=>(t==="coupon"||t==="point")?t:"gift";
 const POINT_ID_RE=/^[A-Za-z0-9][A-Za-z0-9@._-]{3,59}$/;
 /* 상세 화면의 「보상」 한 줄 — 포인트면 공식몰 아이디를 함께(글자로만 넣습니다 — textContent) */
+/* 공식몰 아이디 확인 결과(2026-11-03) — 접수 때 서버가 공식몰(카페24)에서 확인한 값. phone=구매 확인된 번호와 일치 · ok=공식몰에 있음 · unchecked=카페24 연결 문제로 못 확인(미확인). 값이 없는 건 옛 접수 */
+const ptChkText=e=>e.pointIdCheck==="phone"?"확인됨 · 번호 일치":e.pointIdCheck==="ok"?"확인됨":e.pointIdCheck==="unchecked"?"미확인":"";
+const ptChkCell=e=>{ const s=ptChkText(e); return s?'<span style="font-weight:800;color:'+(e.pointIdCheck==="unchecked"?"#b26a00":"#1f7a45")+'">'+s+'</span>':'<span class="sub">-</span>'; };
 const rwText=e=>[REWARD_LABEL[e.rewardType]||"사은품/상품권", e.giftItem||"-"].join(" : ")+(e.rewardType==="point"?" · 공식몰 아이디 "+(e.pointId||"(없음)")+(e.pointState==="planned"?" · 지급예정":e.pointState==="unpayable"?" · ⚠ 지급불가("+(e.pointUnpaidReason||"사유 없음")+")":""):"");
 /* 🔴 포인트 지급 3단계 (2026-11-03 사용자 구도) — 접수 건의 pointState:
      (없음) = 「적합(지급대상)」 · planned = 「지급예정」(명단을 내려받음) · unpayable = 「지급불가」(공식몰에서 아이디 조회 안 됨 — status 를 ineligible 로 바꿔 부적합 탭에서 상담사가 처리).
@@ -3074,7 +3077,7 @@ const ELIG_ORDER=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>apvCell(e
   SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
 /* 포인트 — 배송·S/N 대신 공식몰 아이디 */
 const ELIG_POINT=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>apvCell(e)],TYPE_COL,["검수",e=>eligCheck(e)],["포인트",e=>admEsc(e.giftItem||"-"),"wrapcell"],
-  ["공식몰 아이디",e=>admEsc(e.pointId||"-")],["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")]];
+  ["공식몰 아이디",e=>admEsc(e.pointId||"-")],["공식몰 확인",e=>ptChkCell(e)],["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")]];
 const ELIG_ACCT=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>apvCell(e)],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
   SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
 /* 확인필요 = 재심사 담당. 재심사 누르면 결과에 따라 적합/부적합으로 자동 이동 */
@@ -3110,7 +3113,7 @@ function renderAcct(){
   $("#reAllAcct").style.display=(v==="inelig")?"":"none";
   renderTeam("coupon","#tableAcct","#emptyAcct","#aCount","#pagerAcct","acct",v);
 }
-const PLANNED_COLS=[["접수일자",e=>fmtDate(e._date)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["공식몰 아이디",e=>admEsc(e.pointId||"-")],["포인트",e=>admEsc(e.giftItem||"-"),"wrapcell"],["명단 받은 시각",e=>admEsc(e.pointBatch||"-")]];
+const PLANNED_COLS=[["접수일자",e=>fmtDate(e._date)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["공식몰 아이디",e=>admEsc(e.pointId||"-")],["공식몰 확인",e=>ptChkCell(e)],["포인트",e=>admEsc(e.giftItem||"-"),"wrapcell"],["명단 받은 시각",e=>admEsc(e.pointBatch||"-")]];
 const UNPAYABLE_COLS=[["접수일자",e=>fmtDate(e._date)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["공식몰 아이디",e=>admEsc(e.pointId||"-")],["지급불가 사유",e=>admEsc(e.pointUnpaidReason||"-"),"wrapcell"],
   ["처리",e=>admEsc(e.pointUnpaidBy||"-")+'<br><span style="color:var(--sub);font-size:11px">'+admEsc(fmtDate(tsDate(e.pointUnpaidAt)))+"</span>"],["담당 상담사",e=>admEsc(e.agent||"미배정")],["응대",e=>callBadge(e)]];
 function renderPoint(){
@@ -4142,7 +4145,7 @@ function renderCS(){
       <div class="csdetail">
         <div><b>제품</b>${admEsc(e.product||"-")}</div>
         <div><b>${REWARD_LABEL[clsRw(e.rewardType)]||"사은품/상품권"}</b>${admEsc(e.giftItem||"-")}</div>
-        ${e.rewardType==="point"?`<div><b>공식몰 아이디</b>${admEsc(e.pointId||"-")}</div>`:""}
+        ${e.rewardType==="point"?`<div><b>공식몰 아이디</b>${admEsc(e.pointId||"-")}${ptChkText(e)?` <span style="font-weight:800;color:${e.pointIdCheck==="unchecked"?"#b26a00":"#1f7a45"}">(${ptChkText(e)})</span>`:""}</div>`:""}
         <div><b>수량</b>${giftQtyHtml(e)}</div>
         <div><b>판매처</b>${admEsc(srcOf(e)||"-")}</div>
         <div><b>주문번호</b>${admEsc(e.orderNo||"-")}</div>
@@ -9315,6 +9318,8 @@ const DEFAULTS = {
     serialMissing:  { t:"시리얼번호(S/N)를 입력해 주세요.", k:false },
     /* 2026-11-02 — 포인트 건의 공식몰 아이디 형식이 맞지 않아 서버가 받지 않았을 때 (접수폼 API_ERR 과 같은 글자) */
     pointIdInvalid: { t:"아이닉 공식몰 아이디를 다시 확인해 주세요.\n공식몰 마이페이지 → 회원 정보 수정에 보이는 아이디를 그대로 적어 주세요.", k:false },
+    /* 2026-11-03 — 공식몰(카페24)에서 찾을 수 없는 아이디라 서버가 받지 않았을 때 (접수폼 API_ERR 과 같은 글자) */
+    pointIdNone: { t:"공식몰에서 찾을 수 없는 아이디입니다.\n공식몰 마이페이지 → 회원 정보 수정에 보이는 아이디를 다시 확인해 주세요.", k:false },
     /* 2026-10-06 — 접수 중에 동의 항목이 바뀌어 서버가 받지 않았을 때 (접수폼 API_ERR 과 같은 글자) */
     consentChanged: { t:"참여 안내 내용이 변경되었습니다.\n화면을 새로고침한 뒤 다시 접수해 주세요.", k:false },
     /* 2026-10-06 — 접수 저장 응답이 90초 넘게 없을 때 (접수폼 API_ERR 과 같은 글자) */
@@ -10993,6 +10998,7 @@ const NOTICE_GROUPS = [
     ["buyImageMissing","구매내역 캡처 없음",   "쿠팡 정품등록 · 필수인 구매내역 캡처 없이 접수됐을 때"],
     ["serialMissing",  "S/N 미입력",           "쿠팡 정품등록 · 필수인 S/N 없이 접수됐을 때"],
     ["pointIdInvalid", "공식몰 아이디 오류",   "포인트 · 공식몰 아이디 형식이 맞지 않을 때"],
+    ["pointIdNone",    "공식몰에 없는 아이디", "포인트 · 공식몰(카페24)에서 찾을 수 없는 아이디일 때"],
     ["consentChanged", "동의 항목 변경",       "고객이 접수하는 사이 동의 항목 설정이 바뀌었을 때"],
     ["submitTimeout",  "응답 지연",            "접수 저장 응답이 90초 넘게 없을 때 · 입력은 그대로 남습니다"],
     ["submitErr",      "접수 중 오류",         "그 밖의 오류일 때"]
@@ -11429,7 +11435,7 @@ const NT_KAKAO_KEYS = new Set([
   "rate","noTarget","readFail","dupAll","checkConsult","checkWait","doneGiftReserve",
   "fileTooBig","netFail","uploadFail","fileNotImage",
   "submitRate","tokenExpired","productMismatch","inputInvalid","originBlocked",
-  "imageMissing","snImageMissing","buyImageMissing","serialMissing","pointIdInvalid","consentChanged","submitTimeout","submitErr"
+  "imageMissing","snImageMissing","buyImageMissing","serialMissing","pointIdInvalid","pointIdNone","consentChanged","submitTimeout","submitErr"
 ]);
 const ntKakaoOk = k => NT_KAKAO_KEYS.has(k) || /^(notFound|checkShipped|dupAsk)/.test(k);
 const phN = t => (String(t == null ? "" : t).match(/○○|○/g) || []).length;

@@ -180,6 +180,9 @@
   .found{margin-top:12px;padding:14px;border:1.5px solid #bfe3cd;background:#eaf6ef;border-radius:12px;color:#1f7a45;font-weight:800;font-size:14.5px;line-height:1.5}
   .found small{display:block;font-weight:600;color:#3d7a57;font-size:12.5px;margin-top:3px}
   .spin{margin-top:12px;padding:14px;border:1.5px dashed #dcd3c8;border-radius:12px;color:#8a827c;font-weight:700;font-size:14px;text-align:center}
+  .pidopt{display:flex;align-items:center;gap:10px;margin-top:8px;padding:13px 14px;border:1.5px solid #bfe3cd;background:#fff;border-radius:12px;font-weight:800;font-size:15px;word-break:break-all;cursor:pointer}
+  .pidopt input{width:20px;height:20px;flex:none}
+  .pidopt.on{background:#eaf6ef;border-color:#1f7a45}
   .errbox{display:none;margin-top:8px;padding:10px 12px;border:1.5px solid #f3c6c6;background:#fdecec;color:#b23b3b;border-radius:10px;font-size:13px;font-weight:700;line-height:1.5}
   .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;
     background:#fff;border-top:1px solid var(--line);padding:12px 14px;display:flex;align-items:center;gap:10px}
@@ -2202,6 +2205,9 @@ function pointIdHtml(){ return '<div id="pointIdBox">'+pointIdInner()+'</div>'; 
 function pointIdInner(){
   const pl=state.pointLookup;
   if(pl&&pl.status==="loading") return '<div class="spin">⏳ 공식몰 회원 확인 중…</div>';
+  if(pl&&pl.status==="multi") return '<div class="found">✅ 이 번호로 가입된 공식몰 회원이 '+pl.ids.length+'개 확인되었습니다<small>적립금을 받으실 아이디를 선택해 주세요</small>'
+    +pl.ids.map(id=>'<label class="pidopt'+(state.pointId===id?' on':'')+'"><input type="radio" name="pidPick" value="'+esc(id)+'"'+(state.pointId===id?' checked':'')+'><span>'+esc(id)+'</span></label>').join("")
+    +'<div class="err" id="err-pointId">적립금을 받으실 아이디를 선택해 주세요.</div></div>';
   if(pl&&pl.status==="found") return '<div class="found">✅ 공식몰 회원이 확인되었습니다<div style="font-size:18px;margin-top:5px;word-break:break-all">'+esc(pl.id)+'</div><small>적립금은 이 아이디로 지급됩니다</small></div>';
   return '<div class="field" style="margin:12px 0 4px">'
     +'<label class="fld" for="pointId">아이닉 공식몰 아이디 <span class="req">*</span></label>'
@@ -2215,9 +2221,16 @@ function pointIdInner(){
 function bindPointId(){
   const el=$("#pointId");
   if(el) el.addEventListener("input",()=>{ state.pointId=el.value; hideErr("err-pointId"); const nf=$("#nf"); if(nf) nf.style.display="none"; });
-  pointLookupStart();
+  bindPidPick(); pointLookupStart();
 }
-function renderPointIdBox(){ const b=$("#pointIdBox"); if(!b) return; b.innerHTML=pointIdInner(); const el=$("#pointId"); if(el) el.addEventListener("input",()=>{ state.pointId=el.value; hideErr("err-pointId"); const nf=$("#nf"); if(nf) nf.style.display="none"; }); }
+function bindPidPick(){
+  $$("#pointIdBox input[name=pidPick]").forEach(r=>r.addEventListener("change",()=>{
+    const pl=state.pointLookup; if(!(pl&&pl.status==="multi"&&pl.ids.includes(r.value))) return;      // 서버가 준 목록에 있는 아이디만
+    state.pointId=r.value; state.pointIdOk=r.value; hideErr("err-pointId");
+    $$("#pointIdBox .pidopt").forEach(l=>l.classList.toggle("on",l.contains(r)));
+  }));
+}
+function renderPointIdBox(){ const b=$("#pointIdBox"); if(!b) return; b.innerHTML=pointIdInner(); const el=$("#pointId"); if(el) el.addEventListener("input",()=>{ state.pointId=el.value; hideErr("err-pointId"); const nf=$("#nf"); if(nf) nf.style.display="none"; }); bindPidPick(); }
 /* 구매 확인된 번호로 공식몰 아이디 찾기 — 한 번만(도장 하나당). 아이디가 딱 하나로 나오면 채우고, 없거나 여러 개이면 직접 입력 */
 function pointLookupStart(){
   if(DEMO_MODE || state.type!=="review" || !state.token || state.pointLookup) return;
@@ -2228,7 +2241,9 @@ function pointLookupStart(){
     let r=null; try{ r=await eventApi({action:"pointIdLookup",token:tok},8000); }catch(_){}
     if(state.token!==tok) return;                       // 기다리는 사이 구매 조회를 다시 했으면 버립니다
     const ids=(r && r.ok===true && Array.isArray(r.ids)) ? r.ids : [];
-    if(ids.length===1 && POINT_ID_RE.test(ids[0])){ state.pointLookup={status:"found",id:ids[0]}; state.pointId=ids[0]; state.pointIdOk=ids[0]; }
+    const okIds=ids.filter(x=>POINT_ID_RE.test(x));
+    if(okIds.length===1){ state.pointLookup={status:"found",id:okIds[0]}; state.pointId=okIds[0]; state.pointIdOk=okIds[0]; }
+    else if(okIds.length>=2 && okIds.length<=5){ state.pointLookup={status:"multi",ids:okIds}; state.pointId=""; state.pointIdOk=""; }     // 같은 번호에 계정이 여럿(일반+카카오 등) — 고객이 고릅니다
     else state.pointLookup={status:"none"};
     renderPointIdBox();
   })();
@@ -2237,7 +2252,7 @@ function pointLookupStart(){
 function pointIdGateStep(step){ return step==="info" && state.type==="review" && !!state.token && !DEMO_MODE && rewardType(state.type,state.product)==="point"; }
 async function pointIdCheckGate(){
   const pl=state.pointLookup||{}, pid=String(state.pointId||"").trim();
-  if(pl.status==="found" || !pid || state.pointIdOk===pid) return true;
+  if(pl.status==="found" || pl.status==="multi" || !pid || state.pointIdOk===pid) return true;
   let r=null; try{ r=await eventApi({action:"pointIdLookup",token:state.token,check:pid},8000); }catch(_){}
   if(r && r.ok===true && r.found===true){ state.pointIdOk=pid; return true; }
   if(r && r.ok===true && r.found===false){ const nf=$("#nf"); if(nf){ nf.style.display="block"; nf.scrollIntoView({behavior:"smooth",block:"center"}); } return false; }
@@ -2866,7 +2881,7 @@ function validateStep(step){
     } else hideErr("err-addr");
     if(state.type==="review" && leftQty()>1 && !state.qtyMode){showErr("err-qty");ok=false;}else hideErr("err-qty");
     if(REQ.rewardAck && state.consent.reward!==rw){showErr("err-reward");ok=false;}else hideErr("err-reward");
-    if(rw==="point"){ const found=state.pointLookup&&state.pointLookup.status==="found"; const pid=found?String(state.pointId||"").trim():(($("#pointId")||{}).value||"").trim(); state.pointId=pid;
+    if(rw==="point"){ const found=state.pointLookup&&(state.pointLookup.status==="found"||state.pointLookup.status==="multi"); const pid=found?String(state.pointId||"").trim():(($("#pointId")||{}).value||"").trim(); state.pointId=pid;
       if(!POINT_ID_RE.test(pid)){showErr("err-pointId");ok=false;}else hideErr("err-pointId"); }
     return ok;
   } return true;

@@ -179,9 +179,13 @@
   /* 공식몰 아이디 자동 확인(포인트 건, 2026-11-03) — 확인 중 · 확인됨 · 찾을 수 없음 */
   .found{margin-top:12px;padding:14px;border:1.5px solid #bfe3cd;background:#eaf6ef;border-radius:12px;color:#1f7a45;font-weight:800;font-size:14.5px;line-height:1.5}
   .found small{display:block;font-weight:600;color:#3d7a57;font-size:12.5px;margin-top:3px}
+  .found.dim{opacity:.55}
+  .alt{display:block;margin-top:10px;font-size:13.5px;font-weight:800;color:#1f7a45;text-decoration:underline;cursor:pointer}
+  .altbox{margin-top:12px;padding:12px;border:1.5px dashed #bfe3cd;border-radius:12px;background:#fbfdfb}
   .spin{margin-top:12px;padding:14px;border:1.5px dashed #dcd3c8;border-radius:12px;color:#8a827c;font-weight:700;font-size:14px;text-align:center}
   .pidopt{display:flex;align-items:center;gap:10px;margin-top:8px;padding:13px 14px;border:1.5px solid #bfe3cd;background:#fff;border-radius:12px;font-weight:800;font-size:15px;word-break:break-all;cursor:pointer}
   .pidopt input{width:20px;height:20px;flex:none}
+  .pidopt small{display:block;font-weight:600;color:#3d7a57;font-size:12.5px;margin-top:2px}
   .pidopt.on{background:#eaf6ef;border-color:#1f7a45}
   .errbox{display:none;margin-top:8px;padding:10px 12px;border:1.5px solid #f3c6c6;background:#fdecec;color:#b23b3b;border-radius:10px;font-size:13px;font-weight:700;line-height:1.5}
   .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;
@@ -1530,6 +1534,7 @@ const POINT_ID_RE=/^[A-Za-z0-9][A-Za-z0-9@._-]{3,59}$/;
 const POINT_NOTICE="적립금은 고객님의 <b>아이닉 공식몰 아이디</b>로 지급됩니다. 아이디는 공식몰 <b>마이페이지 → 회원 정보 수정</b>에서 확인하실 수 있습니다. 카카오·네이버로 가입하신 경우 그 화면에 보이는 아이디(예: 1234567890@k)를 그대로 적어 주세요. 아이디가 조회되지 않으면 지급이 어렵습니다.";
 const POINT_ACK="네, 확인했습니다";
 const POINT_WARN="{{적립금은 아래 공식몰 아이디로 지급됩니다.}} 아이디가 조회되지 않으면 지급이 어려우니 한 번 더 확인해 주세요.";
+const POINT_WAIT="○○에 정상 참여되었습니다.\n{{적립금 지급 예정}}입니다. 지급이 완료되면 이 화면에서 지급일을 확인하실 수 있습니다.";      // 지급 전(2026-11-03 담당자 문구: 「지급예정」)
 const POINT_PAID="신청하신 ○○이 {{○○}} 지급되었습니다.\n아이닉 공식몰 마이페이지에서 적립금을 확인해 주세요.\n확인이 안 되시면 아래 채널을 통해 ‘채팅상담’을 선택하여 문의해 주세요.";
 /* 🔴 공식몰 로그인 주소(2026-11-03) — 로그인하면 마이페이지(/myshop/index.html)로 이동합니다. 공식몰(카페24) 쪽 주소가 바뀌면 여기를 고치세요. */
 const POINT_LOGIN_URL="https://i-nic.co.kr/member/login.html?returnUrl=%2Fmyshop%2Findex.html";
@@ -1549,7 +1554,7 @@ const state={type:null,card:"",event:"",category:"주방가전",product:null,fil
   files:[],          // 포토리뷰 캡처 여러 장 (2026-09-22) — state.file 은 그중 첫 장
   srcByCode:{},buyByCode:{},        // 원장의 판매처·구매일자 (프로모션 판단용)
   invNo:"",ordNo:"",autoName:"",autoPhone:"",token:"",
-  consent:{},esurvey:{},esurveyInit:false,survey:{},surveyFor:null,giftChoice:null,pointId:"",pointLookup:null,pointLookupP:null,pointIdOk:""};
+  consent:{},esurvey:{},esurveyInit:false,survey:{},surveyFor:null,giftChoice:null,pointId:"",pointLookup:null,pointLookupP:null,pointIdOk:"",altOpen:false,altId:""};
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 /* 오류 안내 : 빨간 문구 + 해당 입력칸에 빨간 테두리까지 표시한다.
    글씨만으로는 어디가 문제인지 못 알아채는 경우가 많아서. */
@@ -1727,7 +1732,7 @@ $$(".type").forEach(t=>t.addEventListener("click",()=>{
 function clearForTypeChange(){
   clearLookup(); state.surveyKeep=null;
   state.product=null; state.file=null; state.files=[]; state.buyFile=null;
-  state.survey={}; state.surveyFor=null; state.esurvey={}; state.esurveyInit=false; state.giftChoice=null; state.infoFor=null; state.pointId=""; state.pointLookup=null; state.pointLookupP=null; state.pointIdOk="";
+  state.survey={}; state.surveyFor=null; state.esurvey={}; state.esurveyInit=false; state.giftChoice=null; state.infoFor=null; state.pointId=""; state.pointLookup=null; state.pointLookupP=null; state.pointIdOk=""; state.altOpen=false; state.altId="";
   {const eb=$("#entryBox"); if(eb) eb.innerHTML="";}
   ["#serial","#file","#buyFile","#vName","#vPhone","#vOrd","#vInv"].forEach(s=>{const el=$(s); if(el) el.value="";});
   {const sa=$("#serialAck"); if(sa) sa.checked=false;}
@@ -2202,13 +2207,34 @@ function pointIdHtml(){ return '<div id="pointIdBox">'+pointIdInner()+'</div>'; 
    구매 확인된 번호로 서버가 공식몰(카페24) 회원 아이디를 찾아 오면 입력 없이 「확인되었습니다」로 보여 줍니다.
    못 찾거나(번호가 다름·비회원) 카페24가 멈춘 경우에는 지금처럼 직접 입력합니다 — 접수는 절대 막지 않습니다.
    직접 적은 아이디는 「다음」에서 공식몰에 있는지 확인합니다(pointIdCheckGate · 서버 submitEntry 가 한 번 더 확인). */
+/* 가입 방식 표시 — 공식몰(카페24) 회원 아이디 끝이 @k 이면 카카오, @n 이면 네이버 가입 계정, @ 가 없으면 일반 가입(담당자 확인 화면 기준). 그 밖의 모양은 표시하지 않습니다. */
+function pidKind(id){ const s=String(id||""); return !s?"":/@k$/i.test(s)?"카카오 가입 계정":/@n$/i.test(s)?"네이버 가입 계정":(s.indexOf("@")<0?"일반 가입 계정":""); }
+/* 🔴 다른 아이디로 받기 (2026-11-03 사용자 요청 — 배우자 계정 등) — 자동 확인(1개)·계정 선택(2~5개) 화면 아래에 「직접 입력」을 둡니다.
+   직접 적은 아이디도 「다음」에서 공식몰에 있는지 확인하고(pointIdCheckGate), 서버가 접수 때 한 번 더 확인합니다. 조회된 번호의 계정이 아니므로 관리자 화면에는 「확인됨 · 번호 일치 아님」으로 보입니다. */
+function pointAltHtml(){
+  if(!state.altOpen) return '<a class="alt" id="altT">▸ 다른 아이디로 받으실 경우 직접 입력</a>';
+  return '<div class="altbox"><label class="fld" for="altid">다른 아이디 (직접 입력)</label>'
+    +'<input type="text" id="altid" maxlength="60" placeholder="예) inic1234 · 1234567890@k" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(state.altId||"")+'">'
+    +'<div class="hint">공식몰에 있는 아이디만 가능합니다. 위 계정 대신 <b>이 아이디로 적립금이 지급</b>됩니다. 아이디를 정확히 적어 주세요.</div>'
+    +'<div class="err" id="err-alt">아이닉 공식몰 아이디를 정확히 입력해 주세요.</div>'
+    +'<div class="errbox" id="nfAlt">아이디를 찾을 수 없습니다.<br>공식몰 마이페이지 → 회원 정보 수정의 아이디를 다시 확인해 주세요.</div>'
+    +'<a class="alt" id="altX">× 직접 입력 닫기 (조회된 계정으로 받기)</a></div>';
+}
+function bindPointAlt(){
+  const T=$("#altT"); if(T) T.addEventListener("click",()=>{ state.altOpen=true; renderPointIdBox(); const i=$("#altid"); if(i) i.focus(); });
+  const X=$("#altX"); if(X) X.addEventListener("click",()=>{                     // 닫으면 조회된 계정(1개) 또는 고른 계정으로 되돌립니다
+    state.altOpen=false; state.altId=""; const pl=state.pointLookup||{};
+    state.pointId=pl.status==="found"?pl.id:(pl.status==="multi"&&pl.ids.includes(state.pointIdOk)?state.pointIdOk:"");
+    renderPointIdBox(); });
+  const A=$("#altid"); if(A) A.addEventListener("input",()=>{ state.altId=A.value; hideErr("err-alt"); const n=$("#nfAlt"); if(n) n.style.display="none"; });
+}
 function pointIdInner(){
   const pl=state.pointLookup;
   if(pl&&pl.status==="loading") return '<div class="spin">⏳ 공식몰 회원 확인 중…</div>';
-  if(pl&&pl.status==="multi") return '<div class="found">✅ 이 번호로 가입된 공식몰 회원이 '+pl.ids.length+'개 확인되었습니다<small>적립금을 받으실 아이디를 선택해 주세요</small>'
-    +pl.ids.map(id=>'<label class="pidopt'+(state.pointId===id?' on':'')+'"><input type="radio" name="pidPick" value="'+esc(id)+'"'+(state.pointId===id?' checked':'')+'><span>'+esc(id)+'</span></label>').join("")
-    +'<div class="err" id="err-pointId">적립금을 받으실 아이디를 선택해 주세요.</div></div>';
-  if(pl&&pl.status==="found") return '<div class="found">✅ 공식몰 회원이 확인되었습니다<div style="font-size:18px;margin-top:5px;word-break:break-all">'+esc(pl.id)+'</div><small>적립금은 이 아이디로 지급됩니다</small></div>';
+  if(pl&&pl.status==="multi") return '<div class="found'+(state.altOpen?' dim':'')+'">✅ 이 번호로 가입된 공식몰 회원이 '+pl.ids.length+'개 확인되었습니다<small>'+(state.altOpen?'아래에 적은 다른 아이디로 지급됩니다':'적립금을 받으실 아이디를 선택해 주세요')+'</small>'
+    +pl.ids.map(id=>'<label class="pidopt'+(state.pointId===id?' on':'')+'"><input type="radio" name="pidPick" value="'+esc(id)+'"'+(state.pointId===id?' checked':'')+'><span>'+esc(id)+(pidKind(id)?'<small>'+pidKind(id)+'</small>':'')+'</span></label>').join("")
+    +'<div class="err" id="err-pointId">적립금을 받으실 아이디를 선택해 주세요.</div></div>'+pointAltHtml();
+  if(pl&&pl.status==="found") return '<div class="found'+(state.altOpen?' dim':'')+'">✅ 공식몰 회원이 확인되었습니다<div style="font-size:18px;margin-top:5px;word-break:break-all">'+esc(pl.id)+'</div><small>'+(pidKind(pl.id)?pidKind(pl.id)+' · ':'')+(state.altOpen?'아래에 적은 다른 아이디로 지급됩니다':'적립금은 이 아이디로 지급됩니다')+'</small></div>'+pointAltHtml();
   return '<div class="field" style="margin:12px 0 4px">'
     +'<label class="fld" for="pointId">아이닉 공식몰 아이디 <span class="req">*</span></label>'
     +'<input type="text" id="pointId" maxlength="60" placeholder="예) inic1234 · 1234567890@k" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(state.pointId||"")+'">'
@@ -2221,7 +2247,7 @@ function pointIdInner(){
 function bindPointId(){
   const el=$("#pointId");
   if(el) el.addEventListener("input",()=>{ state.pointId=el.value; hideErr("err-pointId"); const nf=$("#nf"); if(nf) nf.style.display="none"; });
-  bindPidPick(); pointLookupStart();
+  bindPidPick(); bindPointAlt(); pointLookupStart();
 }
 function bindPidPick(){
   $$("#pointIdBox input[name=pidPick]").forEach(r=>r.addEventListener("change",()=>{
@@ -2230,7 +2256,7 @@ function bindPidPick(){
     $$("#pointIdBox .pidopt").forEach(l=>l.classList.toggle("on",l.contains(r)));
   }));
 }
-function renderPointIdBox(){ const b=$("#pointIdBox"); if(!b) return; b.innerHTML=pointIdInner(); const el=$("#pointId"); if(el) el.addEventListener("input",()=>{ state.pointId=el.value; hideErr("err-pointId"); const nf=$("#nf"); if(nf) nf.style.display="none"; }); bindPidPick(); }
+function renderPointIdBox(){ const b=$("#pointIdBox"); if(!b) return; b.innerHTML=pointIdInner(); const el=$("#pointId"); if(el) el.addEventListener("input",()=>{ state.pointId=el.value; hideErr("err-pointId"); const nf=$("#nf"); if(nf) nf.style.display="none"; }); bindPidPick(); bindPointAlt(); }
 /* 구매 확인된 번호로 공식몰 아이디 찾기 — 한 번만(도장 하나당). 아이디가 딱 하나로 나오면 채우고, 없거나 여러 개이면 직접 입력 */
 function pointLookupStart(){
   if(DEMO_MODE || state.type!=="review" || !state.token || state.pointLookup) return;
@@ -2252,10 +2278,10 @@ function pointLookupStart(){
 function pointIdGateStep(step){ return step==="info" && state.type==="review" && !!state.token && !DEMO_MODE && rewardType(state.type,state.product)==="point"; }
 async function pointIdCheckGate(){
   const pl=state.pointLookup||{}, pid=String(state.pointId||"").trim();
-  if(pl.status==="found" || pl.status==="multi" || !pid || state.pointIdOk===pid) return true;
+  if(((pl.status==="found" || pl.status==="multi") && !state.altOpen) || !pid || state.pointIdOk===pid) return true;
   let r=null; try{ r=await eventApi({action:"pointIdLookup",token:state.token,check:pid},8000); }catch(_){}
   if(r && r.ok===true && r.found===true){ state.pointIdOk=pid; return true; }
-  if(r && r.ok===true && r.found===false){ const nf=$("#nf"); if(nf){ nf.style.display="block"; nf.scrollIntoView({behavior:"smooth",block:"center"}); } return false; }
+  if(r && r.ok===true && r.found===false){ const nf=$(state.altOpen?"#nfAlt":"#nf"); if(nf){ nf.style.display="block"; nf.scrollIntoView({behavior:"smooth",block:"center"}); } return false; }
   return true;
 }function openPointIdEx(){ exOpen(POINT_GUIDE_IMG,"아이닉 공식몰 아이디 확인 방법",false,false); }
 window.openPointIdEx=openPointIdEx;
@@ -2749,7 +2775,7 @@ async function lookupPurchase(){
         + outLine + (outLine && usedLine ? '<br>' : '') + usedLine + '</div>'
       : "";
     state.token=res.token||"";          // 접수할 때 이 도장을 함께 보낸다
-    state.pointId=""; state.pointLookup=null; state.pointLookupP=null; state.pointIdOk="";   // 구매 조회를 다시 하면 공식몰 아이디 확인도 처음부터(다른 분의 아이디가 남지 않게)
+    state.pointId=""; state.pointLookup=null; state.pointLookupP=null; state.pointIdOk=""; state.altOpen=false; state.altId="";   // 구매 조회를 다시 하면 공식몰 아이디 확인도 처음부터(다른 분의 아이디가 남지 않게)
     /* 프로모션 판단용 — 원장의 판매처·구매일자 */
     state.srcByCode=res.srcByCode||{}; state.buyByCode=res.buyByCode||{};
     state.qtyByCode=qtyByCode; state.usedByCode=usedByCode; state.prodCodes=remainCodes;
@@ -2881,8 +2907,13 @@ function validateStep(step){
     } else hideErr("err-addr");
     if(state.type==="review" && leftQty()>1 && !state.qtyMode){showErr("err-qty");ok=false;}else hideErr("err-qty");
     if(REQ.rewardAck && state.consent.reward!==rw){showErr("err-reward");ok=false;}else hideErr("err-reward");
-    if(rw==="point"){ const found=state.pointLookup&&(state.pointLookup.status==="found"||state.pointLookup.status==="multi"); const pid=found?String(state.pointId||"").trim():(($("#pointId")||{}).value||"").trim(); state.pointId=pid;
-      if(!POINT_ID_RE.test(pid)){showErr("err-pointId");ok=false;}else hideErr("err-pointId"); }
+    if(rw==="point"){ const found=state.pointLookup&&(state.pointLookup.status==="found"||state.pointLookup.status==="multi");
+      if(found&&state.altOpen){                                                    // 다른 아이디로 받기 — 직접 적은 아이디가 최종 값
+        const av=(($("#altid")||{}).value||"").trim(); state.altId=av; state.pointId=av;
+        if(!POINT_ID_RE.test(av)){showErr("err-alt");ok=false;}else hideErr("err-alt");
+      } else {
+        const pid=found?String(state.pointId||"").trim():(($("#pointId")||{}).value||"").trim(); state.pointId=pid;
+        if(!POINT_ID_RE.test(pid)){showErr("err-pointId");ok=false;}else hideErr("err-pointId"); } }
     return ok;
   } return true;
 }
@@ -3079,8 +3110,8 @@ async function lookupParticipation(){
           h+=`<div style="${MSG}">`
             +(rsvOn
               ? MSGH("doneGiftReserve", RESERVE_DFLT, [rsvAt || RESERVE_TBD])
-              : MSGH("checkWait","○○에 정상 참여되었습니다.\n○○은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.",[ev,what]))
-            +(MSGK(wKey,true)?kakao:"")+`</div>`;
+              : (e.rewardType==="point" ? MSGH("", POINT_WAIT, [ev]) : MSGH("checkWait","○○에 정상 참여되었습니다.\n○○은 순차적으로 발송되며, 평균적으로 일주일 이내 받아보실 수 있습니다.",[ev,what])))     // 포인트는 「지급 예정」 문구(2026-11-03)
+            +((e.rewardType==="point"||MSGK(wKey,true))?kakao:"")+`</div>`;
         }
         return h+`</div>`;}).join("");
   }catch(err){box.innerHTML='<div class="cpempty">'+rich(MSGT("checkErr","조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."))+'</div>';}
@@ -3143,7 +3174,7 @@ function renderConfirm(){
         + ckRow("이메일", $("#email").value.trim(), "", "info", "#email");
   /* 주소는 사은품일 때만 받습니다 — 상품권이면 줄 자체를 안 보여 줍니다 */
   if(rw === "gift") h += ckRow("주소", addr, "", "info", "#addrRoad");
-  if(pnt) h += ckRow("공식몰 아이디", state.pointId || "", "", "info", "#pointId");
+  if(pnt) h += ckRow("공식몰 아이디", (state.pointId || "")+(state.pointId&&pidKind(state.pointId)?" ("+pidKind(state.pointId)+")":"")+(state.altOpen&&state.pointId?" · 직접 입력한 다른 아이디":""), "", "info", "#pointId");
   h += '</div>';
 
   /* 🔴 「신청 내용」에는 수정 단추를 두지 않습니다 (2026-09-14 담당자 요청).
@@ -3508,7 +3539,7 @@ function resetForm(){
      state 는 np 인데 화면은 다른 탭이 열리는 어긋남이 있었습니다. */
   $$("#vtabs .vtab").forEach(b=>b.classList.toggle("on",b.dataset.vt==="np"));
   ["np","ord","inv"].forEach(k=>{const el=$("#vp-"+k); if(el) el.classList.toggle("on",k==="np");});
-  state.consent={};state.survey={};state.surveyFor=null;state.giftChoice=null;state.infoFor=null;state.pointId=""; state.pointLookup=null; state.pointLookupP=null; state.pointIdOk="";
+  state.consent={};state.survey={};state.surveyFor=null;state.giftChoice=null;state.infoFor=null;state.pointId=""; state.pointLookup=null; state.pointLookupP=null; state.pointIdOk=""; state.altOpen=false; state.altId="";
   state.esurvey={};state.esurveyInit=false;{const eb=$("#entryBox");if(eb)eb.innerHTML="";}
   /* ⚠️ #email 이 빠져 있어서, 접수를 끝내고 처음 화면으로 돌아와도 앞사람 이메일이
      그대로 남아 있었습니다(2026-09-09 발견). 같은 기기로 다른 분이 접수하면 남의 이메일이 들어갑니다.

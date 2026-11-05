@@ -2180,8 +2180,8 @@ function renderRewardInner(){
   const g=giftOf(state.product); const rw=rewardType(state.type,state.product);
   if(state.consent) state.consent.reward=null;
   let item="";
-  if(state.type==="coupang") item="";
-  else if(g) item = g.choice ? (state.giftChoice!=null?g.options[state.giftChoice].label:"") : g.label;
+  /* 🔴 2026-11-05 사용자 요청 — 쿠팡 정품등록도 포토리뷰와 같이 사은품 이미지 카드를 보입니다(예전에는 쿠팡이면 카드를 만들지 않았음). 사은품 이름·택1은 위 giftOf 가 유형별 설정(giftsCp)대로 돌려줍니다. */
+  if(g) item = g.choice ? (state.giftChoice!=null?g.options[state.giftChoice].label:"") : g.label;
   /* 선불로 나가는 제품(가습기 iH12 등)은 배송비 이야기를 아예 안 합니다. */
   const pre=(rw==="gift") && isPrepaid(state.product);
   const pnt=rw==="point";               // 포인트(공식몰 적립금, 2026-11-02) — 「기프티콘 발송 안내」 자리에 「적립금 지급 안내」 + 공식몰 아이디 칸

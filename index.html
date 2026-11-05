@@ -3068,6 +3068,8 @@ async function lookupParticipation(){
     box.innerHTML=`<div class="cpempty" style="border-style:solid;color:var(--ink)"><b>${esc(name)}</b> 님 · 참여 ${list.length}건</div>`+
       list.map(e=>{const st=custStatus(e);const tp=e.type==="coupang"?"쿠팡 정품등록":(e.event==="month"?"한달 사용후기":"포토리뷰");
         let h=`<div class="cpcard"><b>${esc(prodNameOf(e.product))}</b> · ${tp}<span class="cpbadge ${st.cls}">${st.label}</span>`;
+        /* 접수일자(2026-11-05 사용자 요청 — 「언제 참여했는지」). 서버가 날짜(YYYY-MM-DD)만 줍니다. 없으면(옛 서버·날짜 모름) 줄을 만들지 않습니다. */
+        { const rm=String(e.receivedYmd||"").match(/^(\d{4})-(\d{2})-(\d{2})$/); if(rm) h+=`<div style="margin-top:5px;font-size:12.5px;color:var(--sub)">접수일 ${rm[1]}년 ${Number(rm[2])}월 ${Number(rm[3])}일</div>`; }
         /* 🔴 메인 채널 하나 (2026-09-22) — 예전에는 제품군별로 갈라 보냈습니다. */
         const url=safeHref(kakaoUrl());
         const kakao=url?`<div style="margin-top:6px"><a href="${url}" target="_blank" rel="noopener" class="cpkakao">💬 아이닉 카카오톡 채널로 문의하기</a></div>`:"";

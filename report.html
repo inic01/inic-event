@@ -4207,10 +4207,52 @@ function csShipBadge(e){
   if(isReserve(e)&&e.rewardType!=="point")return '<span class="shipbig resv">예약발송</span>';
   return '<span class="shipbig wait">미발송</span>';
 }
+/* 🔴 고객검색에서 구글폼 참여 이력도 같은 모양 카드로 (2026-11-04 사용자 요청) — 검색어에 휴대폰 번호(11자리)가 있으면 서버(ordersApi legacyLookup)에 물어 「구글폼 참여 기록」 카드를 아래에 붙입니다.
+   · 「성함 번호」(예: 홍길동 01012345678)처럼 이름도 함께 쓰면 그 이름(받으시는 분)의 기록만, 번호만 쓰면 그 번호의 기록 전부(상담용).
+   · 번호·성함은 서버가 변환값으로만 맞춥니다(원문 저장 없음). 같은 검색은 이 화면에서 한 번만 묻습니다(csLgCache). */
+const csPhoneOf=q=>{ const d=String(q).replace(/\D/g,""); return /^01[016789]\d{7,8}$/.test(d)?d:""; };
+const csNameOf=q=>{ const n=String(q).replace(/[\d\-\s().+]/g,"").trim(); return n.length>=2?n:""; };
+const csLgCache=new Map(); let csLgSeq=0;
+async function csLegacyLoad(phone,name,q){
+  let box=$("#csLegacy"); if(!box){ box=document.createElement("div"); box.id="csLegacy"; $("#pagerCs").after(box); }
+  const key=phone+"|"+name, my=++csLgSeq;
+  box.innerHTML=`<div class="empty" style="display:block">구글폼 참여 이력 확인 중…</div>`;
+  let r=csLgCache.get(key);
+  if(!r){ try{ r=await ordApi({action:"legacyLookup",phone,name}); }catch(_){ r=null; } if(r&&r.ok) csLgCache.set(key,r); }
+  if(my!==csLgSeq||$("#csSearch").value.trim()!==q) return;                       // 그사이 검색어가 바뀌었으면 버립니다
+  if(!r||!r.ok){ box.innerHTML=`<div class="empty" style="display:block">구글폼 참여 이력을 확인하지 못했습니다. 잠시 뒤 다시 검색해 주세요.</div>`; return; }
+  const list=Array.isArray(r.list)?r.list:[];
+  if(!list.length){ box.innerHTML=`<div class="empty" style="display:block">구글폼 참여 기록이 없습니다${name?" (이 성함·번호로)":""}.</div>`; return; }
+  box.innerHTML=lgCardsHtml(list,name);
+}
+/* 「구글폼 참여 기록」 카드 묶음 — 고객검색과 수기접수(포토리뷰·쿠팡·상품권 재발송)가 같이 씁니다(2026-11-05 사용자 요청). */
+function lgCardsHtml(list,name){
+  const kind={p:"포토리뷰",m:"한달 사용후기",c:"쿠팡 정품등록"};
+  return `<div style="margin:12px 0 6px;font-weight:800;font-size:13px">구글폼 참여 기록 ${list.length}건${name?` · ${admEsc(name)}`:""}</div>`
+    +list.map(x=>{ const sent=!!x.ship;
+      return `<div class="rescard ${sent?"shipped":""}"><div style="flex:1">
+        <div class="who">${admEsc(name||"구글폼 접수")} <span class="pill tp ${x.kind==="c"?"coupang":"review"}">${kind[x.kind]||"포토리뷰"}</span> <span class="pill">구글폼</span>${x.old?' <span class="pill" style="background:#f2eeea;color:#8a827c">1년 지남</span>':""}</div>
+        <div class="meta">접수일자 ${admEsc(x.recv||"-")} · 출고일자 ${admEsc(x.ship||"-")}</div>
+        <div class="csdetail"><div><b>제품</b>${admEsc(x.prod||"-")}</div><div><b>사은품/상품권</b>${admEsc(x.gift||"-")}</div><div><b>시트 탭</b>${admEsc(x.tab||"-")}</div></div>
+        </div><div class="stat">${sent?'<span class="shipbig done">✓ 발송</span>':'<span class="shipbig wait">미발송</span>'}</div></div>`; }).join("");
+}
+/* 수기접수용 — 번호(+성함)로 구글폼 참여 기록 카드를 만들어 돌려줍니다. 기록이 없거나 못 불러오면 빈 글자(위쪽 구글폼 안내 상자가 이미 알려 줍니다).
+   성함이 있으면 그 성함(받으시는 분)의 기록만, 없으면 번호의 전부. 같은 조회는 csLgCache 에 한 번만 묻습니다. */
+async function lgRecordsHtml(phone,name){
+  const ph=mLgPhone(phone); if(!ph) return "";
+  const nm=String(name||"").replace(/\*/g,"").trim()===String(name||"").trim()?String(name||"").trim():"";     // 가려진 성함(홍*동)은 이름 조건에서 뺍니다
+  const key=ph+"|"+nm;
+  let r=csLgCache.get(key);
+  if(!r){ try{ r=await ordApi({action:"legacyLookup",phone:ph,name:nm}); }catch(_){ r=null; } if(r&&r.ok) csLgCache.set(key,r); }
+  const list=(r&&r.ok&&Array.isArray(r.list))?r.list:[];
+  return list.length?`<div class="panel" style="margin-bottom:14px">${lgCardsHtml(list,nm)}</div>`:"";
+}
 function renderCS(){
   const q=$("#csSearch").value.trim(),box=$("#csResult");
-  if(!q){box.innerHTML='<div class="empty">검색어를 입력하세요.</div>';$("#pagerCs").innerHTML="";return;}
-  const all=ALL.concat(RESEND).filter(e=>matchSearch(e,q)).sort((a,b)=>(b._date?.getTime()||0)-(a._date?.getTime()||0));      // 재발송 접수도 별도 카드로(취소·확인용)
+  if(!q){box.innerHTML='<div class="empty">검색어를 입력하세요.</div>';$("#pagerCs").innerHTML="";{const lb=$("#csLegacy"); if(lb) lb.innerHTML="";}return;}
+  { const lgPhone=csPhoneOf(q); if(lgPhone) csLegacyLoad(lgPhone,csNameOf(q),q); else { const lb=$("#csLegacy"); if(lb) lb.innerHTML=""; } }
+  const nmQ=csNameOf(q), phQ=csPhoneOf(q);
+  const all=ALL.concat(RESEND).filter(e=>matchSearch(e,q)||(nmQ&&phQ&&String(e.name||"").replace(/\s/g,"").includes(nmQ.replace(/\s/g,""))&&String(e.phone||"").replace(/\D/g,"")===phQ)).sort((a,b)=>(b._date?.getTime()||0)-(a._date?.getTime()||0));      // 재발송 접수도 별도 카드로(취소·확인용)
   if(!all.length){box.innerHTML=`<div class="empty">'${admEsc(q)}' 로 참여한 내역이 없습니다. (이벤트 미참여)</div>`;$("#pagerCs").innerHTML="";return;}
   const rows=slice(all,"cs");
   box.innerHTML=rows.map(e=>{
@@ -4491,7 +4533,9 @@ async function mFind(){
     MFIND = found;
     msg.textContent = "구매 내역을 찾았습니다 · 구글폼 참여 이력 확인 중…";
     found.lg = await mLegacy(phones, "p");          // 못 불러와도 계속합니다(화면에 안내)
-    if(MFIND !== found) return;                      // 확인하는 사이 다시 찾았으면 이 결과는 버립니다
+    { const nmL = mode === "np" ? $("#mfName").value.trim() : String((rows[0] && rows[0].name) || "").trim();
+      found.lgCards = ""; try{ found.lgCards = await lgRecordsHtml(typedPhone || phones[0], nmL); }catch(_){ found.lgCards = ""; } }     // 구글폼 참여 기록 카드(날짜·출고일) — 못 불러와도 계속
+    if(MFIND !== found) return;                     // 확인하는 사이 다시 찾았으면 이 결과는 버립니다
     msg.textContent = "✔ 찾았습니다";
     msg.style.color = "var(--ok)";
     logAccess("고객DB 조회", "수기접수 · " + label, rows.length);
@@ -4652,7 +4696,7 @@ function mRenderFind(){
        </div>
      </div>`;
 
-  $("#mFindResult").innerHTML = card + mLgBanner(f.lg, "p") + guide + table;
+  $("#mFindResult").innerHTML = card + mLgBanner(f.lg, "p") + (f.lgCards || "") + guide + table;
 }
 
 /* ── 복사 ── */
@@ -4740,7 +4784,9 @@ async function mcFind(){
   msg.textContent = "구글폼 참여 이력 확인 중…";
   const lg = await mLegacy([ph], "c");
   if(seq !== MC_SEQ) return;                         // 확인하는 사이 다시 조회했으면 이 결과는 버립니다
-  const lgBox = mLgBanner(lg, "c");
+  let lgCards = ""; try{ lgCards = await lgRecordsHtml(ph, nm); }catch(_){ lgCards = ""; }     // 구글폼 참여 기록 카드(날짜·출고일)
+  if(seq !== MC_SEQ) return;
+  const lgBox = mLgBanner(lg, "c") + lgCards;
   const legacyHit = !!(lg && lg.ok && Object.keys(lg.counts).some(k => lg.counts[k] > 0));
   const lgConfirm = legacyHit ? "if(!confirm('구글폼에 쿠팡 정품등록 참여 기록이 있습니다.\\n같은 제품이면 중복입니다. 그래도 등록하시겠습니까?'))return;" : "";
 
@@ -5256,13 +5302,17 @@ function mrFind(){
   const nm = $("#mrName").value.trim(), ph = mDigits($("#mrPhone").value), nk = mNameKey(nm);
   if(!nk || ph.length < 10){ msg.textContent = "성함과 연락처(10자리 이상)를 모두 넣어 주세요."; msg.style.color = "var(--bad,#c1121f)"; return; }
   MRFIND = { nm, ph, list: ALL.filter(e => e.rewardType === "coupon" && mNameKey(e.name) === nk && mDigits(e.phone) === ph)
-                            .sort((a, b) => (a._date ? a._date.getTime() : 0) - (b._date ? b._date.getTime() : 0)) };
+                            .sort((a, b) => (a._date ? a._date.getTime() : 0) - (b._date ? b._date.getTime() : 0)), lgHtml: "" };
   mrRender();
+  /* 구글폼 참여 기록(보기만 — 구글폼 건은 재발송 접수 대상이 아닙니다). 불러오는 사이 다시 조회했으면 버립니다. */
+  const mine = MRFIND;
+  lgRecordsHtml(ph, nm).then(h => { if(MRFIND === mine && h){ mine.lgHtml = h; mrRender(); } }).catch(() => {});
 }
 function mrRender(){
   const box = $("#mrResult"); if(!MRFIND){ box.innerHTML = ""; return; }
   const list = MRFIND.list;
-  if(!list.length){ box.innerHTML = `<div class="empty" style="display:block">조회된 상품권 접수가 없습니다. 성함·연락처를 다시 확인해 주세요.</div>`; return; }
+  const lgh = MRFIND.lgHtml || "";
+  if(!list.length){ box.innerHTML = `<div class="empty" style="display:block">이 시스템에 조회된 상품권 접수가 없습니다.${lgh ? " 아래 구글폼 참여 기록을 확인해 주세요(구글폼 건은 여기서 재발송 접수를 하지 않습니다)." : " 성함·연락처를 다시 확인해 주세요."}</div>` + lgh; return; }
   const sts = list.map(mrState), sent = list.filter(mrIsSent).length, can = sts.filter(s => s.k === "can").length;
   const pill = (bg, fg, t) => `<span class="pill" style="background:${bg};color:${fg}">${t}</span>`;
   const act = (e, s) => s.k === "can" ? `<button class="sm primary" data-act="mrReq" data-id="${admEsc(e._id)}">상품권 재발송 접수</button>`
@@ -5274,7 +5324,7 @@ function mrRender(){
     + (list.length && !can && sent && sts.every(s => s.k !== "wait" && s.k !== "bad" && s.k !== "can") ? `<div class="hint" style="margin-bottom:8px;padding:9px 12px;border-radius:10px;background:#fff6e0;color:#7a5a00">이 고객은 <b>발송 완료된 상품권 ${sent}건이 모두 재발송 접수</b>되어 더 접수할 수 없습니다. 아래 재발송 내역을 확인해 주세요.</div>` : "")
     + `<div class="tablewrap"><table class="data"><thead><tr><th>접수일자</th><th>제품</th><th>상품권</th><th>발송일</th><th>재발송 내역</th><th>접수</th></tr></thead><tbody>`
     + list.map((e, i) => `<tr><td>${admEsc(fmtDate(e._date))}</td><td>${admEsc(PNAME[e.product] || e.product || "-")}</td><td>${admEsc(e.giftItem || "-")}</td><td>${mrIsSent(e) ? admEsc(shippedDate(e)) : "-"}</td><td>${hist(sts[i])}</td><td>${act(e, sts[i])}</td></tr>`).join("")
-    + `</tbody></table></div>`;
+    + `</tbody></table></div>` + lgh;
 }
 async function mrRequest(id){
   const o = ALL.find(x => x._id === id); if(!o) return;
@@ -5455,6 +5505,15 @@ function downloadSheets(sheets,baseName){
   }
   return true;
 }
+/* 🔴 포인트 명단은 CSV 로 받습니다(2026-11-05 사용자 요청). 한 시트짜리 표만 — 한글이 깨지지 않게 맨 앞에 BOM 을 붙이고, 접근 기록은 downloadSheets 와 같이 남깁니다. */
+function downloadCsvRows(rows,baseName){
+  if(!rows.length){alert("대상 데이터가 없습니다.");return false;}
+  logAccess("다운로드", baseName, rows.length);
+  const heads=Object.keys(rows[0]);
+  const csv=[heads.join(",")].concat(rows.map(r=>heads.map(h=>`"${rSafe(r[h]).replace(/"/g,'""')}"`).join(","))).join("\r\n");
+  const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=baseName+"_"+todayStr()+".csv";a.click();
+  return true;
+}
 async function dlShipTemplate(rw,fname){
   if(SHIP2_OPEN) return;               // 두 번째 파일 안내창이 떠 있는 동안은 다시 시작하지 않습니다
   const list0=teamElig(rw);
@@ -5526,10 +5585,10 @@ async function dlPointList(){
   if(!list0.length){alert("대상 데이터가 없습니다.");return;}
   const f=await shipFresh(list0); if(!f) return; const list=f.out;
   const noId=list.filter(e=>!e.pointId).length, noWon=0;
-  if(!confirm(list.length+"건의 포인트 명단을 내려받고 「지급예정」으로 옮깁니다.\n받은 엑셀을 공식몰에 올린 뒤, 「지급예정」 탭의 「미지급 명단 올리기」로 마무리해 주세요."+f.note
+  if(!confirm(list.length+"건의 포인트 명단을 내려받고 「지급예정」으로 옮깁니다.\n받은 CSV 파일을 공식몰에 올린 뒤, 「지급예정」 탭의 「미지급 명단 올리기」로 마무리해 주세요."+f.note
     +(noId?"\n\n⚠️ 공식몰 아이디가 없는 건이 "+noId+"건 있습니다 — 아이디 칸이 비어 나갑니다.":"")
     +(noWon?"\n\n⚠️ 포인트 이름에서 금액을 읽지 못한 건이 "+noWon+"건 있습니다 — 금액 칸이 비어 나갑니다.":"")))return;
-  /* 먼저 지급예정으로 기록하고(실패하면 파일도 받지 않습니다), 그다음 엑셀을 받습니다 */
+  /* 먼저 지급예정으로 기록하고(실패하면 파일도 받지 않습니다), 그다음 CSV 를 받습니다 */
   const batch=pointBatchId();
   try{
     const db=await initFirebase(), fv=firebase.firestore.FieldValue;
@@ -5538,10 +5597,10 @@ async function dlPointList(){
       list.slice(i,i+300).forEach(e=>b.update(db.collection(COLLECTION).doc(e._id),{pointState:"planned",pointBatch:batch,pointPlannedAt:fv.serverTimestamp(),pointPlannedBy:(ME&&ME.name)||"",pointPlannedByUid:(ME&&ME.uid)||""}));
       await b.commit();
     }
-  }catch(err){ alert("지급예정으로 옮기지 못했습니다: "+(err.message||err)+"\n엑셀은 받지 않았습니다. 새로고침한 뒤 다시 시도해 주세요."); return; }
+  }catch(err){ alert("지급예정으로 옮기지 못했습니다: "+(err.message||err)+"\n파일은 받지 않았습니다. 새로고침한 뒤 다시 시도해 주세요."); return; }
   list.forEach(e=>{ e.pointState="planned"; e.pointBatch=batch; });
   logAccess("포인트 명단 내려받기","지급예정 "+list.length+"건",list.length);
-  downloadSheets([{name:"포인트",rows:pointRowsOf(list)}],"아이닉_포인트지급");
+  downloadCsvRows(pointRowsOf(list),"아이닉_포인트지급");
   subView.point="planned"; $$("#page-point .subtab").forEach(x=>x.classList.toggle("active",x.dataset.v==="planned")); renderActiveTab();
 }
 /* 지급예정 건의 명단을 다시 받습니다(파일을 못 받았거나 잃어버렸을 때) — 상태는 바꾸지 않습니다 */
@@ -5549,7 +5608,7 @@ function dlPointAgain(){
   const list=pointPlannedList();
   if(!list.length){alert("지급예정 건이 없습니다.");return;}
   if(!confirm("지급예정 "+list.length+"건의 명단을 다시 받습니다.\n상태는 바뀌지 않습니다."))return;
-  downloadSheets([{name:"포인트",rows:pointRowsOf(list)}],"아이닉_포인트지급_다시");
+  downloadCsvRows(pointRowsOf(list),"아이닉_포인트지급_다시");
   logAccess("포인트 명단 다시 받기","지급예정 "+list.length+"건",list.length);
 }
 /* 가운데 창 — 글자는 호출하는 쪽이 admEsc 로 이스케이프해서 넘깁니다 */
@@ -8878,7 +8937,7 @@ function lgcRender(st){
         +'<td>'+(t.tooOld||0).toLocaleString()+'</td><td>'+(t.otherProd||0).toLocaleString()+'</td>'
         +'<td class="wrapcell">'+(t.note?'<span style="color:#c1121f;font-weight:700">'+admEsc(t.note)+'</span>':'')
         +(t.contentCols&&t.contentCols.length?'<div style="font-size:11.5px;color:#9a6700;margin-top:2px">제목은 번호 열이 아니지만 값이 번호라서 번호 열로 봄 : '+admEsc(t.contentCols.join(", "))+'</div>':'')
-        +(t.giftHead||t.shipHead?'<div style="font-size:11.5px;color:var(--sub);margin-top:2px">사은품 열 : '+admEsc(t.giftHead||"-")+' · 출고 날짜 열 : '+admEsc(t.shipHead||"-")+'</div>':'')
+        +(t.giftHead||t.shipHead?'<div style="font-size:11.5px;color:var(--sub);margin-top:2px">사은품 열 : '+admEsc(t.giftHead||"-")+' · 출고 날짜 열 : '+admEsc(t.shipHead||"-")+' · 이름(받으시는 분) 열 : '+admEsc(t.nameHead||"-")+(t.noName?' <span style="color:#b26a00">(이름 칸이 빈 줄 '+Number(t.noName).toLocaleString()+')</span>':'')+'</div>':'')
         +(t.otherTop&&t.otherTop.length?'<div style="font-size:11.5px;color:#9a6700;margin-top:2px">제품 못 찾음 내역 : '+admEsc(t.otherTop.map(x=>x[0]+' ×'+x[1]).join(" | "))+'</div>':'')
         +(t.noPhone&&t.usedPhoneCols?'<div style="font-size:11.5px;color:#c1121f;margin-top:2px">번호로 읽은 열 : '+admEsc(t.usedPhoneCols.join(", ")||"(없음)")+(t.phoneLike&&t.phoneLike.length?' · 번호처럼 보이는 열 : '+admEsc(t.phoneLike.join(" | ")):' · 번호처럼 보이는 다른 열 없음')+'</div>'+(t.headAll&&t.headAll.length?'<div style="font-size:11px;color:var(--sub);margin-top:2px">열 이름 : <span style="font-family:monospace">'+admEsc(t.headAll.join(" | "))+'</span></div>':''):'')
         +(t.badHeaderCols&&t.badHeaderCols.length?'<div style="font-size:11.5px;color:#9a6700;margin-top:2px">제목은 번호 열인데 값이 번호가 아님(건너뜀) : '+admEsc(t.badHeaderCols.join(", "))+'</div>':'')

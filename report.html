@@ -1231,7 +1231,8 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
         <h3>상품권 재발송</h3>
         <div class="hint">
           상품권을 받은 뒤 <b>카톡방을 나가는 등 쓰지 못한 고객</b>의 재발송을 접수합니다. 성함과 연락처로 조회하면 그 고객이 받은 상품권 건이 나옵니다.
-          <b>이미 발송(출고완료)된 상품권만</b> 재발송 접수할 수 있고, 상품권 1건당 재발송은 1번입니다(접수를 취소하면 다시 접수할 수 있습니다).
+          <b>이미 발송(출고완료)된 상품권만</b> 재발송 접수할 수 있고, 상품권 1건당 <b>최대 5회</b>, <b>최초 발송일부터 1개월 이내</b>만 가능합니다(접수를 취소하면 그 횟수는 돌아옵니다).
+          기존 구글폼으로 받은 상품권(시트 탭 이름에 「상품권」이 들어 있는 건)도 같은 기준으로 접수할 수 있습니다.
           접수하면 <b>「상품권」 탭</b>에 「상품권 재발송」 줄로 들어가고, 일괄 출고 엑셀의 <b>「상품권 재발송」 시트</b>로 나갑니다.
         </div>
         <div class="filters" style="margin-top:11px">
@@ -1989,7 +1990,8 @@ const $$=s=>Array.from(document.querySelectorAll(s));
    통계·남은 수량·중복 판정이 재발송 건을 참여로 세지 않게 하려는 것입니다. 상품권 탭·일괄출고·고객검색·수기접수만 RESEND 를 압니다(entryById 가 둘 다 찾음).
    ⚠️ 서버 eventApi 의 참여 조회(checkParticipation)·ordersApi 의 전체 엑셀도 type:"resend" 를 건너뜁니다. */
 let ALL=[], RESEND=[], curTab="all";
-const RESEND_MAX=1;        // 상품권 1건당 재발송 접수 횟수 — 사용자: 「사실은 1번이 아니지만 일단 1번」. 늘리려면 이 값만 바꿉니다(문서 이름에 순번이 붙어 있어 그대로 동작)
+const RESEND_MAX=5;        // 상품권 1건당 재발송 접수 횟수 — 2026-11-06 사용자 결정: 최대 5회(전엔 1회). 문서 이름에 순번(resend_원래건_1~5)이 붙어 있어 이 값만 바꾸면 동작합니다
+const RESEND_MONTHS=1;     // 재발송 가능 기간 — 2026-11-06 사용자 결정: 최초 발송일부터 1개월 이내(프로그램 접수·구글폼 접수 모두 같은 기준)
 const entryById=id=>ALL.find(x=>x._id===id)||RESEND.find(x=>x._id===id);
 const isResend=e=>!!e&&e.type==="resend";
 let reserveProducts=new Set(), reserveSavedAt=null;
@@ -3216,7 +3218,8 @@ window.setOverride=setOverride;
       (조장·관리자는 담당자를 정하는 사람이라 이 잠금에서 뺍니다. 확인창은 똑같이 뜹니다.) */
 function approveGuard(id){
   const e=ALL.find(x=>x._id===id); if(!e) return true;
-  if(e.rewardType==="point"){ alert("포인트 건은 출고 승인을 쓰지 않습니다.\n고객정보 수정에서 공식몰 아이디를 고쳐 저장하면 「적합(지급대상)」으로 돌아갑니다."); return false; }
+  /* 2026-11-06 — 막는 것은 지급불가(공식몰 아이디 조회 안 됨)·지급예정(명단 올리는 중)뿐입니다. 사진 없음·별점 같은 일반 부적합 포인트 건은 다른 건처럼 출고 승인합니다. */
+  if(e.rewardType==="point"&&(pointUnpayable(e)||e.pointState==="planned")){ alert(pointUnpayable(e)?"지급불가(공식몰 아이디 조회 안 됨) 건은 출고 승인을 쓰지 않습니다.\n고객정보 수정에서 공식몰 아이디를 고쳐 저장하면 「적합(지급대상)」으로 돌아갑니다.":"지급예정(명단을 내려받은) 건은 출고 승인을 쓰지 않습니다."); return false; }
   if(opsRole()==="agent" && !e.manual){
     const me=opsMe();
     if(!e.agent){ alert("아직 담당자가 없는 건입니다.\n\n담당자를 본인으로 선택한 뒤 [출고 승인]을 눌러 주세요."); return false; }
@@ -4238,14 +4241,18 @@ function lgCardsHtml(list,name){
 }
 /* 수기접수용 — 번호(+성함)로 구글폼 참여 기록 카드를 만들어 돌려줍니다. 기록이 없거나 못 불러오면 빈 글자(위쪽 구글폼 안내 상자가 이미 알려 줍니다).
    성함이 있으면 그 성함(받으시는 분)의 기록만, 없으면 번호의 전부. 같은 조회는 csLgCache 에 한 번만 묻습니다. */
-async function lgRecordsHtml(phone,name){
-  const ph=mLgPhone(phone); if(!ph) return "";
-  const nm=String(name||"").replace(/\*/g,"").trim()===String(name||"").trim()?String(name||"").trim():"";     // 가려진 성함(홍*동)은 이름 조건에서 뺍니다
+const lgNameOf=name=>String(name||"").replace(/\*/g,"").trim()===String(name||"").trim()?String(name||"").trim():"";     // 가려진 성함(홍*동)은 이름 조건에서 뺍니다
+async function lgRecordsList(phone,name){
+  const ph=mLgPhone(phone); if(!ph) return [];
+  const nm=lgNameOf(name);
   const key=ph+"|"+nm;
   let r=csLgCache.get(key);
   if(!r){ try{ r=await ordApi({action:"legacyLookup",phone:ph,name:nm}); }catch(_){ r=null; } if(r&&r.ok) csLgCache.set(key,r); }
-  const list=(r&&r.ok&&Array.isArray(r.list))?r.list:[];
-  return list.length?`<div class="panel" style="margin-bottom:14px">${lgCardsHtml(list,nm)}</div>`:"";
+  return (r&&r.ok&&Array.isArray(r.list))?r.list:[];
+}
+async function lgRecordsHtml(phone,name){
+  const list=await lgRecordsList(phone,name);
+  return list.length?`<div class="panel" style="margin-bottom:14px">${lgCardsHtml(list,lgNameOf(name))}</div>`:"";
 }
 function renderCS(){
   const q=$("#csSearch").value.trim(),box=$("#csResult");
@@ -5288,14 +5295,27 @@ let MRFIND = null;
 const ymdStr = d => { if(!d) return ""; const p = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); };
 const mrIsSent = e => !!(e && (e.shipped || e.shipState === "shipped"));
 /* 한 상품권 건의 재발송 상태: wait(발송 전) · bad(부적합) · can(접수 가능) · planned(재발송예정) · done(재발송 발송완료) */
+/* 2026-11-06 — 구글폼 기록(_lg)도 같은 표에 올립니다: 상품권이 아니면 nov(대상 아님), 최초 발송일부터 RESEND_MONTHS 개월이 지나면 expired. 5회(RESEND_MAX)까지. */
+const mrShipDate = e => e._lg ? (/^\d{4}-\d{2}-\d{2}$/.test(e.shipYmd || "") ? new Date(e.shipYmd + "T00:00:00") : null) : tsDate(e.shippedAt);
+const mrDeadline = sd => { const y = sd.getFullYear(), mi = sd.getMonth() + RESEND_MONTHS, last = new Date(y, mi + 1, 0).getDate(); return new Date(y, mi, Math.min(sd.getDate(), last)); };   // 발송일 + N개월(그 달 말일을 넘으면 말일)
+const mrExpired = e => { const sd = mrShipDate(e); if(!sd) return false; const t = new Date(); t.setHours(0, 0, 0, 0); return t.getTime() > mrDeadline(sd).getTime(); };      // 발송일을 알 수 없으면 막지 않습니다(예전 그대로)
 function mrState(e){
   const rs = RESEND.filter(r => r.resendOf === e._id);
+  if(e._lg && !e.voucher) return { k:"nov", t:"상품권이 아니라 재발송 대상 아님", rs };
   if(!mrIsSent(e)){
+    if(e._lg) return { k:"wait", t:"상품권 지급예정", rs };
     return (shipStatus(e) === "ineligible" && !e.overrideEligible) ? { k:"bad", t:"부적합 — 재발송 대상 아님", rs } : { k:"wait", t:"상품권 지급예정", rs };
   }
   if(rs.some(r => !mrIsSent(r))) return { k:"planned", t:"상품권 재발송예정", rs };
-  if(rs.length >= RESEND_MAX) return { k:"done", t:"재발송 발송완료", rs };
+  if(rs.length >= RESEND_MAX) return { k:"done", t:"재발송 " + RESEND_MAX + "회 모두 접수", rs };
+  if(mrExpired(e)) return { k:"expired", t:"재발송 가능 기간(발송일부터 " + RESEND_MONTHS + "개월) 지남", rs };
   return { k:"can", t:"", rs };
+}
+/* 구글폼 기록 → 재발송 표의 한 줄. 번호·성함은 조회에 쓴 값(MRFIND)뿐이고 줄에는 담지 않습니다. */
+function mrLgEntries(){
+  if(!MRFIND || !Array.isArray(MRFIND.lg)) return [];
+  const today = ymdStr(new Date());
+  return MRFIND.lg.map(x => ({ _id:"lg_" + x.id, _lg:true, voucher:!!x.voucher, shipYmd:x.ship || "", recv:x.recv || "", product:/^[A-Za-z0-9][A-Za-z0-9-]{1,19}$/.test(x.group || "") ? x.group : "", prodText:x.prod || "", giftItem:x.gift || "", shipped:!!x.ship && x.ship <= today }));
 }
 function mrFind(){
   const msg = $("#mrMsg"); msg.textContent = ""; msg.style.color = "";
@@ -5304,47 +5324,52 @@ function mrFind(){
   MRFIND = { nm, ph, list: ALL.filter(e => e.rewardType === "coupon" && mNameKey(e.name) === nk && mDigits(e.phone) === ph)
                             .sort((a, b) => (a._date ? a._date.getTime() : 0) - (b._date ? b._date.getTime() : 0)), lgHtml: "" };
   mrRender();
-  /* 구글폼 참여 기록(보기만 — 구글폼 건은 재발송 접수 대상이 아닙니다). 불러오는 사이 다시 조회했으면 버립니다. */
+  /* 구글폼 참여 기록 — 2026-11-06부터 상품권(시트 탭에 「상품권」)은 같은 표에서 재발송 접수합니다. 불러오는 사이 다시 조회했으면 버립니다. */
   const mine = MRFIND;
-  lgRecordsHtml(ph, nm).then(h => { if(MRFIND === mine && h){ mine.lgHtml = h; mrRender(); } }).catch(() => {});
+  lgRecordsList(ph, nm).then(l => { if(MRFIND === mine && l.length){ mine.lg = l; mrRender(); } }).catch(() => {});
 }
 function mrRender(){
   const box = $("#mrResult"); if(!MRFIND){ box.innerHTML = ""; return; }
-  const list = MRFIND.list;
-  const lgh = MRFIND.lgHtml || "";
-  if(!list.length){ box.innerHTML = `<div class="empty" style="display:block">이 시스템에 조회된 상품권 접수가 없습니다.${lgh ? " 아래 구글폼 참여 기록을 확인해 주세요(구글폼 건은 여기서 재발송 접수를 하지 않습니다)." : " 성함·연락처를 다시 확인해 주세요."}</div>` + lgh; return; }
-  const sts = list.map(mrState), sent = list.filter(mrIsSent).length, can = sts.filter(s => s.k === "can").length;
+  const list = MRFIND.list.concat(mrLgEntries());      // 프로그램 접수 + 구글폼 기록(2026-11-06)
+  if(!list.length){ box.innerHTML = `<div class="empty" style="display:block">조회된 상품권 접수가 없습니다. 성함·연락처를 다시 확인해 주세요.</div>`; return; }
+  const sts = list.map(mrState), sent = list.filter(e => sts[list.indexOf(e)].k !== "nov" && mrIsSent(e)).length, can = sts.filter(s => s.k === "can").length;
   const pill = (bg, fg, t) => `<span class="pill" style="background:${bg};color:${fg}">${t}</span>`;
   const act = (e, s) => s.k === "can" ? `<button class="sm primary" data-act="mrReq" data-id="${admEsc(e._id)}">상품권 재발송 접수</button>`
     : s.k === "planned" ? pill("#efe9fb", "#5a3fb0", "상품권 재발송예정")
-    : s.k === "done" ? `<b style="color:var(--ok)">재발송 발송완료</b>`
+    : s.k === "done" ? `<b style="color:var(--ok)">${admEsc(s.t)}</b>`
     : s.k === "wait" ? `<span style="color:#b26a00;font-weight:800">${s.t}</span>` : `<span style="color:var(--sub)">${s.t}</span>`;
   const hist = s => s.rs.length ? s.rs.map(r => `<div>${pill("#efe9fb", "#5a3fb0", "재발송")} ${admEsc(fmtDate(r._date))} · ${admEsc(r.agent || "-")} · ${mrIsSent(r) ? "발송완료 " + admEsc(shippedDate(r)) : "예정"}</div>`).join("") : `<span style="color:var(--sub)">없음</span>`;
-  box.innerHTML = `<div style="margin:2px 0 8px;font-size:13.5px"><b>${admEsc(MRFIND.nm)}</b> · 받은 상품권 ${list.length}건 · 발송 완료 ${sent}건 · <b>재발송 접수 가능 ${can}건</b></div>`
-    + (list.length && !can && sent && sts.every(s => s.k !== "wait" && s.k !== "bad" && s.k !== "can") ? `<div class="hint" style="margin-bottom:8px;padding:9px 12px;border-radius:10px;background:#fff6e0;color:#7a5a00">이 고객은 <b>발송 완료된 상품권 ${sent}건이 모두 재발송 접수</b>되어 더 접수할 수 없습니다. 아래 재발송 내역을 확인해 주세요.</div>` : "")
+  const shipTxt = e => e._lg ? admEsc(e.shipYmd || "-") : (mrIsSent(e) ? admEsc(shippedDate(e)) : "-");
+  box.innerHTML = `<div style="margin:2px 0 8px;font-size:13.5px"><b>${admEsc(MRFIND.nm)}</b> · 받은 상품권 ${list.filter((e, i) => sts[i].k !== "nov").length}건 · 발송 완료 ${sent}건 · <b>재발송 접수 가능 ${can}건</b></div>`
+    + (list.length && !can && sent && sts.every(s => s.k !== "wait" && s.k !== "bad" && s.k !== "can") ? `<div class="hint" style="margin-bottom:8px;padding:9px 12px;border-radius:10px;background:#fff6e0;color:#7a5a00">지금 <b>재발송 접수할 수 있는 상품권이 없습니다</b>(횟수 ${RESEND_MAX}회를 다 썼거나 발송일부터 ${RESEND_MONTHS}개월이 지남). 아래 표의 안내를 확인해 주세요.</div>` : "")
     + `<div class="tablewrap"><table class="data"><thead><tr><th>접수일자</th><th>제품</th><th>상품권</th><th>발송일</th><th>재발송 내역</th><th>접수</th></tr></thead><tbody>`
-    + list.map((e, i) => `<tr><td>${admEsc(fmtDate(e._date))}</td><td>${admEsc(PNAME[e.product] || e.product || "-")}</td><td>${admEsc(e.giftItem || "-")}</td><td>${mrIsSent(e) ? admEsc(shippedDate(e)) : "-"}</td><td>${hist(sts[i])}</td><td>${act(e, sts[i])}</td></tr>`).join("")
-    + `</tbody></table></div>` + lgh;
+    + list.map((e, i) => `<tr><td>${e._lg ? admEsc(e.recv || "-") : admEsc(fmtDate(e._date))}</td><td>${e._lg ? admEsc(e.prodText || "-") + ' <span class="pill">구글폼</span>' : admEsc(PNAME[e.product] || e.product || "-")}</td><td>${admEsc(e.giftItem || "-")}</td><td>${shipTxt(e)}</td><td>${hist(sts[i])}</td><td>${act(e, sts[i])}</td></tr>`).join("")
+    + `</tbody></table></div>`;
 }
 async function mrRequest(id){
-  const o = ALL.find(x => x._id === id); if(!o) return;
+  const isLg = String(id).startsWith("lg_");
+  const o = isLg ? mrLgEntries().find(x => x._id === id) : ALL.find(x => x._id === id); if(!o) return;
   if(!(ME && (isAdm(ME.role) || ME.role === "agent"))){ alert("상품권 재발송 접수는 상담사·관리자·QA만 할 수 있습니다."); return; }
   const s = mrState(o); if(s.k !== "can"){ alert("지금은 재발송 접수를 할 수 없는 건입니다.\n(" + (s.t || "이미 재발송 접수됨") + ")"); return; }
-  const shipD = tsDate(o.shippedAt), n = s.rs.length + 1;
-  if(!confirm("상품권 재발송을 접수합니다.\n\n" + (o.name || "-") + " · " + (o.giftItem || "-") + "\n기존 발송일 " + (shipD ? ymdStr(shipD) : "-")
+  const shipD = mrShipDate(o), used = new Set(s.rs.map(r => Number(r.resendNo) || 0));
+  let n = 1; while(used.has(n)) n++;      // 취소된 순번은 다시 씁니다(문서 이름 resend_원래건_순번 — 같은 순번이 있으면 아래 트랜잭션이 막음)
+  const nm = isLg ? MRFIND.nm : (o.name || ""), phDigits = isLg ? MRFIND.ph : (o.phoneKey || mDigits(o.phone));
+  const phShow = isLg ? (phDigits.length === 11 ? phDigits.replace(/^(\d{3})(\d{4})(\d{4})$/, "$1-$2-$3") : phDigits) : (o.phone || "");
+  if(!confirm("상품권 재발송을 접수합니다.\n\n" + (nm || "-") + " · " + (o.giftItem || "-") + (isLg ? " (구글폼 접수)" : "") + "\n기존 발송일 " + (shipD ? ymdStr(shipD) : "-") + (shipD ? " · 접수 가능 기한 " + ymdStr(mrDeadline(shipD)) : "") + "\n이 상품권의 " + n + "번째 재발송입니다(최대 " + RESEND_MAX + "회)."
       + "\n\n접수하면 「상품권」 탭에 「상품권 재발송」 줄로 들어가고, 이 건은 「상품권 재발송예정」이 됩니다.\n(잘못 접수했으면 접수 취소로 되돌릴 수 있습니다.)")) return;
   { const blk = await manualIntakeBlock(); if(blk){ alert(MANUAL_BLOCK_TEXT[blk]); return; } }
   const F = firebase.firestore.FieldValue;
   const payload = {
     type:"resend", rewardType:"coupon", resendOf:id, resendNo:n, resendShip: shipD ? ymdStr(shipD) : "",
-    status:"eligible", manual:true, shipState:"pending", reason:"상품권 재발송",
-    category:o.category || "", product:o.product || "", giftItem:o.giftItem || "", giftQty:Math.max(1, parseInt(o.giftQty, 10) || 1), source:o.source || "", orderNo:o.orderNo || "",
-    name:o.name || "", phone:o.phone || "", phoneKey:o.phoneKey || mDigits(o.phone), address:"", shipFee:"",
+    status:"eligible", manual:true, shipState:"pending", reason:isLg ? "상품권 재발송(구글폼 접수 건)" : "상품권 재발송",
+    category:o.category || "", product:o.product || "", giftItem:o.giftItem || "", giftQty:isLg ? 1 : Math.max(1, parseInt(o.giftQty, 10) || 1), source:o.source || "", orderNo:o.orderNo || "",
+    name:nm, phone:phShow, phoneKey:phDigits, address:"", shipFee:"",
     agent:(ME && ME.name) || "", agentUid:(ME && ME.uid) || "",
     consent:{ privacy:"agree", marketing:"", reward:"coupon", agreedAt:new Date().toISOString(), manual:true, resend:true }, survey:[],
     createdAt:F.serverTimestamp()
   };
-  ["imageUrl","imageUrls","imagePath","imagePaths","manualImageUrl","manualImagePath"].forEach(k => { const v = o[k]; if(v != null && v !== "" && !(Array.isArray(v) && !v.length)) payload[k] = v; });     // 기존 이미지를 가져옵니다
+  if(isLg){ payload.resendLegacy = true; if(o.prodText) payload.resendProd = String(o.prodText).slice(0, 80); }
+  ["imageUrl","imageUrls","imagePath","imagePaths","manualImageUrl","manualImagePath"].forEach(k => { const v = o[k]; if(v != null && v !== "" && !(Array.isArray(v) && !v.length)) payload[k] = v; });     // 기존 이미지를 가져옵니다(구글폼 건은 없음)
   try{
     const db = await initFirebase(), rid = "resend_" + id + "_" + n;
     await db.runTransaction(async t => { const ref = db.collection(COLLECTION).doc(rid), snap = await t.get(ref); if(snap.exists) throw new Error("이미 재발송 접수된 건입니다."); t.set(ref, payload); });
@@ -5353,7 +5378,7 @@ async function mrRequest(id){
     const blk2 = /permission|PERMISSION/i.test(String((err && (err.code || err.message)) || "")) ? await manualIntakeBlock() : "";
     alert(blk2 ? MANUAL_BLOCK_TEXT[blk2] : "재발송 접수 실패: " + (err.message || err)); await loadData(); mrFind(); return;
   }
-  logAccess("상품권 재발송 접수", (o.product || "-") + " · " + (o.giftItem || "-"), 1);      // 이름·번호는 적지 않습니다
+  logAccess("상품권 재발송 접수", (o.product || (isLg ? "구글폼" : "-")) + " · " + (o.giftItem || "-"), 1);      // 이름·번호는 적지 않습니다
   await loadData(); mrFind();
   alert("재발송 접수가 완료되었습니다.\n「상품권」 탭 맨 위쪽에 「상품권 재발송」 줄로 들어갔습니다. 일괄 출고하면 「상품권 재발송」 시트로 나갑니다.");
 }

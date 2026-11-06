@@ -4242,12 +4242,13 @@ function lgCardsHtml(list,name){
 /* 수기접수용 — 번호(+성함)로 구글폼 참여 기록 카드를 만들어 돌려줍니다. 기록이 없거나 못 불러오면 빈 글자(위쪽 구글폼 안내 상자가 이미 알려 줍니다).
    성함이 있으면 그 성함(받으시는 분)의 기록만, 없으면 번호의 전부. 같은 조회는 csLgCache 에 한 번만 묻습니다. */
 const lgNameOf=name=>String(name||"").replace(/\*/g,"").trim()===String(name||"").trim()?String(name||"").trim():"";     // 가려진 성함(홍*동)은 이름 조건에서 뺍니다
-async function lgRecordsList(phone,name){
+async function lgRecordsList(phone,name,includeNoName){
   const ph=mLgPhone(phone); if(!ph) return [];
   const nm=lgNameOf(name);
-  const key=ph+"|"+nm;
+  const inn=includeNoName===true&&!!nm;      // 상품권 재발송 탭 전용(2026-11-06): 성함 칸이 없는 시트 줄도 번호가 맞으면 함께(noName 표시)
+  const key=ph+"|"+nm+(inn?"|nn":"");
   let r=csLgCache.get(key);
-  if(!r){ try{ r=await ordApi({action:"legacyLookup",phone:ph,name:nm}); }catch(_){ r=null; } if(r&&r.ok) csLgCache.set(key,r); }
+  if(!r){ try{ r=await ordApi(inn?{action:"legacyLookup",phone:ph,name:nm,includeNoName:true}:{action:"legacyLookup",phone:ph,name:nm}); }catch(_){ r=null; } if(r&&r.ok) csLgCache.set(key,r); }
   return (r&&r.ok&&Array.isArray(r.list))?r.list:[];
 }
 async function lgRecordsHtml(phone,name){
@@ -5315,7 +5316,7 @@ function mrState(e){
 function mrLgEntries(){
   if(!MRFIND || !Array.isArray(MRFIND.lg)) return [];
   const today = ymdStr(new Date());
-  return MRFIND.lg.map(x => ({ _id:"lg_" + x.id, _lg:true, voucher:!!x.voucher, shipYmd:x.ship || "", recv:x.recv || "", product:/^[A-Za-z0-9][A-Za-z0-9-]{1,19}$/.test(x.group || "") ? x.group : "", prodText:x.prod || "", giftItem:x.gift || "", shipped:!!x.ship && x.ship <= today }));
+  return MRFIND.lg.map(x => ({ _id:"lg_" + x.id, _lg:true, voucher:!!x.voucher, shipYmd:x.ship || "", recv:x.recv || "", product:/^[A-Za-z0-9][A-Za-z0-9-]{1,19}$/.test(x.group || "") ? x.group : "", prodText:x.prod || "", giftItem:x.gift || "", noName:x.noName === true, shipped:!!x.ship && x.ship <= today }));
 }
 function mrFind(){
   const msg = $("#mrMsg"); msg.textContent = ""; msg.style.color = "";
@@ -5326,7 +5327,7 @@ function mrFind(){
   mrRender();
   /* 구글폼 참여 기록 — 2026-11-06부터 상품권(시트 탭에 「상품권」)은 같은 표에서 재발송 접수합니다. 불러오는 사이 다시 조회했으면 버립니다. */
   const mine = MRFIND;
-  lgRecordsList(ph, nm).then(l => { if(MRFIND === mine && l.length){ mine.lg = l; mrRender(); } }).catch(() => {});
+  lgRecordsList(ph, nm, true).then(l => { if(MRFIND === mine && l.length){ mine.lg = l; mrRender(); } }).catch(() => {});
 }
 function mrRender(){
   const box = $("#mrResult"); if(!MRFIND){ box.innerHTML = ""; return; }
@@ -5343,7 +5344,7 @@ function mrRender(){
   box.innerHTML = `<div style="margin:2px 0 8px;font-size:13.5px"><b>${admEsc(MRFIND.nm)}</b> · 받은 상품권 ${list.filter((e, i) => sts[i].k !== "nov").length}건 · 발송 완료 ${sent}건 · <b>재발송 접수 가능 ${can}건</b></div>`
     + (list.length && !can && sent && sts.every(s => s.k !== "wait" && s.k !== "bad" && s.k !== "can") ? `<div class="hint" style="margin-bottom:8px;padding:9px 12px;border-radius:10px;background:#fff6e0;color:#7a5a00">지금 <b>재발송 접수할 수 있는 상품권이 없습니다</b>(횟수 ${RESEND_MAX}회를 다 썼거나 발송일부터 ${RESEND_MONTHS}개월이 지남). 아래 표의 안내를 확인해 주세요.</div>` : "")
     + `<div class="tablewrap"><table class="data"><thead><tr><th>접수일자</th><th>제품</th><th>상품권</th><th>발송일</th><th>재발송 내역</th><th>접수</th></tr></thead><tbody>`
-    + list.map((e, i) => `<tr><td>${e._lg ? admEsc(e.recv || "-") : admEsc(fmtDate(e._date))}</td><td>${e._lg ? admEsc(e.prodText || "-") + ' <span class="pill">구글폼</span>' : admEsc(PNAME[e.product] || e.product || "-")}</td><td>${admEsc(e.giftItem || "-")}</td><td>${shipTxt(e)}</td><td>${hist(sts[i])}</td><td>${act(e, sts[i])}</td></tr>`).join("")
+    + list.map((e, i) => `<tr><td>${e._lg ? admEsc(e.recv || "-") : admEsc(fmtDate(e._date))}</td><td>${e._lg ? admEsc(e.prodText || "-") + ' <span class="pill">구글폼</span>' + (e.noName ? ' <span class="pill" style="background:#fff0d6;color:#8a5200">성함 확인 불가(번호 일치)</span>' : "") : admEsc(PNAME[e.product] || e.product || "-")}</td><td>${admEsc(e.giftItem || "-")}</td><td>${shipTxt(e)}</td><td>${hist(sts[i])}</td><td>${act(e, sts[i])}</td></tr>`).join("")
     + `</tbody></table></div>`;
 }
 async function mrRequest(id){
@@ -5355,7 +5356,7 @@ async function mrRequest(id){
   let n = 1; while(used.has(n)) n++;      // 취소된 순번은 다시 씁니다(문서 이름 resend_원래건_순번 — 같은 순번이 있으면 아래 트랜잭션이 막음)
   const nm = isLg ? MRFIND.nm : (o.name || ""), phDigits = isLg ? MRFIND.ph : (o.phoneKey || mDigits(o.phone));
   const phShow = isLg ? (phDigits.length === 11 ? phDigits.replace(/^(\d{3})(\d{4})(\d{4})$/, "$1-$2-$3") : phDigits) : (o.phone || "");
-  if(!confirm("상품권 재발송을 접수합니다.\n\n" + (nm || "-") + " · " + (o.giftItem || "-") + (isLg ? " (구글폼 접수)" : "") + "\n기존 발송일 " + (shipD ? ymdStr(shipD) : "-") + (shipD ? " · 접수 가능 기한 " + ymdStr(mrDeadline(shipD)) : "") + "\n이 상품권의 " + n + "번째 재발송입니다(최대 " + RESEND_MAX + "회)."
+  if(!confirm("상품권 재발송을 접수합니다.\n\n" + (nm || "-") + " · " + (o.giftItem || "-") + (isLg ? " (구글폼 접수)" : "") + (o.noName ? "\n\n⚠️ 이 기록은 시트에 성함이 없어 「번호만」 일치합니다.\n고객이 말한 성함·받은 상품권·발송일이 맞는지 한 번 더 확인하셨나요?" : "") + "\n기존 발송일 " + (shipD ? ymdStr(shipD) : "-") + (shipD ? " · 접수 가능 기한 " + ymdStr(mrDeadline(shipD)) : "") + "\n이 상품권의 " + n + "번째 재발송입니다(최대 " + RESEND_MAX + "회)."
       + "\n\n접수하면 「상품권」 탭에 「상품권 재발송」 줄로 들어가고, 이 건은 「상품권 재발송예정」이 됩니다.\n(잘못 접수했으면 접수 취소로 되돌릴 수 있습니다.)")) return;
   { const blk = await manualIntakeBlock(); if(blk){ alert(MANUAL_BLOCK_TEXT[blk]); return; } }
   const F = firebase.firestore.FieldValue;

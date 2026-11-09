@@ -184,6 +184,9 @@
 /* 예약발송 — 제품 옆 「언제 들어오는지」 칸 (2026-09-22) */
 .chk.rsvrow{display:flex;align-items:center;gap:7px}
 .rsvnm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rsvcell{min-width:0}
+.rsvgifts{margin:4px 0 2px 24px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:12.5px}
+.rsvgifts[hidden]{display:none}
 .rsvat{flex:0 0 116px;border:1px solid #d6d9de;border-radius:7px;padding:4px 8px;
   font-size:12px;font-family:inherit;background:#fff}
 .rsvat:enabled{border-color:#d3a23c;background:#fffdf5}
@@ -1130,7 +1133,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
       품절 등으로 나중에 발송할 <b>제품을 지정</b>하면 그 제품의 <b>적합·부적합·출고 승인</b> 고객이 아래 목록으로 모이고, 적합·출고 승인 건은 사은품 발송목록(일괄출고)에서 빠집니다. <b>확인필요</b> 건은 사은품/상품권 탭의 「확인필요」에서 재심사합니다.</div></div>
     <div class="panel rsv-cfg" style="margin-bottom:14px">
       <h3>예약발송 제품 지정</h3>
-      <div class="hint" style="margin:0 0 10px">여기서는 <b>제품과 입고 시점</b>만 정합니다. 고객에게 나갈 <b>문장</b>은 <b>안내 문구 탭 → ⑧ 접수 완료 → 「사은품 · 예약발송일 때」</b> 에서 고치세요.</div>
+      <div class="hint" style="margin:0 0 10px">여기서는 <b>제품과 입고 시점</b>만 정합니다. 제품에 사은품이 여러 개면 체크한 제품 아래에서 <b>예약할 사은품만</b> 고를 수 있습니다(안 고르면 제품 전체). 고객에게 나갈 <b>문장</b>은 <b>안내 문구 탭 → ⑧ 접수 완료 → 「사은품 · 예약발송일 때」</b> 에서 고치세요.</div>
       <div class="chkgrid" id="reserveConfig"></div>
       <button id="saveReserve" class="primary sm">저장</button><span class="msg" id="reserveMsg" style="margin-left:8px"></span>
     </div>
@@ -1997,6 +2000,10 @@ const isResend=e=>!!e&&e.type==="resend";
 let reserveProducts=new Set(), reserveSavedAt=null;
 /* 제품코드 → 입고예정 시점 (예: { "i50T": "10월 중순" })  2026-09-22 */
 let reserveNote={};
+/* 🔴 2026-11-10 사은품별 예약발송 — reserveGifts[제품코드]=[예약할 사은품 이름…]. 없거나 비어 있으면 그 제품 전체가 예약(예전 그대로).
+   RSV_GIFTS = 예약발송 탭에서 고를 수 있는 사은품 후보(설정의 기본 사은품·프로모션 사은품 + 접수에 적힌 사은품). ⚠️ 서버 eventApi reserveGiftOk 와 같은 기준입니다. */
+let reserveGifts={}, RSV_GIFTS={};
+function rsvGiftsNorm(v){const o={};if(v&&typeof v==="object")Object.keys(v).forEach(c=>{const l=(Array.isArray(v[c])?v[c]:[]).map(x=>String(x==null?"":x).trim()).filter(Boolean);if(l.length)o[canonCode(c)]=l;});return o;}
 const subView={order:"elig",acct:"elig",point:"elig",reserve:"elig"};
 const pageState={all:1,order:1,acct:1,point:1,reserve:1,cs:1,bad:1};
 const TYPE_LABEL={review:"포토리뷰",coupang:"쿠팡 정품등록",resend:"상품권 재발송"};
@@ -2246,7 +2253,12 @@ function statusBadge(e){const s=shipStatus(e);const[l0,c]=STATUS_META[s];const l
   const d=(!e.manual&&dupIds.has(e._id))?' <span class="pill needreview">중복</span>':'';return `<span class="pill ${c}">${l}</span>${d}${m}`;}
 function shipBadge(e){const s=shipStateOf(e);const[l,c]=SHIP_META[s];return `<span class="pill ${c}">${l}</span>`;}
 function isEligible(e){return shipStatus(e)==="eligible";}
-function isReserve(e){return reserveProducts.has(e.product)||reserveProducts.has(canonCode(e.product));}   // 예전 코드 접수도 지금 코드의 예약으로(2026-10-28)
+function isReserve(e){
+  const c=canonCode(e.product);
+  if(!(reserveProducts.has(e.product)||reserveProducts.has(c)))return false;   // 예전 코드 접수도 지금 코드의 예약으로(2026-10-28)
+  const g=reserveGifts[c];                                                      // 사은품별 예약(2026-11-10): 목록이 있으면 그 사은품일 때만
+  return !(g&&g.length)||g.includes(String(e.giftItem==null?"":e.giftItem).trim());
+}
 function monthKey(d){if(!d)return "";const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1);}
 function uniq(a){return [...new Set(a.filter(Boolean))];}
 /* ══════════════════════════════════════════════════════════════════════
@@ -2307,7 +2319,8 @@ async function loadData(){
     RESEND.sort((a,b)=>(b._date?.getTime()||0)-(a._date?.getTime()||0));
     try{const cfg=await db.collection(CONFIG_DOC[0]).doc(CONFIG_DOC[1]).get();reserveProducts=new Set(((cfg.exists&&cfg.data().reserveProducts)||[]).map(canonCode));
       reserveNote=(cfg.exists&&cfg.data().reserveNote)||{};
-      const t=cfg.exists&&cfg.data().reserveUpdatedAt;reserveSavedAt=t&&t.toDate?t.toDate():null;}catch(_){reserveProducts=new Set();}
+      reserveGifts=rsvGiftsNorm(cfg.exists&&cfg.data().reserveGifts);
+      const t=cfg.exists&&cfg.data().reserveUpdatedAt;reserveSavedAt=t&&t.toDate?t.toDate():null;}catch(_){reserveProducts=new Set();reserveGifts={};}
     /* 🔴 합배송 설정 (2026-09-23) — 발주 엑셀이 이 값으로 줄을 끊습니다.
           ⚠️ 관리자 탭의 cfg 는 **그 탭을 열어야만** 채워집니다. 일괄출고는 다른 탭에서 하므로
              여기서 따로 읽어 둡니다. 못 읽으면 나누지 않습니다(예전 그대로 — 더 안전한 쪽). */
@@ -2345,6 +2358,7 @@ async function loadData(){
         gs.month[it.code]=gsListRaw(src.map(g=>({label:g&&g.label,type:g&&g.type,fee:g&&g.shipFee})),"착불");
       });
       GSET=raw?gs:null; BOXCAP_CP=mc;
+      try{RSV_GIFTS=rsvGiftMap(raw);}catch(e3){RSV_GIFTS={};}
       BOXCAP=m; BOXCAP_M=mm; BOXCAP_OK=true;
     }catch(e){ console.warn("합배송 설정을 못 읽었습니다 — 줄을 나누지 않습니다", e); BOXCAP={}; BOXCAP_M={}; BOXCAP_CP={}; BOXCAP_OK=false; }
     $("#asof").textContent="기준 "+new Date().toLocaleString("ko-KR")+" · 총 "+ALL.length+"건";
@@ -3384,21 +3398,49 @@ async function shipCommit(rows){
       완료 팝업과 참여 조회에 「예약발송으로 ○○ 입고 예정입니다」가 나갑니다.
       ⚠️ 시점을 비워 두시면 안내가 **안 나갑니다**(지정만 되고 문구는 없음).
       ⚠️ 상품권 제품에는 안 나갑니다 — 재고와 상관이 없기 때문입니다. */
+/* 🔴 2026-11-10 사은품별 예약발송 (담당자 요청 — 에어프라이어 16L: 튀김용 바스켓은 정상 출고, 그릴판만 예약)
+      제품을 체크하면 그 제품의 사은품이 아래에 나옵니다. **고른 사은품만** 예약이고, 아무것도 안 고르면 예전처럼 제품 전체가 예약입니다.
+      후보 = 설정의 기본 사은품·프로모션 사은품 + 지금까지 접수에 적힌 사은품 + 이미 저장된 사은품. 사은품(택배) 종류만 보여 줍니다 — 상품권·포인트는 재고와 상관없습니다. */
+function rsvGiftMap(raw){
+  const out={};
+  (raw&&Array.isArray(raw.products)?raw.products:[]).forEach(p2=>{
+    if(!p2)return;
+    const names=[], add=g=>{const l=String((g&&g.label)||"").trim(); if(l&&rwOf(g&&g.type)==="gift"&&!names.includes(l))names.push(l);};
+    const codes=Array.isArray(p2.codes)?p2.codes.filter(Boolean):[];
+    const rv=gsSetOfRaw(p2,"rv");
+    codes.forEach(c=>{const l=rv.byCode[c]; if(Array.isArray(l))l.forEach(add); else if(l===null)add({label:p2.label,type:p2.type});});
+    (Array.isArray(raw.giftRules)?raw.giftRules:[]).filter(r=>r&&r.product&&r.product===p2.ledger).forEach(r=>mRuleGifts(r).forEach(add));
+    codes.forEach(c=>{const k=canonCode(c); out[k]=(out[k]||[]).concat(names.filter(n=>!(out[k]||[]).includes(n)));});
+  });
+  return out;
+}
+function rsvGiftCands(p){
+  const out=(RSV_GIFTS[p]||[]).slice();
+  const add=n=>{n=String(n||"").trim(); if(n&&!out.includes(n))out.push(n);};
+  ALL.forEach(e=>{if(canonCode(e.product||"")===p&&rwOf(e.rewardType)==="gift")add(e.giftItem);});
+  (reserveGifts[p]||[]).forEach(add);
+  return out;
+}
 function renderReserveConfig(){
   const prods=allProducts();
   $("#reserveConfig").innerHTML = prods.map(p=>{
     const on = reserveProducts.has(p);
     const at = admEsc(reserveNote[p] || "");
-    return `<label class="chk rsvrow"><input type="checkbox" value="${admEsc(p)}" ${on?"checked":""}>`
+    const cands=rsvGiftCands(p), sel=reserveGifts[p]||[];
+    const gifts = cands.length>=2
+      ? `<div class="rsvgifts" data-p="${admEsc(p)}" ${on?"":"hidden"}><span class="hint" style="margin:0">예약할 사은품 — 고른 것만 예약 · 안 고르면 이 제품 전체</span>`
+        + cands.map(g=>`<label class="chk"><input type="checkbox" class="rsvg" data-p="${admEsc(p)}" value="${admEsc(g)}" ${sel.includes(g)?"checked":""}><span>${admEsc(g)}</span></label>`).join("")
+        + `</div>` : "";
+    return `<div class="rsvcell"><label class="chk rsvrow"><input type="checkbox" class="rsvp" value="${admEsc(p)}" ${on?"checked":""}>`
       + `<span class="rsvnm">${admEsc(p)}${PNAME[p]?" · "+admEsc(PNAME[p]):""}</span>`
       + `<input class="rsvat" type="text" maxlength="20" data-p="${admEsc(p)}" value="${at}" `
       + `placeholder="예) 10월 중순" aria-label="입고예정 시점" ${on?"":"disabled"}>`
-      + `</label>`;
+      + `</label>${gifts}</div>`;
   }).join("")||'<div class="empty">제품이 없습니다.</div>';
-  /* 체크를 켜고 끌 때 입력칸도 같이 열고 닫습니다 */
-  $$('#reserveConfig input[type=checkbox]').forEach(c=>c.addEventListener("change",()=>{
-    const box=c.closest(".rsvrow").querySelector(".rsvat");
-    box.disabled=!c.checked; if(c.checked) box.focus();
+  /* 체크를 켜고 끌 때 입력칸·사은품 고르기도 같이 열고 닫습니다 */
+  $$('#reserveConfig input.rsvp').forEach(c=>c.addEventListener("change",()=>{
+    const cell=c.closest(".rsvcell"), box=cell.querySelector(".rsvat"), g=cell.querySelector(".rsvgifts");
+    box.disabled=!c.checked; if(g)g.hidden=!c.checked; if(c.checked) box.focus();
   }));
   const msg=$("#reserveMsg");
   if(reserveSavedAt){msg.className="";msg.style.color="var(--sub)";msg.style.fontWeight="700";msg.style.fontSize="12.5px";
@@ -3406,20 +3448,27 @@ function renderReserveConfig(){
   else{msg.className="";msg.style.color="var(--sub)";msg.textContent="아직 예약발송 지정 이력이 없습니다.";}
 }
 async function saveReserve(){
-  const chosen=$$('#reserveConfig input[type=checkbox]:checked').map(i=>i.value);const msg=$("#reserveMsg");
+  const chosen=$$('#reserveConfig input.rsvp:checked').map(i=>i.value);const msg=$("#reserveMsg");
   /* 체크한 제품의 「언제」만 모읍니다. 체크를 푼 제품은 시점도 같이 지웁니다. */
   const note={};
   $$('#reserveConfig .rsvat').forEach(b=>{
     const p=b.dataset.p, v=String(b.value||"").trim();
     if(chosen.indexOf(p)>=0 && v) note[p]=v;
   });
+  /* 사은품별 예약(2026-11-10) — 체크한 제품에서 고른 사은품만. 후보 전부를 고르면 「제품 전체」와 같으므로 저장하지 않습니다(나중에 새 사은품이 생겨도 제품 전체 예약 그대로). */
+  const gifts={};
+  chosen.forEach(p=>{
+    const all=$$('#reserveConfig input.rsvg').filter(i=>i.dataset.p===p), pick=all.filter(i=>i.checked).map(i=>i.value);
+    if(pick.length && pick.length<all.length) gifts[p]=pick;
+  });
   const noAt=chosen.filter(p=>!note[p]);
   try{
     const db=await initFirebase();
-    await db.collection(CONFIG_DOC[0]).doc(CONFIG_DOC[1]).set({reserveProducts:chosen,reserveNote:note,reserveUpdatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-    reserveProducts=new Set(chosen);reserveNote=note;reserveSavedAt=new Date();
+    /* mergeFields — 예약을 푼 제품의 시점·사은품 지정이 옛 값으로 남지 않게 이 네 칸은 통째로 바꿉니다 */
+    await db.collection(CONFIG_DOC[0]).doc(CONFIG_DOC[1]).set({reserveProducts:chosen,reserveNote:note,reserveGifts:gifts,reserveUpdatedAt:firebase.firestore.FieldValue.serverTimestamp()},{mergeFields:["reserveProducts","reserveNote","reserveGifts","reserveUpdatedAt"]});
+    reserveProducts=new Set(chosen);reserveNote=note;reserveGifts=rsvGiftsNorm(gifts);reserveSavedAt=new Date();
     msg.className="msg ok";msg.style.color="";
-    msg.textContent="✔ "+fmtDate(reserveSavedAt)+" 기준으로 저장됨 ("+chosen.length+"개 제품)"
+    msg.textContent="✔ "+fmtDate(reserveSavedAt)+" 기준으로 저장됨 ("+chosen.length+"개 제품"+(Object.keys(gifts).length?" · 사은품 지정 "+Object.keys(gifts).length+"개 제품":"")+")"
       + (noAt.length ? "  ·  입고 시점을 안 적으신 제품 "+noAt.length+"개는 안내가 안 나갑니다" : "");
     renderActiveTab();
   }catch(err){msg.className="msg bad";msg.style.color="";msg.textContent="저장 실패: "+(err.message||err);}
@@ -3467,7 +3516,9 @@ function renderReserve(){
       const cont=all.findIndex(x=>(x.product||"")===g.p)<base;
       return `<div class="rgrp"><div class="rgh"><b>${admEsc(rName(g.p))}</b><span class="cnt">고객 ${tot[g.p]}명</span>`
         +(cont?'<span class="hint" style="margin:0">(앞 페이지에서 이어짐)</span>':"")
-        +`<span class="pill accent">입고 ${admEsc(reserveNote[g.p]||"추후")}</span><span class="sp"></span>`
+        +`<span class="pill accent">입고 ${admEsc(reserveNote[g.p]||"추후")}</span>`
+        +((reserveGifts[canonCode(g.p)]||[]).length?`<span class="hint" style="margin:0">${admEsc(reserveGifts[canonCode(g.p)].join(", "))}만 예약</span>`:"")
+        +`<span class="sp"></span>`
         +(dl?`<button class="sm" data-act="rdl" data-p="${admEsc(g.p)}">이 제품만 내려받기</button>`:"")+`</div>`
         +`<div class="tablewrap"><table class="data"><thead><tr><th style="width:52px">No</th><th>고객명</th><th>연락처</th><th>접수일</th><th class="wrapcell">사은품</th><th>상태</th></tr></thead><tbody>`
         +g.rows.map(([e,no])=>`<tr><td style="color:var(--sub)">${no}</td><td><b>${admEsc(e.name||"-")}</b></td><td>${cell(e,"phone")}</td><td>${fmtDate(e._date)}</td>`
@@ -6902,7 +6953,7 @@ $("#reAllPoint").addEventListener("click",()=>reJudgeAll());
 $("#reload").addEventListener("click",loadData);
 onTypeChange();
 
-window.__render=(data,cfg)=>{ALL=data.map(x=>({...x,_date:x._date?new Date(x._date):null}));reserveProducts=new Set(((cfg&&cfg.reserveProducts)||[]).map(canonCode));reserveNote=(cfg&&cfg.reserveNote)||{};
+window.__render=(data,cfg)=>{ALL=data.map(x=>({...x,_date:x._date?new Date(x._date):null}));reserveProducts=new Set(((cfg&&cfg.reserveProducts)||[]).map(canonCode));reserveNote=(cfg&&cfg.reserveNote)||{};reserveGifts=rsvGiftsNorm(cfg&&cfg.reserveGifts);
   $("#asof").textContent="목데이터 "+ALL.length+"건";buildCatalog();renderManualSelects();renderReserveConfig();renderActiveTab();};
 
 

@@ -8950,7 +8950,9 @@ async function mkSheetNow(){
     `✔ 시트에 올림 — 동의 ${r.rows||0}건 · 거부 ${r.denied||0}건 · 출고일자 ${r.updated||0}건`
     + ` · 갱신일 ${r.renewRows||0}건`
     + (r.prodFill && r.prodFill.ran ? ` · 제품군 ${r.prodFill.written||0}줄 채움` + (r.prodFill.mismatch ? `(시트와 안 맞아 건너뜀 ${r.prodFill.mismatch}줄)` : "") : "")
-    + (r.prodFill && r.prodFill.error ? `<br><span style="color:var(--bad,#c0392b)">🔴 제품군 채우기에 실패했습니다. 잠시 뒤 다시 눌러 주세요.</span>` : "")
+    + (r.prodFill2 && r.prodFill2.ran ? ` · 제품군(줄 번호 없던 줄) ${r.prodFill2.written||0}줄 채움` + ((r.prodFill2.ambiguous||0) + (r.prodFill2.noRow||0) ? `(애매하거나 줄을 못 찾아 건너뜀 ${(r.prodFill2.ambiguous||0) + (r.prodFill2.noRow||0)}건 — 손으로 확인)` : "") : "")
+    + (r.prodFill2 && r.prodFill2.error ? `<br><span style="color:var(--bad,#c0392b)">🔴 제품군(줄 번호 없던 줄) 채우기에 실패했습니다. 잠시 뒤 다시 눌러 주세요.</span>` : "")
+    + (r.prodFill && r.prodFill.error ?`<br><span style="color:var(--bad,#c0392b)">🔴 제품군 채우기에 실패했습니다. 잠시 뒤 다시 눌러 주세요.</span>` : "")
     + (stuck ? `<br><span style="color:var(--bad,#c0392b)">🔴 줄을 못 찾은 건 ${stuck}건 — `
              + `시트에서 그분의 「광고성 정보 수신」 칸을 손으로 고쳐 주세요. `
              + `누구인지는 「접근 기록」에서 보실 수 있습니다.</span>` : "");

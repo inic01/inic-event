@@ -1393,7 +1393,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
       <div class="panel" style="margin-bottom:14px" id="mkPanel">
         <div class="ph"><h3>마케팅 활용 명단</h3>
           <a class="helplink" href="guide.html#mklist" target="_blank" rel="noopener">사용법</a></div>
-        <div class="hint">동의 여부별로 나눈 엑셀을 받습니다 — 둘다동의 · 광고성만동의 · 사진리뷰만동의 · 2개거부.</div>
+        <div class="hint">엑셀 한 파일로 받습니다 — 제품별요약 · 광고성동의DB · 사진·리뷰동의DB · 제품별 시트 · 광고성거부 · 철회 · 발송실패. <b>수신동의 장부(업로드한 기존 고객 포함)가 합쳐집니다.</b> 비고 칸: 발송실패 · 광고성 메일 응답 대기.</div>
         <div class="filters" style="margin-top:11px">
           <button id="mkDownload" class="sm primary">명단 내려받기</button>
           <button id="mkSheetNow" class="sm">시트에 지금 올리기</button>
@@ -1541,17 +1541,27 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
         </details>
 
         <details class="fold">
-          <summary>메일이 안 가는 분</summary>
+          <summary>발송 실패</summary>
           <div class="foldin">
             <div class="hint">
-              메일이 <b>튕겨서 안 가는 분</b>들입니다. 발송 줄에서만 빠져 있고 <b>동의는 살아 있습니다.</b>
+              확인 메일이 <b>튕겨서 전달되지 않은 분(발송 실패)</b>들입니다. 발송 줄에서만 빠져 있고 <b>동의는 살아 있습니다.</b>
+              구글시트 「발송실패」 탭에도 한 줄씩 쌓입니다(5분 안에).
               <a class="helplink" href="guide.html#consent-blocked" target="_blank" rel="noopener">사용법</a>
             </div>
             <div class="filters" style="margin-top:10px">
               <button id="bkList" class="sm">목록 보기</button>
-              <input type="text" id="bkQ" placeholder="반송된 분 연락처" style="font-size:13px;padding:7px 9px;min-width:180px">
+              <input type="text" id="bkQ" placeholder="반송된 분 연락처 또는 이메일" style="font-size:13px;padding:7px 9px;min-width:230px">
               <button id="bkMark" class="sm">반송 확인</button>
               <span id="bkState" style="font-size:12.5px;font-weight:800"></span>
+            </div>
+            <!-- 🔴 2026-11-12 — 반송 안내 메일에 적힌 이메일을 여러 개 한꺼번에 넣습니다(담당자 요청) -->
+            <div style="margin-top:10px">
+              <div class="hint" style="margin:0 0 4px"><b>여러 개를 한꺼번에</b> — 반송된 이메일을 줄바꿈이나 쉼표로 나눠 붙여 넣으세요(한 번에 200개까지). 이메일로만 찾습니다.</div>
+              <textarea id="bkMany" rows="3" placeholder="예) abc@example.com&#10;def@example.com" style="width:100%;max-width:520px;font-size:13px;padding:7px 9px"></textarea>
+              <div class="filters" style="margin-top:6px">
+                <button id="bkManyGo" class="sm">한꺼번에 반송 확인</button>
+                <span id="bkManyState" style="font-size:12.5px;font-weight:800"></span>
+              </div>
             </div>
             <div class="tablewrap" style="margin-top:11px">
               <table class="data" id="tableBlocked"><thead></thead><tbody></tbody></table>
@@ -6053,7 +6063,7 @@ async function cnStats(keepMsg){
          + (r.live ? " — 오후 1시에 자동으로 나갑니다." : " (아직 시행 전이라 나가지 않습니다)"))
       : "오늘 나갈 분은 없습니다.")
       + (r.leadDays ? "  ·  기한 " + r.leadDays + "일 전부터 미리 보냅니다" : "")
-      + (r.blocked ? "  ·  메일이 안 가는 분 " + r.blocked + "명" : "");
+      + (r.blocked ? "  ·  발송 실패 " + r.blocked + "명" : "");
   }
   const n = v => (v==null ? "-" : v);
   /* 타일은 셋만 — 다섯 개는 화면이 시끄러웠습니다(2026-09-10 담당자 지적) */
@@ -6221,7 +6231,7 @@ function imShow(s){
     + `<tr><td colspan="2" style="padding-top:6px;border-top:1px solid var(--line)"></td></tr>`
     + line("<b>새로 장부에 넣을 사람</b>", s.newCount, "var(--ok)")
     + line("&nbsp;&nbsp;기한이 이미 지남", s.overdue, s.overdue?"var(--bad,#c0392b)":"") + line("&nbsp;&nbsp;30일 안에 기한", s.soon) + line("&nbsp;&nbsp;기한이 한참 뒤", s.later)
-    + line("&nbsp;&nbsp;이메일 없음 (「메일 안 감」으로 표시)", s.noEmail, s.noEmail?"var(--warn,#a35d00)":"")
+    + line("&nbsp;&nbsp;이메일 없음 (「발송 실패」로 표시)", s.noEmail, s.noEmail?"var(--warn,#a35d00)":"")
     + line("같은 번호인데 성함이 다른 사람 수", s.nameConflict)
     + `</table>`
     + ((s.prods||[]).length ? `<div style="margin-top:8px;font-size:12.5px"><b>제품군 이름</b> (파일에 적힌 그대로): ` + s.prods.map(p=>cnEsc(p.name)+" "+n(p.count)).join(" · ") + `</div>` : "")
@@ -6266,7 +6276,7 @@ async function imSend(){
   if(!d.ok){ $("#imMsg").textContent = cnWhy(d); $("#imMsg").style.color="var(--bad)"; return; }
   if(d.tooMany){ $("#imMsg").style.color="var(--bad)"; $("#imMsg").textContent = `발송 대상이 ${d.count.toLocaleString()}명으로 하루 한도(${d.cap}명)를 넘어 보내지 않았습니다. 이 묶음은 보류로 두고 나눠서 보내거나, 담당자에게 알려 주세요.`; return; }
   if(!d.count){ $("#imMsg").textContent = "지금 보낼 분이 없습니다(이미 보냈거나, 보류이거나, 기한이 한참 남았거나, 철회하신 분)."; return; }
-  if(!confirm(b + " 업로드분 " + d.count + "명께 진짜 확인 메일을 보냅니다.\n\n· 이메일 없는 분 " + (d.noEmail||0) + "명은 「메일 안 감」으로 옮겨집니다\n· 같은 이메일은 한 통만 나갑니다" + (d.dupEmail ? "(" + d.dupEmail + "건)" : "") + "\n\n보낸 메일은 되돌릴 수 없습니다. 계속할까요?")) { $("#imMsg").textContent="보내지 않았습니다."; return; }
+  if(!confirm(b + " 업로드분 " + d.count + "명께 진짜 확인 메일을 보냅니다.\n\n· 이메일 없는 분 " + (d.noEmail||0) + "명은 「발송 실패」로 옮겨집니다\n· 같은 이메일은 한 통만 나갑니다" + (d.dupEmail ? "(" + d.dupEmail + "건)" : "") + "\n\n보낸 메일은 되돌릴 수 없습니다. 계속할까요?")) { $("#imMsg").textContent="보내지 않았습니다."; return; }
   $("#imMsg").textContent="보내는 중…";
   const r = await cnApi({ action:"importSend", batch:b });
   if(!r.ok){ $("#imMsg").textContent = cnWhy(r); $("#imMsg").style.color="var(--bad)"; return; }
@@ -6288,7 +6298,7 @@ async function imStatus(){
   const b = ($("#imBatch").value||"").trim(); if(!b){ alert("업로드 번호를 넣어 주세요."); return; }
   const r = await cnApi({ action:"importStatus", batch:b });
   $("#imMsg").style.color = r.ok ? "" : "var(--bad)";
-  $("#imMsg").textContent = r.ok ? `${r.batch} — 전체 ${r.total.toLocaleString()}명 · 보류 ${r.held} · 발송 대기 ${r.waiting} · 발송함 ${r.sent} · 철회 ${r.withdrawn} · 메일 안 감 ${r.blocked} · 이메일 없음 ${r.noEmail}` : cnWhy(r);
+  $("#imMsg").textContent = r.ok ? `${r.batch} — 전체 ${r.total.toLocaleString()}명 · 보류 ${r.held} · 발송 대기 ${r.waiting} · 발송함 ${r.sent} · 철회 ${r.withdrawn} · 발송 실패 ${r.blocked} · 이메일 없음 ${r.noEmail}` : cnWhy(r);
 }
 
 /* ══════════ 손으로 철회 처리 ══════════
@@ -6451,9 +6461,29 @@ async function bkFix(key, row){
   bkList(true);
 }
 
+/* 🔴 2026-11-12 — 반송된 이메일 여러 개를 한꺼번에 「발송 실패」로 넣습니다. 이메일로만 찾고, 같은 이메일을 쓰는 분이 둘 이상이면 고르지 않고 알려 줍니다. */
+async function bkManyGo(){
+  const raw = String($("#bkMany").value||""), st = $("#bkManyState");
+  const list = [...new Set(raw.split(/[\s,;]+/).map(x=>x.trim().toLowerCase()).filter(x=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(x)))];
+  st.style.color = "";
+  if(!list.length){ st.textContent = "이메일을 한 개 이상 붙여 넣어 주세요."; return; }
+  if(list.length > 200){ st.textContent = "한 번에 200개까지입니다(지금 " + list.length + "개). 나눠서 넣어 주세요."; st.style.color = "var(--bad)"; return; }
+  if(!confirm("이메일 " + list.length + "개를 「발송 실패」로 넣습니다.\n\n· 동의는 그대로 살아 있고, 발송 줄에서만 빠집니다.\n· 철회한 분과 이미 발송 실패인 분은 건드리지 않습니다.\n\n계속할까요?")) { st.textContent = ""; return; }
+  st.textContent = "넣는 중…";
+  const r = await cnApi({ action:"markBounceMany", emails:list });
+  if(!r.ok){ st.textContent = cnWhy(r); st.style.color = "var(--bad)"; return; }
+  const nf = (r.notFound||[]), mn = (r.many||[]);
+  st.style.color = (nf.length || mn.length) ? "var(--warn,#a35d00)" : "var(--ok)";
+  st.textContent = "넣음 " + r.done + "건 · 이미 발송 실패 " + r.already + "건 · 철회한 분 " + r.withdrawn + "건"
+    + (nf.length ? " · 장부에 없는 이메일 " + nf.length + "개" : "") + (mn.length ? " · 같은 이메일을 쓰는 분이 여럿이라 건너뜀 " + mn.length + "개(연락처로 하나씩)" : "");
+  if(nf.length || mn.length) $("#bkMany").value = [...nf, ...mn].join("\n");          // 처리 못 한 것만 남깁니다
+  else $("#bkMany").value = "";
+  bkList(true); cnStats(true);
+}
+
 async function bkMark(){
   const q = ($("#bkQ").value||"").trim();
-  if(!q){ $("#bkState").textContent = "반송된 분의 연락처를 넣어 주세요."; return; }
+  if(!q){ $("#bkState").textContent = "반송된 분의 연락처 또는 이메일을 넣어 주세요."; return; }
   $("#bkState").textContent = "찾는 중…";
   const f = await cnApi({ action:"findPerson", q });
   if(!f.ok){ $("#bkState").textContent = cnWhy(f); return; }
@@ -6463,7 +6493,7 @@ async function bkMark(){
       : "그 연락처로 동의하신 분이 없습니다.";
     return;
   }
-  if(!confirm(f.name + " 님을 「메일이 안 가는 분」으로 넣습니다.\n\n동의는 그대로 살아 있고, 발송 줄에서만 빠집니다.\n계속할까요?")) {
+  if(!confirm(f.name + " 님을 「발송 실패」로 넣습니다.\n\n동의는 그대로 살아 있고, 발송 줄에서만 빠집니다.\n계속할까요?")) {
     $("#bkState").textContent = ""; return;
   }
   const r = await cnApi({ action:"markBounce", key:f.key });
@@ -6476,7 +6506,7 @@ async function bkMark(){
 const CN_ACT = { sent:"발송", withdrawn:"철회", no_response:"무응답 → 유지", no_email:"이메일 없음",
                  send_failed:"발송 실패", notice_sent:"처리결과 통지", notice_failed:"통지 실패",
                  revived:"재동의", test_withdrawn:"철회 (테스트)",
-                 blocked:"메일 안 감 — 줄에서 뺌", bounced:"반송 확인", unblocked:"줄에 다시 세움" };
+                 blocked:"발송 실패 — 줄에서 뺌", bounced:"반송 확인", unblocked:"줄에 다시 세움" };
 
 async function cnLogs(){
   const r = await cnApi({ action:"logs", limit:200 });
@@ -7153,6 +7183,7 @@ $("#cnPreview").addEventListener("click",cnPreview);
 $("#cnTest").addEventListener("click",cnTest);
 $("#cnRun").addEventListener("click",cnRun);
 $("#cnLogs").addEventListener("click",cnLogs);
+$("#bkManyGo").addEventListener("click",bkManyGo);
 $("#imFile").addEventListener("change",imPick);
 $("#imCommit").addEventListener("click",imCommit);
 $("#imSend").addEventListener("click",imSend);
@@ -9115,7 +9146,7 @@ function mkPeople(){
     const pg = mkProdOf(e);                              // 제품군(2026-11-09) — 사람 한 줄에 접수한 제품군을 모아 적습니다
     const gf = mkGiftOf(e);                              // 사은품(2026-11-12) — 출고된 건의 사은품 이름을 모아 적습니다
     if(!cur){
-      map.set(key, { at, last:at, email:e.email || "", name:e.name || "", phone:e.phone || "",
+      map.set(key, { key, at, last:at, email:e.email || "", name:e.name || "", phone:e.phone || "",
                      privacy:a.privacy, trust:a.trust, ad:a.ad, photo:a.photo, ship: sh, renew: rn, prods: pg ? [pg] : [], gifts: gf ? [gf] : [] });
       return;
     }
@@ -9221,11 +9252,15 @@ function mkRender(){
    🔴 이름이 mk 로 시작해야 합니다. 그냥 downloadSheets 로 두면
       위쪽 **사방넷 출고 명단**의 같은 이름 기능을 덮어써서,
       출고 CSV 가 마케팅 머리글로 나옵니다(2026-09-12 점검에서 발견). */
-/* 🔴 2026-11-12 — 마케팅 활용 명단은 **비밀번호를 건 엑셀**로만 내려받습니다(담당자 요청).
-   · 엑셀 비밀번호는 기존 엑셀 도구(SheetJS 무료판)가 못 걸어서, 내려받을 때만 xlsx-populate 를 불러 씁니다(고정 버전 + SRI 지문).
-   · 도구를 못 불러오면 **비밀번호 없는 파일로 대신 내려받지 않습니다**(CSV 대체도 없앰) — 못 받았다고 알립니다.
-   · 비밀번호는 코드·서버·접근기록 어디에도 저장하지 않습니다(이 화면의 입력칸에서 파일 만들 때만 씁니다).
-   · 성함은 가운데를 「*」로 가립니다(mkMaskName) — 이 명단 내려받기에만 적용합니다. */
+/* ══════════ 🔴 2026-11-12 — 「명단 내려받기」 새 구성 (담당자 확정) ══════════
+   엑셀 한 파일 = 제품별요약 · 광고성동의DB · 사진·리뷰동의DB · 제품별 시트들 · 광고성거부 · 철회 · 발송실패.
+   · 접수 기록(mkPeople)에 **수신동의 장부(consentApi ledgerExport — 업로드한 기존 고객 포함)**를 합칩니다. 장부를 못 읽으면 철회·발송실패가 빠지므로 **내려받지 않습니다**(안전하게 실패).
+   · 같은 사람 = 접수 기록은 핸드폰 번호 기준(예전 그대로), 장부 사람은 「번호 열쇠(bk)」인 경우에만 접수 기록 사람과 합칩니다(번호는 같고 성함이 다른 사람은 따로).
+   · 한 사람의 상태는 가장 최근 답: 동의 / 거부(동의한 적 없음) / 철회(동의했다가 바꿈) / 미기재. 장부가 철회면 철회가 이깁니다.
+   · 비고(담당자 확정, 두 가지뿐): 「발송실패」(장부 상태 blocked) · 「광고성 메일 응답 대기(발송일)」(장부 상태 pending_reply). 둘 다 임시 정책상 「동의」에 포함합니다.
+   · 제품별 시트의 제품군 이름 = 설정의 원장 이름 + 장부에 적힌 이름(설정에 없으면 「설정에 없는 이름」 구분). 설정에 제품이 새로 생기면 사람이 0명이어도 시트와 요약 줄이 생깁니다.
+   · 엑셀 서식 값에 undefined 를 넣지 마세요 — 엑셀이 열지 못하는 파일이 됩니다(2026-11-12 실제 Excel 로 확인).
+   · 이름은 가운데를 가립니다(mkMaskName). 비밀번호는 저장하지 않습니다. */
 const MK_XP_VER = "1.21.0";
 const MK_XP_SRI = "sha384-YnsK3VaaV54M5EcU58Pt9SdJqzL0iZpQzQAcav+18Kgn5tbwk16y/3g6FpT2d83h";
 const MK_XP_SRC = [
@@ -9251,39 +9286,146 @@ function mkMaskName(n){
   if(a.length===2) return a[0] + "*";
   return a[0] + "*".repeat(a.length-2) + a[a.length-1];
 }
-async function mkDownloadSheets(sheets, baseName, password){
-  const total = sheets.reduce((n,s)=>n+s.rows.length, 0);
-  if(!total){ alert("대상 데이터가 없습니다."); return false; }
-  if(typeof password!=="string" || password.length<MK_PW_MIN) throw new Error("비밀번호는 "+MK_PW_MIN+"글자 이상이어야 합니다.");
-  const XP = await mkLoadXp();
-  const wb = await XP.fromBlankAsync();
-  sheets.forEach((s,i)=>{
-    const sh = i===0 ? wb.sheet(0).name(s.name) : wb.addSheet(s.name);
-    /* 빈 시트도 머리글은 남겨 둡니다 — 「0명」인지 「안 만들어졌는지」를 구분할 수 있게 */
-    const data = [MK_HEAD.slice()].concat(s.rows.map(r => MK_HEAD.map(h => r[h]==null ? "" : r[h])));
-    sh.cell("A1").value(data);
+const MKX_HEAD = MK_HEAD.concat(["비고"]);
+const mkRowX = p => [mkYmd(p.at), p.email||"", mkMaskName(p.name), p.phone||"", p.privacy||"", p.trust||"", p.ad||"", p.photo||"", p.ship||"", p.renew||"", p.prod||"", p.gift||"", p.note||""];
+const mkStatusOf = p => p.ad === "동의" ? "동의" : (/^철회/.test(p.ad||"") ? "철회" : (p.ad === "미동의" ? "거부" : "미기재"));
+const MK_CAT_ORDER = ["주방가전","계절가전","생활가전"];
+const MK_CAT_NONE = "설정에 없는 이름";
+/* 제품군 이름 → 구분(카테고리). 설정에 있으면 그 제품 코드로 제품 카탈로그에서 찾고, 설정에 없으면 「설정에 없는 이름」 */
+function mkCatOfName(name){
+  const hit = (MK_PRODS||[]).find(x => x.ledger === name);
+  if(!hit) return MK_CAT_NONE;
+  for(const cat of Object.keys(PRODUCTS)){ if(PRODUCTS[cat].some(x => hit.codes.includes(canonCode(x[0])))) return cat; }
+  return "기타";
+}
+/* 수신동의 장부를 읽어 옵니다(읽기만). 못 읽으면 오류를 던집니다 — 장부 없이 명단을 만들면 철회·발송실패가 빠집니다. */
+async function mkLoadLedger(progress){
+  const rows = []; let after = "";
+  for(let i = 0; i < 200; i++){
+    const r = await cnApi({ action:"ledgerExport", after, limit:3000 });
+    if(!r || !r.ok) throw new Error("수신동의 장부를 읽지 못했습니다 — " + cnWhy(r) + " (장부를 못 읽으면 철회·발송실패 정보가 빠지므로 내려받지 않았습니다.)");
+    r.rows.forEach(x => rows.push(x)); if(progress) progress(rows.length);
+    if(!r.next) return rows; after = r.next;
+  }
+  throw new Error("수신동의 장부가 너무 커서 끝까지 읽지 못했습니다.");
+}
+/* 접수 기록 사람 + 장부 사람을 합쳐 명단 재료를 만듭니다(화면 계산만, 서버 호출 없음 — 시험하기 쉽게 장부 줄을 인자로 받습니다). */
+function mkBuild(ledger){
+  const people = mkPeople();
+  people.forEach(p => { p.note = ""; p.fail = false; p.failAt = ""; p.src = "접수"; });
+  const byKey = new Map(); people.forEach(p => { if(p.key) byKey.set(p.key, p); });
+  const fmtPhone = d => d.length === 11 ? d.slice(0,3)+"-"+d.slice(3,7)+"-"+d.slice(7) : (d.length === 10 ? d.slice(0,3)+"-"+d.slice(3,6)+"-"+d.slice(6) : d);
+  const noteOf = L => L.st === "blocked" ? "발송실패" : (L.st === "pending_reply" ? "광고성 메일 응답 대기(" + (L.sent || "") + " 발송)" : "");
+  const extra = [];
+  (ledger||[]).forEach(L => {
+    const wd = L.st === "withdrawn", hit = (L.bk && L.phone) ? byKey.get(L.phone) : null;
+    if(hit){
+      hit.note = noteOf(L); hit.fail = L.st === "blocked"; hit.failAt = L.blk || "";
+      if(wd && !/^철회/.test(hit.ad || "")) hit.ad = "철회(" + (L.wd || L.at || "") + ")";
+      if(L.rn && L.rn > (hit.renew || "")) hit.renew = L.rn;
+      return;
+    }
+    const prods = (L.prods||[]).filter(Boolean);
+    extra.push({ key:"L" + L.k, at:(L.at ? new Date(L.at + "T00:00:00") : new Date(0)), email:L.email||"", name:L.name||"", phone:fmtPhone(L.phone||""),
+      privacy:L.privacy||"", trust:L.trust||"", ad: wd ? "철회(" + (L.wd || L.at || "") + ")" : "동의", photo:L.photo||"", ship:"", renew:L.rn||"",
+      prods, prod:prods.join(", "), gift:"", note:noteOf(L), fail:L.st === "blocked", failAt:L.blk||"", src:"장부" });
   });
-  const blob = await wb.outputAsync({ password: password });
-  logAccess("다운로드", baseName, total);               // 접근 기록에는 파일 이름·건수만 남깁니다(비밀번호 없음)
-  const fname = baseName + "_" + todayStr();
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fname + ".xlsx";
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
-  return true;
+  const entN = new Map();
+  ALL.forEach(e => { const k = String(e.phoneKey || e.phone || "").replace(/\D/g,""); if(!k) return; const a = mkAnsOf(e); if(!a.ad && !a.photo) return; const pg = mkProdOf(e); if(!pg) return; entN.set(k+"|"+pg, (entN.get(k+"|"+pg)||0) + 1); });
+  const all = people.concat(extra).sort((x,y) => x.at - y.at);
+  const consent = all.filter(p => mkStatusOf(p) === "동의"), photoOk = all.filter(p => p.photo === "동의"),
+        refuse  = all.filter(p => mkStatusOf(p) === "거부"), withdrawn = all.filter(p => mkStatusOf(p) === "철회"),
+        blank   = all.filter(p => mkStatusOf(p) === "미기재"), failed = all.filter(p => p.fail);
+  const names = []; (MK_PRODS||[]).forEach(x => { if(!names.includes(x.ledger)) names.push(x.ledger); });
+  all.forEach(p => p.prods.forEach(n => { if(n && !names.includes(n)) names.push(n); }));
+  const rank = n => { const c = mkCatOfName(n); const i = MK_CAT_ORDER.indexOf(c); return c === MK_CAT_NONE ? 999 : (i >= 0 ? i : 50); };
+  const ordered = names.map((n,i) => ({ n, i, cat:mkCatOfName(n) })).sort((a,b) => (rank(a.n) - rank(b.n)) || (a.i - b.i));
+  const perProduct = ordered.map(o => {
+    const ps = all.filter(p => p.prods.includes(o.n)), c = { 동의:0, 거부:0, 철회:0, 미기재:0 }; ps.forEach(p => c[mkStatusOf(p)]++);
+    const ent = ps.reduce((n,p) => n + (p.src === "접수" ? (entN.get(p.key + "|" + o.n) || 1) : 1), 0);
+    return { name:o.n, cat:o.cat, c, total:c.동의 + c.거부 + c.철회 + c.미기재, ent };
+  });
+  return { all, consent, photoOk, refuse, withdrawn, blank, failed, perProduct };
+}
+/* 엑셀 만들기 — 비밀번호를 걸어 Blob 으로 돌려줍니다. 시험할 수 있게 장부 줄을 인자로 받는 mkBuild 결과만 씁니다. */
+async function mkBuildWorkbook(d, password){
+  if(typeof password!=="string" || password.length<MK_PW_MIN) throw new Error("비밀번호는 "+MK_PW_MIN+"글자 이상이어야 합니다.");
+  const XP = await mkLoadXp(), wb = await XP.fromBlankAsync(), used = new Set(["제품별요약"]);
+  const C = { dark:"2B2B2B", mint:"34A796", mintLight:"DCEFEB", beige:"F4EFE6", line:"D9D4CC", red:"C0392B", amber:"A35D00", gray:"757575", white:"FFFFFF" };
+  const BD = { border:true, borderColor:C.line };
+  const sum = wb.sheet(0).name("제품별요약"); sum.tabColor(C.mint);
+  const tabs = {}; d.perProduct.forEach(p => { tabs[p.name] = sheetNameOf(p.name, used); });
+  const dbName = sheetNameOf("광고성동의DB", used), phName = sheetNameOf("사진·리뷰동의DB", used), refName = sheetNameOf("광고성거부", used), wdName = sheetNameOf("철회", used), flName = sheetNameOf("발송실패", used);
+  const nowT = new Date(), p2 = n => String(n).padStart(2,"0");
+  const stamp = nowT.getFullYear()+"-"+p2(nowT.getMonth()+1)+"-"+p2(nowT.getDate())+" "+p2(nowT.getHours())+":"+p2(nowT.getMinutes());
+  const total = d.all.length, pct = n => total ? n / total : 0;
+
+  /* ── 제품별요약 ── (10칸: 구분 · 제품명 · 동의 · 광고성 거부 · 철회 · 미기재 · 합계 · 동의율 · 접수 건수 · 제품시트) */
+  [12,30,9,11,9,9,9,10,13,28].forEach((w,i) => sum.column(i+1).width(w));
+  sum.range("A1:J1").merged(true).value("포토리뷰 고객 통합 · 수신동의 현황").style({ bold:true, fontSize:16, fontColor:C.white, fill:C.dark, horizontalAlignment:"left", verticalAlignment:"center", indent:1 }); sum.row(1).height(34);
+  sum.range("A2:J2").merged(true).value("내려받은 시각 " + stamp + "  ·  광고는 받은 당일 안에 보내세요(어제 받은 파일에는 그 사이 철회한 분이 있을 수 있습니다)  ·  기준: 사람 단위, 가장 최근 답").style({ fill:C.beige, fontColor:C.gray, verticalAlignment:"center", wrapText:true, indent:1 }); sum.row(2).height(24);
+  sum.range("A4:D4").merged(true).value("한눈에 보기").style({ bold:true, fontSize:12, fontColor:C.white, fill:C.mint, verticalAlignment:"center", indent:1 }); sum.row(4).height(24);
+  const kpi = [["전체 사람", total, null, true], ["광고성 동의", d.consent.length, pct(d.consent.length), true], ["광고성 거부 (동의한 적 없음)", d.refuse.length, pct(d.refuse.length)], ["철회 (동의 후 바꿈)", d.withdrawn.length, pct(d.withdrawn.length)], ["미기재", d.blank.length, pct(d.blank.length)], ["사진·리뷰 마케팅 동의", d.photoOk.length, pct(d.photoOk.length)]];
+  kpi.forEach(([l,v,r,strong], i) => {
+    const rr = 5 + i; sum.range(rr,1,rr,2).merged(true).value(l).style(Object.assign({ verticalAlignment:"center", bold:!!strong }, BD));
+    sum.cell(rr,3).value(v).style(Object.assign({ horizontalAlignment:"center", verticalAlignment:"center", bold:true, fontSize:12 }, BD));
+    sum.cell(rr,4).value(r == null ? "" : r).style(Object.assign({ horizontalAlignment:"center", verticalAlignment:"center", numberFormat:"0.0%", fontColor:C.gray }, BD)); sum.row(rr).height(21);
+  });
+  sum.range("E4:J10").merged(true).value("읽는 법\n· 한 사람은 성함+핸드폰이 같으면 한 사람이고, 가장 최근에 한 답이 이깁니다.\n· 제품별 집계는 「그 제품을 산 사람」 기준입니다. 한 사람이 여러 제품을 샀으면 제품마다 한 번씩 셉니다(아래 「전체」는 중복 없는 사람 수).\n· 비고 칸: 「발송실패」(확인 메일이 안 간 분) · 「광고성 메일 응답 대기」(확인 메일을 보냈고 14일 안). 이 분들도 임시 정책에 따라 「동의」에 들어 있습니다.\n· 광고성거부·철회 시트의 사람(핸드폰·이메일이 같은 줄 포함)에게는 보내지 않습니다.").style({ fill:C.beige, fontColor:"444444", wrapText:true, verticalAlignment:"top", horizontalAlignment:"left", indent:1 });
+  const T0 = 13, TH = ["구분","제품명","동의","광고성\n거부","철회","미기재","합계","동의율","접수 건수\n(중복 포함)","제품시트"];
+  sum.range(T0-1,1,T0-1,10).merged(true).value("제품별 현황").style({ bold:true, fontSize:12, fontColor:C.white, fill:C.mint, verticalAlignment:"center", indent:1 }); sum.row(T0-1).height(24);
+  TH.forEach((h,i) => sum.cell(T0,i+1).value(h).style(Object.assign({ bold:true, fill:C.mintLight, horizontalAlignment:"center", verticalAlignment:"center", wrapText:true }, BD))); sum.row(T0).height(32);
+  let r = T0 + 1; const tot = { d:0, g:0, w:0, m:0, e:0 }, catStart = {};
+  d.perProduct.forEach(pp => {
+    if(!catStart[pp.cat]) catStart[pp.cat] = { from:r, to:r }; catStart[pp.cat].to = r;
+    const vals = [pp.cat, pp.name, pp.c.동의, pp.c.거부, pp.c.철회, pp.c.미기재, pp.total, pp.total ? pp.c.동의 / pp.total : 0, pp.ent, tabs[pp.name]];
+    vals.forEach((v,i) => sum.cell(r,i+1).value(v).style(Object.assign({ verticalAlignment:"center", horizontalAlignment:(i===0||i===1||i===9) ? "left" : "center", indent:(i===1||i===9) ? 1 : 0 }, i === 7 ? { numberFormat:"0.0%" } : {}, BD)));
+    sum.cell(r,3).style({ bold:true, fontColor:"1F8A7A" });
+    try{ sum.cell(r,10).hyperlink({ hyperlink:"#'" + tabs[pp.name] + "'!A1" }); sum.cell(r,10).style({ fontColor:"1F5FBF", underline:true }); }catch(e){}
+    sum.row(r).height(20); r++; tot.d += pp.c.동의; tot.g += pp.c.거부; tot.w += pp.c.철회; tot.m += pp.c.미기재; tot.e += pp.ent;
+  });
+  Object.keys(catStart).forEach(k => { const g = catStart[k]; if(g.to > g.from) sum.range(g.from,1,g.to,1).merged(true); sum.range(g.from,1,g.to,1).style({ bold:true, fill:C.beige, verticalAlignment:"center", horizontalAlignment:"center" }); });
+  const sumAll = tot.d + tot.g + tot.w + tot.m;
+  const foot = [["제품별 합산  (복수제품은 각 제품에 반영)","",tot.d,tot.g,tot.w,tot.m,sumAll,sumAll ? tot.d/sumAll : 0,tot.e,""],
+                ["전체 (사람 수, 중복 없음)","",d.consent.length,d.refuse.length,d.withdrawn.length,d.blank.length,total,total ? d.consent.length/total : 0,"",""],
+                ["복수제품 추가 반영  (제품별 합산 − 전체)","",tot.d-d.consent.length,tot.g-d.refuse.length,tot.w-d.withdrawn.length,tot.m-d.blank.length,sumAll-total,"","",""]];
+  foot.forEach((vals,k) => { sum.range(r,1,r,2).merged(true); vals.forEach((v,i) => sum.cell(r,i+1).value(v).style(Object.assign({ bold:true, fill:k < 2 ? C.beige : C.white, verticalAlignment:"center", horizontalAlignment:i < 2 ? "left" : "center", indent:i < 2 ? 1 : 0 }, i === 7 ? { numberFormat:"0.0%" } : {}, BD))); sum.row(r).height(21); r++; });
+  try{ sum.gridlinesVisible(false); }catch(e){}
+  sum.freezePanes(0,1);
+
+  /* ── 명단 시트들 ── */
+  const W = [12,29,9,15,17,17,14,17,15,15,36,10,36];
+  const mkSheet = (name, list, color) => {
+    const s = wb.addSheet(name); s.tabColor(color);
+    MKX_HEAD.forEach((h,i) => s.cell(1,i+1).value(h).style(Object.assign({ bold:true, fill:C.mintLight, horizontalAlignment:"center", verticalAlignment:"center", wrapText:true }, BD))); s.row(1).height(40);
+    if(list.length) s.cell(2,1).value(list.map(mkRowX));
+    list.forEach((p,k) => { if(p.note) s.cell(k+2,13).style({ fontColor:/^발송실패/.test(p.note) ? C.red : C.amber }); });
+    W.forEach((w,i) => s.column(i+1).width(w)); s.freezePanes(0,1);
+    if(list.length) s.autoFilter(s.range(1,1,list.length+1,MKX_HEAD.length));
+    return s;
+  };
+  mkSheet(dbName, d.consent, "1F8A7A"); mkSheet(phName, d.photoOk, "1F8A7A");
+  d.perProduct.forEach(pp => mkSheet(tabs[pp.name], d.consent.filter(p => p.prods.includes(pp.name)), "5B7C99"));
+  mkSheet(refName, d.refuse, C.amber); mkSheet(wdName, d.withdrawn, C.red);
+  const fl = wb.addSheet(flName); fl.tabColor(C.red);
+  ["발송날짜","이메일","성함","연락처","제품군","구분"].forEach((h,i) => fl.cell(1,i+1).value(h).style(Object.assign({ bold:true, fill:C.mintLight, horizontalAlignment:"center", verticalAlignment:"center" }, BD))); fl.row(1).height(30);
+  if(d.failed.length) fl.cell(2,1).value(d.failed.map(p => [p.failAt || mkYmd(p.at), p.email||"", mkMaskName(p.name), p.phone||"", p.prod||"", "이메일주소오류"]));
+  [12,29,9,15,36,16].forEach((w,i) => fl.column(i+1).width(w)); fl.freezePanes(0,1);
+  return await wb.outputAsync({ password: password });
 }
 async function mkDownload(password){
-  await mkLoadProds();                                  // 제품군(2026-11-09): 설정의 원장 이름을 먼저 읽어 둡니다
-  const s = mkSplit();
-  const mask = rows => rows.map(r => Object.assign({}, r, { "성함": mkMaskName(r["성함"]) }));
-  const ok = await mkDownloadSheets([
-    { name:"둘다동의",        rows:mask(s.both)   },
-    { name:"광고성만동의",     rows:mask(s.adOnly) },
-    { name:"사진리뷰만동의",   rows:mask(s.phOnly) },
-    { name:"2개거부",         rows:mask(s.none)   }
-  ], "마케팅활용명단", password);
-  if(!ok) return false;
-  $("#mkState").textContent =
-    `✔ 둘 다 ${s.both.length} · 광고성만 ${s.adOnly.length} · 사진·리뷰만 ${s.phOnly.length} · 거부 ${s.none.length}명 내려받음 (비밀번호 걸림 · 성함 가림)`;
+  const say = t => { const m = $("#mkPwMsg"); if(m){ m.style.color = ""; m.textContent = t; } };
+  say("제품 목록을 읽는 중…"); await mkLoadProds();                      // 제품군(2026-11-09): 설정의 원장 이름을 먼저 읽어 둡니다
+  const ledger = await mkLoadLedger(n => say("수신동의 장부 " + n.toLocaleString() + "명 읽는 중…"));
+  say("명단을 만드는 중…");
+  const d = mkBuild(ledger);
+  if(!d.all.length){ alert("대상 데이터가 없습니다."); return false; }
+  const blob = await mkBuildWorkbook(d, password);
+  logAccess("다운로드", "마케팅활용명단", d.all.length);                 // 접근 기록에는 파일 이름·건수만 남깁니다(비밀번호 없음)
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "마케팅활용명단_" + todayStr() + ".xlsx";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
+  $("#mkState").textContent = `✔ 전체 ${d.all.length.toLocaleString()}명 · 광고성 동의 ${d.consent.length.toLocaleString()} · 거부 ${d.refuse.length.toLocaleString()} · 철회 ${d.withdrawn.length.toLocaleString()} · 발송실패 ${d.failed.length.toLocaleString()} (장부 ${ledger.length.toLocaleString()}명 포함 · 비밀번호 걸림 · 성함 가림)`;
   $("#mkState").style.color = "var(--ok)";
   return true;
 }

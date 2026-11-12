@@ -1491,6 +1491,36 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
           </div>
         </details>
 
+        <!-- 🔴 2026-11-12 — 기존 고객 올리기(담당자 요청): 예전에 광고성에 동의한 고객 명단을 장부에 넣고 확인 메일을 보냅니다. 서버 consentApi 의 import* 와 짝. -->
+        <details class="fold" id="imPanel">
+          <summary>기존 고객 올리기 (예전 광고성 동의 명단)</summary>
+          <div class="foldin">
+            <div class="hint">
+              예전에 <b>광고성 수신에 동의한 고객</b> 명단(엑셀·CSV)을 올립니다. 순서는 <b>① 파일 고르기(미리보기만, 아무것도 저장 안 됨) → ② 장부에 넣기 → ③ 이번 업로드분 지금 발송</b>입니다.<br>
+              칸 이름: <b>접수일자 · 이메일 · 성함 · 핸드폰 · 제품군 · 광고성정보수신동의</b> (사진·리뷰마케팅동의 · 개인정보 칸은 비워도 됩니다). 접수일자는 <b>동의한 날</b>이며 2년 재확인의 기준입니다.<br>
+              같은 사람은 <b>성함+핸드폰</b>이 같으면 한 사람(이메일이 달라도)이고, 같은 이메일에는 <b>한 통만</b> 나갑니다. 철회하신 분은 되살리지 않습니다.
+            </div>
+            <div class="filters" style="margin-top:10px">
+              <input type="file" id="imFile" accept=".xlsx,.xls,.csv" style="font-size:13px">
+              <span id="imState" style="font-size:12.5px;font-weight:800"></span>
+            </div>
+            <div id="imBox" style="margin-top:10px"></div>
+            <div class="filters" style="margin-top:10px">
+              <label style="font-size:12.5px"><input type="checkbox" id="imHold"> <b>보류로 넣기</b> (매일 오후 1시 자동 발송에서 뺍니다. 나중에 「보류 풀기」를 눌러야 나갑니다)</label>
+              <button id="imCommit" class="sm primary" disabled>장부에 넣기</button>
+            </div>
+            <div class="filters" style="margin-top:10px">
+              <input type="text" id="imBatch" placeholder="업로드 번호 (장부에 넣으면 자동으로 채워집니다)" style="font-size:13px;padding:7px 9px;min-width:260px">
+              <button id="imSend" class="sm">이번 업로드분 지금 발송</button>
+              <button id="imRelease" class="sm">보류 풀기</button>
+              <button id="imStatus" class="sm">상태 보기</button>
+            </div>
+            <div id="imMsg" style="margin-top:8px;font-size:12.5px;font-weight:800"></div>
+            <div class="care">「지금 발송」은 고객에게 <b>진짜 메일</b>이 나갑니다. 기한이 지났거나 30일 안에 오는 분만, <b>하루 한도(300명)를 넘으면 한 통도 보내지 않고 알려 드립니다.</b></div>
+            <div class="care warn">명단 파일에는 개인정보가 들어 있습니다. 이 화면에서만 읽고 서버로 보내며, 화면에는 이름·이메일이 가려진 표본만 나옵니다. 파일은 이 컴퓨터에만 두세요.</div>
+          </div>
+        </details>
+
         <details class="fold">
           <summary>손으로 철회 처리</summary>
           <div class="foldin">
@@ -5987,6 +6017,10 @@ function cnWhy(r){
   if(k==="network")  return "서버에 연결되지 않았습니다. 잠시 후 다시 시도해 주세요.";
   if(k==="to")       return "메일 주소를 올바르게 적어 주세요.";
   if(k==="asOf")     return "기준일을 올바르게 골라 주세요.";
+  if(k==="rows")     return "파일에서 읽은 줄이 없습니다.";
+  if(k==="tooManyRows") return "한 번에 올릴 수 있는 줄은 " + ((r && r.max) || 20000) + "줄까지입니다. 파일을 나눠서 올려 주세요.";
+  if(k==="batch")    return "업로드 번호가 올바르지 않습니다.";
+  if(k==="busy")     return "이미 이 업로드분을 발송하는 중입니다. 잠시 뒤 「상태 보기」로 확인해 주세요.";
   return (r && r.message) ? r.message : "실패했습니다.";
 }
 
@@ -6129,6 +6163,132 @@ async function cnScan(){
   $("#cnState").textContent = `접수 ${r.scanned}건 확인 · 장부 ${r.updated}명 갱신`
     + (r.revived ? ` · 철회하셨다가 다시 동의하신 분 ${r.revived}명` : "");
   cnStats(true);
+}
+
+/* ══════════ 기존 고객 올리기 (2026-11-12) ══════════
+   엑셀/CSV 를 이 화면이 읽어 줄(행)을 서버(consentApi import*)로 보냅니다. 파일 내용은 화면 메모리에만 있고 어디에도 저장하지 않습니다.
+   🔴 미리보기(importPreview)는 서버에서도 아무것도 쓰지 않습니다. 장부에 넣기·발송은 각각 확인창을 거칩니다.
+   🔴 화면에는 서버가 가려서 준 표본(홍*동)만 나옵니다 — 원본 이름·이메일을 화면에 뿌리지 않습니다. */
+let IM_ROWS = [], IM_PREV = null;
+const IM_HEAD = {
+  date:["접수일자","접수일","동의일","동의일자","일자"], email:["이메일","이메일주소","메일","메일주소"], name:["성함","이름"],
+  phone:["핸드폰","핸드폰번호","휴대폰","휴대폰번호","연락처","전화번호"], prod:["제품군","제품","제품명"],
+  ad:["광고성정보수신동의","광고성수신동의","광고성동의","광고성"], photo:["사진리뷰마케팅동의","사진리뷰마케팅활용동의","사진리뷰동의","사진리뷰"],
+  privacy:["개인정보수집동의","개인정보수집및이용동의","개인정보수집이용동의"], trust:["개인정보처리위탁동의","개인정보처리위탁안내","개인정보위탁동의"]
+};
+const imNormHead = h => String(h==null?"":h).replace(/[\s·ㆍ*＊\-_.()\/\[\]]/g,"");
+/* 엑셀 날짜 칸은 숫자(1900년 기준 일수)로 읽어 UTC 로 풉니다 — 시간대 때문에 하루 어긋나지 않게 */
+function imYmd(v){
+  if(v==null || v==="") return "";
+  if(typeof v==="number" && isFinite(v) && v>20000 && v<80000){
+    const d=new Date(Math.round((v-25569)*86400*1000)), p=n=>String(n).padStart(2,"0");
+    return d.getUTCFullYear()+"-"+p(d.getUTCMonth()+1)+"-"+p(d.getUTCDate());
+  }
+  if(v instanceof Date && !isNaN(v)){ const p=n=>String(n).padStart(2,"0"); return v.getFullYear()+"-"+p(v.getMonth()+1)+"-"+p(v.getDate()); }
+  const t=String(v).trim(), m=t.match(/^(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})/);
+  if(m){ const p=n=>String(n).padStart(2,"0"); return m[1]+"-"+p(m[2])+"-"+p(m[3]); }
+  return t;
+}
+const imPhone = v => { let d=String(v==null?"":v).replace(/\D/g,""); if(d.length===10 && d.startsWith("10")) d="0"+d; return d; };   // 엑셀이 앞의 0을 떼어 버린 번호(1012345678) 복구
+async function imRead(file){
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type:"array", cellDates:false });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const json = XLSX.utils.sheet_to_json(ws, { defval:"", raw:true });
+  if(!json.length) return { rows:[], miss:["(빈 파일)"] };
+  const cols = {}; Object.keys(json[0]).forEach(h => { const n=imNormHead(h); for(const k in IM_HEAD){ if(!cols[k] && IM_HEAD[k].some(a=>imNormHead(a)===n)) cols[k]=h; } });
+  const miss = []; if(!cols.date) miss.push("접수일자"); if(!cols.ad) miss.push("광고성정보수신동의"); if(!cols.email && !cols.phone) miss.push("이메일(또는 핸드폰)");
+  const g = (r,k)=> cols[k] ? r[cols[k]] : "";
+  const rows = json.map(r => ({ date:imYmd(g(r,"date")), email:String(g(r,"email")||"").trim(), name:String(g(r,"name")||"").trim(), phone:imPhone(g(r,"phone")),
+    prod:String(g(r,"prod")||"").trim(), ad:String(g(r,"ad")||"").trim(), photo:String(g(r,"photo")||"").trim(), privacy:String(g(r,"privacy")||"").trim(), trust:String(g(r,"trust")||"").trim() }))
+    .filter(r => r.date || r.email || r.phone || r.name);
+  return { rows, miss };
+}
+function imShow(s){
+  const n = v => Number(v||0).toLocaleString();
+  const line = (l,v,cls) => `<tr><td style="padding:3px 14px 3px 0">${l}</td><td style="text-align:right;font-weight:800${cls?";color:"+cls:""}">${n(v)}</td></tr>`;
+  const sk = s.skipped||{};
+  $("#imBox").innerHTML =
+    `<table style="font-size:12.5px;border-collapse:collapse">`
+    + line("파일에서 읽은 줄", s.rows)
+    + line("제외: 광고성 동의가 아님", sk.notAd, sk.notAd?"var(--warn,#a35d00)":"")
+    + line("제외: 접수일자를 읽지 못함", sk.badDate, sk.badDate?"var(--bad,#c0392b)":"")
+    + line("제외: 이메일·핸드폰 모두 없음", sk.noContact, sk.noContact?"var(--bad,#c0392b)":"")
+    + line("사람 수 (성함+핸드폰으로 합친 뒤)", s.persons) + line("&nbsp;&nbsp;합쳐진 줄", s.mergedRows)
+    + line("같은 이메일 중복(한 사람만 남김)", s.emailDupInFile)
+    + line("이미 장부에 있음 (건너뜀)", s.inLedger) + line("이미 철회함 (되살리지 않음)", s.withdrawnExisting)
+    + line("같은 이메일이 이미 장부에 있음 (건너뜀)", s.emailInLedger)
+    + `<tr><td colspan="2" style="padding-top:6px;border-top:1px solid var(--line)"></td></tr>`
+    + line("<b>새로 장부에 넣을 사람</b>", s.newCount, "var(--ok)")
+    + line("&nbsp;&nbsp;기한이 이미 지남", s.overdue, s.overdue?"var(--bad,#c0392b)":"") + line("&nbsp;&nbsp;30일 안에 기한", s.soon) + line("&nbsp;&nbsp;기한이 한참 뒤", s.later)
+    + line("&nbsp;&nbsp;이메일 없음 (「메일 안 감」으로 표시)", s.noEmail, s.noEmail?"var(--warn,#a35d00)":"")
+    + line("같은 번호인데 성함이 다른 사람 수", s.nameConflict)
+    + `</table>`
+    + ((s.prods||[]).length ? `<div style="margin-top:8px;font-size:12.5px"><b>제품군 이름</b> (파일에 적힌 그대로): ` + s.prods.map(p=>cnEsc(p.name)+" "+n(p.count)).join(" · ") + `</div>` : "")
+    + ((s.sample||[]).length ? `<div style="margin-top:8px;font-size:12px;color:var(--sub)"><b>표본</b> (가려서 표시): ` + s.sample.map(x=>cnEsc(x.name)+" "+cnEsc(x.email)+" · 동의일 "+cnEsc(x.consentAt)+" · 기한 "+cnEsc(x.dueAt)).join(" / ") + `</div>` : "");
+}
+async function imPick(){
+  const f = $("#imFile").files && $("#imFile").files[0];
+  IM_ROWS = []; IM_PREV = null; $("#imBox").innerHTML=""; $("#imCommit").disabled = true; $("#imMsg").textContent="";
+  if(!f) return;
+  $("#imState").textContent="파일을 읽는 중…"; $("#imState").style.color="";
+  let rd; try{ rd = await imRead(f); }catch(e){ $("#imState").textContent="파일을 읽지 못했습니다. 엑셀(.xlsx) 또는 CSV 파일인지 확인해 주세요."; return; }
+  if(rd.miss.length){ $("#imState").textContent="필요한 칸을 찾지 못했습니다: "+rd.miss.join(", ")+" — 첫 줄의 칸 이름을 확인해 주세요."; $("#imState").style.color="var(--bad)"; return; }
+  if(!rd.rows.length){ $("#imState").textContent="읽을 줄이 없습니다."; return; }
+  IM_ROWS = rd.rows;
+  $("#imState").textContent = IM_ROWS.length.toLocaleString()+"줄을 읽었습니다. 미리보기를 계산하는 중…";
+  const r = await cnApi({ action:"importPreview", rows:IM_ROWS });
+  if(!r.ok){ $("#imState").textContent = cnWhy(r); $("#imState").style.color="var(--bad)"; return; }
+  IM_PREV = r; imShow(r);
+  $("#imState").textContent = "미리보기입니다 — 아직 아무것도 저장되지 않았습니다."; $("#imState").style.color="var(--ok)";
+  $("#imCommit").disabled = !(r.newCount > 0);
+}
+async function imCommit(){
+  if(!IM_PREV || !IM_ROWS.length) return;
+  const s = IM_PREV, hold = $("#imHold").checked;
+  if(!confirm("장부에 " + s.newCount.toLocaleString() + "명을 넣습니다" + (hold ? " (보류 — 자동 발송에서 뺌)" : "") + ".\n\n"
+    + "· 기한이 이미 지난 분 " + s.overdue + "명 · 이메일 없음 " + s.noEmail + "명\n"
+    + (hold ? "· 보류라서 메일은 나가지 않습니다. 나중에 「보류 풀기」를 눌러야 합니다.\n" : "· 보류가 아니라서 매일 오후 1시 자동 발송이 이분들을 포함합니다(하루 300명).\n")
+    + "\n장부에 넣은 뒤 지우는 기능은 없습니다. 계속할까요?")) return;
+  $("#imCommit").disabled = true; $("#imMsg").textContent="장부에 넣는 중…"; $("#imMsg").style.color="";
+  const r = await cnApi({ action:"importCommit", rows:IM_ROWS, hold, expectNew:s.newCount });
+  if(!r.ok){ $("#imMsg").textContent = (r.reason==="changed" ? r.message : cnWhy(r)); $("#imMsg").style.color="var(--bad)"; return; }
+  $("#imBatch").value = r.batch;
+  $("#imMsg").style.color = r.failed ? "var(--bad)" : "var(--ok)";
+  $("#imMsg").textContent = `✔ ${r.written.toLocaleString()}명을 장부에 넣었습니다` + (r.failed ? ` (실패 ${r.failed}명)` : "") + (r.hold ? " — 보류 상태입니다." : ".") + `  업로드 번호 ${r.batch}`;
+  IM_ROWS = []; IM_PREV = null; $("#imFile").value = ""; $("#imBox").innerHTML = ""; cnStats(true);
+}
+async function imSend(){
+  const b = ($("#imBatch").value||"").trim();
+  if(!b){ alert("업로드 번호를 넣어 주세요. 장부에 넣으면 자동으로 채워집니다."); return; }
+  $("#imMsg").textContent="발송 대상을 확인하는 중…"; $("#imMsg").style.color="";
+  const d = await cnApi({ action:"importSend", batch:b, dry:true });
+  if(!d.ok){ $("#imMsg").textContent = cnWhy(d); $("#imMsg").style.color="var(--bad)"; return; }
+  if(d.tooMany){ $("#imMsg").style.color="var(--bad)"; $("#imMsg").textContent = `발송 대상이 ${d.count.toLocaleString()}명으로 하루 한도(${d.cap}명)를 넘어 보내지 않았습니다. 이 묶음은 보류로 두고 나눠서 보내거나, 담당자에게 알려 주세요.`; return; }
+  if(!d.count){ $("#imMsg").textContent = "지금 보낼 분이 없습니다(이미 보냈거나, 보류이거나, 기한이 한참 남았거나, 철회하신 분)."; return; }
+  if(!confirm(b + " 업로드분 " + d.count + "명께 진짜 확인 메일을 보냅니다.\n\n· 이메일 없는 분 " + (d.noEmail||0) + "명은 「메일 안 감」으로 옮겨집니다\n· 같은 이메일은 한 통만 나갑니다" + (d.dupEmail ? "(" + d.dupEmail + "건)" : "") + "\n\n보낸 메일은 되돌릴 수 없습니다. 계속할까요?")) { $("#imMsg").textContent="보내지 않았습니다."; return; }
+  $("#imMsg").textContent="보내는 중…";
+  const r = await cnApi({ action:"importSend", batch:b });
+  if(!r.ok){ $("#imMsg").textContent = cnWhy(r); $("#imMsg").style.color="var(--bad)"; return; }
+  if(r.notStarted){ $("#imMsg").style.color="var(--bad)"; $("#imMsg").textContent = "아직 시행 전이라 진짜 발송은 나가지 않았습니다(시행일 미설정). 담당 개발자에게 CONSENT_START 설정을 요청하세요."; return; }
+  if(r.tooMany){ $("#imMsg").style.color="var(--bad)"; $("#imMsg").textContent = `발송 대상이 하루 한도(${r.cap}명)를 넘어 보내지 않았습니다.`; return; }
+  $("#imMsg").style.color = r.failed ? "var(--bad)" : "var(--ok)";
+  $("#imMsg").textContent = `발송 ${r.sent||0}통 · 이메일 없음 ${r.noEmail||0}명 · 같은 이메일 한 통만 ${r.dupEmail||0}건 · 실패 ${r.failed||0}건`;
+  cnStats(true);
+}
+async function imRelease(){
+  const b = ($("#imBatch").value||"").trim(); if(!b){ alert("업로드 번호를 넣어 주세요."); return; }
+  if(!confirm(b + " 업로드분의 보류를 풀까요?\n\n풀면 이분들이 매일 오후 1시 자동 발송에 포함됩니다(하루 300명까지, 기한이 이른 순서).")) return;
+  const r = await cnApi({ action:"importRelease", batch:b });
+  $("#imMsg").style.color = r.ok ? "var(--ok)" : "var(--bad)";
+  $("#imMsg").textContent = r.ok ? `보류를 풀었습니다: ${r.released.toLocaleString()}명` : cnWhy(r);
+  if(r.ok) cnStats(true);
+}
+async function imStatus(){
+  const b = ($("#imBatch").value||"").trim(); if(!b){ alert("업로드 번호를 넣어 주세요."); return; }
+  const r = await cnApi({ action:"importStatus", batch:b });
+  $("#imMsg").style.color = r.ok ? "" : "var(--bad)";
+  $("#imMsg").textContent = r.ok ? `${r.batch} — 전체 ${r.total.toLocaleString()}명 · 보류 ${r.held} · 발송 대기 ${r.waiting} · 발송함 ${r.sent} · 철회 ${r.withdrawn} · 메일 안 감 ${r.blocked} · 이메일 없음 ${r.noEmail}` : cnWhy(r);
 }
 
 /* ══════════ 손으로 철회 처리 ══════════
@@ -6993,6 +7153,11 @@ $("#cnPreview").addEventListener("click",cnPreview);
 $("#cnTest").addEventListener("click",cnTest);
 $("#cnRun").addEventListener("click",cnRun);
 $("#cnLogs").addEventListener("click",cnLogs);
+$("#imFile").addEventListener("change",imPick);
+$("#imCommit").addEventListener("click",imCommit);
+$("#imSend").addEventListener("click",imSend);
+$("#imRelease").addEventListener("click",imRelease);
+$("#imStatus").addEventListener("click",imStatus);
 $("#mwFind").addEventListener("click",mwFind);
 $("#mwQ").addEventListener("keydown",e=>{ if(e.key==="Enter") mwFind(); });
 $("#bkList").addEventListener("click",()=>bkList());

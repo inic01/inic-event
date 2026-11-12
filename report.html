@@ -10156,6 +10156,15 @@ function gsOldProd(p){
   const q = clone(o); gsEnsure(q); return q;
 }
 const gsLabels = l => (l || []).map(g => g.label + "(" + REWARD_LABEL[g.type] + ")").join(" / ") || "(없음)";
+/* 🔴 2026-11-12 — 「이전」 줄에 그 이력에 남아 있는 배송비(착불/선불)·합배송을 작게 보여 줍니다(담당자 요청, 화면 표시만 — 저장 모양은 그대로).
+   ⚠️ 이력의 합배송은 접수폼 안내에만 쓰입니다. 사방넷 출고 엑셀은 그 제품의 **지금** 합배송 값으로 묶습니다(capOf). 포토리뷰·쿠팡 이력은 g.fee, 한달 이력은 g.shipFee. */
+function gsHistNote(list, fee, box){
+  const gl = (list || []).filter(g => g && rwOf(g.type) === "gift");
+  if(!gl.length) return "배송 없음";
+  const fees = [...new Set(gl.map(g => { const f = g.fee || g.shipFee || fee; return f === "선불" ? "선불" : "착불"; }))];
+  const n = Number(box);
+  return fees.join("/") + " · " + (n >= 1 ? "합배송 " + n + "개" : "합배송 안 정함");
+}
 /* 「바뀐 사은품」 줄 — 이름·종류가 달라진 코드만(배송비·합배송만 바뀐 것은 포함하지 않음) */
 function gsChangeLines(p, t, old){
   const a = gsSnapTab(old, t), b = gsSnapTab(p, t), lines = [];
@@ -10243,7 +10252,8 @@ function gsHistPanel(o){
     let dateIn = null;
     return el("div", { style:rowStyle },
       pill("#fff1d6", "#a35d00", "이전"),
-      el("b", { style:"flex:1;min-width:140px" }, o.rowLabel(h)),
+      el("b", { style:"flex:1;min-width:140px" }, o.rowLabel(h),
+        o.rowNote ? el("span", { class:"gs-hnote", style:"font-weight:400;color:var(--sub);font-size:11.5px;margin-left:6px" }, "(" + o.rowNote(h) + ")") : ""),
       editing
         ? el("span", { style:"display:flex;gap:6px;align-items:center;flex-wrap:wrap" },
             el("span", { style:"color:var(--sub)" }, "마지막 " + o.unit + "일"),
@@ -10388,6 +10398,7 @@ function paneGift(){
       return gsHistPanel({ owner:p, tab:giftTab, id:i + "-" + giftTab, hl:gsHistOf(p, giftTab), basis:CPT ? "접수한 날" : "구매한 날(출고일)", unit:CPT ? "접수" : "출고", who:CPT ? "접수한" : "산",
         curLabel:codes.map(c => nameOf(c) + gsLabels(gsSnapTab(p, giftTab).byCode[c])).join("  ·  ") || "(없음)",
         rowLabel:h => codes.map(c => nameOf(c) + gsLabels((h.byCode || {})[c])).join("  ·  "),
+        rowNote:h => gsHistNote(codes.flatMap(c => (h.byCode || {})[c] || []), h.fee, h.box),
         lines, mode:cur, setMode,
         setTo:(k, v) => { const l = gsHistOf(p, giftTab).slice(); l[k] = Object.assign({}, l[k], { to:v }); p.hist = Object.assign({}, p.hist); p.hist[gsHKey(giftTab)] = l; },
         del:k => { const l = gsHistOf(p, giftTab).slice(); l.splice(k, 1); p.hist = Object.assign({}, p.hist);
@@ -10460,7 +10471,7 @@ function paneGift(){
             ...BOX_OPTS.map(o => el("option", { value:String(o.v), ...(Number(it.box) === o.v ? { selected:"" } : {}) }, o.t)))) : "",
         gl.filter(g => String(g.label || "").trim()).map(g => giftImgHint(g.label, g.label)),
         gsHistPanel({ owner:it, tab:"month", id:"m-" + i + "-" + c, hl:gsMoHist(it), basis:"구매한 날(출고일)", unit:"출고", who:"산",
-          curLabel:gsLabels(gsMoList(it)), rowLabel:h => gsLabels(h.gifts), lines, mode:(GS_CHG.get(it) || {}).month, setMode,
+          curLabel:gsLabels(gsMoList(it)), rowLabel:h => gsLabels(h.gifts), rowNote:h => gsHistNote(h.gifts, "", h.box), lines, mode:(GS_CHG.get(it) || {}).month, setMode,
           setTo:(k, v) => { const l = gsMoHist(it).slice(); l[k] = Object.assign({}, l[k], { to:v }); it.hist = l; },
           del:k => { const l = gsMoHist(it).slice(); l.splice(k, 1); if(l.length) it.hist = l; else delete it.hist; render(); } }),
         el("div", { style:"margin-top:8px" }, el("button", { class:"btn ghost sm", type:"button",

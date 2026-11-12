@@ -1111,6 +1111,17 @@ function applyConfig(){
     if(Array.isArray(g.opts)&&g.opts.length>1) n.opts=g.opts.map(x=>Object.assign({label:String(x.label||""),type:rwOf(x.type)},
       (x.fee==="선불"||x.fee==="착불")?{fee:x.fee}:{})); else delete n.opts;   // fee = 사은품마다 배송비(2026-10-28)
     if(g.off===true) n.off=true; else delete n.off;
+    /* 🔴 사은품 변경 이력(2026-11-10) — 「to 날짜까지는 이 사은품」. 설정을 다시 받을 때마다 새로 정합니다(giftAtDate 가 읽음) */
+    if(Array.isArray(g.hist)&&g.hist.length) n.hist=g.hist.filter(h=>h && /^\d{4}-\d{2}-\d{2}$/.test(h.to)).map(h=>{
+      const o={to:h.to};
+      if(h.off===true) o.off=true;
+      if(h.label) o.label=String(h.label);
+      if(h.type)  o.type=rwOf(h.type);
+      if(h.fee==="선불"||h.fee==="착불") o.fee=h.fee;
+      if(Number(h.box)>=1) o.box=Number(h.box);
+      if(Array.isArray(h.opts)&&h.opts.length>1) o.opts=h.opts.map(x=>Object.assign({label:String(x.label||""),type:rwOf(x.type)},(x.fee==="선불"||x.fee==="착불")?{fee:x.fee}:{}));
+      return o; });
+    else delete n.hist;
     dst[c]=n;
   });
   if(CFG.gifts) mergeGifts(GIFTS, CFG.gifts);
@@ -1422,7 +1433,20 @@ function promoFor(code){
 /* 사은품을 묻는 곳은 전부 이 함수 하나를 거칩니다.
    그래서 여기서 한 번만 바꿔 주면 화면·착불 안내·저장값이 모두 따라옵니다. */
 /* 한달 사용후기는 포토리뷰와 사은품 목록이 따로입니다(MONTH.gifts) — 이 함수로만 꺼내 씁니다. */
-function giftRow(code){ return ((state.event==="month") ? MONTH.gifts : (state.type==="coupang" ? GIFTS_CP : GIFTS))[code]; }
+/* 🔴 사은품 변경 이력(2026-11-10) — 사은품을 영구히 바꿔도 이전에 산 고객은 옛 사은품. row.hist = [{to, label, type, fee, …}] (「to 날짜까지는 이 사은품」).
+   기준 날짜: 포토리뷰·한달 사용후기는 구매한 날(원장·도장 buyByCode, 없으면 오늘), 쿠팡 정품등록은 접수한 날(오늘). 이력이 없으면 지금 사은품 그대로.
+   ⚠️ 서버 eventApi 의 giftAtDate 와 같은 계산입니다(서버가 저장 때 다시 정합니다). 한쪽만 고치지 마세요. */
+function giftAtDate(row,d){
+  if(!row || !Array.isArray(row.hist) || !d) return row;
+  let best=null;
+  row.hist.forEach(h=>{ if(h && /^\d{4}-\d{2}-\d{2}$/.test(h.to) && d<=h.to && (!best || h.to<best.to)) best=h; });
+  if(!best) return row;
+  const o=Object.assign({}, row); ["hist","label","type","fee","box","opts","off"].forEach(k=>{ delete o[k]; });
+  const old=Object.assign({}, best); delete old.to;
+  return Object.assign(o, old);
+}
+function giftDayOf(code){ return (state.type==="coupang" && state.event!=="month") ? todayYmd() : (((state.buyByCode||{})[code]) || todayYmd()); }
+function giftRow(code){ return giftAtDate(((state.event==="month") ? MONTH.gifts : (state.type==="coupang" ? GIFTS_CP : GIFTS))[code], giftDayOf(code)); }
 /* 이 유형에서 사은품을 비워 둔 선택지 — 제품 카드에서 뺍니다(서버도 접수를 받지 않음). 한달 사용후기는 자기 설정을 씁니다. */
 function giftOff(code){ return state.event!=="month" && !!((giftRow(code)||{}).off); }
 function giftOf(code){

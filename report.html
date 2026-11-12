@@ -1070,7 +1070,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
 
   <!-- 상품권 -->
   <section class="page" id="page-acct">
-    <div class="subtabs"><div class="subtab active" data-sub="acct" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="acct" data-v="inelig">확인필요</div></div>
+    <div class="subtabs"><div class="subtab active" data-sub="acct" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="acct" data-v="resend">상품권재발송</div><div class="subtab" data-sub="acct" data-v="inelig">확인필요</div></div>
     <div class="hint" id="acctHint"></div>
     <div class="filters stick"><span id="aCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
       <button id="reAllAcct" class="sm" style="display:none">🔄 확인필요 전체 재심사 (사은품+상품권)</button>
@@ -1398,6 +1398,17 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
           <button id="mkDownload" class="sm primary">명단 내려받기</button>
           <button id="mkSheetNow" class="sm">시트에 지금 올리기</button>
           <span id="mkState" style="font-size:12.5px;font-weight:800"></span>
+        </div>
+        <!-- 🔴 2026-11-12 — 명단 내려받기: 받을 때 엑셀 비밀번호를 정합니다(담당자 요청). 비밀번호는 어디에도 저장하지 않습니다. -->
+        <div id="mkPwBox" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px">
+          <div style="font-size:12.5px;font-weight:800">엑셀 파일 비밀번호 정하기</div>
+          <div class="hint" style="margin:4px 0 8px">받은 엑셀을 열 때 이 비밀번호를 묻습니다. 8글자 이상. 비밀번호는 저장되지 않고 다시 확인하지도 않으니, 입력한 글자를 정확히 따로 적어 두세요(잊거나 잘못 입력하면 파일을 열 수 없습니다). 고객 성함은 가운데가 「*」로 가려져 내려받습니다.</div>
+          <div class="filters">
+            <input type="password" id="mkPw1" autocomplete="new-password" placeholder="비밀번호" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit">
+            <button id="mkPwGo" class="sm primary">비밀번호 걸어 받기</button>
+            <button id="mkPwCancel" class="sm">취소</button>
+          </div>
+          <div id="mkPwMsg" style="font-size:12.5px;font-weight:800;margin-top:6px"></div>
         </div>
         <div class="care">「2개거부」 시트에 있는 분께는 마케팅을 보내면 안 됩니다.</div>
         <div id="mkBox" style="margin-top:10px"></div>
@@ -2341,12 +2352,19 @@ async function loadData(){
         const n=Number(it.box); mm[it.code]=(n>=1)?n:1;
       });
       /* 🔴 유형별 사은품(2026-10-28) — 수기접수·사은품 변경이 쓸 목록과, 쿠팡 정품등록 건의 합배송(쿠팡 사은품 기준) */
-      const gs={rv:{},cp:{},extra:{},extraCp:{},month:{}}, mc={};      // extra = 포토리뷰 예외사은품, extraCp = 쿠팡 예외사은품(2026-10-29)
+      const gs={rv:{},cp:{},rvH:{},cpH:{},extra:{},extraCp:{},month:{}}, mc={};      // extra = 포토리뷰 예외사은품, extraCp = 쿠팡 예외사은품(2026-10-29) · rvH·cpH = 사은품 변경 이력(2026-11-11 — 수기접수가 구매일에 맞는 사은품을 고름)
       (raw&&Array.isArray(raw.products)?raw.products:[]).forEach(p2=>{
         if(!p2) return;
         const rv=gsSetOfRaw(p2,"rv"), cp=gsSetOfRaw(p2,"cp"), ex=gsListRaw(p2.extra,rv.fee), exCp=gsListRaw(p2.cp&&p2.cp.extra,cp.fee);
+        /* 사은품 변경 이력 — 서버 giftHistOut 과 같은 규칙: 쿠팡 사은품을 따로 안 정했으면 포토리뷰 이력을 따라감 */
+        const histOf=(which,c2,dfee)=>{ const hp=(p2.hist&&typeof p2.hist==="object")?p2.hist:{}; const hasCp=p2.cp&&typeof p2.cp==="object"&&p2.cp.byCode&&typeof p2.cp.byCode==="object";
+          const hs=which==="cp"?(hasCp?hp.cp:hp.rv):hp.rv; const out=[];
+          (Array.isArray(hs)?hs:[]).slice(0,20).forEach(h=>{ if(!h||!/^\d{4}-\d{2}-\d{2}$/.test(h.to)||!h.byCode||!Array.isArray(h.byCode[c2])) return;
+            out.push({to:h.to,list:gsListRaw(h.byCode[c2],(h.fee==="선불"||h.fee==="착불")?h.fee:dfee)}); });
+          return out; };
         Object.keys(rv.byCode).forEach(c2=>{
           gs.rv[c2]=rv.byCode[c2]; gs.cp[c2]=cp.byCode[c2]; gs.extra[c2]=ex; gs.extraCp[c2]=exCp;
+          gs.rvH[c2]=histOf("rv",c2,rv.fee); gs.cpH[c2]=histOf("cp",c2,cp.fee);
           const l=cp.byCode[c2], hasGift=Array.isArray(l) ? l.some(g=>g.type==="gift") : (l===null && rwOf(p2.type)==="gift");
           if(hasGift){ const n=Number(cp.box); mc[c2]=(n>=1)?n:1; }
         });
@@ -3065,10 +3083,17 @@ async function svMakePpt(all){
 /* 사은품/상품권 */
 function isShippable(e){return shipStatus(e)==="eligible"||e.overrideEligible===true;}   // 적격 또는 수동 출고승인
 /* 포인트(2026-11-02)는 재고와 상관없어 예약발송 제품이어도 포인트 탭에 둡니다(예약발송 목록에는 안 넣음 — reserveBase) */
-function teamElig(rw){return ALL.concat(rw==="coupon"?RESEND:[]).filter(e=>e.rewardType===rw&&isShippable(e)&&(rw==="point"||!isReserve(e))&&shipStateOf(e)!=="shipped"&&!(rw==="point"&&e.pointState));}
+function teamElig(rw){return ALL.filter(e=>e.rewardType===rw&&isShippable(e)&&(rw==="point"||!isReserve(e))&&shipStateOf(e)!=="shipped"&&!(rw==="point"&&e.pointState));}
 /* 확인필요(AI 애매·오류). 🔴 2026-10 — 예약발송 제품도 여기에 포함합니다(예약 탭은 확인필요를 안 받으므로, 재심사는 여기서 합니다).
    ⚠️ teamElig(출고 목록)는 그대로 예약 제품을 뺍니다. */
 function teamInelig(rw){return ALL.filter(e=>e.rewardType===rw&&(shipStatus(e)==="review"||shipStatus(e)==="pending")&&!e.overrideEligible);}
+/* 🔴 상품권 재발송 탭 (2026-11-11 사용자 확정) — 재발송 접수 건(RESEND) 중 아직 처리 안 한 것(미발송·미불가)을 오래된 순으로 보여 줍니다.
+   직원이 상품권 업체 사이트에서 하나씩 사용이력을 조회한 뒤 목록에서 바로 「재발송」(발송완료 처리) 또는 「재발송불가」(사용 확인 기록)를 누릅니다. 엑셀(일괄출고)은 쓰지 않습니다.
+   권한: 관리자·QA·발주·회계(규칙 reviewEntries update — 「재발송불가」 칸은 규칙 후보 resendDenyOk). 상담사는 못 누릅니다. */
+const RESEND_DENY_TEXT="재발송불가(사용 확인)";        // 고정 문구(사용자 확정) — 규칙의 resendDenyReason 값('사용 확인')과 짝
+const resendSent=e=>!!(e&&(e.shipped||e.shipState==="shipped"));
+const resendPending=()=>RESEND.filter(e=>e.rewardType==="coupon"&&!resendSent(e)&&!e.resendDeny).sort((a,b)=>(a._date?.getTime()||0)-(b._date?.getTime()||0));
+const canResendAct=()=>!!(ME&&(isAdm(ME.role)||ME.role==="order"||ME.role==="acct"));
 /* 수기접수 증빙 이미지는 manualImageUrl 에 있습니다.
    AI 심사 판정(재심사 버튼 등)은 imageUrl 만 보므로 그대로 둡니다. */
 /* 🔴 보안(2026-10-02) — 이미지 주소는 우리 Storage 주소(firebasestorage.googleapis.com)만 씁니다.
@@ -3146,6 +3171,10 @@ const ELIG_POINT=[["접수일자",e=>fmtDate(e._date)],["담당자",e=>apvCell(e
 const acctDateCell=e=>isResend(e)?(admEsc(e.resendShip||"-")+` <span class="pill" style="background:#fff1d6;color:#a35d00">발송일</span>`):fmtDate(e._date);
 const ELIG_ACCT=[["접수일자",e=>acctDateCell(e)],["담당자",e=>apvCell(e)],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
   SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
+/* 상품권 재발송 탭의 열 — 맨 오른쪽 「재발송」「재발송불가」 단추(2026-11-11) */
+const resendActCell=e=>canResendAct()?`<span class="rsact"><button class="sm primary" data-act="resendDone" data-id="${admEsc(e._id)}">재발송</button> <button class="sm" data-act="resendDeny" data-id="${admEsc(e._id)}">재발송불가</button></span>`:`<span style="color:var(--sub);font-size:12px">권한 없음</span>`;
+const RESEND_COLS=[["접수일자",e=>fmtDate(e._date)],["기존 발송일",e=>admEsc(e.resendShip||"-")],["횟수",e=>admEsc((e.resendNo||1)+"회")],["제품",e=>admEsc(PNAME[e.product]||e.product||"-"),"wrapcell"],["상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
+  ["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["접수 담당자",e=>admEsc(e.agent||"-")],["처리",e=>resendActCell(e)]];
 /* 확인필요 = 재심사 담당. 재심사 누르면 결과에 따라 적합/부적합으로 자동 이동 */
 const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>admEsc(e.product||"-")],SN_COL,
   ["별점",e=>ratingCell(e)],["사진",e=>photoCell(e)],["사유",e=>reasonCell(e),"wrapcell"],
@@ -3154,6 +3183,7 @@ const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>ad
 function renderTeam(reward,tableId,emptyId,countId,pagerId,key,view){
   let all,cols;
   if(view==="inelig"){all=teamInelig(reward);cols=INELIG_COLS;}
+  else if(view==="resend"){all=resendPending();cols=RESEND_COLS;}
   else if(view==="planned"){all=pointPlannedList();cols=PLANNED_COLS;}
   else if(view==="unpayable"){all=pointUnpayableList();cols=UNPAYABLE_COLS;}
   else{all=teamElig(reward);cols=(reward==="gift"?ELIG_ORDER:reward==="point"?ELIG_POINT:ELIG_ACCT);}
@@ -3175,8 +3205,8 @@ function renderOrder(){
 }
 function renderAcct(){
   const v=subView.acct;
-  $("#acctHint").innerHTML=v==="inelig"?"상품권 대상 중 <b>확인필요</b> 건입니다. <b>AI 심사가 실패한 건만</b> 여기 남습니다(일시 오류·사용량 초과). '재심사'로 다시 판정하고, 계속 실패하면 행을 클릭해 <b>직접 판정</b>하세요. (별점·사진 등 기준 미충족은 '부적합' 탭에 있습니다.)":"상품권 대상 <b>적합·미출고</b> 건입니다. '일괄출고'를 누르면 목록을 내려받고 전부 출고완료 처리되어 목록에서 사라집니다.";
-  $("#dlAcct").style.display=(v==="elig")?"":"none";
+  $("#acctHint").innerHTML=v==="resend"?"쓰지 못한 고객의 <b>재발송 접수 건</b>입니다(수기접수 → 「상품권 재발송」으로 접수). 상품권 업체 사이트에서 <b>사용이력을 조회</b>한 뒤, 재발송했으면 <b>「재발송」</b>, 이미 사용했으면 <b>「재발송불가」</b>를 눌러 끝냅니다(엑셀 일괄출고 없음). 「재발송불가」는 <b>「"+RESEND_DENY_TEXT+"」</b>로 기록되고 그 상품권은 재접수가 막힙니다.":v==="inelig"?"상품권 대상 중 <b>확인필요</b> 건입니다. <b>AI 심사가 실패한 건만</b> 여기 남습니다(일시 오류·사용량 초과). '재심사'로 다시 판정하고, 계속 실패하면 행을 클릭해 <b>직접 판정</b>하세요. (별점·사진 등 기준 미충족은 '부적합' 탭에 있습니다.)":"상품권 대상 <b>적합·미출고</b> 건입니다. '일괄출고'를 누르면 목록을 내려받고 전부 출고완료 처리되어 목록에서 사라집니다.";
+  $("#dlAcct").style.display=(v==="elig")?"":"none";      // 재발송 탭에는 일괄출고가 없습니다(목록에서 바로 처리)
   $("#reAllAcct").style.display=(v==="inelig")?"":"none";
   renderTeam("coupon","#tableAcct","#emptyAcct","#aCount","#pagerAcct","acct",v);
 }
@@ -3208,6 +3238,37 @@ async function setShipState(id,state){
   }catch(err){alert("출고 상태 저장 실패: "+(err.message||err));}
 }
 window.setShipState=setShipState;
+/* 🔴 상품권 재발송 처리 (2026-11-11) — 목록에서 바로.
+   · 「재발송」 = 발송완료 처리(shipState·shipped·shippedAt — 발주·회계도 이미 쓰는 칸). 누른 사람·시각은 접근 기록(logAccess)에 남깁니다(이름·번호는 적지 않음).
+   · 「재발송불가」 = 사용 이력이 확인된 상품권. resendDeny·고정 사유·처리자·시각을 남기고 목록에서 빠집니다(지우지 않음). 원래 상품권 건의 「재발송 내역」에 「재발송불가(사용 확인)」로 보이고 그 상품권은 재접수가 막힙니다.
+   ⚠️ 권한은 화면이 아니라 firestore.rules(resendDenyOk 등)가 막습니다. 접수 일시중지와 상관없는 처리입니다. */
+async function resendDone(id){
+  const e=entryById(id); if(!e||!isResend(e)) return;
+  if(!canResendAct()){ alert("재발송 처리는 관리자·QA·발주·회계만 할 수 있습니다."); return; }
+  if(resendSent(e)||e.resendDeny){ alert("이미 처리된 건입니다."); renderActiveTab(); return; }
+  if(!confirm("상품권 업체 사이트에서 사용 이력을 확인하셨나요?\n\n「재발송」을 누르면 발송완료로 처리되고 목록에서 빠집니다.\n"+(e.giftItem||"-")+" · 기존 발송일 "+(e.resendShip||"-"))) return;
+  try{
+    const db=await initFirebase();
+    await db.collection(COLLECTION).doc(id).update({shipState:"shipped",shipped:true,shippedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    e.shipState="shipped"; e.shipped=true; e.shippedAt=firebase.firestore.Timestamp.now();
+    logAccess("상품권 재발송 처리",[(e.product||"-"),(e.giftItem||"-"),"재발송"].join(" · "),1);
+    renderActiveTab(); if(typeof updateTabCounts==="function") updateTabCounts();
+  }catch(err){ alert("재발송 처리 실패: "+(err.message||err)); }
+}
+async function resendDeny(id){
+  const e=entryById(id); if(!e||!isResend(e)) return;
+  if(!canResendAct()){ alert("재발송불가 처리는 관리자·QA·발주·회계만 할 수 있습니다."); return; }
+  if(resendSent(e)||e.resendDeny){ alert("이미 처리된 건입니다."); renderActiveTab(); return; }
+  if(!confirm("「"+RESEND_DENY_TEXT+"」로 처리합니다.\n\n이미 사용한 상품권이라 재발송하지 않습니다. 목록에서 빠지고, 이 상품권은 재발송 접수가 막힙니다.\n("+(e.giftItem||"-")+" · 기존 발송일 "+(e.resendShip||"-")+")\n\n계속할까요?")) return;
+  try{
+    const db=await initFirebase(), F=firebase.firestore.FieldValue, by=(ME&&ME.name)||"", byUid=(ME&&ME.uid)||"";
+    await db.collection(COLLECTION).doc(id).update({resendDeny:true,resendDenyReason:"사용 확인",resendDenyBy:by,resendDenyByUid:byUid,resendDenyAt:F.serverTimestamp()});
+    e.resendDeny=true; e.resendDenyReason="사용 확인"; e.resendDenyBy=by; e.resendDenyByUid=byUid; e.resendDenyAt=firebase.firestore.Timestamp.now();
+    logAccess("상품권 재발송불가",[(e.product||"-"),(e.giftItem||"-"),"사용 확인"].join(" · "),1);
+    renderActiveTab(); if(typeof updateTabCounts==="function") updateTabCounts();
+  }catch(err){ alert("재발송불가 처리 실패: "+(err.message||err)+"\n(권한이 없거나 이미 처리된 건일 수 있습니다.)"); }
+}
+window.resendDone=resendDone; window.resendDeny=resendDeny;
 async function setOverride(id,val){
   try{
     const db=await initFirebase();
@@ -3843,13 +3904,13 @@ function openDetail(id, readOnly){
       $("#dtCancelHint").textContent=!canCx?"":(isShipped?"이미 출고된 건은 취소할 수 없습니다.":(e.overrideEligible?"출고 승인된 건입니다(아직 출고 전).":""));
       infoEditFill(e); } }
   { const rb=$("#dtResendBox"); if(rb){ rb.innerHTML=resendBoxHtml(e); rb.style.display=rb.innerHTML?"":"none"; } }       // 재발송 내역(2026-11-03)
-  if(isResend(e)) $("#dtInfoMsg").innerHTML="<b>상품권 재발송</b> 접수 건입니다. 아직 출고 전이면 「상품권」 탭에서 일괄출고하면 발송되고, 잘못 접수했으면 아래 <b>접수 취소(삭제)</b>로 없앨 수 있습니다(원래 상품권 건은 다시 재발송 접수 가능).";
+  if(isResend(e)) $("#dtInfoMsg").innerHTML=e.resendDeny?("<b>상품권 재발송</b> 접수 건 — <b>"+RESEND_DENY_TEXT+"</b>로 처리된 건입니다(상품권을 이미 사용). 이 상품권은 재발송 접수가 막혀 있습니다."):"<b>상품권 재발송</b> 접수 건입니다. 아직 처리 전이면 「상품권 → 상품권재발송」 탭에서 <b>「재발송」</b>(발송완료) 또는 <b>「재발송불가」</b>(사용 확인)로 처리합니다. 잘못 접수했으면 아래 <b>접수 취소(삭제)</b>로 없앨 수 있습니다(원래 상품권 건은 다시 재발송 접수 가능).";
   $("#detailModal").style.display="flex";
 }
 /* 🔴 상세의 「재발송 내역」 (2026-11-03) — 원래 상품권 건에는 재발송 접수 내역(접수일·담당자·상태·기존 발송일), 재발송 건에는 원래 발송일과 상태를 보입니다. 값은 모두 이스케이프합니다. */
 function resendBoxHtml(e){
   const sent=x=>!!(x.shipped||x.shipState==="shipped");
-  const state=x=>sent(x)?`<b style="color:var(--ok)">재발송 발송완료</b> ${admEsc(shippedDate(x))}`:`<span class="pill" style="background:#efe9fb;color:#5a3fb0">재발송예정</span>`;
+  const state=x=>x.resendDeny?`<b style="color:var(--bad)">${RESEND_DENY_TEXT}</b> ${admEsc(fmtDate(tsDate(x.resendDenyAt)))} · ${admEsc(x.resendDenyBy||"-")}`:sent(x)?`<b style="color:var(--ok)">재발송 발송완료</b> ${admEsc(shippedDate(x))}`:`<span class="pill" style="background:#efe9fb;color:#5a3fb0">재발송예정</span>`;
   const tb=rows=>`<table class="mini" style="margin-top:6px;width:100%"><tbody>${rows.map(r=>`<tr><td style="color:var(--sub);width:96px;padding:3px 0">${r[0]}</td><td>${r[1]}</td></tr>`).join("")}</tbody></table>`;
   if(isResend(e)) return `<b style="font-size:13px">상품권 재발송 접수</b>`+tb([["기존 발송일",admEsc(e.resendShip||"-")],["재발송 접수",admEsc(fmtDate(e._date))],["접수 담당자",admEsc(e.agent||"-")],["상태",state(e)]]);
   if(e.rewardType!=="coupon") return "";
@@ -4207,6 +4268,8 @@ document.addEventListener("click",ev=>{
     case "unapprove": if(confirm("수동승인을 취소합니다.\n이 건은 출고 대상에서 빠지고 승인 기록도 지워집니다. 계속할까요?")) setOverride(id,false); break;
     case "rejudge":   reJudge(id); break;
     case "shipped":   setShipState(id,"shipped"); break;
+    case "resendDone": resendDone(id); break;
+    case "resendDeny": resendDeny(id); break;
     case "approve":   approveClick(id); break;
   }
 });
@@ -4249,12 +4312,12 @@ function resendInfo(e){
   if(!e||isResend(e)||e.rewardType!=="coupon") return null;
   const rs=RESEND.filter(r=>r.resendOf===e._id).sort((a,b)=>(b._date?.getTime()||0)-(a._date?.getTime()||0));
   if(!rs.length) return null;
-  const open=rs.find(r=>!(r.shipped||r.shipState==="shipped"));
-  return {list:rs, last:rs[0], planned:!!open, done:!open};
+  const open=rs.find(r=>!(r.shipped||r.shipState==="shipped")&&!r.resendDeny);      // 불가 처리한 건은 「예정」이 아님(2026-11-11)
+  return {list:rs, last:rs[0], planned:!!open, done:!open, denied:rs.some(r=>r.resendDeny)};
 }
 function csShipBadge(e){
-  if(isResend(e)) return (e.shipped||e.shipState==="shipped") ? '<span class="shipbig done">✓ 재발송 발송완료</span>' : '<span class="shipbig rsd">상품권 재발송예정</span>';
-  { const ri=resendInfo(e); if(ri) return ri.planned ? '<span class="shipbig rsd">상품권 재발송예정</span>' : '<span class="shipbig done">✓ 재발송 발송완료</span>'; }
+  if(isResend(e)) return e.resendDeny ? '<span class="shipbig hold">'+RESEND_DENY_TEXT+'</span>' : (e.shipped||e.shipState==="shipped") ? '<span class="shipbig done">✓ 재발송 발송완료</span>' : '<span class="shipbig rsd">상품권 재발송예정</span>';
+  { const ri=resendInfo(e); if(ri) return ri.planned ? '<span class="shipbig rsd">상품권 재발송예정</span>' : ri.last&&ri.last.resendDeny ? '<span class="shipbig hold">'+RESEND_DENY_TEXT+'</span>' : '<span class="shipbig done">✓ 재발송 발송완료</span>'; }
   if((e.shipped||e.shipState==="shipped")&&e.rewardType==="point") return '<span class="shipbig done">✓ 지급</span>';       // 포인트는 「발송」이 아니라 「지급」 — 지급일은 카드에 같이 나옵니다
   if(e.shipped||e.shipState==="shipped")return '<span class="shipbig done">✓ 발송</span>';
   if(shipStatus(e)==="ineligible" && !e.overrideEligible)return '<span class="shipbig hold">출고대기</span>';
@@ -4415,12 +4478,13 @@ function mGroupRows(rows){
     }
     const key = codes.join(",");
     let g = map.get(key);
-    if(!g){ g = { codes, qty:0, raw:new Set(), ords:new Set(), invs:new Set(), dates:new Set() }; map.set(key, g); }
+    if(!g){ g = { codes, qty:0, raw:new Set(), ords:new Set(), invs:new Set(), dates:new Set(), rows:[] }; map.set(key, g); }
     g.qty += q;
     if(r.prodRaw) g.raw.add(r.prodRaw);
     if(r.ord) g.ords.add(String(r.ord).trim());
     if(r.inv) g.invs.add(String(r.inv).trim());
     if(r.date) g.dates.add(r.date);
+    g.rows.push({ src:String(r.src || "").trim(), date:r.date || "" });      // 발송 문구의 「받으실 사은품」이 줄마다 판매처·구매일로 계산합니다(2026-11-11)
   });
   return { groups:[...map.values()],
            skipped:[...skip.entries()].map(([raw, qty]) => ({ raw, qty })) };
@@ -4590,6 +4654,7 @@ async function mFind(){
 
     const found = { label, rows, groups, skipped, keys:{ phones, ords, invs }, lg:null };
     MFIND = found;
+    try{ await mPromoLoad(); }catch(_){}            // 발송 문구의 「받으실 사은품」이 프로모션을 알도록 먼저 읽어 둡니다(2026-11-11)
     msg.textContent = "구매 내역을 찾았습니다 · 구글폼 참여 이력 확인 중…";
     found.lg = await mLegacy(phones, "p");          // 못 불러와도 계속합니다(화면에 안내)
     { const nmL = mode === "np" ? $("#mfName").value.trim() : String((rows[0] && rows[0].name) || "").trim();
@@ -4654,8 +4719,19 @@ function mLookupInfo(){
     const iv = [...g.invs];
     if(iv.length) invLines.push("   - " + label + " : " + iv.join(", "));
   });
-  return invLines.length ? "· 송장번호\n" + invLines.join("\n")
-                         : "· 송장번호 : [고객DB에 송장번호가 없습니다 — 직접 확인해 이 줄을 고쳐서 보내 주세요]";
+  const inv = invLines.length ? "· 송장번호\n" + invLines.join("\n")
+                              : "· 송장번호 : [고객DB에 송장번호가 없습니다 — 직접 확인해 이 줄을 고쳐서 보내 주세요]";
+  /* 🔴 2026-11-11 사용자 요청 — 고객이 받을 사은품/상품권도 같이 안내합니다(조회한 줄의 판매처·구매일 기준, 수기접수 폼과 같은 계산) */
+  const giftLines = [];
+  f.groups.forEach(g => {
+    const label = g.codes.length > 1 ? ([...g.raw][0] || mProdLabel(g)) : mProdLabel(g);
+    const rows = (g.rows && g.rows.length) ? g.rows : [{ src:"", date:"" }], seen = new Map();
+    rows.forEach(r => { const ymd = mYmdOf(r.date); const txt = [...new Set(g.codes.map(c => mGiftTextFor(c, "rv", r.src, ymd)))].join(" / ");
+      if(!seen.has(txt)) seen.set(txt, []); if(ymd) seen.get(txt).push(ymd); });
+    if(seen.size === 1) giftLines.push("   - " + label + " : " + [...seen.keys()][0]);
+    else seen.forEach((ds, txt) => giftLines.push("   - " + label + (ds.length ? " (" + [...new Set(ds)].join(", ") + " 구매분)" : "") + " : " + txt));
+  });
+  return inv + (giftLines.length ? "\n\n· 받으실 사은품/상품권\n" + giftLines.join("\n") : "");
 }
 
 function mGuideText(){
@@ -4932,6 +5008,15 @@ function mRuleGifts(r){
   src.forEach(g => { const label = String((g && g.label) || "").trim(); if(!label || seen.has(label)) return; seen.add(label); out.push({ label, type:rwOf(g && g.type) }); });
   return out.slice(0, 5);
 }
+/* 🔴 프로모션 종료 후 유예일(2026-11-11 사용자 요청) — 종료일이 지나도 0~7일 더 적용합니다(기간 기준이 구매한 날이든 접수한 날이든 같음). r.grace = 0~7.
+   서버 eventApi 의 ruleEnd·ruleGrace 와 같은 규칙입니다(서버는 늘린 마감일을 접수폼에 내려 줌). 한쪽만 고치지 마세요. */
+const RULE_GRACE_MAX = 7;
+const ruleGraceOf = r => Math.min(RULE_GRACE_MAX, Math.max(0, parseInt(r && r.grace, 10) || 0));
+function ruleEndOf(r){
+  const to = String((r && r.to) || ""), g = ruleGraceOf(r);
+  if(!to || !g || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return to;
+  const d = new Date(to + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + g); return d.toISOString().slice(0, 10);
+}
 function mPromoHit(code, src, buyDate){
   const rules = M_PROMO.rules || [];
   if(!rules.length || !code || !src) return null;
@@ -4940,7 +5025,29 @@ function mPromoHit(code, src, buyDate){
   const sk = mSrcKey(src), d = buyDate || new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
   return rules.find(r => r && r.product === prod.ledger && mRuleGifts(r).length
     && Array.isArray(r.srcs) && (r.srcs.includes(SRC_ALL) ? (!srcNever(sk) && !(r.exSrcs || []).some(x => mSrcKey(x) === sk)) : r.srcs.some(s => { const k = mSrcKey(s); return k && sk.includes(k); }))   // 「전 사이트」(2026-10-28·10-29 제외)
-    && !(r.from && d < r.from) && !(r.to && d > r.to)) || null;
+    && !(r.from && d < r.from) && !(r.to && d > ruleEndOf(r))) || null;      // 종료 후 유예일 포함(2026-11-11)
+}
+/* 🔴 구매일(쿠팡은 접수일)에 맞는 기본 사은품 목록 — 수기접수 폼(onProductChange)과 발송 문구(mGiftTextFor)가 같이 씁니다(2026-11-11).
+   t = "rv"(포토리뷰) | "cp"(쿠팡). 「to 날짜까지는 이 사은품」인 이력 중 가장 가까운 것, 없으면 지금 사은품. 서버·접수폼 giftAtDate 와 같은 규칙. */
+function mBaseGiftAt(code, t, dayAt){
+  let sl = GSET && GSET[t] ? GSET[t][code] : undefined, oldTo = "";
+  const hs = (GSET && GSET[t + "H"] && GSET[t + "H"][code]) || []; let best = null;
+  hs.forEach(h => { if(h && dayAt <= h.to && (!best || h.to < best.to)) best = h; });
+  if(best && Array.isArray(sl)){ sl = best.list; oldTo = best.to; }
+  return { sl, oldTo };
+}
+const mYmdOf = v => { const m = String(v || "").match(/(\d{4})\D{0,3}(\d{1,2})\D{0,3}(\d{1,2})/); return m ? m[1] + "-" + String(m[2]).padStart(2, "0") + "-" + String(m[3]).padStart(2, "0") : ""; };
+/* 고객에게 보낼 「받으실 사은품/상품권」 한 줄 — 프로모션(판매처·구매일)이 걸리면 그 사은품, 아니면 구매일 기준 기본 사은품. 예외사은품은 상담사 전용이라 넣지 않습니다. */
+function mGiftTextFor(code, kind, src, buyDate){
+  const t = kind === "cp" ? "cp" : "rv", todayS = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const day = t === "cp" ? todayS : (buyDate || todayS);
+  const fmt = l => l.map(x => String(x.label || x.name) + " (" + (REWARD_LABEL[rwOf(x.type || x.rewardType)] || "사은품") + ")").join(" 또는 ") + (l.length > 1 ? " 중 1개 선택" : "");
+  const promo = (t === "rv" && src && typeof M_PROMO !== "undefined" && M_PROMO) ? mPromoHit(code, src, buyDate) : null;
+  if(promo){ const gl = mRuleGifts(promo); if(gl.length) return fmt(gl); }
+  const sl = mBaseGiftAt(code, t, day).sl;
+  if(Array.isArray(sl)) return sl.length ? fmt(sl) : "이벤트 대상이 아닙니다";
+  const legacy = PRODREWARD[code] || [];
+  return legacy.length ? fmt(legacy) : "확인이 필요합니다";
 }
 function onProductChange(){
   const code = $("#mProduct").value; const list = PRODREWARD[code] || [];
@@ -4956,7 +5063,11 @@ function onProductChange(){
     /* 🔴 유형별 사은품(2026-10-28) — 설정의 포토리뷰/쿠팡 사은품 목록 + 예외사은품(상담사만 고름).
           설정을 못 읽었거나 설정에 이름이 없는 옛 줄이면 예전처럼 코드에 박힌 표(PRODREWARD)를 씁니다. */
     const t = $("#mType").value === "coupang" ? "cp" : "rv";
-    const sl = GSET && GSET[t] ? GSET[t][code] : undefined;
+    /* 🔴 사은품 변경 이력(2026-11-11 사용자 확정) — 수기접수도 조회한 구매일 기준으로 그 시점의 사은품을 줍니다.
+          포토리뷰: 원장 구매일(M_CTX.buyDate, 없으면 오늘) · 쿠팡 정품등록: 접수한 날(오늘). 서버·접수폼 giftAtDate 와 같은 규칙(「to 날짜까지는 이 사은품」, 가장 가까운 칸). */
+    const todayS = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const dayAt = t === "cp" ? todayS : ((typeof M_CTX !== "undefined" && M_CTX && M_CTX.buyDate) || todayS);
+    const bg = mBaseGiftAt(code, t, dayAt), sl = bg.sl, oldTo = bg.oldTo;      // 발송 문구의 「받으실 사은품」과 같은 계산(2026-11-11)
     const cur = Array.isArray(sl) ? sl.map(g => ({ name:g.label, rewardType:g.type, fee:g.fee })) : list;
     const ex = ((GSET && (t === "cp" ? GSET.extraCp : GSET.extra) && (t === "cp" ? GSET.extraCp : GSET.extra)[code]) || []).filter(g => !cur.some(x => x.name === g.label));   // 이 유형의 예외사은품만(2026-10-29)
     /* data-fee = 사은품마다 배송비(2026-10-28) — 고르면 「배송구분」이 그 값으로 맞춰집니다(mGiftFeeSync, 담당자가 다시 바꿀 수 있음) */
@@ -4967,7 +5078,7 @@ function onProductChange(){
     else html = (cur.length === 1 ? "" : '<option value="">선택</option>')
       + (cur.length ? '<optgroup label="지금 사은품">' + curHtml + '</optgroup>' : "")
       + '<optgroup label="예외사은품 (고객 화면에는 안 나옴)">' + exHtml + '</optgroup>';
-    if(note){ note.style.display = "none"; note.innerHTML = ""; }
+    if(note){ note.style.display = "none"; note.innerHTML = ""; }      /* 2026-11-11 사용자 요청: 「구매일 ○○ 기준 — 사은품이 바뀌기 전 …」 안내 줄은 띄우지 않음(목록은 구매일 기준 그대로) */
   }
   $("#mGift").innerHTML = html;
   mGiftFeeSync();
@@ -5358,7 +5469,8 @@ function mrState(e){
     if(e._lg) return { k:"wait", t:"상품권 지급예정", rs };
     return (shipStatus(e) === "ineligible" && !e.overrideEligible) ? { k:"bad", t:"부적합 — 재발송 대상 아님", rs } : { k:"wait", t:"상품권 지급예정", rs };
   }
-  if(rs.some(r => !mrIsSent(r))) return { k:"planned", t:"상품권 재발송예정", rs };
+  if(rs.some(r => !mrIsSent(r) && !r.resendDeny)) return { k:"planned", t:"상품권 재발송예정", rs };
+  if(rs.some(r => r.resendDeny)) return { k:"denied", t:RESEND_DENY_TEXT, rs };      // 사용 확인으로 불가 처리한 상품권은 재접수 막음 — 같은 고객의 다른 상품권은 그대로 접수 가능(2026-11-11)
   if(rs.length >= RESEND_MAX) return { k:"done", t:"재발송 " + RESEND_MAX + "회 모두 접수", rs };
   if(mrExpired(e)) return { k:"expired", t:"재발송 가능 기간(발송일부터 " + RESEND_MONTHS + "개월) 지남", rs };
   return { k:"can", t:"", rs };
@@ -5390,7 +5502,7 @@ function mrRender(){
     : s.k === "planned" ? pill("#efe9fb", "#5a3fb0", "상품권 재발송예정")
     : s.k === "done" ? `<b style="color:var(--ok)">${admEsc(s.t)}</b>`
     : s.k === "wait" ? `<span style="color:#b26a00;font-weight:800">${s.t}</span>` : `<span style="color:var(--sub)">${s.t}</span>`;
-  const hist = s => s.rs.length ? s.rs.map(r => `<div>${pill("#efe9fb", "#5a3fb0", "재발송")} ${admEsc(fmtDate(r._date))} · ${admEsc(r.agent || "-")} · ${mrIsSent(r) ? "발송완료 " + admEsc(shippedDate(r)) : "예정"}</div>`).join("") : `<span style="color:var(--sub)">없음</span>`;
+  const hist = s => s.rs.length ? s.rs.map(r => `<div>${pill("#efe9fb", "#5a3fb0", "재발송")} ${admEsc(fmtDate(r._date))} · ${admEsc(r.agent || "-")} · ${r.resendDeny ? `<b style="color:var(--bad)">${RESEND_DENY_TEXT}</b>` : mrIsSent(r) ? "발송완료 " + admEsc(shippedDate(r)) : "예정"}</div>`).join("") : `<span style="color:var(--sub)">없음</span>`;
   const shipTxt = e => e._lg ? admEsc(e.shipYmd || "-") : (mrIsSent(e) ? admEsc(shippedDate(e)) : "-");
   box.innerHTML = `<div style="margin:2px 0 8px;font-size:13.5px"><b>${admEsc(MRFIND.nm)}</b> · 받은 상품권 ${list.filter((e, i) => sts[i].k !== "nov").length}건 · 발송 완료 ${sent}건 · <b>재발송 접수 가능 ${can}건</b></div>`
     + (list.length && !can && sent && sts.every(s => s.k !== "wait" && s.k !== "bad" && s.k !== "can") ? `<div class="hint" style="margin-bottom:8px;padding:9px 12px;border-radius:10px;background:#fff6e0;color:#7a5a00">지금 <b>재발송 접수할 수 있는 상품권이 없습니다</b>(횟수 ${RESEND_MAX}회를 다 썼거나 발송일부터 ${RESEND_MONTHS}개월이 지남). 아래 표의 안내를 확인해 주세요.</div>` : "")
@@ -5817,6 +5929,7 @@ function updateTabCounts(){
   const b=(n,c)=>n>0?`<i class="${c||""}">${n}</i>`:"";
   [["order","gift"],["acct","coupon"],["point","point"]].forEach(([k,rw])=>{
     if(k==="point"){ put(k,b(teamElig(rw).length)+b(pointPlannedList().length,"a")+b(pointUnpayableList().length,"b")+b(teamInelig(rw).length,"w")); return; }
+    if(k==="acct"){ put(k,b(teamElig(rw).length)+b(resendPending().length,"a")+b(teamInelig(rw).length,"w")); return; }
     put(k,b(teamElig(rw).length)+b(teamInelig(rw).length,"w")); });
   put("bad",b(badBase().length,"b"));
   put("reserve",b(reserveList("").length,"a"));
@@ -8835,12 +8948,14 @@ function mkPeople(){
           아직 한 번도 갱신된 적이 없으면 빈칸입니다. */
     const rn = String(e.mkRenew || "");
     const pg = mkProdOf(e);                              // 제품군(2026-11-09) — 사람 한 줄에 접수한 제품군을 모아 적습니다
+    const gf = mkGiftOf(e);                              // 사은품(2026-11-12) — 출고된 건의 사은품 이름을 모아 적습니다
     if(!cur){
       map.set(key, { at, last:at, email:e.email || "", name:e.name || "", phone:e.phone || "",
-                     privacy:a.privacy, trust:a.trust, ad:a.ad, photo:a.photo, ship: sh, renew: rn, prods: pg ? [pg] : [] });
+                     privacy:a.privacy, trust:a.trust, ad:a.ad, photo:a.photo, ship: sh, renew: rn, prods: pg ? [pg] : [], gifts: gf ? [gf] : [] });
       return;
     }
     if(pg && !cur.prods.includes(pg)) cur.prods.push(pg);
+    if(gf && !cur.gifts.includes(gf)) cur.gifts.push(gf);
     if(at > cur.at) cur.at = at;                        // 일자 = 가장 최근 참여일(동의일)
     if(sh && sh > (cur.ship || "")) cur.ship = sh;
     if(rn && rn > (cur.renew || "")) cur.renew = rn;
@@ -8852,8 +8967,11 @@ function mkPeople(){
       if(e.phone) cur.phone = e.phone;
     }
   });
-  return [...map.values()].map(p => Object.assign(p, { prod: p.prods.join(", ") })).sort((x, y) => x.at - y.at);
+  return [...map.values()].map(p => Object.assign(p, { prod: p.prods.join(", "), gift: p.gifts.join(", ") })).sort((x, y) => x.at - y.at);
 }
+/* 접수 한 건의 「사은품」 — 출고된 건만, 접수 건에 적힌 사은품/상품권 이름. 출고 전이면 빈칸.
+   ⚠️ 서버(ordersApi.js)의 mkGiftOf 와 계산이 같아야 합니다. 한쪽만 고치지 마세요. */
+function mkGiftOf(e){ return (e && e.shippedAt) ? String(e.giftItem || "").trim() : ""; }
 /* 접수 한 건의 「제품군」 — 접수한 제품 코드 → 설정의 원장 이름(출고리스트 제품군), 못 찾으면 접수에 적힌 제품 이름, 그것도 없으면 코드.
    ⚠️ 서버(ordersApi.js)의 mkProdOf 와 계산이 같아야 합니다. 한쪽만 고치지 마세요. */
 let MK_PRODS = null;                                    // 설정의 제품 목록 [{ledger, codes}] — 명단을 내려받기 전에 한 번 읽습니다(못 읽으면 null → 접수에 적힌 이름)
@@ -8896,11 +9014,11 @@ function mkYmd(d){
 const MK_HEAD = ["일자","이메일","성함","핸드폰",
                  "개인정보 수집 및 이용 동의","개인정보 처리 위탁 안내",
                  "광고성 정보 수신","사진·리뷰 마케팅 활용","이벤트 출고일자",
-                 "수신동의 갱신일","제품군"];
+                 "수신동의 갱신일","제품군","사은품"];      /* 2026-11-12 — 「사은품」(L칸) 추가(담당자 요청). 서버 MK_HEAD 와 글자까지 같아야 합니다. */
 const mkRow = p => ({ "일자":mkYmd(p.at), "이메일":p.email, "성함":p.name, "핸드폰":p.phone,
                       "개인정보 수집 및 이용 동의":p.privacy, "개인정보 처리 위탁 안내":p.trust,
                       "광고성 정보 수신":p.ad, "사진·리뷰 마케팅 활용":p.photo,
-                      "이벤트 출고일자":p.ship, "수신동의 갱신일":p.renew, "제품군":p.prod });
+                      "이벤트 출고일자":p.ship, "수신동의 갱신일":p.renew, "제품군":p.prod, "사은품":p.gift });
 /* 넷으로 나눕니다 — 겹치지 않고, 넷을 더하면 전체가 됩니다.
      both  둘 다 동의
      adOnly  광고성만 동의
@@ -8938,44 +9056,92 @@ function mkRender(){
    🔴 이름이 mk 로 시작해야 합니다. 그냥 downloadSheets 로 두면
       위쪽 **사방넷 출고 명단**의 같은 이름 기능을 덮어써서,
       출고 CSV 가 마케팅 머리글로 나옵니다(2026-09-12 점검에서 발견). */
-function mkDownloadSheets(sheets, baseName){
+/* 🔴 2026-11-12 — 마케팅 활용 명단은 **비밀번호를 건 엑셀**로만 내려받습니다(담당자 요청).
+   · 엑셀 비밀번호는 기존 엑셀 도구(SheetJS 무료판)가 못 걸어서, 내려받을 때만 xlsx-populate 를 불러 씁니다(고정 버전 + SRI 지문).
+   · 도구를 못 불러오면 **비밀번호 없는 파일로 대신 내려받지 않습니다**(CSV 대체도 없앰) — 못 받았다고 알립니다.
+   · 비밀번호는 코드·서버·접근기록 어디에도 저장하지 않습니다(이 화면의 입력칸에서 파일 만들 때만 씁니다).
+   · 성함은 가운데를 「*」로 가립니다(mkMaskName) — 이 명단 내려받기에만 적용합니다. */
+const MK_XP_VER = "1.21.0";
+const MK_XP_SRI = "sha384-YnsK3VaaV54M5EcU58Pt9SdJqzL0iZpQzQAcav+18Kgn5tbwk16y/3g6FpT2d83h";
+const MK_XP_SRC = [
+  "https://cdn.jsdelivr.net/npm/xlsx-populate@" + MK_XP_VER + "/browser/xlsx-populate.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/xlsx-populate/" + MK_XP_VER + "/xlsx-populate.min.js",
+  "https://unpkg.com/xlsx-populate@" + MK_XP_VER + "/browser/xlsx-populate.min.js"
+];
+const MK_PW_MIN = 8;
+function mkLoadXpScript(src){
+  return new Promise((ok,ng)=>{ const s=document.createElement("script"); s.src=src; s.integrity=MK_XP_SRI; s.crossOrigin="anonymous";
+    s.onload=ok; s.onerror=()=>ng(new Error(src)); document.head.appendChild(s); });
+}
+async function mkLoadXp(){
+  if(window.XlsxPopulate) return window.XlsxPopulate;
+  for(const src of MK_XP_SRC){ try{ await mkLoadXpScript(src); if(window.XlsxPopulate) return window.XlsxPopulate; }catch(e){} }
+  throw new Error("엑셀 비밀번호 도구를 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요.");
+}
+/* 성함 가리기 — 2글자 「김*」 · 3글자 「홍*동」 · 4글자 이상은 가운데를 모두 「*」(예: 「남**수」). 1글자는 「*」. */
+function mkMaskName(n){
+  const a = Array.from(String(n==null?"":n).trim());
+  if(a.length===0) return "";
+  if(a.length===1) return "*";
+  if(a.length===2) return a[0] + "*";
+  return a[0] + "*".repeat(a.length-2) + a[a.length-1];
+}
+async function mkDownloadSheets(sheets, baseName, password){
   const total = sheets.reduce((n,s)=>n+s.rows.length, 0);
   if(!total){ alert("대상 데이터가 없습니다."); return false; }
-  logAccess("다운로드", baseName, total);
+  if(typeof password!=="string" || password.length<MK_PW_MIN) throw new Error("비밀번호는 "+MK_PW_MIN+"글자 이상이어야 합니다.");
+  const XP = await mkLoadXp();
+  const wb = await XP.fromBlankAsync();
+  sheets.forEach((s,i)=>{
+    const sh = i===0 ? wb.sheet(0).name(s.name) : wb.addSheet(s.name);
+    /* 빈 시트도 머리글은 남겨 둡니다 — 「0명」인지 「안 만들어졌는지」를 구분할 수 있게 */
+    const data = [MK_HEAD.slice()].concat(s.rows.map(r => MK_HEAD.map(h => r[h]==null ? "" : r[h])));
+    sh.cell("A1").value(data);
+  });
+  const blob = await wb.outputAsync({ password: password });
+  logAccess("다운로드", baseName, total);               // 접근 기록에는 파일 이름·건수만 남깁니다(비밀번호 없음)
   const fname = baseName + "_" + todayStr();
-  if(typeof XLSX!=="undefined"){
-    const wb = XLSX.utils.book_new();
-    sheets.forEach(s=>{
-      /* 빈 시트도 머리글은 남겨 둡니다 — 「0명」인지 「안 만들어졌는지」를 구분할 수 있게 */
-      const ws = s.rows.length ? XLSX.utils.json_to_sheet(s.rows)
-                               : XLSX.utils.aoa_to_sheet([MK_HEAD]);
-      XLSX.utils.book_append_sheet(wb, ws, s.name);
-    });
-    XLSX.writeFile(wb, fname + ".xlsx");
-  }else{
-    const rows = sheets.flatMap(s => s.rows.map(r => Object.assign({ "구분":s.name }, r)));
-    const heads = ["구분", ...MK_HEAD];
-    const csv = [heads.join(",")].concat(rows.map(r=>heads.map(h=>`"${rSafe(r[h]).replace(/"/g,'""')}"`).join(","))).join("\n");
-    const blob = new Blob(["\ufeff"+csv], { type:"text/csv;charset=utf-8;" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fname + ".csv"; a.click();
-  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fname + ".xlsx";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
   return true;
 }
-async function mkDownload(){
+async function mkDownload(password){
   await mkLoadProds();                                  // 제품군(2026-11-09): 설정의 원장 이름을 먼저 읽어 둡니다
   const s = mkSplit();
-  const ok = mkDownloadSheets([
-    { name:"둘다동의",        rows:s.both   },
-    { name:"광고성만동의",     rows:s.adOnly },
-    { name:"사진리뷰만동의",   rows:s.phOnly },
-    { name:"2개거부",         rows:s.none   }
-  ], "마케팅활용명단");
-  if(!ok) return;
+  const mask = rows => rows.map(r => Object.assign({}, r, { "성함": mkMaskName(r["성함"]) }));
+  const ok = await mkDownloadSheets([
+    { name:"둘다동의",        rows:mask(s.both)   },
+    { name:"광고성만동의",     rows:mask(s.adOnly) },
+    { name:"사진리뷰만동의",   rows:mask(s.phOnly) },
+    { name:"2개거부",         rows:mask(s.none)   }
+  ], "마케팅활용명단", password);
+  if(!ok) return false;
   $("#mkState").textContent =
-    `✔ 둘 다 ${s.both.length} · 광고성만 ${s.adOnly.length} · 사진·리뷰만 ${s.phOnly.length} · 거부 ${s.none.length}명 내려받음`;
+    `✔ 둘 다 ${s.both.length} · 광고성만 ${s.adOnly.length} · 사진·리뷰만 ${s.phOnly.length} · 거부 ${s.none.length}명 내려받음 (비밀번호 걸림 · 성함 가림)`;
   $("#mkState").style.color = "var(--ok)";
+  return true;
 }
-$("#mkDownload").addEventListener("click", mkDownload);
+/* 「명단 내려받기」는 비밀번호 칸을 먼저 엽니다 — 바로 받지 않습니다 */
+function mkPwOpen(){ $("#mkPwBox").style.display=""; $("#mkPw1").value=""; $("#mkPwMsg").textContent=""; $("#mkPw1").focus(); }
+function mkPwClose(){ $("#mkPwBox").style.display="none"; $("#mkPw1").value=""; $("#mkPwMsg").textContent=""; }
+async function mkPwGo(){
+  const p1 = $("#mkPw1").value, msg = $("#mkPwMsg"), btn = $("#mkPwGo");
+  msg.style.color = "var(--bad)";
+  if(p1.length < MK_PW_MIN){ msg.textContent = "비밀번호는 " + MK_PW_MIN + "글자 이상으로 정해 주세요."; return; }
+  btn.disabled = true; msg.style.color = ""; msg.textContent = "파일을 만드는 중…";
+  try{
+    const ok = await mkDownload(p1);
+    if(ok) mkPwClose(); else { msg.textContent = ""; }
+  }catch(e){
+    msg.style.color = "var(--bad)";
+    msg.textContent = "내려받지 못했습니다 — " + (e && e.message ? e.message : "알 수 없는 오류") + " (비밀번호 없는 파일은 만들지 않았습니다.)";
+  }finally{ btn.disabled = false; }
+}
+$("#mkDownload").addEventListener("click", mkPwOpen);
+$("#mkPwGo").addEventListener("click", mkPwGo);
+$("#mkPwCancel").addEventListener("click", mkPwClose);
+$("#mkPw1").addEventListener("keydown", e => { if(e.key==="Enter") mkPwGo(); });
 
 /* 시트에 지금 올리기 — 5분을 안 기다리고 바로 확인할 때. 관리자만 보입니다.
    ⚠️ 이 기능을 붙이기 전에 접수된 건은 「표시」가 없어 자동으로는 안 올라갑니다.
@@ -9955,7 +10121,170 @@ function gsBeforeSave(c){
     const legacySame = gsCodes(p).every(k => JSON.stringify(gsLegacyList(p, k)) === JSON.stringify(nameOnly(p.rv.byCode[k])));
     if(!legacySame) gsSyncLegacy(p);
     gsSyncFee(p, "review"); gsSyncFee(p, "coupang");
+    gsApplyHist(p);                                       // 🔴 사은품 변경 이력(2026-11-10) — 위에서 정리한 뒤, 「바꾸기 전」 사은품을 이력으로 남김
   });
+  ((c.month && Array.isArray(c.month.items)) ? c.month.items : []).forEach(moApplyHist);     // 한달 사용후기 사은품 이력(2026-11-10)
+}
+
+/* ══════════ 🔴 사은품 변경 이력 (2026-11-10 사용자 요청) ══════════
+   사은품·상품권을 영구히 바꿔도 「이전에 산 고객」은 옛 사은품을 받게 합니다(프로모션을 방패로 쓰지 않아도 됨).
+     p.hist = { rv:[{ to:"YYYY-MM-DD", byCode:{코드:[{label,type,fee}]}, fee, box }], cp:[…] }  — 「to 날짜까지는 이 사은품」(옛 사은품을 남겨 둠, 날짜 오름차순)
+   · 기준 날짜: 포토리뷰 = 구매한 날(출고일), 쿠팡 정품등록 = 접수한 날. 이력이 없으면 지금 사은품 그대로(예전과 같음).
+   · 담당자는 지금처럼 사은품을 고친 뒤, 「변경 이력」에서 적용 시점(전부 바로 / 오늘부터 / 날짜 지정)을 고릅니다. 고르지 않으면 「전부 바로 적용」(예전 방식).
+   · 저장 직전(gsBeforeSave → gsApplyHist)에 「마지막으로 저장한 값(SAVED)」과 비교해 바뀐 탭의 옛 사은품을 이력으로 남깁니다.
+   ⚠️ 서버 eventApi giftAtDate·giftHistOut 과 접수폼 index giftAtDate 와 같은 모양입니다. 한쪽만 고치지 마세요. */
+const GS_YMD = /^\d{4}-\d{2}-\d{2}$/, GS_HIST_MAX = 20;
+let GS_CHG = new WeakMap();                 // 제품 줄(p) → { review:{kind:"now"|"date"|"all", date}, coupang:{…} } — 저장 전까지만 기억(설정 값이 아님)
+const GS_OPEN = new WeakMap();              // 제품 줄(p) → 펼쳐 둔 탭 이름 모음(화면 상태만)
+const gsToday = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);       // 한국 날짜
+const gsAddDay = (s, n) => { const d = new Date(s + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const gsHKey = t => t === "coupang" ? "cp" : "rv";
+const gsHistOf = (p, t) => (p && p.hist && Array.isArray(p.hist[gsHKey(t)])) ? p.hist[gsHKey(t)] : [];
+/* 한 탭의 사은품을 비교하기 좋은 모양으로(이름·종류·배송비·합배송) — 빈 이름은 뺍니다. p 는 gsEnsure 를 거친 것 */
+function gsSnapTab(p, t){
+  const set = t === "coupang" ? p.cp.byCode : p.rv.byCode, out = { byCode:{}, fee:gsFee(p, t) }, bx = gsBox(p, t);
+  gsCodes(p).forEach(c => { out.byCode[c] = (set[c] || []).filter(g => String(g.label || "").trim()).map(g =>
+    Object.assign({ label:String(g.label).trim(), type:rwOf(g.type) }, rwOf(g.type) === "gift" ? { fee:gsItemFee(p, t, g) } : {})); });
+  out.box = (bx == null || bx === "") ? "" : Number(bx);
+  return out;
+}
+/* 마지막으로 저장한 값에서 같은 제품 줄(제품군 이름·접수폼 제품이 같은 것)을 찾습니다 — 없으면 null(새 제품·이름이 바뀐 줄은 이력을 남길 수 없음) */
+function gsOldProd(p){
+  const o = (typeof SAVED !== "undefined" && SAVED && Array.isArray(SAVED.products))
+    ? SAVED.products.find(x => x && String(x.ledger || "").trim() === String(p.ledger || "").trim()) : null;
+  if(!o || JSON.stringify(gsCodes(o)) !== JSON.stringify(gsCodes(p))) return null;
+  const q = clone(o); gsEnsure(q); return q;
+}
+const gsLabels = l => (l || []).map(g => g.label + "(" + REWARD_LABEL[g.type] + ")").join(" / ") || "(없음)";
+/* 「바뀐 사은품」 줄 — 이름·종류가 달라진 코드만(배송비·합배송만 바뀐 것은 포함하지 않음) */
+function gsChangeLines(p, t, old){
+  const a = gsSnapTab(old, t), b = gsSnapTab(p, t), lines = [];
+  gsCodes(p).forEach(c => {
+    const nm = l => JSON.stringify((l || []).map(g => [g.label, g.type]));
+    if(nm(a.byCode[c]) !== nm(b.byCode[c])) lines.push((gsCodes(p).length > 1 ? ((typeof PNAME !== "undefined" && PNAME[c]) || c) + ": " : "") + gsLabels(a.byCode[c]) + "  →  " + gsLabels(b.byCode[c]));
+  });
+  return lines;
+}
+function gsApplyHist(p){
+  const chg = GS_CHG.get(p); if(!chg) return;
+  ["review", "coupang"].forEach(t => {
+    const m = chg[t]; if(!m || (m.kind !== "now" && m.kind !== "date")) return;
+    const old = gsOldProd(p); if(!old) return;
+    const a = gsSnapTab(old, t), b = gsSnapTab(p, t);
+    if(JSON.stringify(a) === JSON.stringify(b)) return;                       // 바뀐 것이 없으면 이력을 남기지 않음
+    const eff = m.kind === "now" ? gsToday() : String(m.date || "");
+    if(!GS_YMD.test(eff)) throw new Error((p.ledger || "제품") + " — 사은품이 바뀌는 날짜를 정해 주세요.");
+    const to = gsAddDay(eff, -1), hl = gsHistOf(p, t).slice();
+    const last = hl.reduce((mx, h) => (h.to > mx ? h.to : mx), "");
+    if(last && to < last) throw new Error((p.ledger || "제품") + " — 이미 " + last + " 까지의 이력이 있어 그보다 앞선 날짜(" + eff + ")는 정할 수 없습니다. 「이력」에서 지난 이력을 먼저 지우거나 날짜를 늦춰 주세요.");
+    if(!hl.some(h => h.to === to)){             // 같은 날 두 번째 변경이면(첫 변경의 사은품 기간이 하루도 없음) 이력을 더 남기지 않습니다
+      hl.push({ to, byCode:a.byCode, fee:a.fee, box:a.box });
+      if(hl.length > GS_HIST_MAX) throw new Error((p.ledger || "제품") + " — 변경 이력은 최대 " + GS_HIST_MAX + "개까지입니다. 오래된 이력을 지워 주세요.");
+      hl.sort((x, y) => x.to < y.to ? -1 : x.to > y.to ? 1 : 0);
+      p.hist = Object.assign({}, p.hist); p.hist[gsHKey(t)] = hl;
+    }
+  });
+}
+/* ── 한달 사용후기 — 제품 줄(it) 하나가 한 단위입니다. it.hist = [{ to, gifts:[{label,type,shipFee}], box }] (서버 monthPublic 이 읽는 모양) ──
+   기준 날짜는 구매한 날(출고일). 사은품 목록(it.gifts 또는 예전 칸 gift·type·shipFee)은 이름·종류·배송비·합배송으로 비교합니다. */
+const gsMoList = it => ((Array.isArray(it.gifts) && it.gifts.length) ? it.gifts : [{ label:it.gift, type:it.type, shipFee:it.shipFee }])
+  .filter(g => g && String(g.label || "").trim()).map(g => Object.assign({ label:String(g.label).trim(), type:g.type === "coupon" ? "coupon" : "gift" },
+    g.type === "coupon" ? {} : { shipFee:g.shipFee === "선불" ? "선불" : "착불" }));
+const gsMoSnap = it => ({ gifts:gsMoList(it), box:(Number(it.box) >= 1) ? Number(it.box) : "" });
+const gsMoHist = it => Array.isArray(it && it.hist) ? it.hist : [];
+const gsMoOld = it => { const o = (typeof SAVED !== "undefined" && SAVED && SAVED.month && Array.isArray(SAVED.month.items)) ? SAVED.month.items.find(x => x && x.code === it.code) : null; return o ? clone(o) : null; };
+const gsMoLines = (it, old) => { const nm = l => JSON.stringify(l.map(g => [g.label, g.type])), a = gsMoList(old), b = gsMoList(it);
+  return nm(a) !== nm(b) ? [gsLabels(a) + "  →  " + gsLabels(b)] : []; };
+function moApplyHist(it){
+  const m = (GS_CHG.get(it) || {}).month; if(!m || (m.kind !== "now" && m.kind !== "date")) return;
+  const old = gsMoOld(it); if(!old) return;
+  const a = gsMoSnap(old), b = gsMoSnap(it); if(JSON.stringify(a) === JSON.stringify(b)) return;
+  const eff = m.kind === "now" ? gsToday() : String(m.date || "");
+  if(!GS_YMD.test(eff)) throw new Error("한달 사용후기 " + (it.code || "") + " — 사은품이 바뀌는 날짜를 정해 주세요.");
+  const to = gsAddDay(eff, -1), hl = gsMoHist(it).slice(), last = hl.reduce((mx, h) => (h.to > mx ? h.to : mx), "");
+  if(last && to < last) throw new Error("한달 사용후기 " + (it.code || "") + " — 이미 " + last + " 까지의 이력이 있어 그보다 앞선 날짜(" + eff + ")는 정할 수 없습니다.");
+  if(hl.some(h => h.to === to)) return;
+  hl.push({ to, gifts:a.gifts, box:a.box });
+  if(hl.length > GS_HIST_MAX) throw new Error("한달 사용후기 " + (it.code || "") + " — 변경 이력은 최대 " + GS_HIST_MAX + "개까지입니다.");
+  hl.sort((x, y) => x.to < y.to ? -1 : x.to > y.to ? 1 : 0); it.hist = hl;
+}
+/* 사은품 이름·종류가 바뀌었는데 적용 시점을 안 고른 제품 — 저장 때 한 번 더 확인하려고 */
+function gsUnchosen(){
+  const out = (cfg.products || []).filter(p => { gsEnsure(p); const old = gsOldProd(p); if(!old) return false;
+    return ["review", "coupang"].some(t => { const m = (GS_CHG.get(p) || {})[t]; if(m && (m.kind === "now" || m.kind === "date")) return false; return gsChangeLines(p, t, old).length > 0; }); })
+    .map(p => String(p.ledger || "").trim());
+  ((cfg.month && Array.isArray(cfg.month.items)) ? cfg.month.items : []).forEach(it => { const old = gsMoOld(it); if(!old) return;
+    const m = (GS_CHG.get(it) || {}).month; if(m && (m.kind === "now" || m.kind === "date")) return;
+    if(gsMoLines(it, old).length) out.push("한달 사용후기 · " + (it.code || "")); });
+  return out;
+}
+
+/* 한달 사용후기 줄의 사은품 칸 고치기 — paneMonth 의 setG 와 같은 동작(1개면 예전 칸 gift·type·shipFee, 2개 이상이면 it.gifts) */
+function moSetG(it, k, key, v){ if(Array.isArray(it.gifts)){ it.gifts[k][key] = v; moSync(it); } else it[key === "label" ? "gift" : key] = v; }
+/* ══════════ 🔴 A안 카드(2026-11-11 사용자 확정) — 제품 줄을 카드로, 카드 안에 포토리뷰·쿠팡·한달 탭 ══════════
+   · 접힌 줄: 제품군 · 지금 사은품 요약 · 예약발송/이전 사은품 표시. 눌러서 펼치면 제품 정보 + 탭별 사은품·예외사은품·변경 이력.
+   · 탭은 카드마다 따로 기억합니다(GS_TAB). 저장 모양은 그대로(rv·cp·hist, 한달은 month.items) — 화면만 바뀝니다. */
+const GS_TAB = new WeakMap();               // 제품 줄(p) → "review" | "coupang" | "month"
+const GS_SHUT = new WeakMap();              // 소유자(p 또는 한달 줄 it) → 접어 둔 이력 칸(탭 이름) 모음 — 기본은 펼침
+const GS_DEDIT = new WeakMap();             // 소유자 → 날짜를 고치는 중인 이력 줄(`탭:번호`) 모음
+const gsMonthItems = p => ((typeof cfg !== "undefined" && cfg.month && Array.isArray(cfg.month.items)) ? cfg.month.items : []).filter(it => it && gsCodes(p).includes(it.code));
+/* 「사은품 변경 이력」 칸 — 포토리뷰·쿠팡·한달 공통. o = { owner, tab, id, hl, basis, unit("출고"|"접수"), who("산"|"접수한"), curLabel, rowLabel(h), lines(null=이력 불가), mode, setMode(o), setTo(k, ymd), del(k) } */
+function gsHistPanel(o){
+  const hl = o.hl, shut = (GS_SHUT.get(o.owner) || new Set()).has(o.tab), dedit = GS_DEDIT.get(o.owner) || new Set();
+  const m = o.mode || { kind:"all" }, chosen = m.kind === "now" || m.kind === "date";
+  const pill = (bg, fg, t) => el("span", { class:"pill", style:"background:" + bg + ";color:" + fg + ";min-width:34px;text-align:center" }, t);
+  const radio = (k, title, sub) => el("label", { style:"display:flex;gap:7px;align-items:flex-start;margin:5px 0;font-size:12px;line-height:1.5;cursor:pointer" },
+    el("input", { type:"radio", name:"gchg-" + o.id, ...(m.kind === k ? { checked:"" } : {}), onchange:() => o.setMode({ kind:k }) }), el("span", {}, el("b", {}, title), " ", sub));
+  const last = hl.length ? hl[hl.length - 1].to : "";
+  const rowStyle = "display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line);flex-wrap:wrap;font-size:12.5px";
+  const rows = hl.map((h, k) => ({ h, k })).reverse().map(({ h, k }) => {
+    const key = o.tab + ":" + k, editing = dedit.has(key);
+    const toggleEdit = on => { const s = GS_DEDIT.get(o.owner) || new Set(); if(on) s.add(key); else s.delete(key); GS_DEDIT.set(o.owner, s); render(); };
+    let dateIn = null;
+    return el("div", { style:rowStyle },
+      pill("#fff1d6", "#a35d00", "이전"),
+      el("b", { style:"flex:1;min-width:140px" }, o.rowLabel(h)),
+      editing
+        ? el("span", { style:"display:flex;gap:6px;align-items:center;flex-wrap:wrap" },
+            el("span", { style:"color:var(--sub)" }, "마지막 " + o.unit + "일"),
+            (dateIn = el("input", { type:"date", value:h.to, "aria-label":"이전 사은품이 끝나는 날" })),
+            el("button", { class:"btn sm primary", type:"button", onclick:() => { const v = dateIn.value;
+              if(!GS_YMD.test(v)){ alert("날짜를 정해 주세요."); return; }
+              const prev = k > 0 ? hl[k - 1].to : "", next = k < hl.length - 1 ? hl[k + 1].to : "";
+              if((prev && v <= prev) || (next && v >= next)){ alert("이력 날짜 순서가 맞지 않습니다. " + [prev ? prev + " 보다 늦" : "", next ? next + " 보다 빠르" : ""].filter(Boolean).join("고 ") + "어야 합니다."); return; }
+              o.setTo(k, v); toggleEdit(false); } }, "확인"),
+            el("button", { class:"btn sm ghost", type:"button", onclick:() => toggleEdit(false) }, "취소"))
+        : el("span", { style:"color:var(--sub)" }, "~ " + h.to + " " + o.unit + "분"),
+      editing ? "" : el("button", { class:"btn sm ghost", type:"button", "aria-label":"날짜 고치기 " + (k + 1), onclick:() => toggleEdit(true) }, "날짜 고치기"),
+      editing ? "" : el("button", { class:"btn sm ghost", type:"button", "aria-label":"이력 삭제 " + (k + 1),
+        onclick:() => { if(!confirm("이 이력(" + h.to + " 까지의 옛 사은품)을 지웁니다.\n\n그 기간에 " + o.who + " 고객은 다음 이력 또는 지금 사은품을 받게 됩니다. 계속할까요?")) return; o.del(k); } }, "삭제"));
+  });
+  return el("div", { style:"margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#faf8f6" },
+    el("div", { style:"display:flex;align-items:center;gap:8px;flex-wrap:wrap" },
+      el("button", { class:"btn ghost sm", type:"button", "aria-expanded":shut ? "false" : "true",
+        onclick:() => { const s = GS_SHUT.get(o.owner) || new Set(); if(s.has(o.tab)) s.delete(o.tab); else s.add(o.tab); GS_SHUT.set(o.owner, s); render(); } },
+        (shut ? "▸ " : "▾ ") + "사은품 변경 이력 (" + o.basis + " 기준)"),
+      hl.length ? el("span", { class:"pill", style:"background:#fff1d6;color:#a35d00" }, "이전 사은품 " + hl.length + "건") : "",
+      (o.lines && o.lines.length && !chosen) ? el("span", { class:"pill", style:"background:#fff3cf;color:#8a6a10" }, "사은품이 바뀜 — 적용 시점을 확인하세요") : "",
+      chosen ? el("span", { class:"pill", style:"background:#e8f5ea;color:#2c6b3c" }, m.kind === "now" ? "오늘부터 적용으로 저장" : "날짜 지정으로 저장") : ""),
+    shut ? "" : el("div", { style:"margin-top:6px" },
+      !o.lines ? el("div", { style:"font-size:12px;color:var(--sub);margin:4px 0" }, "이 줄은 이력을 남길 수 없습니다(새로 만든 줄이거나 제품군 이름·접수폼 제품을 바꾼 줄 — 먼저 저장한 뒤 사은품을 바꾸세요).")
+      : o.lines.length ? el("div", { style:"margin:6px 0 8px;padding:8px 10px;border-radius:9px;background:#fff8e6;border:1px solid #efd9b0" },
+          el("div", { style:"font-size:12px;font-weight:800;margin-bottom:3px" }, "바뀐 사은품"),
+          o.lines.map(t => el("div", { style:"font-size:12px;margin:2px 0" }, t)),
+          el("div", { style:"font-size:12px;font-weight:800;margin:8px 0 2px" }, "언제부터 새 사은품을 줄까요?"),
+          radio("all", "전부 바로 적용", "— 이전에 " + o.who + " 고객도 새 사은품(오타 고치기·이름 정리에 알맞음)"),
+          radio("now", "오늘(" + gsToday() + ")부터", "— 오늘 이전에 " + o.who + " 고객은 옛 사은품, 오늘부터는 새 사은품"),
+          radio("date", "날짜 지정", "— 고른 날짜부터 새 사은품"),
+          m.kind === "date" ? el("div", { style:"margin:2px 0 0 24px" },
+            el("input", { type:"date", value:m.date || gsToday(), "aria-label":"새 사은품이 시작되는 날",
+              onchange:e => o.setMode({ kind:"date", date:e.target.value }, true) })) : "")
+      : "",
+      el("div", { style:"display:flex;gap:8px;align-items:center;padding:7px 0;font-size:12.5px;flex-wrap:wrap" },
+        pill("#e8f5ea", "#2c6b3c", "지금"), el("b", { style:"flex:1;min-width:140px" }, o.curLabel),
+        el("span", { style:"color:var(--sub)" }, last ? gsAddDay(last, 1) + " " + o.unit + "분부터" : "처음부터 (이전 이력 없음)")),
+      rows,
+      !hl.length ? el("div", { style:"font-size:11.5px;color:var(--sub);padding:4px 0" }, "사은품을 바꿀 때 「오늘부터」를 고르면 옛 사은품이 이력으로 남습니다.") : ""));
 }
 
 function paneGift(){
@@ -9992,6 +10321,9 @@ function paneGift(){
                          el("option", { value:"선불", ...(f === "선불" ? { selected:"" } : {}) }, "선불")];
   const feePill = f => el("span", { class:"pill", style:"margin-left:3px;" + (f === "선불" ? "background:#e9f0fb;color:#2f6df6" : "background:#f2eeea;color:#6b625b") }, f);
   const rows = cfg.products.map((p, i) => {
+    const cardTab = GS_TAB.get(p) || "review";
+    const giftTab = cardTab === "coupang" ? "coupang" : "review";      // 🔴 카드마다 자기 탭 — 바깥의 giftTab·CPT 를 가립니다(A안 카드 2026-11-11)
+    const CPT = giftTab === "coupang";
     const on = editRow === i;
     const codes = gsCodes(p);
     const set = CPT ? p.cp.byCode : p.rv.byCode;
@@ -10022,7 +10354,8 @@ function paneGift(){
           el("span", { style:"font-size:11px;color:var(--sub);min-width:42px" }, list.length > 1 ? "택1 · " + (k + 1) : "사은품"),
           el("input", { type:"text", value:g.label, placeholder:"사은품 이름 (= 이미지 파일 이름)", style:"flex:1;min-width:170px",
             "aria-label":(multi ? codeName(c) + " " : "") + "사은품 이름 " + (k + 1),
-            oninput:e => { g.label = e.target.value; touch(); softRefresh(); } }),
+            oninput:e => { g.label = e.target.value; touch(); softRefresh(); },
+            onchange:() => setTimeout(render, 220) }),          // 이름을 다 쓰고 칸을 벗어나면 「바뀐 사은품 · 적용 시점」 안내를 다시 그립니다(2026-11-11). 바로 그리면 칸을 벗어나게 만든 클릭(다른 탭·버튼)이 사라지므로 조금 늦춥니다
           el("select", { "aria-label":(multi ? codeName(c) + " " : "") + "종류 " + (k + 1), onchange:e => { g.type = e.target.value; touch(); render(); } }, TYPE_OPTS(g)),
           /* 🔴 배송비 — 사은품마다(2026-10-28). 상품권은 배송이 없습니다 */
           rwOf(g.type) !== "gift" ? el("span", { style:"font-size:11px;color:var(--sub);min-width:52px" }, "배송 없음")
@@ -10046,6 +10379,21 @@ function paneGift(){
           : el("select", { "aria-label":"예외사은품 배송비 " + (k + 1), onchange:e => { g.fee = e.target.value; softRefresh(); } }, FEE_OPTS(gsItemFee(p, giftTab, g))),
         el("button", { class:"btn ghost", type:"button", "aria-label":"예외사은품 삭제 " + (k + 1), onclick:() => { exList.splice(k, 1); render(); } }, "삭제"))),
       exList.length < 10 ? el("button", { class:"btn ghost", type:"button", onclick:() => { exList.push({ label:"", type:"gift" }); render(); } }, "+ 예외사은품 추가") : "");
+    /* 🔴 사은품 변경 이력(2026-11-10, A안 카드 2026-11-11) — 공통 칸(gsHistPanel)에 이 탭의 값을 넘깁니다 */
+    const histPanelFor = () => {
+      const oldP = gsOldProd(p), lines = oldP ? gsChangeLines(p, giftTab, oldP) : null;
+      const cur = (GS_CHG.get(p) || {})[giftTab];
+      const setMode = (o, quiet) => { const c = GS_CHG.get(p) || {}; c[giftTab] = o; GS_CHG.set(p, c); if(!quiet) render(); };
+      const nameOf = c => (codes.length > 1 ? codeName(c) + ": " : "");
+      return gsHistPanel({ owner:p, tab:giftTab, id:i + "-" + giftTab, hl:gsHistOf(p, giftTab), basis:CPT ? "접수한 날" : "구매한 날(출고일)", unit:CPT ? "접수" : "출고", who:CPT ? "접수한" : "산",
+        curLabel:codes.map(c => nameOf(c) + gsLabels(gsSnapTab(p, giftTab).byCode[c])).join("  ·  ") || "(없음)",
+        rowLabel:h => codes.map(c => nameOf(c) + gsLabels((h.byCode || {})[c])).join("  ·  "),
+        lines, mode:cur, setMode,
+        setTo:(k, v) => { const l = gsHistOf(p, giftTab).slice(); l[k] = Object.assign({}, l[k], { to:v }); p.hist = Object.assign({}, p.hist); p.hist[gsHKey(giftTab)] = l; },
+        del:k => { const l = gsHistOf(p, giftTab).slice(); l.splice(k, 1); p.hist = Object.assign({}, p.hist);
+          if(l.length) p.hist[gsHKey(giftTab)] = l; else delete p.hist[gsHKey(giftTab)];
+          if(!Object.keys(p.hist).length) delete p.hist; render(); } });
+    };
     const statePill = CPT ? (same
       ? el("span", { class:"pill", style:"margin-left:6px;background:#f0eeec;color:#8a827c" }, "포토리뷰와 같음")
       : el("span", { class:"pill", style:"margin-left:6px;background:#fff3cf;color:#8a6a10" }, "포토리뷰와 다름")) : "";
@@ -10064,115 +10412,121 @@ function paneGift(){
             boxUnset({ box:boxV }) ? "안 정하시면 1개씩 따로 나갑니다." : Number(boxV) === 1 ? "1개씩 따로 발송 · 배송비도 각각" : "한 상자에 " + Number(boxV) + "개까지"));
     const types = [...new Set(codes.flatMap(c => (set[c] || []).map(g => g.type)))];
 
-    const cells = on
-      ? [ el("td", {},
-            CPT
-              ? el("div", {}, el("span", { style:"font-weight:700" }, p.ledger || "(제품군 없음)"), statePill, codesLabel,
-                  el("div", { style:"font-size:11px;color:var(--sub);margin-top:4px" }, "제품군·접수폼 제품은 「포토리뷰 사은품」 탭에서 고칩니다."))
-              : el("div", {},
-                  el("input", { type:"text", value:p.ledger, placeholder:"제품군 이름", "aria-label":"제품군",
-                    oninput:e => { p.ledger = e.target.value; softRefresh(); } }),
-                  dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : "",
-                  /* 접수폼 제품 고르기 — 이게 있어야 사은품·설문·프로모션이 고객 화면에 붙습니다 */
-                  el("div", { style:"margin-top:6px" },
-                    el("div", { style:"font-size:11px;color:var(--sub);margin-bottom:3px" }, "접수폼 제품"),
-                    el("select", { "aria-label":"접수폼 제품",
-                      title:(FORM_PRODUCTS.find(([v]) => v === codes.join(",")) || [null, ""])[1],
-                      onchange:e => { const v = e.target.value; p.codes = v ? v.split(",") : []; gsEnsure(p); gsSyncLegacy(p); render(); } },
-                      el("option", { value:"", ...(codes.length ? {} : { selected:"" }) }, "이벤트 대상 아님"),
-                      FORM_PRODUCTS.map(([v, n]) => el("option", { value:v, ...(codes.join(",") === v ? { selected:"" } : {}) }, n))),
-                    el("div", { style:"font-size:11px;color:var(--sub);margin-top:3px" },
-                      "여기에는 ", el("b", {}, "접수폼에 들어 있는 제품"), " 만 나옵니다. ",
-                      "원장에는 있지만 이벤트를 안 하는 제품은 ", el("b", {}, "「이벤트 대상 아님」"), " 을 고르세요. ",
-                      "고르지 않으면 사은품·설문·프로모션이 고객 화면에 반영되지 않습니다."),
-                    /* 🔴 숨김(2026-10-27) — 신제품을 확정하기 전에 관리자만 시험해 보기 위한 표시. 저장해야 적용됩니다. */
-                    el("label", { style:"display:flex;gap:6px;align-items:flex-start;margin-top:8px;font-size:12px;line-height:1.5;cursor:pointer" },
-                      el("input", { type:"checkbox", "aria-label":"숨김 — 관리자만 보기", ...(p.hidden === true ? { checked:"" } : {}),
-                        onchange:e => { if(e.target.checked) p.hidden = true; else delete p.hidden; softRefresh(); } }),
-                      el("span", {}, el("b", {}, "숨김 — 관리자만 보기"),
-                        " (확정 전 시험용) 켜고 저장하면 고객에게 이 제품이 안 보입니다. 시험이 끝나면 끄고 저장해야 공개됩니다."))))),
-          el("td", { class:"tight" }, CPT ? el("span", { style:"color:var(--sub)" }, p.cat)
-            : el("select", { "aria-label":"카테고리", onchange:e => { p.cat = e.target.value; softRefresh(); } },
-                CATS.map(c => el("option", { value:c, ...(p.cat === c ? { selected:"" } : {}) }, c)))),
-          el("td", {},
-            el("div", { style:"font-size:11.5px;font-weight:800;color:var(--sub);margin-bottom:4px" },
-              (CPT ? "쿠팡 정품등록" : "포토리뷰") + " 사은품 — 여기서 고친 것은 " + (CPT ? "쿠팡 정품등록" : "포토리뷰") + "에만 적용됩니다"),
-            codes.length ? codes.map(c => listEdit(c, codes.length > 1)) : el("div", { style:"color:var(--sub);font-size:12px" }, "접수폼 제품을 먼저 고르세요."),
-            (CPT && !same) ? el("button", { class:"btn ghost", type:"button", title:"지금 포토리뷰 탭의 값을 쿠팡에 한 번 복사합니다",
-              onclick:() => { if(!confirm("지금 포토리뷰 사은품·배송비·합배송을 쿠팡에 복사합니다. 계속할까요?")) return; gsCopyToCp(p); render(); } }, "포토리뷰와 같게 맞추기") : "",
-            exEdit()),
-          el("td", { class:"tight" }, el("span", { style:"font-size:11px;color:var(--sub)" }, "사은품마다 정함")),
-          /* 배송비 — 사은품마다 정합니다(2026-10-28, 사은품 칸의 착불/선불). 상품권만 있으면 배송이 없어 해당 없음. */
-          el("td", { class:"tight" }, hasGift ? el("div", { style:"font-size:11px;color:var(--sub)" }, "사은품마다 정함",
-              el("div", { style:"margin-top:3px" }, "착불 사은품은 고객이 착불 발송에 동의해야 접수됩니다."))
-            : el("span", { style:"color:var(--sub)" }, "해당 없음")),
-          el("td", { class:"tight" }, boxCell()) ]
-      : [ el("td", {},
-            el("span", { style:"font-weight:700" }, p.ledger || el("span", { style:"color:var(--bad)" }, "(제품군 없음)")),
-            p.hidden === true ? el("span", { class:"pill", title:"고객에게 안 보입니다(관리자 미리보기 링크로만 보임)", style:"margin-left:6px;background:#f5e1e1;color:#a33a3a" }, "숨김") : "",
-            statePill,
-            dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : "",
-            codesLabel),
-          el("td", { class:"tight" }, el("span", { style:"color:var(--sub)" }, p.cat)),
-          el("td", {}, giftsView(), exView),
-          el("td", { class:"tight" }, types.length
-            ? types.map(t => el("span", { class:"pill " + rwOf(t), style:"margin-right:3px" }, REWARD_LABEL[rwOf(t)]))
-            : el("span", { class:"pill mute" }, "대상 아님")),
-          el("td", { class:"tight" }, !hasGift || !fees.length
-            ? el("span", { style:"color:var(--sub)" }, "-")
-            : fees.map(f => feePill(f))),
-          /* 합배송 (2026-09-23) */
-          el("td", { class:"tight" }, !hasGift
-            ? el("span", { style:"color:var(--sub)" }, "-")
-            : boxUnset({ box:boxV })
-              ? el("span", { class:"pill", style:"background:#fff3cf;color:#8a6a10" }, "안 정함")
-              : el("span", { class:"pill", style: Number(boxV) === 1 ? "background:#fdecec;color:#b03030" : "background:#e8f5ea;color:#2c6b3c" }, boxText(boxV))) ];
-
-    return el("tr", { class: on ? "editing" : "", style:"cursor:pointer",
-      onclick:e => {
-        if(e.target.closest("input,textarea,select,button,label,a")) return;
-        if(editRow === i) return;
-        editRow = i; render();
-      } }, cells,
-      el("td", { class:"tight" },
-        el("div", { class:"row", style:"gap:6px;flex-wrap:nowrap" },
-          /* 여는 법을 「눌러서」 하나로 맞췄습니다 — 줄 아무 데나 누르면 열립니다(2026-09-09) */
-          on ? el("span", { class:"pill", style:"background:#e9f0fb;color:#2f6df6" }, "고치는 중")
-             : el("span", { style:"font-size:12px;color:var(--sub)" }, "눌러서 고치기"),
-          CPT ? "" : el("button", { class:"btn ghost", type:"button", title:"이 제품 빼기",
-            onclick:() => {
-              if(!confirm((p.ledger || "이 줄") + " 을(를) 목록에서 뺍니다. 계속할까요?")) return;
-              cfg.products.splice(i, 1); editRow = null; render();
-            } }, "삭제"))));
+    /* ══ 🔴 A안 카드 (2026-11-11 사용자 확정) ══ */
+    const cardTabs = [["review", "포토리뷰"], ["coupang", "쿠팡 정품등록"], ["month", "한달 사용후기"]];
+    const tabName = (cardTabs.find(([k]) => k === cardTab) || [0, ""])[1];
+    const nHist = gsHistOf(p, "review").length + gsHistOf(p, "coupang").length + gsMonthItems(p).reduce((n, it) => n + gsMoHist(it).length, 0);
+    const rsvOn = codes.some(c => typeof reserveProducts !== "undefined" && reserveProducts && reserveProducts.has && reserveProducts.has(canonCode(c)));
+    const rsvNote = rsvOn ? (codes.map(c => (typeof reserveNote !== "undefined" && reserveNote && reserveNote[canonCode(c)]) || "").find(Boolean) || "") : "";
+    const rv0 = codes.length ? (p.rv.byCode[codes[0]] || []).filter(g => String(g.label || "").trim()) : [];
+    const rvTypes = [...new Set(codes.flatMap(c => (p.rv.byCode[c] || []).filter(g => String(g.label || "").trim()).map(g => REWARD_LABEL[rwOf(g.type)])))];
+    const rvFees = [...new Set(codes.flatMap(c => (p.rv.byCode[c] || []).filter(g => rwOf(g.type) === "gift" && String(g.label || "").trim()).map(g => gsItemFee(p, "review", g))))];
+    const boxRv = gsBox(p, "review"), hasRvGift = gsHasGift(p, "review");
+    const sumMeta = [rvTypes.join("/") + (rvFees.length ? "/" + rvFees.join("/") : ""), hasRvGift ? (boxUnset({ box:boxRv }) ? "합배송 안 정함" : boxText(boxRv)) : ""].filter(Boolean).join(" · ");
+    const toggleCard = () => { editRow = on ? null : i; render(); };
+    const head = el("div", { class:"ghead", role:"button", tabindex:"0", "aria-expanded":String(on),
+      style:"display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;flex-wrap:wrap",
+      onclick:e => { if(e.target.closest("input,select,button,label,a")) return; toggleCard(); },
+      onkeydown:e => { if((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget){ e.preventDefault(); toggleCard(); } } },
+      el("b", { style:"min-width:150px;font-size:14px" }, p.ledger || el("span", { style:"color:var(--bad)" }, "(제품군 없음)")),
+      el("span", { style:"flex:1;min-width:200px;color:var(--sub);font-size:12.5px" },
+        !codes.length ? "이벤트 대상 아님(접수폼 제품 미지정)" : [rv0.length ? rv0.map(g => g.label).join(" 또는 ") : "사은품 없음", sumMeta ? " · " + sumMeta : ""].join("")),
+      p.hidden === true ? el("span", { class:"pill", title:"고객에게 안 보입니다(관리자 미리보기 링크로만 보임)", style:"background:#f5e1e1;color:#a33a3a" }, "숨김") : "",
+      rsvOn ? el("span", { class:"pill", style:"background:#e9f0fb;color:#2f6df6" }, "예약발송" + (rsvNote ? "(" + rsvNote + ")" : "")) : "",
+      nHist ? el("span", { class:"pill", style:"background:#fff1d6;color:#a35d00" }, "이전 사은품 " + nHist + "건") : "",
+      el("span", { style:"color:var(--sub);font-size:12px;white-space:nowrap" }, on ? "▲ 접기" : "▼ 펼치기"));
+    const lab = t => el("div", { style:"font-size:11.5px;font-weight:800;color:var(--sub);margin-bottom:4px" }, t);
+    const banner = (b, rest) => el("div", { style:"margin:12px 0 10px;padding:9px 12px;border-radius:10px;background:#eaf0fd;color:#2450b8;font-size:12.5px;line-height:1.6" }, el("b", {}, "날짜 기준: " + b), rest);
+    /* 한달 사용후기 탭 — 저장 위치는 그대로(cfg.month.items), 화면만 이 카드 안에서 고칩니다 */
+    const monthItemEditor = (it, c) => {
+      const gl = moGifts(it), multi = gl.length > 1, anyGift = gl.some(g => g.type !== "coupon");
+      const oldI = gsMoOld(it), lines = oldI ? gsMoLines(it, oldI) : null;
+      const setMode = (o, quiet) => { const cc = GS_CHG.get(it) || {}; cc.month = o; GS_CHG.set(it, cc); if(!quiet) render(); };
+      return el("div", { style:"margin:10px 0;padding:10px 12px;border:1px dashed var(--line);border-radius:12px" },
+        codes.length > 1 ? el("b", { style:"font-size:12px" }, codeName(c)) : "",
+        gl.map((g, k) => el("div", { style:"display:flex;gap:6px;align-items:center;margin:4px 0;flex-wrap:wrap" },
+          el("span", { style:"font-size:11px;color:var(--sub);min-width:42px" }, gl.length > 1 ? "택1 · " + (k + 1) : "사은품"),
+          el("input", { type:"text", value:g.label || "", placeholder:"사은품 이름 (= 이미지 파일 이름)", style:"flex:1;min-width:170px", "aria-label":"사은품 이름" + (multi ? " " + (k + 1) : ""),
+            oninput:e => { moSetG(it, k, "label", e.target.value); softRefresh(); }, onchange:() => setTimeout(render, 220) }),
+          el("select", { "aria-label":"종류" + (multi ? " " + (k + 1) : ""), onchange:e => { moSetG(it, k, "type", e.target.value); render(); } },
+            el("option", { value:"gift", ...(g.type !== "coupon" ? { selected:"" } : {}) }, "사은품"), el("option", { value:"coupon", ...(g.type === "coupon" ? { selected:"" } : {}) }, "상품권")),
+          g.type === "coupon" ? el("span", { style:"font-size:11px;color:var(--sub);min-width:52px" }, "배송 없음")
+            : el("select", { "aria-label":"배송비" + (multi ? " " + (k + 1) : ""), onchange:e => { moSetG(it, k, "shipFee", e.target.value); softRefresh(); } }, FEE_OPTS(g.shipFee === "선불" ? "선불" : "착불")),
+          multi ? el("button", { class:"btn ghost", type:"button", "aria-label":"사은품 " + (k + 1) + " 삭제", onclick:() => { it.gifts.splice(k, 1); moSync(it); render(); } }, "삭제") : "")),
+        gl.length < 5 ? el("button", { class:"btn ghost", type:"button", onclick:() => { if(!Array.isArray(it.gifts)) it.gifts = moGifts(it).map(g => ({ ...g })); it.gifts.push({ label:"", type:"gift", shipFee:"착불" }); moSync(it); render(); } }, "+ 사은품 추가 (택1)") : "",
+        anyGift ? el("div", { style:"margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap" }, el("span", { style:"font-size:12px;font-weight:700" }, "합배송"),
+          el("select", { "aria-label":"한달 합배송", onchange:e => { it.box = e.target.value === "" ? "" : Number(e.target.value); softRefresh(); } },
+            el("option", { value:"", ...(boxUnset(it) ? { selected:"" } : {}) }, "안 정함 (1개씩)"),
+            ...BOX_OPTS.map(o => el("option", { value:String(o.v), ...(Number(it.box) === o.v ? { selected:"" } : {}) }, o.t)))) : "",
+        gl.filter(g => String(g.label || "").trim()).map(g => giftImgHint(g.label, g.label)),
+        gsHistPanel({ owner:it, tab:"month", id:"m-" + i + "-" + c, hl:gsMoHist(it), basis:"구매한 날(출고일)", unit:"출고", who:"산",
+          curLabel:gsLabels(gsMoList(it)), rowLabel:h => gsLabels(h.gifts), lines, mode:(GS_CHG.get(it) || {}).month, setMode,
+          setTo:(k, v) => { const l = gsMoHist(it).slice(); l[k] = Object.assign({}, l[k], { to:v }); it.hist = l; },
+          del:k => { const l = gsMoHist(it).slice(); l.splice(k, 1); if(l.length) it.hist = l; else delete it.hist; render(); } }),
+        el("div", { style:"margin-top:8px" }, el("button", { class:"btn ghost sm", type:"button",
+          onclick:() => { if(!confirm("이 제품을 한달 사용후기 대상에서 뺍니다. 계속할까요?")) return; const a = monthFix().items; a.splice(a.indexOf(it), 1); render(); } }, "한달 사용후기 대상에서 빼기")));
+    };
+    const monthContent = () => !codes.length ? el("div", { style:"color:var(--sub);font-size:12px;margin-top:10px" }, "접수폼 제품을 먼저 고르세요.") : [
+      banner("구매한 날(출고일)", " — 한달 사용후기는 포토리뷰와 사은품이 따로입니다. 운영 여부·대상 구매처는 「한달 사용후기」 메뉴에서 정합니다."),
+      codes.map(c => { const it = gsMonthItems(p).find(x => x.code === c);
+        return it ? monthItemEditor(it, c)
+          : el("div", { style:"margin:10px 0;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap" },
+              el("span", { style:"color:var(--sub);font-size:12.5px" }, (codes.length > 1 ? codeName(c) + " — " : "") + "한달 사용후기 대상이 아닙니다."),
+              el("button", { class:"btn ghost", type:"button", onclick:() => { monthFix().items.push({ code:c, gift:"", type:"gift", shipFee:"착불", box:1 }); render(); } }, "+ 한달 사용후기 대상에 추가")); })];
+    const tabBar = el("div", { role:"tablist", style:"display:flex;gap:6px;flex-wrap:wrap;margin-top:12px" },
+      cardTabs.map(([k, name]) => el("button", { type:"button", role:"tab", "data-ctab":k, "aria-selected":String(cardTab === k),
+        style:"appearance:none;border:1px solid var(--line);border-radius:99px;padding:7px 14px;font:inherit;font-weight:800;cursor:pointer;" + (cardTab === k ? "background:var(--brand,#3f3939);color:#fff;border-color:var(--brand,#3f3939)" : "background:#fff;color:var(--sub)"),
+        onclick:() => { if(cardTab === k) return; GS_TAB.set(p, k); render(); } }, name,
+        (k === "coupang" && !same && codes.length) ? el("span", { style:"font-size:11px;font-weight:700;margin-left:5px;opacity:.8" }, "(포토리뷰와 다름)") : "")));
+    const topRow = el("div", { style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;align-items:start" },
+      el("div", {}, lab("제품군(제품 이름)"),
+        el("input", { type:"text", value:p.ledger, placeholder:"제품군 이름", "aria-label":"제품군", style:"width:100%", oninput:e => { p.ledger = e.target.value; softRefresh(); } }),
+        dup(p.ledger) ? el("div", { class:"warn-inline" }, "같은 제품군이 두 번 등록되어 있습니다") : ""),
+      el("div", {}, lab("접수폼 제품"),
+        el("select", { "aria-label":"접수폼 제품", style:"width:100%", title:(FORM_PRODUCTS.find(([v]) => v === codes.join(",")) || [null, ""])[1],
+          onchange:e => { const v = e.target.value; p.codes = v ? v.split(",") : []; gsEnsure(p); gsSyncLegacy(p); render(); } },
+          el("option", { value:"", ...(codes.length ? {} : { selected:"" }) }, "이벤트 대상 아님"),
+          FORM_PRODUCTS.map(([v, n]) => el("option", { value:v, ...(codes.join(",") === v ? { selected:"" } : {}) }, n)))),
+      el("div", {}, lab("카테고리"),
+        el("select", { "aria-label":"카테고리", style:"width:100%", onchange:e => { p.cat = e.target.value; softRefresh(); } },
+          CATS.map(c => el("option", { value:c, ...(p.cat === c ? { selected:"" } : {}) }, c)))),
+      el("div", {}, lab(cardTab === "month" ? "합배송" : "합배송 (" + tabName + ")"),
+        cardTab === "month" ? el("span", { style:"font-size:12px;color:var(--sub)" }, "한달 사용후기 탭 안에서 정합니다") : boxCell()));
+    const hint = el("div", { style:"font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.6" },
+      "접수폼에 들어 있는 제품만 나옵니다. 원장에는 있지만 이벤트를 안 하는 제품은 ", el("b", {}, "「이벤트 대상 아님」"), " 을 고르세요. 고르지 않으면 사은품·설문·프로모션이 고객 화면에 반영되지 않습니다.");
+    const hiddenBox = el("label", { style:"display:flex;gap:6px;align-items:flex-start;margin-top:8px;font-size:12px;line-height:1.5;cursor:pointer" },
+      el("input", { type:"checkbox", "aria-label":"숨김 — 관리자만 보기", ...(p.hidden === true ? { checked:"" } : {}), onchange:e => { if(e.target.checked) p.hidden = true; else delete p.hidden; softRefresh(); } }),
+      el("span", {}, el("b", {}, "숨김 — 관리자만 보기"), " (확정 전 시험용) 켜고 저장하면 고객에게 이 제품이 안 보입니다. 시험이 끝나면 끄고 저장해야 공개됩니다."));
+    const tabContent = [cardTab === "month" ? monthContent() : [
+      banner(CPT ? "접수한 날" : "구매한 날(출고일)", CPT ? " — 쿠팡은 구매일 정보가 없어 접수한 날로 판단합니다. 여기서 고친 것은 쿠팡 정품등록에만 적용됩니다." : " — 원장의 출고 날짜로 판단합니다. 여기서 고친 것은 포토리뷰에만 적용됩니다."),
+      codes.length ? codes.map(c => listEdit(c, codes.length > 1)) : el("div", { style:"color:var(--sub);font-size:12px" }, "접수폼 제품을 먼저 고르세요."),
+      (CPT && !same) ? el("button", { class:"btn ghost", type:"button", title:"지금 포토리뷰 탭의 값을 쿠팡에 한 번 복사합니다",
+        onclick:() => { if(!confirm("지금 포토리뷰 사은품·배송비·합배송을 쿠팡에 복사합니다. 계속할까요?")) return; gsCopyToCp(p); render(); } }, "포토리뷰와 같게 맞추기") : "",
+      exEdit(),
+      histPanelFor()]].flat(Infinity);      // el() 은 한 단계만 펼치므로, 중첩된 목록(코드별 사은품 줄 등)을 여기서 끝까지 펼쳐 넘깁니다
+    const body = !on ? "" : el("div", { class:"gbody", style:"border-top:1px solid var(--line);padding:14px" },
+      topRow, hint, hiddenBox, tabBar, tabContent,
+      el("div", { style:"margin-top:14px;display:flex;justify-content:flex-end" },
+        el("button", { class:"btn ghost", type:"button", title:"이 제품 빼기", onclick:() => {
+          if(!confirm((p.ledger || "이 줄") + " 을(를) 목록에서 뺍니다. 계속할까요?")) return;
+          cfg.products.splice(i, 1); editRow = null; render(); } }, "이 제품 삭제")));
+    return el("div", { class:"gcard" + (on ? " open" : ""), style:"text-align:left;background:#fff;border:1px solid var(--line);border-radius:14px;" + (on ? "box-shadow:0 2px 10px rgba(0,0,0,.06)" : "") }, head, body);
   });
 
   const out = [
     el("h2", {}, "제품별 사은품"),
     el("p", { class:"hint" },
-      "고치려면 ", el("b", {}, "그 줄을 누르세요"), ". 다른 줄을 누르면 닫힙니다. ",
+      "고치려면 ", el("b", {}, "그 카드를 누르세요"), ". 다른 카드를 누르면 닫힙니다. ",
       el("b", { style:"color:var(--bad)" }, "다 고치신 뒤 화면 아래 고정 줄의 「저장」까지 눌러야 남습니다."), " ",
       "제품군 이름은 ", el("b", {}, "원장(출고리스트)에 적힌 것과 똑같이"), " 넣어야 합니다. 한 글자라도 다르면 그 제품을 산 고객이 조회되지 않습니다.",
       el("br", {}),
       "사은품을 비워 두면 ", el("b", {}, "이벤트 대상 아님"), " 이 됩니다 — 원장에는 있지만 이벤트를 안 하는 제품입니다. ",
       "제품만 먼저 등록해 두고 나중에 수정으로 채우셔도 됩니다.",
       el("br", {}),
-      el("b", {}, "포토리뷰 사은품"), "과 ", el("b", {}, "쿠팡 사은품"), "은 아래 탭으로 따로 관리합니다. 사은품을 2개 이상 넣으면 고객이 ", el("b", {}, "하나를 고릅니다(택1)"), ". ",
+      el("b", {}, "포토리뷰"), "·", el("b", {}, "쿠팡 정품등록"), "·", el("b", {}, "한달 사용후기"), " 사은품은 카드 안의 탭으로 따로 관리합니다. 사은품을 2개 이상 넣으면 고객이 ", el("b", {}, "하나를 고릅니다(택1)"), ". ",
       el("b", {}, "예외사은품"), "은 수기접수·사은품 변경에서만 고를 수 있습니다. ",
       el("b", {}, "배송비(착불/선불)"), "도 사은품마다 정합니다."),
-    /* 🔴 유형별 사은품 탭 (2026-10-28) */
-    (function(){
-      const nDiff = cfg.products.filter(p => { gsEnsure(p); return gsCodes(p).length && !gsSame(p); }).length;
-      const tb = (k, label, extra) => el("button", { type:"button", role:"tab", "data-gtab":k,
-        style:"appearance:none;border:0;background:none;padding:9px 14px;font:inherit;font-weight:800;cursor:pointer;margin-bottom:-1px;border-bottom:3px solid " + (giftTab === k ? "var(--ok,#1f7a5c)" : "transparent") + ";color:" + (giftTab === k ? "var(--ink,#2b2725)" : "var(--sub)"),
-        onclick:() => { if(giftTab === k) return; giftTab = k; editRow = null; render(); } }, label, extra || "");
-      return el("div", {},
-        el("div", { role:"tablist", style:"display:flex;gap:6px;margin:4px 0 10px;border-bottom:1px solid var(--line)" },
-          tb("review", "포토리뷰 사은품"),
-          tb("coupang", "쿠팡 사은품", nDiff ? el("span", { style:"font-size:11.5px;font-weight:700;color:var(--sub);margin-left:5px" }, "(포토리뷰와 다름 " + nDiff + ")") : "")),
-        el("p", { class:"hint", style:"margin:0 0 10px" }, giftTab === "coupang"
-          ? [el("b", {}, "쿠팡 정품등록"), " 고객과 쿠팡 수기접수에 쓰입니다. 포토리뷰 탭과 ", el("b", {}, "따로 저장"), "됩니다 — 포토리뷰를 고쳐도 쿠팡은 바뀌지 않습니다. 제품군·접수폼 제품·추가·삭제는 포토리뷰 탭에서 합니다."]
-          : [el("b", {}, "포토리뷰"), " 고객(구매조회 후 접수)과 포토리뷰 수기접수에 쓰입니다."]));
-    })(),
+    el("p", { class:"hint", style:"margin:0 0 10px" }, "카드를 눌러 펼치면 ", el("b", {}, "포토리뷰 · 쿠팡 정품등록 · 한달 사용후기"), " 탭에서 사은품을 따로 고칩니다. 날짜 기준은 포토리뷰·한달이 ", el("b", {}, "구매한 날(출고일)"), ", 쿠팡이 ", el("b", {}, "접수한 날"), "입니다."),
     /* 🔴 합배송을 아직 안 정한 사은품 알림 (2026-09-23)
           안 정하면 1개씩 따로 나갑니다 = 착불비가 개수만큼. 빠뜨리시면 안 되는 값이라 눈에 띄게 둡니다. */
     (function(){
@@ -10186,19 +10540,12 @@ function paneGift(){
         el("b", {}, "1개씩 따로(착불도 각각)"), " 나갑니다. ",
         el("span", { style:"font-weight:600" }, un.map(p => p.gift).join(" · ")));
     })(),
-    el("div", { class:"tablewrap" },
-      el("table", {},
-        el("thead", {}, el("tr", {},
-          el("th", {}, "제품군"), el("th", {}, "카테고리"), el("th", {}, "사은품"), el("th", {}, "종류"), el("th", {}, "배송비"),
-          /* 🔴 합배송 (2026-09-23) — 한 상자에 몇 개까지 담기는지. 고객 안내 문구와 발주 엑셀이 이 값을 씁니다. */
-          el("th", {}, "합배송"), el("th", {}, ""))),
-        el("tbody", {}, rows))),
+    el("div", { class:"gcards", style:"display:flex;flex-direction:column;gap:12px" }, rows.length ? rows : el("p", { class:"note" }, "등록된 제품이 없습니다.")),
     el("div", { class:"row", style:"margin-top:14px" },
-      giftTab === "coupang" ? el("span", { style:"font-size:12px;color:var(--sub)" }, "제품 추가·삭제는 「포토리뷰 사은품」 탭에서 합니다.") :
       el("button", { class:"btn", type:"button", onclick:() => {
         cfg.products.push({ ledger:"", cat:"주방가전", gift:"", type:"gift", codes:[], shipFee:"착불" });
         editRow = cfg.products.length - 1; render();
-        document.querySelector("#pane tr.editing input")?.focus();
+        document.querySelector("#pane .gcard.open input")?.focus();
       } }, "+ 제품 추가"),
       el("span", { style:"font-size:12px;color:var(--sub)" },
         "현재 " + cfg.products.filter(x => x.gift.trim()).length + "개 제품이 이벤트를 실시합니다."))
@@ -10278,10 +10625,14 @@ const today = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
 function ruleState(r, d){
   if(!r.from && !r.to) return { k:"always", t:"계속 적용", c:"var(--ok)" };
   if(r.from && d < r.from) return { k:"soon", t:"시작 전", c:"var(--sub)" };
-  if(r.to   && d > r.to)   return { k:"done", t:"프로모션 종료", c:"var(--bad)" };
+  if(r.to   && d > ruleEndOf(r)) return { k:"done", t:"프로모션 종료", c:"var(--bad)" };
+  if(r.to   && d > r.to)   return { k:"grace", t:"종료 · 유예 중", c:"#b8791a" };         // 종료일은 지났지만 유예일 안(2026-11-11)
   return { k:"on", t:"진행 중", c:"var(--ok)" };
 }
-function ruleActive(r, d){ return ruleState(r, d).k === "on" || ruleState(r, d).k === "always"; }
+function ruleActive(r, d){ const k = ruleState(r, d).k; return k === "on" || k === "always" || k === "grace"; }
+/* 프로모션 탭(2026-11-11) — 진행중(계속 적용·유예 중 포함) / 시작 전 / 종료 */
+let RULE_TAB = "run";
+const ruleTabOf = st => (st.k === "soon") ? "soon" : (st.k === "done") ? "end" : "run";
 
 /* 🔴 프로모션 판매처 칩 목록(2026-10-28) — 고객DB 동기화 기록(eventConfig/ordersSync 의 srcs, 건수 포함)을 직접 읽습니다(고객DB 탭을 안 열어도 보이게).
       주문이 아닌 줄(skip)은 뺍니다. 못 읽으면 고객DB 탭이 넘겨 둔 값(window.__ledgerSrcs), 그것도 없으면 예전 기본 목록(LEDGER_SRC). */
@@ -10404,7 +10755,7 @@ function paneRule(){
     const open = RULE_OPEN.has(i);
     const gl0 = ruleGiftsView(r).filter(g => g.label.trim());
     const sumTxt = [r.product || "제품 미선택", (r.srcs || []).length ? srcText(r.srcs, r.exSrcs) : "판매처 미선택", gl0.length ? gl0.map(g => g.label).join(" 또는 ") : "사은품 미입력",
-      (r.from || r.to) ? (r.from || "제한 없음") + " ~ " + (r.to || "제한 없음") : "기간 제한 없음"].join(" · ");
+      (r.from || r.to) ? (r.from || "제한 없음") + " ~ " + (r.to || "제한 없음") + (r.to && ruleGraceOf(r) ? " (+" + ruleGraceOf(r) + "일)" : "") : "기간 제한 없음"].join(" · ");
     return el("div", { class:"rule" },
       el("div", { class:"head" },
         el("div", { class:"row", style:"gap:8px;min-width:0;flex:1 1 auto;align-items:center" },
@@ -10447,7 +10798,14 @@ function paneRule(){
           el("label", { for:"rto" + i }, "종료일 (이 날 밤 12시에 자동 해제)"),
           el("input", { id:"rto" + i, type:"date", value:r.to || "",
             onchange:e => { r.to = e.target.value; render(); } })),
-        el("div", {})),
+        /* 🔴 종료 후 유예일(2026-11-11) — 종료일이 지나도 0~3일 더 적용. 종료일이 없으면 의미가 없어 잠급니다. */
+        el("div", { class:"field" },
+          el("label", { for:"rg" + i }, "종료 후 더 적용할 날수"),
+          el("select", { id:"rg" + i, ...(r.to ? {} : { disabled:"" }), "aria-label":"종료 후 더 적용할 날수",
+            onchange:e => { const n = Number(e.target.value) || 0; if(n) r.grace = n; else delete r.grace; render(); } },
+            [0, 1, 2, 3, 4, 5, 6, 7].map(n => el("option", { value:String(n), ...(ruleGraceOf(r) === n ? { selected:"" } : {}) }, n ? "+" + n + "일" : "없음 (종료일에 바로 종료)"))),
+          el("div", { class:"note", style:"margin:4px 0 0" }, !r.to ? "종료일을 정해야 쓸 수 있습니다."
+            : ruleGraceOf(r) ? ["실제 마감: ", el("b", {}, ruleEndOf(r) + " 밤 12시"), " (" + (r.basis === "buy" ? "구매한 날(출고일)" : "접수한 날") + " 기준)"] : "종료일 밤 12시에 바로 종료됩니다."))),
 
       /* 사은품 목록 — 2개 이상이면 고객이 접수할 때 1개를 고릅니다(택1, 2026-10-21). 사은품마다 사은품/상품권을 따로 정합니다.
          🔴 **사은품 이름이 곧 깃허브 gifts 폴더의 이미지 파일 이름**입니다(기본 사은품과 같은 규칙, 2026-09-14). */
@@ -10492,19 +10850,30 @@ function paneRule(){
             (r.basis === "buy" ? "구매한" : "접수한"), " 고객은 ",
             el("b", {}, ruleGiftsView(r).filter(g => g.label.trim()).map(g => g.label).join(" 또는 ")),
             ruleGiftsView(r).filter(g => g.label.trim()).length > 1 ? "(고객이 1개 선택)" : "", " 을(를) 받습니다",
-            (r.from || r.to) ? " · " + (r.from || "제한 없음") + " ~ " + (r.to || "제한 없음") : " · 기간 제한 없음", ".")));
+            (r.from || r.to) ? " · " + (r.from || "제한 없음") + " ~ " + (r.to || "제한 없음") + (r.to && ruleGraceOf(r) ? " (+" + ruleGraceOf(r) + "일 유예 → " + ruleEndOf(r) + ")" : "") : " · 기간 제한 없음", ".")));
   });
+  /* 🔴 프로모션 탭(2026-11-11) — 진행중 / 시작 전 / 종료 / 전체. 카드 번호(i)는 그대로라 펼침 상태·삭제는 탭과 상관없이 맞습니다. */
+  const ruleTabs = (cfg.giftRules || []).map(r => ruleTabOf(ruleState(r, d)));
+  const tabCnt = { run:0, soon:0, end:0 }; ruleTabs.forEach(k => { tabCnt[k]++; });
+  const shown = cards.filter((_, i) => RULE_TAB === "all" || ruleTabs[i] === RULE_TAB || RULE_OPEN.has(i));   // 펼쳐서 고치는 중인 카드는 날짜를 바꿔도 사라지지 않게 그 탭에 남겨 둡니다
+  const tabBar = el("div", { role:"tablist", style:"display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 12px" },
+    [["run", "진행중", tabCnt.run], ["soon", "시작 전", tabCnt.soon], ["end", "종료", tabCnt.end], ["all", "전체", cards.length]].map(([k, name, n]) =>
+      el("button", { type:"button", role:"tab", "data-rtab":k, "aria-selected":String(RULE_TAB === k),
+        style:"appearance:none;border:1px solid var(--line);border-radius:99px;padding:7px 14px;font:inherit;font-weight:800;cursor:pointer;" + (RULE_TAB === k ? "background:var(--brand,#3f3939);color:#fff;border-color:var(--brand,#3f3939)" : "background:#fff;color:var(--sub)"),
+        onclick:() => { if(RULE_TAB === k) return; RULE_TAB = k; render(); } }, name, el("b", { style:"margin-left:6px;font-size:12px" }, String(n)))));
 
   return [
     el("h2", {}, "판매처 예외 규칙"),
     el("p", { class:"hint" },
       "같은 제품이라도 특정 판매처에서 산 고객에게만 다른 사은품을 줄 때 씁니다. ",
       el("b", {}, "원장에 적힌 판매처"), "로 판정하므로 고객이 링크를 바꿔 들어와도 결과가 달라지지 않습니다."),
-    el("div", { class:"stack" }, cards.length ? cards
-      : el("p", { class:"note" }, "규칙이 없습니다. 모든 고객이 기본 사은품을 받습니다.")),
+    tabBar,
+    el("div", { class:"stack" }, shown.length ? shown
+      : el("p", { class:"note" }, cards.length ? "이 탭에는 프로모션이 없습니다." : "규칙이 없습니다. 모든 고객이 기본 사은품을 받습니다.")),
     el("div", { style:"margin-top:16px" },
       el("button", { class:"btn", type:"button", onclick:() => {
         cfg.giftRules.push({ product:"", srcs:[], label:"", type:"gift", from:"", to:"", basis:"apply", name:"", img:"" });   /* gifts 는 사은품을 고칠 때 생깁니다(ruleGiftsSet) */
+        RULE_TAB = "run";                             // 새 프로모션(기간 없음 = 계속 적용)은 「진행중」 탭에 보입니다
         RULE_OPEN.add(cfg.giftRules.length - 1);      // 새 카드는 바로 고칠 수 있게 펼침
         render();
       } }, "+ 프로모션 추가")),
@@ -12390,8 +12759,45 @@ function paneMonth(){
           : cell(el("button", { type:"button", class:"btn sm ghost", "aria-label":"사은품 " + (k + 1) + " 빼기",
             onclick:() => { it.gifts.splice(k, 1); moSync(it); render(); } }, "삭제")));
     };
+    /* 🔴 사은품 변경 이력(2026-11-10) — 접고 펴는 칸. 기준 날짜는 구매한 날(출고일). 포토리뷰 「제품별 사은품」과 같은 방식입니다. */
+    const moHistEdit = () => {
+      const hl = gsMoHist(it), oldI = gsMoOld(it), openSet = GS_OPEN.get(it) || new Set(), isOpen = openSet.has("month");
+      const lines = oldI ? gsMoLines(it, oldI) : [];
+      const mm = (GS_CHG.get(it) || {}).month || { kind:"all" }, chosen = mm.kind === "now" || mm.kind === "date";
+      const setM = o => { const c = GS_CHG.get(it) || {}; c.month = Object.assign({}, mm, o); GS_CHG.set(it, c); render(); };
+      const radio = (k, title, sub) => el("label", { style:"display:flex;gap:7px;align-items:flex-start;margin:5px 0;font-size:12px;line-height:1.5;cursor:pointer" },
+        el("input", { type:"radio", name:"mchg-" + i, ...(mm.kind === k ? { checked:"" } : {}), onchange:() => setM({ kind:k }) }), el("span", {}, el("b", {}, title), " ", sub));
+      return el("div", { style:"margin-top:8px;padding:8px 10px;border:1px dashed var(--line);border-radius:9px;background:#f8fbf9" },
+        el("button", { type:"button", class:"btn ghost sm", "aria-expanded":isOpen ? "true" : "false",
+          onclick:() => { const s = GS_OPEN.get(it) || new Set(); if(s.has("month")) s.delete("month"); else s.add("month"); GS_OPEN.set(it, s); render(); } },
+          (isOpen ? "▾ " : "▸ ") + "사은품 변경 이력 (" + hl.length + "건)"),
+        (lines.length && !chosen) ? el("span", { class:"pill", style:"margin-left:8px;background:#fff3cf;color:#8a6a10" }, "사은품이 바뀜 — 적용 시점을 확인하세요") : "",
+        chosen ? el("span", { class:"pill", style:"margin-left:8px;background:#e8f5ea;color:#2c6b3c" }, mm.kind === "now" ? "오늘부터 적용으로 저장" : "날짜 지정으로 저장") : "",
+        !isOpen ? "" : el("div", { style:"margin-top:8px" },
+          el("div", { style:"font-size:11.5px;color:var(--sub);line-height:1.6" }, "사은품을 바꿔도 ", el("b", {}, "이전에 산 고객은 옛 사은품"), "을 받게 하려면 적용 시점을 고르고 저장하세요. 기준 날짜는 ", el("b", {}, "구매한 날(출고일)"), "입니다."),
+          !oldI ? el("div", { style:"margin-top:6px;font-size:12px;color:var(--sub)" }, "이 줄은 이력을 남길 수 없습니다(새로 만든 줄 — 먼저 저장한 뒤 사은품을 바꾸세요).")
+          : !lines.length ? el("div", { style:"margin-top:6px;font-size:12px;color:var(--sub)" }, "지금은 마지막으로 저장한 사은품과 같습니다. 위에서 사은품을 고치면 여기에 바뀐 내용이 나옵니다.")
+          : el("div", { style:"margin-top:8px;padding:8px 10px;border-radius:9px;background:#fff8e6;border:1px solid #efd9b0" },
+              el("div", { style:"font-size:12px;font-weight:800;margin-bottom:3px" }, "바뀐 사은품"),
+              lines.map(t => el("div", { style:"font-size:12px;margin:2px 0" }, t)),
+              el("div", { style:"font-size:12px;font-weight:800;margin:8px 0 2px" }, "언제부터 새 사은품을 줄까요?"),
+              radio("all", "전부 바로 적용", "— 이전에 산 고객도 새 사은품(오타 고치기·이름 정리에 알맞음)"),
+              radio("now", "오늘(" + gsToday() + ")부터", "— 오늘 이전에 산 고객은 옛 사은품, 오늘부터는 새 사은품"),
+              radio("date", "날짜 지정", "— 고른 날짜부터 새 사은품"),
+              mm.kind === "date" ? el("div", { style:"margin:2px 0 0 24px" },
+                el("input", { type:"date", value:mm.date || gsToday(), "aria-label":"새 사은품이 시작되는 날",
+                  onchange:e => { const c = GS_CHG.get(it) || {}; c.month = { kind:"date", date:e.target.value }; GS_CHG.set(it, c); softRefresh(); } })) : ""),
+          hl.length ? el("div", { style:"margin-top:10px" }, el("div", { style:"font-size:12px;font-weight:800;margin-bottom:3px" }, "지난 사은품 이력 (구매한 날 기준)"),
+            hl.map((h, k) => el("div", { style:"display:flex;gap:8px;align-items:flex-start;margin:3px 0;font-size:12px;flex-wrap:wrap" },
+              el("span", { style:"min-width:118px;font-weight:700" }, "~ " + h.to + " 까지"), el("span", { style:"flex:1;min-width:170px" }, gsLabels(h.gifts)),
+              el("button", { class:"btn ghost sm", type:"button", "aria-label":"이력 삭제 " + (k + 1),
+                onclick:() => { if(!confirm("이 이력(" + h.to + " 까지의 옛 사은품)을 지웁니다.\n\n그 기간에 산 고객은 다음 이력 또는 지금 사은품을 받게 됩니다. 계속할까요?")) return;
+                  const l = gsMoHist(it).slice(); l.splice(k, 1); if(l.length) it.hist = l; else delete it.hist; render(); } }, "삭제"))))
+          : el("div", { style:"margin-top:8px;font-size:12px;color:var(--sub)" }, "아직 남은 이력이 없습니다.")));
+    };
     return el("div", { style:"margin:0 0 10px;padding-bottom:8px;border-bottom:1px dashed var(--line)" },
       ...gl.map(giftRow),
+      moHistEdit(),
       gl.length < 5 ? el("div", { style:"margin:6px 0 0;padding-left:4px" },
         el("button", { type:"button", class:"btn ghost sm", onclick:() => {
           if(!Array.isArray(it.gifts)) it.gifts = moGifts(it).map(g => ({ ...g }));
@@ -12793,9 +13199,15 @@ $("#saveBtn").addEventListener("click", async () => {
   const msg = $("#saveMsg");
   msg.textContent = "저장 중…";
   try {
+    /* 🔴 사은품 변경 이력(2026-11-10) — 사은품이 바뀌었는데 적용 시점을 안 골랐으면 한 번 더 확인(이대로면 이전 구매 고객도 새 사은품) */
+    const un = gsUnchosen();
+    if(un.length && !confirm("사은품이 바뀐 제품: " + un.join(", ") + "\n\n적용 시점을 고르지 않아서, 이대로 저장하면 이전에 산 고객도 모두 새 사은품을 받게 됩니다.\n(오타를 고친 경우라면 그대로 저장하세요.)\n\n그대로 저장할까요?\n— 취소하면 돌아가서 「사은품 변경 이력」에서 시점을 고를 수 있습니다.")){
+      msg.textContent = "저장을 취소했습니다. 「사은품 변경 이력」에서 적용 시점을 고른 뒤 다시 저장하세요."; return;
+    }
     gsBeforeSave(cfg);                                   // 🔴 유형별 사은품 — 빈 이름 정리 · 예전 칸(gift·type·giftEach)을 포토리뷰 첫 사은품으로 맞춤(2026-10-28)
     await window.EVTCFG_SAVE(clone(cfg));
     SAVED = clone(cfg);
+    GS_CHG = new WeakMap();                              // 저장한 뒤에는 적용 시점 선택을 비웁니다(다음 변경은 새로 고름)
     FT_PENDING = false;
     const n = (cfg.giftRules || []).filter(r => r.srcs.length && r.label && r.product).length;
     const q = cfg.entrySurvey.length + Object.values(cfg.surveys).reduce((s, a) => s + a.length, 0);

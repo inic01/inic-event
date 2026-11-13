@@ -1498,7 +1498,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
             <div class="hint">
               예전에 <b>광고성 수신에 동의한 고객</b> 명단(엑셀·CSV)을 올립니다. 순서는 <b>① 파일 고르기(미리보기만, 아무것도 저장 안 됨) → ② 장부에 넣기 → ③ 이번 업로드분 지금 발송</b>입니다.<br>
               칸 이름: <b>접수일자 · 이메일 · 성함 · 핸드폰 · 제품군 · 광고성정보수신동의</b> (사진·리뷰마케팅동의 · 개인정보 칸은 비워도 됩니다). 접수일자는 <b>동의한 날</b>이며 2년 재확인의 기준입니다.<br>
-              같은 사람은 <b>성함+핸드폰</b>이 같으면 한 사람(이메일이 달라도)이고, 같은 이메일에는 <b>한 통만</b> 나갑니다. 철회하신 분은 되살리지 않습니다.
+              같은 사람은 <b>성함+핸드폰</b>이 같으면 한 사람(이메일이 달라도)입니다. <b>이메일이 같아도 성함+핸드폰이 다르면 다른 사람</b>이라 모두 넣고 각자 확인 메일을 보냅니다. 철회하신 분은 되살리지 않습니다.
             </div>
             <div class="filters" style="margin-top:10px">
               <input type="file" id="imFile" accept=".xlsx,.xls,.csv" style="font-size:13px">
@@ -6225,9 +6225,9 @@ function imShow(s){
     + line("제외: 접수일자를 읽지 못함", sk.badDate, sk.badDate?"var(--bad,#c0392b)":"")
     + line("제외: 이메일·핸드폰 모두 없음", sk.noContact, sk.noContact?"var(--bad,#c0392b)":"")
     + line("사람 수 (성함+핸드폰으로 합친 뒤)", s.persons) + line("&nbsp;&nbsp;합쳐진 줄", s.mergedRows)
-    + line("같은 이메일 중복(한 사람만 남김)", s.emailDupInFile)
+    + line("같은 이메일을 쓰는 다른 사람 (모두 넣음)", s.emailDupInFile)
     + line("이미 장부에 있음 (건너뜀)", s.inLedger) + line("이미 철회함 (되살리지 않음)", s.withdrawnExisting)
-    + line("같은 이메일이 이미 장부에 있음 (건너뜀)", s.emailInLedger)
+    + line("같은 이메일이 이미 장부에 있음 (다른 사람이라 넣음)", s.emailInLedger)
     + `<tr><td colspan="2" style="padding-top:6px;border-top:1px solid var(--line)"></td></tr>`
     + line("<b>새로 장부에 넣을 사람</b>", s.newCount, "var(--ok)")
     + line("&nbsp;&nbsp;기한이 이미 지남", s.overdue, s.overdue?"var(--bad,#c0392b)":"") + line("&nbsp;&nbsp;30일 안에 기한", s.soon) + line("&nbsp;&nbsp;기한이 한참 뒤", s.later)
@@ -6276,14 +6276,14 @@ async function imSend(){
   if(!d.ok){ $("#imMsg").textContent = cnWhy(d); $("#imMsg").style.color="var(--bad)"; return; }
   if(d.tooMany){ $("#imMsg").style.color="var(--bad)"; $("#imMsg").textContent = `발송 대상이 ${d.count.toLocaleString()}명으로 하루 한도(${d.cap}명)를 넘어 보내지 않았습니다. 이 묶음은 보류로 두고 나눠서 보내거나, 담당자에게 알려 주세요.`; return; }
   if(!d.count){ $("#imMsg").textContent = "지금 보낼 분이 없습니다(이미 보냈거나, 보류이거나, 기한이 한참 남았거나, 철회하신 분)."; return; }
-  if(!confirm(b + " 업로드분 " + d.count + "명께 진짜 확인 메일을 보냅니다.\n\n· 이메일 없는 분 " + (d.noEmail||0) + "명은 「발송 실패」로 옮겨집니다\n· 같은 이메일은 한 통만 나갑니다" + (d.dupEmail ? "(" + d.dupEmail + "건)" : "") + "\n\n보낸 메일은 되돌릴 수 없습니다. 계속할까요?")) { $("#imMsg").textContent="보내지 않았습니다."; return; }
+  if(!confirm(b + " 업로드분 " + d.count + "명께 진짜 확인 메일을 보냅니다.\n\n· 이메일 없는 분 " + (d.noEmail||0) + "명은 「발송 실패」로 옮겨집니다\n· 같은 이메일이어도 성함+핸드폰이 다른 분은 각자 한 통씩 나갑니다\n\n보낸 메일은 되돌릴 수 없습니다. 계속할까요?")) { $("#imMsg").textContent="보내지 않았습니다."; return; }
   $("#imMsg").textContent="보내는 중…";
   const r = await cnApi({ action:"importSend", batch:b });
   if(!r.ok){ $("#imMsg").textContent = cnWhy(r); $("#imMsg").style.color="var(--bad)"; return; }
   if(r.notStarted){ $("#imMsg").style.color="var(--bad)"; $("#imMsg").textContent = "아직 시행 전이라 진짜 발송은 나가지 않았습니다(시행일 미설정). 담당 개발자에게 CONSENT_START 설정을 요청하세요."; return; }
   if(r.tooMany){ $("#imMsg").style.color="var(--bad)"; $("#imMsg").textContent = `발송 대상이 하루 한도(${r.cap}명)를 넘어 보내지 않았습니다.`; return; }
   $("#imMsg").style.color = r.failed ? "var(--bad)" : "var(--ok)";
-  $("#imMsg").textContent = `발송 ${r.sent||0}통 · 이메일 없음 ${r.noEmail||0}명 · 같은 이메일 한 통만 ${r.dupEmail||0}건 · 실패 ${r.failed||0}건`;
+  $("#imMsg").textContent = `발송 ${r.sent||0}통 · 이메일 없음 ${r.noEmail||0}명 · 실패 ${r.failed||0}건`;
   cnStats(true);
 }
 async function imRelease(){
@@ -9356,6 +9356,15 @@ function mkBuild(ledger){
   const entN = new Map();
   ALL.forEach(e => { const k = mkPKey(e); if(!k) return; const a = mkAnsOf(e); if(!a.ad && !a.photo) return; const pg = mkProdOf(e); if(!pg) return; entN.set(k+"|"+pg, (entN.get(k+"|"+pg)||0) + 1); });
   const all = people.concat(extra).sort((x,y) => x.at - y.at);
+  /* 🔴 같은 핸드폰에 거부·철회한 분이 한 명이라도 있으면, 성함이 달라도 그 번호의 「동의」는 광고 대상에서 뺍니다(2026-11-13 담당자 결정 A).
+        쿠팡처럼 이름을 직접 적어 표기가 달라질 수 있고, 헷갈리면 보내지 않는 쪽이 안전하기 때문입니다.
+        빠진 분은 「광고성거부」 시트로 가고 비고에 이유가 적힙니다. 거부·철회 기록 자체는 원래 그분에게만 남습니다. */
+  const byPhone = new Map();
+  all.forEach(p => { const ph = String(p.phone || "").replace(/\D/g, ""); if(ph.length < 8) return; if(!byPhone.has(ph)) byPhone.set(ph, []); byPhone.get(ph).push(p); });
+  byPhone.forEach(g => {
+    if(!g.some(p => { const s = mkStatusOf(p); return s === "거부" || s === "철회"; })) return;
+    g.filter(p => mkStatusOf(p) === "동의").forEach(p => { p.ad = "미동의"; p.note = (p.note ? p.note + " · " : "") + "같은 번호 거부·철회 있음"; });
+  });
   const consent = all.filter(p => mkStatusOf(p) === "동의"), photoOk = all.filter(p => p.photo === "동의"),
         refuse  = all.filter(p => mkStatusOf(p) === "거부"), withdrawn = all.filter(p => mkStatusOf(p) === "철회"),
         blank   = all.filter(p => mkStatusOf(p) === "미기재"), failed = all.filter(p => p.fail);

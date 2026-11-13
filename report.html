@@ -9307,10 +9307,28 @@ function mkMaskName(n){
 const MKX_HEAD = MK_HEAD.concat(["비고"]);
 const mkRowX = p => [mkYmd(p.at), p.email||"", mkMaskName(p.name), p.phone||"", p.privacy||"", p.trust||"", p.ad||"", p.photo||"", p.ship||"", p.renew||"", p.prod||"", p.gift||"", p.note||""];
 const mkStatusOf = p => p.ad === "동의" ? "동의" : (/^철회/.test(p.ad||"") ? "철회" : (p.ad === "미동의" ? "거부" : "미기재"));
-const MK_CAT_ORDER = ["주방가전","계절가전","생활가전"];
+const MK_CAT_ORDER = ["주방가전","계절가전","생활가전","단종"];
 const MK_CAT_NONE = "설정에 없는 이름";
-/* 제품군 이름 → 구분(카테고리). 설정에 있으면 그 제품 코드로 제품 카탈로그에서 찾고, 설정에 없으면 「설정에 없는 이름」 */
+/* 🔴 제품군 이름 맞추기 (2026-11-13 담당자 지정) — 예전 구글폼 고객(수신동의 장부)의 제품군 이름은 설정의 이름과 달라서 「설정에 없는 이름」으로 나왔습니다.
+   · 아래 표의 이름은 **설정의 제품군 이름으로 합칩니다**(공백·대소문자는 무시하고 찾음). iSC01 → 서큘레이터 iSC02, iH11 → 복합식가습기 iH12 도 같은 표로 합칩니다.
+   · 단종 제품은 **구분 「단종」**에 제품군별 시트로 둡니다.
+   · 명단 내려받기에서만 바뀌고, 장부에 적힌 원래 이름은 그대로입니다. */
+const mkNK = s => String(s == null ? "" : s).replace(/\s+/g, "").toLowerCase();
+const MK_PROD_MAP = {};
+[["무선청소기 iv10","무선청소기 iV10"],["무선청소기 아이타워 i50","아이타워 i50"],["공기청정기 iAP22 화이트","공기청정기 iAP22"],["서큘레이터 iSC02","서큘레이터 iSC02"],
+ ["서큘레이터 서큘레이터 iSC02","서큘레이터 iSC02"],["서큘레이터 iSC01","서큘레이터 iSC02"],["iSC01","서큘레이터 iSC02"],["무선청소기 AI 디텍트 i50","AI 디텍트 i50"],
+ ["복합식가습기 iH11","복합식가습기 iH12"],["iH11","복합식가습기 iH12"]].forEach(p => { MK_PROD_MAP[mkNK(p[0])] = p[1]; });
+const MK_DISCONT = new Set(["무선청소기 엘리트","무선청소기 i20","핸디청소기 imini","무선청소기 i30 아이타워","스팀 에어프라이어 iSTA15","음식물처리기 iFD01","로봇청소기 iX30"].map(mkNK));
+function mkCanonProd(name){
+  const raw = String(name == null ? "" : name).trim(); if(!raw) return "";
+  if(MK_DISCONT.has(mkNK(raw))) return raw;                                   // 단종은 이름 그대로(제품군별 시트)
+  const target = MK_PROD_MAP[mkNK(raw)] || raw;
+  const hit = (MK_PRODS||[]).find(x => mkNK(x.ledger) === mkNK(target));        // 설정의 실제 이름으로(공백·대소문자 차이 흡수)
+  return hit ? hit.ledger : target;
+}
+/* 제품군 이름 → 구분(카테고리). 단종이면 「단종」, 설정에 있으면 그 제품 코드로 제품 카탈로그에서 찾고, 설정에 없으면 「설정에 없는 이름」 */
 function mkCatOfName(name){
+  if(MK_DISCONT.has(mkNK(name))) return "단종";
   const hit = (MK_PRODS||[]).find(x => x.ledger === name);
   if(!hit) return MK_CAT_NONE;
   for(const cat of Object.keys(PRODUCTS)){ if(PRODUCTS[cat].some(x => hit.codes.includes(canonCode(x[0])))) return cat; }
@@ -9348,7 +9366,7 @@ function mkBuild(ledger){
       if(L.rn && L.rn > (hit.renew || "")) hit.renew = L.rn;
       return;
     }
-    const prods = (L.prods||[]).filter(Boolean);
+    const prods = [...new Set((L.prods||[]).map(mkCanonProd).filter(Boolean))];       // 제품군 이름 맞추기(위 표)
     extra.push({ key:"L" + L.k, at:(L.at ? new Date(L.at + "T00:00:00") : new Date(0)), email:L.email||"", name:L.name||"", phone:fmtPhone(L.phone||""),
       privacy:L.privacy||"", trust:L.trust||"", ad: refusedByEntry(L) ? "미동의" : (wd ? "철회(" + (L.wd || L.at || "") + ")" : "동의"), photo:L.photo||"", ship:"", renew:L.rn||"",
       prods, prod:prods.join(", "), gift:"", note:noteOf(L), fail:L.st === "blocked", failAt:L.blk||"", src:"장부" });

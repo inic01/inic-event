@@ -232,6 +232,14 @@
   .box .kv b{display:inline-block;min-width:74px;color:var(--sub);font-weight:600}
   .box button{margin-top:16px;border:none;background:var(--brand);color:#fff;font-weight:800;padding:12px 22px;border-radius:10px;font-size:14px;cursor:pointer;width:100%}
   .box.dup .icon{color:var(--bad)}
+  /* 주소 검색 패널(2026-11-13) — 팝업 창 대신 주소 칸 바로 아래에 펼쳐집니다(앱 안 브라우저에서 팝업이 멈추는 문제) */
+  .pcin{margin-top:8px;border:1.5px solid var(--line,#e6e1db);border-radius:12px;background:#fff;overflow:hidden}
+  .pchead{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 8px 14px;background:#faf8f6;border-bottom:1px solid var(--line,#e6e1db);font-size:13.5px;color:#4a4540}
+  .pcbtns{display:flex;gap:6px}
+  .pcx{border:1px solid var(--line,#e6e1db);background:#fff;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;padding:6px 12px;color:#4a4540}
+  .pcwrap{height:min(430px,68vh);position:relative;-webkit-overflow-scrolling:touch}
+  .pcretry{padding:14px;text-align:center;font-size:13.5px;color:#6b625c;border-top:1px solid var(--line,#e6e1db);background:#fff}
+  .pcretry button{margin-top:8px;width:100%;border:none;border-radius:10px;background:var(--brand,#3d7bfd);color:#fff;font-weight:800;padding:12px;font-size:14px;cursor:pointer}
 
   /* ══════════ 화면 디자인 개편 (2026-10) ══════════
      🔴 모양(색·간격·카드·버튼)만 바꿉니다. 동작·id·문구는 그대로입니다.
@@ -753,6 +761,14 @@
       <div style="display:flex;gap:6px">
         <input type="text" id="addrRoad" placeholder="주소 검색을 눌러주세요" readonly style="flex:1;background:#f7f5f3;cursor:pointer" onclick="openPostcode()">
         <button type="button" id="addrSearch" onclick="openPostcode()" style="white-space:nowrap;padding:0 14px;border-radius:9px;border:1.5px solid var(--brand,#3d7bfd);background:var(--brand,#3d7bfd);color:#fff;font-weight:800;font-size:13px;cursor:pointer">주소 검색</button>
+      </div>
+      <div id="pcLayer" class="pcin" style="display:none">
+        <div class="pchead"><span>주소 검색</span><span class="pcbtns"><button type="button" class="pcx" id="pcRefresh" onclick="retryPostcode()">새로고침</button><button type="button" class="pcx" id="pcClose" onclick="closePostcode()">닫기</button></span></div>
+        <div id="pcWrap" class="pcwrap"></div>
+        <div id="pcRetry" class="pcretry" style="display:none">
+          <div>주소 검색 창이 열리지 않았습니다.</div>
+          <button type="button" onclick="retryPostcode()">다시 시도</button>
+        </div>
       </div>
       <input type="text" id="addrDetail" placeholder="상세주소 (동/호수 등)" style="margin-top:6px">
       <div class="err" id="err-addr">[주소 검색]으로 기본주소를 등록한 뒤 상세주소를 입력해 주세요.</div>
@@ -3048,15 +3064,47 @@ function fmtPhone(el){var d=el.value.replace(/\D/g,"");
   else el.value=d;}
 /* 주소 검색 (카카오/다음 우편번호) */
 function getAddress(){return (($("#addrRoad").value||"")+" "+($("#addrDetail").value||"")).trim();}
-function openPostcode(){
-  if(typeof daum==="undefined"||!daum.Postcode){ // 스크립트 로드 실패 시 직접 입력 허용
-    const road=$("#addrRoad");road.readOnly=false;road.style.cursor="text";road.placeholder="주소를 직접 입력해 주세요";road.focus();return;}
-  new daum.Postcode({oncomplete:function(data){
-    $("#addrRoad").value=data.roadAddress||data.jibunAddress||"";
-    hideErr("err-addr");$("#addrDetail").focus();
-  }}).open();
+/* 🔴 2026-11-13 — 팝업 창(.open) 대신 화면 안 레이어(.embed)에 띄웁니다. 카카오톡·네이버앱 같은 앱 안 브라우저에서 팝업이 멈춰 「무한 로딩」이 되던 문제.
+   검색 창이 8초 안에 안 열리면 「다시 시도」 버튼을 보여 줍니다. (직접 입력 전환은 오타가 생길 수 있어 두지 않습니다) */
+let pcTimer=null,pcLoaded=false;
+function pcShowRetry(on){const r=$("#pcRetry");if(r){r.style.display=on?"block":"none";if(on){try{r.scrollIntoView({block:"nearest",behavior:"smooth"});}catch(e){}}}}   // 버튼이 나오면 화면이 따라가서 보이게
+function pcArm(){clearTimeout(pcTimer);pcLoaded=false;pcShowRetry(false);pcTimer=setTimeout(function(){if(!pcLoaded)pcShowRetry(true);},8000);}
+function pcLoadScript(onload,onerr){ // 스크립트를 못 받았을 때 다시 받아 옵니다(주소 뒤 숫자로 캐시를 피함)
+  const s=document.createElement("script");s.src="https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js?_="+Date.now();
+  s.onload=onload;s.onerror=onerr;document.head.appendChild(s);
 }
-window.openPostcode=openPostcode;
+function pcEmbed(){
+  const wrap=$("#pcWrap");wrap.innerHTML="";pcArm();
+  const ok=function(){pcLoaded=true;clearTimeout(pcTimer);pcShowRetry(false);};
+  try{
+    new daum.Postcode({width:"100%",height:"100%",
+      oncomplete:function(data){
+        clearTimeout(pcTimer);
+        $("#addrRoad").value=data.roadAddress||data.jibunAddress||"";
+        hideErr("err-addr");closePostcode();$("#addrDetail").focus();
+      },
+      onresize:ok
+    }).embed(wrap);
+    const ifr=wrap.querySelector("iframe");if(ifr)ifr.addEventListener("load",ok);
+  }catch(e){pcShowRetry(true);}
+}
+function openPostcode(){
+  const l=$("#pcLayer");l.style.display="block";
+  try{l.scrollIntoView({block:"nearest",behavior:"smooth"});}catch(e){}       // 펼쳐진 패널이 화면에 보이게
+  if(typeof daum==="undefined"||!daum.Postcode){pcArm();pcLoadScript(pcEmbed,function(){pcShowRetry(true);});return;}
+  pcEmbed();
+}
+function retryPostcode(){
+  pcShowRetry(false);
+  if(typeof daum==="undefined"||!daum.Postcode){pcArm();pcLoadScript(pcEmbed,function(){pcShowRetry(true);});return;}
+  pcEmbed();
+}
+function closePostcode(){
+  clearTimeout(pcTimer);const l=$("#pcLayer");if(l)l.style.display="none";
+  const w=$("#pcWrap");if(w)w.innerHTML="";
+}
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&$("#pcLayer")&&$("#pcLayer").style.display!=="none")closePostcode();});
+window.openPostcode=openPostcode;window.retryPostcode=retryPostcode;window.closePostcode=closePostcode;
 /* 참여 확인 조회 (성함+연락처) */
 function prodNameOf(code){for(const c in PRODUCTS){const f=PRODUCTS[c].find(p=>p.code===code||p.code===canonCode(code));if(f)return f.name;}return code||"";}
 function custStatus(e){

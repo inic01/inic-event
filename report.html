@@ -8106,8 +8106,12 @@ function opsAgentSel(e){
   const opt = (v, t, s) => '<option value="'+admEsc(v)+'"'+(s?" selected":"")+'>'+admEsc(t)+'</option>';
   let h;
   if(role === "agent"){
-    if(cur === me) return '<select class="agsel" data-id="'+admEsc(e._id)+'" disabled '+style+'>'+opt(me, me+" (나)", true)+'</select>';
-    h = (cur ? opt(cur, cur, true) : opt("", "— 미지정 —", true)) + opt(me, me+" (나)", false);
+    /* 내 건은 잠그되, 조장님께 넘기는 선택만 열어 둡니다 */
+    h = (cur === me) ? opt(me, me+" (나)", true)
+      : (cur ? opt(cur, cur, true) : opt("", "— 미지정 —", true)) + opt(me, me+" (나)", false);
+    /* 연차 등으로 자리를 비울 때 조장님께 넘길 수 있게 조장은 목록에 더합니다(상담사끼리는 여전히 못 넘김) */
+    AGENTS.map(a => a.name).filter(n => n && n !== me && n !== cur && opsIsLeaderName(n))
+      .sort((a, b) => a.localeCompare(b, "ko")).forEach(n => { h += opt(n, n+" · 조장", false); });
   } else {
     const names = AGENTS.map(a => a.name).sort((a, b) => a.localeCompare(b, "ko"));
     const list = []; if(me && names.includes(me)) list.push(me);
@@ -8133,7 +8137,14 @@ async function opsChangeAgent(id, val, selEl){
   if(val === cur) return;
   if(role === "other"){ back(); return; }
   if(role === "agent"){
-    if(val !== me){ back(); return; }                    // 상담사는 본인 앞으로만
+    if(val !== me){
+      /* 상담사는 본인 앞으로, 또는 조장님께만 넘깁니다(연차 인수인계). 인콜 접수가 아니므로 조장 확인 목록에는 안 올라갑니다 */
+      if(!opsIsLeaderName(val)){ back(); return; }
+      if(!confirm("「"+(e.name||"(이름없음)")+"」 님 건의 담당자를\n"+(cur||"미지정")+" → "+val+" (조장)\n으로 바꿉니다. 계속할까요?")){ back(); return; }
+      try{ await opsMove(e, val); }
+      catch(err){ alert("담당자 저장 실패: "+(err.message||err)); back(); return; }
+      renderBad(); opsToast("조장님께 넘겼습니다"); return;
+    }
     if(!cur){                                            // 주인이 없던 건을 내가 가져감 — 뺏는 게 아니므로 창 없이
       try{ await opsWrite(e, opsFirstFields(e, me, "manual"), { atMs:Date.now(), from:"", to:me, by:me, kind:"assign" }); }
       catch(err){ alert("담당자 저장 실패: "+(err.message||err)); back(); }
@@ -9165,9 +9176,9 @@ function mkPeople(){
   });
   return [...map.values()].map(p => Object.assign(p, { prod: p.prods.join(", "), gift: p.gifts.join(", ") })).sort((x, y) => x.at - y.at);
 }
-/* 접수 한 건의 「사은품」 — 출고된 건만, 접수 건에 적힌 사은품/상품권 이름. 출고 전이면 빈칸.
+/* 접수 한 건의 「사은품」 — 접수 건에 적힌 사은품/상품권 이름(그 접수 시점에 맞게 정해진 값). **출고 여부와 상관없이** 적습니다(2026-11-12 담당자 요청).
    ⚠️ 서버(ordersApi.js)의 mkGiftOf 와 계산이 같아야 합니다. 한쪽만 고치지 마세요. */
-function mkGiftOf(e){ return (e && e.shippedAt) ? String(e.giftItem || "").trim() : ""; }
+function mkGiftOf(e){ return e ? String(e.giftItem || "").trim() : ""; }
 /* 접수 한 건의 「제품군」 — 접수한 제품 코드 → 설정의 원장 이름(출고리스트 제품군), 못 찾으면 접수에 적힌 제품 이름, 그것도 없으면 코드.
    ⚠️ 서버(ordersApi.js)의 mkProdOf 와 계산이 같아야 합니다. 한쪽만 고치지 마세요. */
 let MK_PRODS = null;                                    // 설정의 제품 목록 [{ledger, codes}] — 명단을 내려받기 전에 한 번 읽습니다(못 읽으면 null → 접수에 적힌 이름)

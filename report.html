@@ -4563,7 +4563,9 @@ function mUsedFor(g, keys){
        여기서 유형을 거르면 화면은 「접수 가능」인데 서버는 막는 어긋남이 생깁니다. */
     if(!sib.has(String(e.product || ""))) return false;
     const ph = e.phoneKey || mDigits(e.phone);
-    if(ph && keys.phones.includes(ph)) return true;
+    /* 🔴 2026-11-16 사용자 결정 — 주문번호·송장번호가 있는 구매는 그 번호로만 접수를 셉니다(핸드폰만 같은 다른 주문의 접수는 이 구매의 접수가 아님).
+          둘 다 없을 때만 예전처럼 연락처로 셉니다. 서버 eventApi usedForCodes 의 phoneOn·submitEntry 의 purchaseOnly 와 같은 기준 — 같이 고치세요. */
+    if(!(keys.ords.length || keys.invs.length) && ph && keys.phones.includes(ph)) return true;
     if(e.orderNo && keys.ords.includes(mNormKey(e.orderNo))) return true;
     if(e.invoiceNo && keys.invs.includes(mNormKey(e.invoiceNo))) return true;
     return false;

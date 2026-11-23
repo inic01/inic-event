@@ -232,6 +232,13 @@
   .box .kv b{display:inline-block;min-width:74px;color:var(--sub);font-weight:600}
   .box button{margin-top:16px;border:none;background:var(--brand);color:#fff;font-weight:800;padding:12px 22px;border-radius:10px;font-size:14px;cursor:pointer;width:100%}
   .box.dup .icon{color:var(--bad)}
+  /* 쿠팡 정품등록 「다음」 안내 팝업 (2026-11-23) — 풀필먼트 구매 직후 오접수 방지 */
+  #cpGate .box{text-align:left}
+  #cpGate .box .icon{text-align:center}#cpGate .box h3{text-align:center}
+  #cpGate .box p{color:var(--ink)}
+  #cpGate .box p.cpn{color:var(--sub);font-size:12.5px}
+  #cpGate .box p.cpn b{color:var(--ink);text-decoration:underline;text-underline-offset:2px;background:#fff3a8}
+  #cpGate .box p.cpq{text-align:center;font-weight:800;font-size:15.5px;color:var(--brand);margin:14px 0 0}
   /* 주소 검색 패널(2026-11-13) — 팝업 창 대신 주소 칸 바로 아래에 펼쳐집니다(앱 안 브라우저에서 팝업이 멈추는 문제) */
   .pcin{margin-top:8px;border:1.5px solid var(--line,#e6e1db);border-radius:12px;background:#fff;overflow:hidden}
   .pchead{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 8px 14px;background:#faf8f6;border-bottom:1px solid var(--line,#e6e1db);font-size:13.5px;color:#4a4540}
@@ -798,6 +805,15 @@
     <div class="kv" id="mKv"></div>
     <button id="mMore" class="hide" style="width:100%;margin:0 0 8px;padding:12px 0;border-radius:10px;border:1.5px solid #1d3557;background:#fff;color:#1d3557;font-weight:800;font-size:14px;cursor:pointer">➕ 다른 제품도 이어서 신청하기</button>
     <button id="mClose">확인</button></div>
+</div>
+
+<div class="modal" id="cpGate" role="dialog" aria-modal="true" aria-labelledby="cpGateT">
+  <div class="box"><div class="icon">📦</div>
+    <h3 id="cpGateT">쿠팡 로켓배송 구매 고객 전용</h3>
+    <p>해당 참여 공간은 <b>쿠팡 로켓배송 구매 고객 전용</b>입니다.<br>쿠팡 로켓배송 구매 고객이 아닌 경우,<br>[포토리뷰 이벤트] 창에서 참여해 주세요.</p>
+    <p class="cpn">※ 구매 정보가 계속 조회되지 않는 경우, 정보가 반영되는 데 시간이 소요될 수 있으므로 <b>제품 수령 후 영업일 기준 D+2일</b> 이후에 다시 조회해 주세요.<br>※ 이중 접수로 인해 중복 출고가 발생할 경우, 중복 출고에 따른 비용은 고객님께서 부담하셔야 합니다.</p>
+    <p class="cpq">쿠팡 로켓배송으로 구매해주신게 맞으실까요?</p>
+    <button id="cpGateOk">쿠팡에서 구매했어요</button></div>
 </div>
 
 <script src="//t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
@@ -2767,7 +2783,8 @@ async function lookupPurchase(){
       };
       const key  = (NF[tab]||NF.np)[0];
       const dflt = (NF[tab]||NF.np)[1];
-      ivNotice(MSGH(key, dflt)+ivSwitch(tab)
+      /* 2026-11-23 — 네이버 풀필먼트 당일 도착은 고객정보가 늦게 올라와 조회가 안 됩니다. 쿠팡으로 잘못 접수하지 않게 안내(설정 문구와 상관없이 항상 붙음) */
+      ivNotice(MSGH(key, dflt)+'<div style="margin-top:10px;font-weight:800;color:#c1121f">네이버 당일 도착 상품은 제품 수령 후 영업일 기준 D+2 이후 조회해 주세요.</div>'+ivSwitch(tab)
         +(MSGK(key,true)?'<div style="margin-top:10px">계속 안 되시면 아래로 문의해 주세요.'+ivKakao()+'</div>':""));
       return;
     }
@@ -3000,8 +3017,16 @@ async function goNext(){
     if(getFlow()[current]!==step) return;      // 기다리는 사이 다른 단계로 옮겨졌으면 아무것도 하지 않습니다
     if(p){ showIntakeGate(p); return; }
   }
+  if(step==="type" && state.type==="coupang"){ showCpGate(); return; }   // 쿠팡 정품등록은 안내 팝업에서 「쿠팡에서 구매했어요」를 눌러야 다음 단계로 갑니다(점검 안내가 먼저)
   current++; showStep();
 }
+/* 쿠팡 정품등록 안내 팝업 — 안내만 하며 접수를 막지 않습니다(확인하면 누구나 진행, 구매조회·주문 대조 요구 없음) */
+function showCpGate(){ $("#cpGate").classList.add("on"); }
+$("#cpGateOk").addEventListener("click",()=>{
+  $("#cpGate").classList.remove("on");
+  if(getFlow()[current]!=="type" || state.type!=="coupang") return;   // 그 사이 화면이 바뀌었으면 아무것도 하지 않습니다
+  current++; showStep();
+});
 $("#next").addEventListener("click",goNext);
 $("#nextTop").addEventListener("click",goNext);
 /* ══ 뒤로가기 (2026-10-06 사용자 확정) ══
@@ -3038,6 +3063,7 @@ function syncNavGuard(){ if(current>0 && !navGuard){ try{ history.pushState({ini
 window.addEventListener("popstate",()=>{
   navGuard=false;
   if($("#exModal").style.display==="flex"){ closeEx(); syncNavGuard(); return; }       // 크게 보기 창만 닫기
+  if($("#cpGate").classList.contains("on")){ $("#cpGate").classList.remove("on"); syncNavGuard(); return; }  // 쿠팡 안내 팝업만 닫기(유형 선택 화면에 머뭅니다)
   if($("#modal").classList.contains("on")){ $("#mClose").click(); syncNavGuard(); return; }  // 안내 창만 닫기
   if(current>0){ goBack(); syncNavGuard(); return; }
   history.back();                                  // 첫 화면에서 누른 뒤로가기는 그대로 나갑니다

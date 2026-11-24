@@ -1016,7 +1016,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
     <div class="tab" data-tab="point">포인트<span class="tcs" data-tcs="point"></span></div>
     <div class="tab" data-tab="bad">부적합<span class="tcs" data-tcs="bad"></span></div>
     <div class="tab" data-tab="reserve">예약발송<span class="tcs" data-tcs="reserve"></span></div>
-    <div class="tab" data-tab="cs">고객검색</div>
+    <div class="tab" data-tab="cs">고객검색<span class="tcs" data-tcs="cs"></span></div>
     <div class="tab" data-tab="manual">수기접수</div>
     <div class="tab" data-tab="orders">고객DB</div>
     <div class="tab" data-tab="admin" id="tabAdmin" style="display:none">관리자</div>
@@ -1070,7 +1070,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
 
   <!-- 상품권 -->
   <section class="page" id="page-acct">
-    <div class="subtabs"><div class="subtab active" data-sub="acct" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="acct" data-v="resend">상품권재발송</div><div class="subtab" data-sub="acct" data-v="inelig">확인필요</div></div>
+    <div class="subtabs"><div class="subtab active" data-sub="acct" data-v="elig">적합(발송대상)</div><div class="subtab" data-sub="acct" data-v="resend">상품권요청</div><div class="subtab" data-sub="acct" data-v="inelig">확인필요</div></div>
     <div class="hint" id="acctHint"></div>
     <div class="filters stick"><span id="aCount" style="font-size:12.5px;color:var(--sub);font-weight:700"></span><span style="flex:1"></span>
       <button id="reAllAcct" class="sm" style="display:none">🔄 확인필요 전체 재심사 (사은품+상품권)</button>
@@ -1150,6 +1150,7 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
   <section class="page" id="page-cs">
     <div class="hint">고객이 이벤트에 참여했는지 확인하는 화면입니다. 이름·연락처·주문번호·주소·S/N 무엇이든 입력하면 참여 내역과 심사 상태가 나옵니다.</div>
     <div class="searchbig"><input type="text" id="csSearch" placeholder="예) 홍길동  또는  010-1234-5678  또는  주문번호"><button id="csBtn" class="primary">검색</button></div>
+    <div id="csMine"></div>      <!-- 🔴 2026-11-23 「내가 요청한 내역」 — 상품권 재발송·취소 불가 회신(전화 대기). 조장·QA 는 전체 상담사 건 -->
     <div class="panel" id="csLgPanel" style="margin-top:14px">
       <div class="ph"><h3>구글폼 참여 확인 <span class="mute">(예전 구글폼으로 참여·출고한 기록)</span></h3></div>
       <div class="hint">예전 구글폼으로 이미 참여한 고객인지 <b>휴대폰 번호</b>로 확인합니다. 포토리뷰·한달 사용후기·쿠팡 정품등록 중 <b>기록이 있는 것만</b> 나오고, 접수일자·출고날짜·사은품을 보고 고객에게 설명할 수 있습니다. 번호는 저장되지 않고 접근 기록에는 「확인함」만 남습니다.</div>
@@ -1873,6 +1874,8 @@ html[data-role="agent"] #dtManualBox{display:none !important}   /* 「직접 판
         <div class="dtrow" id="dtApvByRow" style="display:none"><b>담당자</b><span id="dtApvBy">-</span></div>
         <div class="dtrow" id="dtApvAtRow" style="display:none"><b>출고승인일시</b><span id="dtApvAt">-</span></div>
         <div class="dtrow" id="dtReasonRow"><b id="dtReasonLabel">부적합 사유</b><span id="dtReason" style="color:var(--bad,#c0392b)">-</span></div>
+        <!-- 🔴 2026-11-23 상품권 요청 회신 — 재발송불가·취소불가 사유와 「통화완료」(상담사가 고객에게 전화해 안내한 기록). 내용은 replyBoxHtml 이 만듭니다(값은 모두 이스케이프). -->
+        <div id="dtReplyBox" style="display:none"></div>
 
         <!-- 부적합(아웃콜) 전용 : 응대 기록 + 출고 승인 -->
         <div id="dtCallBox">
@@ -3149,7 +3152,8 @@ function teamInelig(rw){return ALL.filter(e=>e.rewardType===rw&&(shipStatus(e)==
    권한: 관리자·QA·발주·회계(규칙 reviewEntries update — 「재발송불가」 칸은 규칙 후보 resendDenyOk). 상담사는 못 누릅니다. */
 const RESEND_DENY_TEXT="재발송불가(사용 확인)";        // 고정 문구(사용자 확정) — 규칙의 resendDenyReason 값('사용 확인')과 짝
 const resendSent=e=>!!(e&&(e.shipped||e.shipState==="shipped"));
-const resendPending=()=>RESEND.filter(e=>e.rewardType==="coupon"&&!resendSent(e)&&!e.resendDeny).sort((a,b)=>(a._date?.getTime()||0)-(b._date?.getTime()||0));
+/* 🔴 2026-11-23 상품권 요청 — 「상품권재발송」 탭이 「상품권요청」이 되어 재발송 건과 **취소 건**(reqKind:"cancel")이 같이 들어옵니다. 처리 안 한 것(재발송: 미발송·미불가 / 취소: 미완료·미불가)만. */
+const resendPending=()=>RESEND.filter(e=>e.rewardType==="coupon"&&!resendSent(e)&&!e.resendDeny&&!e.cancelDeny&&!e.cancelDone).sort((a,b)=>(a._date?.getTime()||0)-(b._date?.getTime()||0));
 const canResendAct=()=>!!(ME&&(isAdm(ME.role)||ME.role==="order"||ME.role==="acct"));
 /* 수기접수 증빙 이미지는 manualImageUrl 에 있습니다.
    AI 심사 판정(재심사 버튼 등)은 imageUrl 만 보므로 그대로 둡니다. */
@@ -3229,9 +3233,12 @@ const acctDateCell=e=>isResend(e)?(admEsc(e.resendShip||"-")+` <span class="pill
 const ELIG_ACCT=[["접수일자",e=>acctDateCell(e)],["담당자",e=>apvCell(e)],TYPE_COL,["검수",e=>eligCheck(e)],["상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
   SN_COL,["이미지",e=>imgBtn(e)],["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["주소",e=>cell(e,"addr"),"wrapcell"]];
 /* 상품권 재발송 탭의 열 — 맨 오른쪽 「재발송」「재발송불가」 단추(2026-11-11) */
-const resendActCell=e=>canResendAct()?`<span class="rsact"><button class="sm primary" data-act="resendDone" data-id="${admEsc(e._id)}">재발송</button> <button class="sm" data-act="resendDeny" data-id="${admEsc(e._id)}">재발송불가</button></span>`:`<span style="color:var(--sub);font-size:12px">권한 없음</span>`;
-const RESEND_COLS=[["접수일자",e=>fmtDate(e._date)],["기존 발송일",e=>admEsc(e.resendShip||"-")],["횟수",e=>admEsc((e.resendNo||1)+"회")],["제품",e=>admEsc(PNAME[e.product]||e.product||"-"),"wrapcell"],["상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
-  ["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["접수 담당자",e=>admEsc(e.agent||"-")],["처리",e=>resendActCell(e)]];
+const resendActCell=e=>isCancelReq(e)
+  ?(canCancelAct()?`<span class="rsact"><button class="sm primary" data-act="cancelDone" data-id="${admEsc(e._id)}">취소완료</button> <button class="sm" data-act="cancelDeny" data-id="${admEsc(e._id)}">취소불가</button></span>`:`<span style="color:var(--sub);font-size:12px">회계담당자만</span>`)
+  :(canResendAct()?`<span class="rsact"><button class="sm primary" data-act="resendDone" data-id="${admEsc(e._id)}">재발송</button> <button class="sm" data-act="resendDeny" data-id="${admEsc(e._id)}">재발송불가</button></span>`:`<span style="color:var(--sub);font-size:12px">권한 없음</span>`);
+const reqKindCell=e=>isCancelReq(e)?`<span class="pill" style="background:#fff6e0;color:#7a5a00">취소</span>`:`<span class="pill" style="background:#efe9fb;color:#5a3fb0">재발송</span>`;
+const RESEND_COLS=[["접수일자",e=>fmtDate(e._date)],["구분",e=>reqKindCell(e)],["기존 발송일",e=>admEsc(e.resendShip||"-")],["횟수",e=>isCancelReq(e)?"-":admEsc((e.resendNo||1)+"회")],["제품",e=>admEsc(PNAME[e.product]||e.product||"-"),"wrapcell"],["상품권",e=>admEsc(e.giftItem||"-"),"wrapcell"],
+  ["수령인",e=>admEsc(e.name||"-"),"wrapcell"],["연락처",e=>cell(e,"phone")],["접수 담당자",e=>admEsc(e.agent||"-")],["취소 사유",e=>isCancelReq(e)?admEsc(e.reqReason||"-"):"-","wrapcell"],["처리",e=>resendActCell(e)]];
 /* 확인필요 = 재심사 담당. 재심사 누르면 결과에 따라 적합/부적합으로 자동 이동 */
 const INELIG_COLS=[["접수일자",e=>fmtDate(e._date)],TYPE_COL,["제품",e=>admEsc(e.product||"-")],SN_COL,
   ["별점",e=>ratingCell(e)],["사진",e=>photoCell(e)],["사유",e=>reasonCell(e),"wrapcell"],
@@ -3262,7 +3269,7 @@ function renderOrder(){
 }
 function renderAcct(){
   const v=subView.acct;
-  $("#acctHint").innerHTML=v==="resend"?"쓰지 못한 고객의 <b>재발송 접수 건</b>입니다(수기접수 → 「상품권 재발송」으로 접수). 상품권 업체 사이트에서 <b>사용이력을 조회</b>한 뒤, 재발송했으면 <b>「재발송」</b>, 이미 사용했으면 <b>「재발송불가」</b>를 눌러 끝냅니다(엑셀 일괄출고 없음). 「재발송불가」는 <b>「"+RESEND_DENY_TEXT+"」</b>로 기록되고 그 상품권은 재접수가 막힙니다.":v==="inelig"?"상품권 대상 중 <b>확인필요</b> 건입니다. <b>AI 심사가 실패한 건만</b> 여기 남습니다(일시 오류·사용량 초과). '재심사'로 다시 판정하고, 계속 실패하면 행을 클릭해 <b>직접 판정</b>하세요. (별점·사진 등 기준 미충족은 '부적합' 탭에 있습니다.)":"상품권 대상 <b>적합·미출고</b> 건입니다. '일괄출고'를 누르면 목록을 내려받고 전부 출고완료 처리되어 목록에서 사라집니다.";
+  $("#acctHint").innerHTML=v==="resend"?"상담사가 접수한 <b>상품권 재발송</b>과 <b>상품권 취소</b> 요청입니다(수기접수 → 「상품권 재발송」 표에서 접수). 상품권 업체 사이트에서 <b>사용이력을 조회</b>한 뒤 처리하세요(엑셀 일괄출고 없음).<br>• <b>재발송</b> 건: 재발송했으면 <b>「재발송」</b>, 보낼 수 없으면 <b>「재발송불가」</b>(사유: 유효기간 경과 / 상품권 사용).<br>• <b>취소</b> 건: 업체에서 취소(환불)했으면 <b>「취소완료」</b> — 고객의 <b>원래 접수가 자동 삭제</b>되어 고객이 다시 접수할 수 있습니다. 취소할 수 없으면 <b>「취소불가」</b>(사유: 유효기간 경과 / 상품권 사용).<br>불가 처리한 사유는 <b>요청한 상담사에게 회신</b>되어 고객과 상담하고, 그 상품권은 다시 요청할 수 없습니다.":v==="inelig"?"상품권 대상 중 <b>확인필요</b> 건입니다. <b>AI 심사가 실패한 건만</b> 여기 남습니다(일시 오류·사용량 초과). '재심사'로 다시 판정하고, 계속 실패하면 행을 클릭해 <b>직접 판정</b>하세요. (별점·사진 등 기준 미충족은 '부적합' 탭에 있습니다.)":"상품권 대상 <b>적합·미출고</b> 건입니다. '일괄출고'를 누르면 목록을 내려받고 전부 출고완료 처리되어 목록에서 사라집니다.";
   $("#dlAcct").style.display=(v==="elig")?"":"none";      // 재발송 탭에는 일괄출고가 없습니다(목록에서 바로 처리)
   $("#reAllAcct").style.display=(v==="inelig")?"":"none";
   renderTeam("coupon","#tableAcct","#emptyAcct","#aCount","#pagerAcct","acct",v);
@@ -3316,16 +3323,170 @@ async function resendDeny(id){
   const e=entryById(id); if(!e||!isResend(e)) return;
   if(!canResendAct()){ alert("재발송불가 처리는 관리자·QA·발주·회계만 할 수 있습니다."); return; }
   if(resendSent(e)||e.resendDeny){ alert("이미 처리된 건입니다."); renderActiveTab(); return; }
-  if(!confirm("「"+RESEND_DENY_TEXT+"」로 처리합니다.\n\n이미 사용한 상품권이라 재발송하지 않습니다. 목록에서 빠지고, 이 상품권은 재발송 접수가 막힙니다.\n("+(e.giftItem||"-")+" · 기존 발송일 "+(e.resendShip||"-")+")\n\n계속할까요?")) return;
+  /* 2026-11-23 — 사유를 두 가지 중에서 고릅니다(유효기간 경과 / 상품권 사용). 고른 사유는 요청한 상담사에게 그대로 회신됩니다. */
+  const reason=await askDenyReason("재발송불가 — 사유 선택","재발송하지 않고 목록에서 뺍니다. 이 상품권은 다시 재발송을 요청할 수 없습니다.\n고른 사유가 요청한 상담사에게 회신되어 고객과 상담합니다.\n("+(e.giftItem||"-")+" · 기존 발송일 "+(e.resendShip||"-")+")","재발송불가 처리");
+  if(!reason) return;
   try{
     const db=await initFirebase(), F=firebase.firestore.FieldValue, by=(ME&&ME.name)||"", byUid=(ME&&ME.uid)||"";
-    await db.collection(COLLECTION).doc(id).update({resendDeny:true,resendDenyReason:"사용 확인",resendDenyBy:by,resendDenyByUid:byUid,resendDenyAt:F.serverTimestamp()});
-    e.resendDeny=true; e.resendDenyReason="사용 확인"; e.resendDenyBy=by; e.resendDenyByUid=byUid; e.resendDenyAt=firebase.firestore.Timestamp.now();
-    logAccess("상품권 재발송불가",[(e.product||"-"),(e.giftItem||"-"),"사용 확인"].join(" · "),1);
+    await db.collection(COLLECTION).doc(id).update({resendDeny:true,resendDenyReason:reason,resendDenyBy:by,resendDenyByUid:byUid,resendDenyAt:F.serverTimestamp()});
+    e.resendDeny=true; e.resendDenyReason=reason; e.resendDenyBy=by; e.resendDenyByUid=byUid; e.resendDenyAt=firebase.firestore.Timestamp.now();
+    logAccess("상품권 재발송불가",[(e.product||"-"),(e.giftItem||"-"),reason].join(" · "),1);
     renderActiveTab(); if(typeof updateTabCounts==="function") updateTabCounts();
   }catch(err){ alert("재발송불가 처리 실패: "+(err.message||err)+"\n(권한이 없거나 이미 처리된 건일 수 있습니다.)"); }
 }
 window.resendDone=resendDone; window.resendDeny=resendDeny;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   🔴 상품권 취소 요청 · 불가 사유 · 상담사 회신(통화완료) — 2026-11-23 사용자 요청
+   ───────────────────────────────────────────────────────────────────────────
+   · 상담사(수기접수 → 상품권 재발송 표 → 「상품권 취소」)가 취소를 접수하면 요청 건이 reviewEntries 에 type:"resend"+reqKind:"cancel" 로 만들어집니다
+     (문서 이름 cancel_원래건 — 상품권 1건당 1번). type:"resend" 라서 통계·중복·참여 조회·전체 엑셀에는 섞이지 않습니다(서버도 그대로 건너뜀).
+   · 회계(관리자·QA 포함)가 「상품권 → 상품권요청」에서 처리합니다.
+       취소완료 : 한 번에(batch) ① 요청 건에 취소완료 기록 + 이름·연락처 가리기(홍*동·010-****-1234, 주소 없음) ② **원래 접수 삭제** → 중복 기록이 같이 사라져 고객이 다시 접수할 수 있습니다.
+                  사진·마케팅 시트 줄·수신동의 장부는 남습니다(접수 취소와 같음). 접근 기록에 「누가·언제·상품권·사유」.
+       취소불가 / 재발송불가 : 사유 = 「유효기간 경과」 또는 「상품권 사용」. 요청한 상담사에게 회신되고 그 상품권은 다시 요청할 수 없습니다.
+   · 회신(불가) 건은 상담사가 고객에게 전화한 뒤 「통화완료」를 눌러야 끝납니다(「부재중 기록」은 시도만 남기고 계속 남음). 「고객검색」 메뉴에 건수가 뜨고,
+     조장·QA 는 모든 상담사의 건을 봅니다(관리자는 일단 제외).
+   ⚠️ 실제 차단은 firestore.rules (resendDenyOk·cancelDenyOk·cancelDoneOk·cancelEntryDeleteOk·rcOk). 화면만 고치지 말고 규칙도 같이 고치세요.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const DENY_REASONS=["유효기간 경과","상품권 사용"];      // 규칙의 사유 값과 같아야 합니다
+const isCancelReq=e=>!!e&&e.type==="resend"&&e.reqKind==="cancel";
+const canCancelAct=()=>!!(ME&&(isAdm(ME.role)||ME.role==="acct"));      // 취소 처리는 회계(관리자·QA 포함) — 규칙 cancelDoneOk·cancelDenyOk 와 같은 기준
+const reqDenied=e=>isCancelReq(e)?!!e.cancelDeny:!!e.resendDeny;
+const reqDenyReason=e=>String((isCancelReq(e)?e.cancelDenyReason:e.resendDenyReason)||"");
+const reqDenyText=e=>{ const r=reqDenyReason(e); return (isCancelReq(e)?"취소불가":"재발송불가")+(r?"("+r+")":""); };
+const reqDenyAt=e=>tsDate(isCancelReq(e)?e.cancelDenyAt:e.resendDenyAt);
+const reqDenyBy=e=>String((isCancelReq(e)?e.cancelDenyBy:e.resendDenyBy)||"");
+/* 전화 대기 = 새 사유로 불가 처리됐고 아직 통화완료가 아닌 건(예전 「사용 확인」 건은 알림을 만들지 않음) */
+const callWait=e=>isResend(e)&&reqDenied(e)&&!e.rcDone&&DENY_REASONS.includes(reqDenyReason(e));
+const canSeeAllReplies=()=>!!(ME&&(ME.role==="qa"||isLeaderMe()));
+const myCallWait=()=>RESEND.filter(e=>callWait(e)&&(canSeeAllReplies()||(ME&&e.agentUid&&e.agentUid===ME.uid))).sort((a,b)=>(reqDenyAt(a)?.getTime()||0)-(reqDenyAt(b)?.getTime()||0));
+const canCallReply=r=>!!(ME&&r&&(r.agentUid===ME.uid||canSeeAllReplies()||isAdm(ME.role)));
+const maskNameQ=n=>{ const a=[...String(n||"").trim()]; return a.length<=1?a.join(""):a.length===2?a[0]+"*":a[0]+"*".repeat(a.length-2)+a[a.length-1]; };
+const maskPhoneQ=p=>{ const d=String(p||"").replace(/\D/g,""); return d.length>=10?d.slice(0,3)+"-****-"+d.slice(-4):""; };
+const daysSince=d=>d?Math.max(0,Math.floor((Date.now()-d.getTime())/86400000)):0;
+
+/* 사유 고르는 작은 창 — 글자는 textContent 로만 넣습니다. 고르고 「처리」를 누르면 사유(문자열), 닫으면 null. */
+function askDenyReason(title,desc,okText){
+  return new Promise(resolve=>{
+    const bg=document.createElement("div"); bg.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+    const box=document.createElement("div"); box.style.cssText="background:#fff;color:#222;border-radius:14px;padding:20px;max-width:400px;width:100%;box-sizing:border-box";
+    const h=document.createElement("h3"); h.style.cssText="margin:0 0 8px;font-size:16px"; h.textContent=title;
+    const p=document.createElement("div"); p.style.cssText="font-size:12.5px;color:#666;line-height:1.65;white-space:pre-line;margin-bottom:6px"; p.textContent=desc||"";
+    const wrap=document.createElement("div");
+    const inputs=DENY_REASONS.map(r=>{ const l=document.createElement("label"); l.style.cssText="display:block;border:1px solid #ddd;border-radius:10px;padding:10px 12px;margin:8px 0;cursor:pointer;font-weight:700"; const i=document.createElement("input"); i.type="radio"; i.name="denyRsn"; i.value=r; l.append(i," "+r); wrap.append(l); return i; });
+    const msg=document.createElement("div"); msg.style.cssText="font-size:12px;color:#c1121f;font-weight:700;min-height:16px";
+    const row=document.createElement("div"); row.style.cssText="display:flex;gap:8px;justify-content:flex-end;margin-top:10px";
+    const no=document.createElement("button"); no.className="sm"; no.textContent="닫기";
+    const ok=document.createElement("button"); ok.className="sm primary"; ok.textContent=okText||"처리";
+    const done=v=>{ bg.remove(); resolve(v); };
+    no.onclick=()=>done(null);
+    ok.onclick=()=>{ const c=inputs.find(i=>i.checked); if(!c){ msg.textContent="사유를 하나 골라 주세요."; return; } done(c.value); };
+    bg.addEventListener("click",ev=>{ if(ev.target===bg) done(null); });
+    row.append(no,ok); box.append(h,p,wrap,msg,row); bg.append(box); document.body.append(bg);
+  });
+}
+
+/* 취소불가 — 회계(관리자·QA 포함). 사유를 고르면 요청 건에 기록되고 요청한 상담사에게 회신됩니다. */
+async function cancelDeny(id){
+  const e=entryById(id); if(!e||!isCancelReq(e)) return;
+  if(!canCancelAct()){ alert("상품권 취소 처리는 회계담당자·관리자·QA만 할 수 있습니다."); return; }
+  if(e.cancelDone||e.cancelDeny){ alert("이미 처리된 건입니다."); renderActiveTab(); return; }
+  const reason=await askDenyReason("취소불가 — 사유 선택","취소(환불)할 수 없는 건으로 처리합니다. 이 상품권은 다시 취소를 요청할 수 없습니다.\n고른 사유가 요청한 상담사에게 회신되어 고객과 상담합니다.\n("+(e.giftItem||"-")+" · 기존 발송일 "+(e.resendShip||"-")+")","취소불가 처리");
+  if(!reason) return;
+  try{
+    const db=await initFirebase(), F=firebase.firestore.FieldValue, by=(ME&&ME.name)||"", byUid=(ME&&ME.uid)||"";
+    await db.collection(COLLECTION).doc(id).update({cancelDeny:true,cancelDenyReason:reason,cancelDenyBy:by,cancelDenyByUid:byUid,cancelDenyAt:F.serverTimestamp()});
+    e.cancelDeny=true; e.cancelDenyReason=reason; e.cancelDenyBy=by; e.cancelDenyByUid=byUid; e.cancelDenyAt=firebase.firestore.Timestamp.now();
+    logAccess("상품권 취소불가",[(e.product||"-"),(e.giftItem||"-"),reason].join(" · "),1);
+    renderActiveTab(); if(typeof updateTabCounts==="function") updateTabCounts();
+  }catch(err){ alert("취소불가 처리 실패: "+(err.message||err)+"\n(권한이 없거나 이미 처리된 건일 수 있습니다.)"); }
+}
+/* 취소완료 — 요청 건 기록(이름·연락처 가리기)과 **원래 접수 삭제**를 한 번에(batch). 둘 다 되거나 둘 다 안 됩니다. */
+async function cancelDone(id){
+  const e=entryById(id); if(!e||!isCancelReq(e)) return;
+  if(!canCancelAct()){ alert("상품권 취소 처리는 회계담당자·관리자·QA만 할 수 있습니다."); return; }
+  if(e.cancelDone||e.cancelDeny){ alert("이미 처리된 건입니다."); renderActiveTab(); return; }
+  const oid=e.resendOf||""; if(!oid||String(oid).startsWith("lg_")){ alert("이 요청은 원래 접수를 찾을 수 없어 처리할 수 없습니다."); return; }
+  if(!confirm("상품권 취소완료로 처리합니다.\n\n상품권 업체에서 취소(환불)를 마치셨나요?\n「확인」을 누르면 이 고객의 <원래 접수가 삭제>되어 고객이 다시 접수할 수 있게 됩니다. 되돌릴 수 없습니다.\n(사진·마케팅 시트·수신동의 기록은 남습니다)\n\n"+(e.giftItem||"-")+" · 기존 발송일 "+(e.resendShip||"-")+"\n취소 사유: "+(e.reqReason||"-"))) return;
+  try{
+    const db=await initFirebase(), F=firebase.firestore.FieldValue, by=(ME&&ME.name)||"", byUid=(ME&&ME.uid)||"";
+    const nm=maskNameQ(e.name), ph=maskPhoneQ(e.phone||e.phoneKey);
+    const b=db.batch();
+    b.update(db.collection(COLLECTION).doc(id),{cancelDone:true,cancelDoneBy:by,cancelDoneByUid:byUid,cancelDoneAt:F.serverTimestamp(),name:nm,phone:ph,phoneKey:""});
+    b.delete(db.collection(COLLECTION).doc(oid));
+    await b.commit();
+    e.cancelDone=true; e.cancelDoneBy=by; e.cancelDoneByUid=byUid; e.cancelDoneAt=firebase.firestore.Timestamp.now(); e.name=nm; e.phone=ph; e.phoneKey="";
+    { const i=ALL.findIndex(x=>x._id===oid); if(i>=0) ALL.splice(i,1); }
+    logAccess("상품권 취소완료",[(e.product||"-"),(e.giftItem||"-"),String(e.reqReason||"-").slice(0,100)].join(" · "),1);      // 이름·번호는 적지 않습니다
+    renderActiveTab(); if(typeof updateTabCounts==="function") updateTabCounts();
+  }catch(err){ alert("취소완료 처리 실패: "+(err.message||err)+"\n(권한이 없거나 이미 처리된 건일 수 있습니다. 아무것도 바뀌지 않았습니다.)"); try{ await loadData(); renderActiveTab(); }catch(_){} }
+}
+window.cancelDeny=cancelDeny; window.cancelDone=cancelDone;
+
+/* 통화완료·부재중 기록 — 불가 회신을 받은 상담사가 고객에게 전화한 기록. 「통화완료」를 눌러야 전화 대기에서 빠집니다. */
+async function rcCall(id,kind){
+  const e=entryById(id); if(!e||!isResend(e)||!reqDenied(e)) return;
+  if(!canCallReply(e)){ alert("요청한 상담사(또는 조장·QA)만 기록할 수 있습니다."); return; }
+  if(e.rcDone){ alert("이미 통화완료로 기록된 건입니다."); renderActiveTab(); return; }
+  const done=kind==="done";
+  if(done && !confirm("고객과 통화해서 안내를 마치셨나요?\n「확인」을 누르면 통화완료로 기록되고 전화 대기에서 사라집니다.")) return;
+  try{
+    const db=await initFirebase(), F=firebase.firestore.FieldValue, by=(ME&&ME.name)||"", byUid=(ME&&ME.uid)||"";
+    const ref=db.collection(COLLECTION).doc(id);
+    if(done){
+      await ref.update({rcDone:true,rcDoneAt:F.serverTimestamp(),rcDoneBy:by,rcDoneByUid:byUid});
+      e.rcDone=true; e.rcDoneAt=firebase.firestore.Timestamp.now(); e.rcDoneBy=by; e.rcDoneByUid=byUid;
+    }else{
+      await ref.update({rcMiss:F.increment(1),rcMissAt:F.serverTimestamp(),rcMissBy:by,rcMissByUid:byUid});
+      e.rcMiss=(Number(e.rcMiss)||0)+1; e.rcMissAt=firebase.firestore.Timestamp.now(); e.rcMissBy=by; e.rcMissByUid=byUid;
+    }
+    logAccess(done?"상품권 회신 통화완료":"상품권 회신 부재중",[(e.product||"-"),(e.giftItem||"-"),reqDenyText(e)].join(" · "),1);
+    renderActiveTab(); if(typeof updateTabCounts==="function") updateTabCounts();
+    if(detailId){ const cur=entryById(detailId); if(cur){ const rb=$("#dtReplyBox"); if(rb){ rb.innerHTML=replyBoxHtml(cur); rb.style.display=rb.innerHTML?"":"none"; } } }
+  }catch(err){ alert((done?"통화완료":"부재중 기록")+" 저장 실패: "+(err.message||err)+"\n(권한이 없거나 이미 처리된 건일 수 있습니다.)"); }
+}
+window.rcCall=rcCall;
+
+/* 상세 창의 「상품권 요청 회신」 상자 — 요청 건을 열면 그 건, 원래 상품권 건을 열면 가장 최근 회신(불가·취소완료). 값은 모두 이스케이프. */
+function replyReqOf(e){
+  if(!e) return null;
+  if(isResend(e)) return (reqDenied(e)||e.cancelDone)?e:null;
+  if(e.rewardType!=="coupon") return null;
+  return RESEND.filter(r=>r.resendOf===e._id&&(reqDenied(r)||r.cancelDone)).sort((a,b)=>(b._date?.getTime()||0)-(a._date?.getTime()||0))[0]||null;
+}
+function replyBoxHtml(e){
+  const r=replyReqOf(e); if(!r) return "";
+  const cancel=isCancelReq(r), kind=cancel?"상품권 취소":"상품권 재발송";
+  const head=`<div style="font-weight:800;font-size:13px">상품권 요청 회신</div><div style="font-size:12.5px;color:var(--sub);margin-top:3px">요청 <b>${kind}</b> · ${admEsc(fmtDate(r._date))} · ${admEsc(r.agent||"-")}</div>`;
+  if(r.cancelDone) return `<div style="margin:10px 0;padding:11px 12px;border:1px solid #bfe3cd;border-radius:10px;background:#f3faf5">${head}
+    <div style="font-size:12.5px;margin-top:3px">처리 <b style="color:#1f7a45">취소완료</b> · ${admEsc(r.cancelDoneBy||"-")} · ${admEsc(fmtDate(tsDate(r.cancelDoneAt)))}</div>
+    <div style="font-size:12.5px;margin-top:3px">사유 ${admEsc(r.reqReason||"-")}</div>
+    <div style="font-size:12px;color:var(--sub);margin-top:6px">원래 접수는 삭제되어 고객이 다시 접수할 수 있습니다. 이 기록은 이름·연락처가 가려져 있습니다.</div></div>`;
+  const reason=reqDenyReason(r), miss=Number(r.rcMiss)||0;
+  let act="";
+  if(r.rcDone) act=`<div style="margin-top:8px;font-weight:800;color:#1f7a45">✓ 통화완료 ${admEsc(fmtDate(tsDate(r.rcDoneAt)))} · ${admEsc(r.rcDoneBy||"-")}</div>`;
+  else if(canCallReply(r)) act=`<div style="margin-top:8px;font-size:12.5px">고객에게 전화로 안내한 뒤 <b>「통화완료」</b>를 눌러 주세요.</div>
+    <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="sm primary" data-act="rcDone" data-id="${admEsc(r._id)}">통화완료</button><button class="sm" data-act="rcMiss" data-id="${admEsc(r._id)}">부재중 기록</button></div>`;
+  else act=`<div style="margin-top:8px;font-size:12.5px;color:var(--sub)">요청한 상담사가 고객과 통화한 뒤 통화완료로 기록합니다.</div>`;
+  return `<div style="margin:10px 0;padding:11px 12px;border:1px solid ${r.rcDone?"var(--line)":"#f0bbb6"};border-radius:10px;background:${r.rcDone?"#faf8f6":"#fffafa"}">${head}
+    <div style="font-size:12.5px;margin-top:3px">처리 <b style="color:var(--bad,#c1121f)">${cancel?"취소불가":"재발송불가"}</b> · ${admEsc(reqDenyBy(r)||"-")} · ${admEsc(fmtDate(reqDenyAt(r)))}</div>
+    <div style="font-size:12.5px;margin-top:3px">사유 <b style="color:var(--bad,#c1121f);font-size:14px">${admEsc(reason||"-")}</b></div>
+    ${miss&&!r.rcDone?`<div style="font-size:12px;color:var(--bad,#c1121f);margin-top:3px;font-weight:700">부재중 ${miss}회${r.rcMissAt?" · 마지막 "+admEsc(fmtDate(tsDate(r.rcMissAt))):""}</div>`:""}${act}</div>`;
+}
+/* 고객검색 맨 위 「내가 요청한 내역」 — 전화 대기 중인 불가 회신. 상담사=본인이 요청한 건, 조장·QA=모든 상담사 건. 눌러서 열면 상세의 회신 상자와 같은 단추가 있습니다. */
+function renderCsMine(){
+  const box=$("#csMine"); if(!box) return;
+  const list=myCallWait();
+  if(!list.length){ box.innerHTML=""; return; }
+  const all=canSeeAllReplies();
+  box.innerHTML=`<div class="panel" style="margin-top:14px;border-color:#f0bbb6"><div class="ph"><h3>${all?"상품권 회신 — 전화 대기":"내가 요청한 내역"} <span class="mute">${list.length}건 · 「통화완료」를 눌러야 끝납니다</span></h3></div>`
+    +list.map(r=>{ const d=daysSince(reqDenyAt(r)), miss=Number(r.rcMiss)||0; return `<div class="rescard clickable" data-act="detail" data-id="${admEsc(r._id)}" style="${d>=3?"border-color:#f0bbb6;background:#fffafa":""}"><div style="flex:1">
+      <div class="who"><span class="pill" style="background:#fdeeee;color:#c1121f">${isCancelReq(r)?"취소불가":"재발송불가"}</span> ${admEsc(r.giftItem||"-")} · ${admEsc(PNAME[r.product]||r.product||"-")}</div>
+      <div class="meta">사유 <b style="color:#c1121f">${admEsc(reqDenyReason(r))}</b> · 회신 ${admEsc(fmtDate(reqDenyAt(r)))} · 처리 ${admEsc(reqDenyBy(r)||"-")}${all?" · 요청 "+admEsc(r.agent||"-"):""}</div>
+      <div class="meta">고객 ${admEsc(r.name||"-")} · ${cell(r,"phone")} · <span style="${d>=3?"color:#c1121f;font-weight:800":""}">경과 ${d}일</span>${miss?` · <b style="color:#c1121f">부재중 ${miss}회</b>`:""} · 통화 대기</div></div>
+      <div class="stat" style="display:flex;gap:6px;align-items:center">${canCallReply(r)?`<button class="sm primary" data-act="rcDone" data-id="${admEsc(r._id)}">통화완료</button><button class="sm" data-act="rcMiss" data-id="${admEsc(r._id)}">부재중 기록</button>`:""}</div></div>`; }).join("")+`</div>`;
+}
 async function setOverride(id,val){
   try{
     const db=await initFirebase();
@@ -3961,19 +4122,24 @@ function openDetail(id, readOnly){
       $("#dtCancelHint").textContent=!canCx?"":(isShipped?"이미 출고된 건은 취소할 수 없습니다.":(e.overrideEligible?"출고 승인된 건입니다(아직 출고 전).":""));
       infoEditFill(e); } }
   { const rb=$("#dtResendBox"); if(rb){ rb.innerHTML=resendBoxHtml(e); rb.style.display=rb.innerHTML?"":"none"; } }       // 재발송 내역(2026-11-03)
-  if(isResend(e)) $("#dtInfoMsg").innerHTML=e.resendDeny?("<b>상품권 재발송</b> 접수 건 — <b>"+RESEND_DENY_TEXT+"</b>로 처리된 건입니다(상품권을 이미 사용). 이 상품권은 재발송 접수가 막혀 있습니다."):"<b>상품권 재발송</b> 접수 건입니다. 아직 처리 전이면 「상품권 → 상품권재발송」 탭에서 <b>「재발송」</b>(발송완료) 또는 <b>「재발송불가」</b>(사용 확인)로 처리합니다. 잘못 접수했으면 아래 <b>접수 취소(삭제)</b>로 없앨 수 있습니다(원래 상품권 건은 다시 재발송 접수 가능).";
+  { const rp=$("#dtReplyBox"); if(rp){ rp.innerHTML=replyBoxHtml(e); rp.style.display=rp.innerHTML?"":"none"; } }       // 상품권 요청 회신(2026-11-23)
+  if(isCancelReq(e)) $("#dtInfoMsg").innerHTML=e.cancelDone?"<b>상품권 취소</b> 요청 — <b>취소완료</b>로 처리되어 원래 접수는 삭제되었습니다(고객은 다시 접수할 수 있음).":e.cancelDeny?("<b>상품권 취소</b> 요청 — <b>"+admEsc(reqDenyText(e))+"</b>로 처리된 건입니다. 이 상품권은 다시 취소를 요청할 수 없습니다."):"<b>상품권 취소</b> 요청 건입니다. 회계담당자가 「상품권 → 상품권요청」 탭에서 <b>「취소완료」</b>(원래 접수 자동 삭제) 또는 <b>「취소불가」</b>로 처리합니다.";
+  else if(isResend(e)) $("#dtInfoMsg").innerHTML=e.resendDeny?("<b>상품권 재발송</b> 접수 건 — <b>"+admEsc(reqDenyText(e))+"</b>로 처리된 건입니다. 이 상품권은 재발송 접수가 막혀 있습니다."):"<b>상품권 재발송</b> 접수 건입니다. 아직 처리 전이면 「상품권 → 상품권재발송」 탭에서 <b>「재발송」</b>(발송완료) 또는 <b>「재발송불가」</b>(사용 확인)로 처리합니다. 잘못 접수했으면 아래 <b>접수 취소(삭제)</b>로 없앨 수 있습니다(원래 상품권 건은 다시 재발송 접수 가능).";
   $("#detailModal").style.display="flex";
 }
 /* 🔴 상세의 「재발송 내역」 (2026-11-03) — 원래 상품권 건에는 재발송 접수 내역(접수일·담당자·상태·기존 발송일), 재발송 건에는 원래 발송일과 상태를 보입니다. 값은 모두 이스케이프합니다. */
 function resendBoxHtml(e){
   const sent=x=>!!(x.shipped||x.shipState==="shipped");
-  const state=x=>x.resendDeny?`<b style="color:var(--bad)">${RESEND_DENY_TEXT}</b> ${admEsc(fmtDate(tsDate(x.resendDenyAt)))} · ${admEsc(x.resendDenyBy||"-")}`:sent(x)?`<b style="color:var(--ok)">재발송 발송완료</b> ${admEsc(shippedDate(x))}`:`<span class="pill" style="background:#efe9fb;color:#5a3fb0">재발송예정</span>`;
+  const state=x=>x.resendDeny?`<b style="color:var(--bad)">${admEsc(reqDenyText(x))}</b> ${admEsc(fmtDate(tsDate(x.resendDenyAt)))} · ${admEsc(x.resendDenyBy||"-")}`:sent(x)?`<b style="color:var(--ok)">재발송 발송완료</b> ${admEsc(shippedDate(x))}`:`<span class="pill" style="background:#efe9fb;color:#5a3fb0">재발송예정</span>`;
   const tb=rows=>`<table class="mini" style="margin-top:6px;width:100%"><tbody>${rows.map(r=>`<tr><td style="color:var(--sub);width:96px;padding:3px 0">${r[0]}</td><td>${r[1]}</td></tr>`).join("")}</tbody></table>`;
+  const cxState=x=>x.cancelDone?`<b style="color:var(--ok)">취소완료</b> ${admEsc(fmtDate(tsDate(x.cancelDoneAt)))} · ${admEsc(x.cancelDoneBy||"-")}`:x.cancelDeny?`<b style="color:var(--bad)">${admEsc(reqDenyText(x))}</b> ${admEsc(fmtDate(tsDate(x.cancelDenyAt)))} · ${admEsc(x.cancelDenyBy||"-")}`:`<span class="pill" style="background:#fff6e0;color:#7a5a00">취소 처리 중</span>`;
+  if(isCancelReq(e)) return `<b style="font-size:13px">상품권 취소 요청</b>`+tb([["기존 발송일",admEsc(e.resendShip||"-")],["취소 요청",admEsc(fmtDate(e._date))],["요청 상담사",admEsc(e.agent||"-")],["취소 사유",admEsc(e.reqReason||"-")],["상태",cxState(e)]]);
   if(isResend(e)) return `<b style="font-size:13px">상품권 재발송 접수</b>`+tb([["기존 발송일",admEsc(e.resendShip||"-")],["재발송 접수",admEsc(fmtDate(e._date))],["접수 담당자",admEsc(e.agent||"-")],["상태",state(e)]]);
   if(e.rewardType!=="coupon") return "";
-  const ri=resendInfo(e);
-  if(!ri) return sent(e)?`<b style="font-size:13px">재발송 내역</b><div style="font-size:12.5px;color:var(--sub);margin-top:4px">재발송 내역이 없습니다. 쓰지 못한 고객은 수기접수 → 「상품권 재발송」에서 접수할 수 있습니다.</div>`:"";
-  return `<b style="font-size:13px">재발송 내역</b>`+ri.list.map((r,i)=>tb([["재발송 "+(ri.list.length-i)+"회",admEsc(fmtDate(r._date))+" · "+admEsc(r.agent||"-")],["상태",state(r)],["기존 발송일",admEsc(r.resendShip||"-")]])).join(`<div style="border-top:1px dashed var(--line);margin:6px 0"></div>`);
+  const ri=resendInfo(e), cx=cancelReqOf(e);
+  const cxHtml=cx?`<div style="border-top:1px dashed var(--line);margin:6px 0"></div><b style="font-size:13px">상품권 취소 요청</b>`+tb([["취소 요청",admEsc(fmtDate(cx._date))+" · "+admEsc(cx.agent||"-")],["취소 사유",admEsc(cx.reqReason||"-")],["상태",cxState(cx)]]):"";
+  if(!ri) return cx?cxHtml.replace(/^<div[^>]*><\/div>/,""):(sent(e)?`<b style="font-size:13px">재발송 내역</b><div style="font-size:12.5px;color:var(--sub);margin-top:4px">재발송 내역이 없습니다. 쓰지 못한 고객은 수기접수 → 「상품권 재발송」에서 재발송 접수 또는 취소할 수 있습니다.</div>`:"");
+  return `<b style="font-size:13px">재발송 내역</b>`+ri.list.map((r,i)=>tb([["재발송 "+(ri.list.length-i)+"회",admEsc(fmtDate(r._date))+" · "+admEsc(r.agent||"-")],["상태",state(r)],["기존 발송일",admEsc(r.resendShip||"-")]])).join(`<div style="border-top:1px dashed var(--line);margin:6px 0"></div>`)+cxHtml;
 }
 function closeDetail(){$("#detailModal").style.display="none";detailId=null;}
 /* 🔴 접수 취소(삭제) — 관리자·QA·조장만(규칙 isMaster · isLeader 와 같은 기준 — 같이 고치세요). 사유를 꼭 적고, 이름·번호는 접근 기록에 남기지 않습니다.
@@ -4327,6 +4493,10 @@ document.addEventListener("click",ev=>{
     case "shipped":   setShipState(id,"shipped"); break;
     case "resendDone": resendDone(id); break;
     case "resendDeny": resendDeny(id); break;
+    case "cancelDone": cancelDone(id); break;       // 2026-11-23 상품권 취소 요청 처리(회계)
+    case "cancelDeny": cancelDeny(id); break;
+    case "rcDone":     rcCall(id,"done"); break;    // 상담사 회신 통화 기록
+    case "rcMiss":     rcCall(id,"miss"); break;
     case "approve":   approveClick(id); break;
   }
 });
@@ -4367,14 +4537,18 @@ document.addEventListener("keydown",e=>{
    재발송 건 자체(type:"resend")는 RESEND 에 따로 있고, 원래 건과는 resendOf 로 이어집니다. */
 function resendInfo(e){
   if(!e||isResend(e)||e.rewardType!=="coupon") return null;
-  const rs=RESEND.filter(r=>r.resendOf===e._id).sort((a,b)=>(b._date?.getTime()||0)-(a._date?.getTime()||0));
+  const rs=RESEND.filter(r=>r.resendOf===e._id&&!isCancelReq(r)).sort((a,b)=>(b._date?.getTime()||0)-(a._date?.getTime()||0));
   if(!rs.length) return null;
   const open=rs.find(r=>!(r.shipped||r.shipState==="shipped")&&!r.resendDeny);      // 불가 처리한 건은 「예정」이 아님(2026-11-11)
   return {list:rs, last:rs[0], planned:!!open, done:!open, denied:rs.some(r=>r.resendDeny)};
 }
+/* 원래 상품권 건에 걸린 취소 요청(1건뿐 — 문서 이름 cancel_원래건). 취소완료되면 원래 건은 이미 삭제되어 여기까지 오지 않습니다. */
+const cancelReqOf=e=>(!e||isResend(e)||e.rewardType!=="coupon")?null:(RESEND.find(r=>r.resendOf===e._id&&isCancelReq(r))||null);
 function csShipBadge(e){
-  if(isResend(e)) return e.resendDeny ? '<span class="shipbig hold">'+RESEND_DENY_TEXT+'</span>' : (e.shipped||e.shipState==="shipped") ? '<span class="shipbig done">✓ 재발송 발송완료</span>' : '<span class="shipbig rsd">상품권 재발송예정</span>';
-  { const ri=resendInfo(e); if(ri) return ri.planned ? '<span class="shipbig rsd">상품권 재발송예정</span>' : ri.last&&ri.last.resendDeny ? '<span class="shipbig hold">'+RESEND_DENY_TEXT+'</span>' : '<span class="shipbig done">✓ 재발송 발송완료</span>'; }
+  if(isCancelReq(e)) return e.cancelDone ? '<span class="shipbig done">✓ 상품권 취소완료</span>' : e.cancelDeny ? '<span class="shipbig hold">'+admEsc(reqDenyText(e))+'</span>' : '<span class="shipbig rsd">상품권 취소 처리 중</span>';
+  if(isResend(e)) return e.resendDeny ? '<span class="shipbig hold">'+admEsc(reqDenyText(e))+'</span>' : (e.shipped||e.shipState==="shipped") ? '<span class="shipbig done">✓ 재발송 발송완료</span>' : '<span class="shipbig rsd">상품권 재발송예정</span>';
+  { const cx=cancelReqOf(e); if(cx&&!cx.cancelDone) return cx.cancelDeny ? '<span class="shipbig hold">'+admEsc(reqDenyText(cx))+'</span>' : '<span class="shipbig rsd">상품권 취소 처리 중</span>'; }
+  { const ri=resendInfo(e); if(ri) return ri.planned ? '<span class="shipbig rsd">상품권 재발송예정</span>' : ri.last&&ri.last.resendDeny ? '<span class="shipbig hold">'+admEsc(reqDenyText(ri.last))+'</span>' : '<span class="shipbig done">✓ 재발송 발송완료</span>'; }
   if((e.shipped||e.shipState==="shipped")&&e.rewardType==="point") return '<span class="shipbig done">✓ 지급</span>';       // 포인트는 「발송」이 아니라 「지급」 — 지급일은 카드에 같이 나옵니다
   if(e.shipped||e.shipState==="shipped")return '<span class="shipbig done">✓ 발송</span>';
   if(shipStatus(e)==="ineligible" && !e.overrideEligible)return '<span class="shipbig hold">출고대기</span>';
@@ -4440,7 +4614,7 @@ function renderCS(){
     const shipDate=(ri&&ri.done)?shippedDate(ri.last):shippedDate(e);       // 재발송이 나갔으면 출고일자를 재발송 발송일로(2026-11-03 사용자 요청)
     return `<div class="rescard clickable ${shipped?"shipped":""}" data-act="detail" data-id="${admEsc(e._id)}"><div style="flex:1">
       <div class="who">${admEsc(e.name||"(이름없음)")} ${typePill(e)}${e.manual?' <span class="pill manual">수기</span>':""}</div>
-      <div class="meta">접수일자 ${fmtDate(e._date)} · ${isResend(e)?"기존 발송일 "+admEsc(e.resendShip||"-")+" · 재발송 ":""}${e.rewardType==="point"?"지급일자":(ri&&ri.done?"재발송 발송일":"출고일자")} ${isResend(e)?shippedDate(e):shipDate}</div>
+      <div class="meta">접수일자 ${fmtDate(e._date)} · ${isCancelReq(e)?"기존 발송일 "+admEsc(e.resendShip||"-")+" · 취소 요청 ":isResend(e)?"기존 발송일 "+admEsc(e.resendShip||"-")+" · 재발송 ":""}${e.rewardType==="point"?"지급일자":(ri&&ri.done?"재발송 발송일":"출고일자")} ${isResend(e)?shippedDate(e):shipDate}</div>
       <div class="csdetail">
         <div><b>제품</b>${admEsc(e.product||"-")}</div>
         <div><b>${REWARD_LABEL[clsRw(e.rewardType)]||"사은품/상품권"}</b>${admEsc(e.giftItem||"-")}</div>
@@ -5522,14 +5696,16 @@ const mrShipDate = e => e._lg ? (/^\d{4}-\d{2}-\d{2}$/.test(e.shipYmd || "") ? n
 const mrDeadline = sd => { const y = sd.getFullYear(), mi = sd.getMonth() + RESEND_MONTHS, last = new Date(y, mi + 1, 0).getDate(); return new Date(y, mi, Math.min(sd.getDate(), last)); };   // 발송일 + N개월(그 달 말일을 넘으면 말일)
 const mrExpired = e => { const sd = mrShipDate(e); if(!sd) return false; const t = new Date(); t.setHours(0, 0, 0, 0); return t.getTime() > mrDeadline(sd).getTime(); };      // 발송일을 알 수 없으면 막지 않습니다(예전 그대로)
 function mrState(e){
-  const rs = RESEND.filter(r => r.resendOf === e._id);
+  const allr = RESEND.filter(r => r.resendOf === e._id);
+  const rs = allr.filter(r => !isCancelReq(r)), cx = allr.find(isCancelReq) || null;      // rs = 재발송 접수만(취소 요청은 횟수·상태 계산에 안 섞음), cx = 취소 요청(상품권 1건에 1개)
   if(e._lg && !e.voucher) return { k:"nov", t:"상품권이 아니라 재발송 대상 아님", rs };
   if(!mrIsSent(e)){
     if(e._lg) return { k:"wait", t:"상품권 지급예정", rs };
     return (shipStatus(e) === "ineligible" && !e.overrideEligible) ? { k:"bad", t:"부적합 — 재발송 대상 아님", rs } : { k:"wait", t:"상품권 지급예정", rs };
   }
+  if(cx && !cx.cancelDone) return cx.cancelDeny ? { k:"cxdenied", t:reqDenyText(cx), rs, cx } : { k:"cxplanned", t:"상품권 취소 처리 중", rs, cx };      // 2026-11-23 취소 요청이 걸린 상품권은 재발송 접수·재취소를 막음(처리 중 겹침 방지·불가 뒤 재요청 불가)
   if(rs.some(r => !mrIsSent(r) && !r.resendDeny)) return { k:"planned", t:"상품권 재발송예정", rs };
-  if(rs.some(r => r.resendDeny)) return { k:"denied", t:RESEND_DENY_TEXT, rs };      // 사용 확인으로 불가 처리한 상품권은 재접수 막음 — 같은 고객의 다른 상품권은 그대로 접수 가능(2026-11-11)
+  if(rs.some(r => r.resendDeny)) return { k:"denied", t:reqDenyText(rs.find(r => r.resendDeny)), rs };      // 사용 확인으로 불가 처리한 상품권은 재접수 막음 — 같은 고객의 다른 상품권은 그대로 접수 가능(2026-11-11)
   if(rs.length >= RESEND_MAX) return { k:"done", t:"재발송 " + RESEND_MAX + "회 모두 접수", rs };
   if(mrExpired(e)) return { k:"expired", t:"재발송 가능 기간(발송일부터 " + RESEND_MONTHS + "개월) 지남", rs };
   return { k:"can", t:"", rs };
@@ -5557,15 +5733,17 @@ function mrRender(){
   if(!list.length){ box.innerHTML = `<div class="empty" style="display:block">조회된 상품권 접수가 없습니다. 성함·연락처를 다시 확인해 주세요.</div>`; return; }
   const sts = list.map(mrState), sent = list.filter(e => sts[list.indexOf(e)].k !== "nov" && mrIsSent(e)).length, can = sts.filter(s => s.k === "can").length;
   const pill = (bg, fg, t) => `<span class="pill" style="background:${bg};color:${fg}">${t}</span>`;
-  const act = (e, s) => s.k === "can" ? `<button class="sm primary" data-act="mrReq" data-id="${admEsc(e._id)}">상품권 재발송 접수</button>`
+  const act = (e, s) => s.k === "can" ? `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="sm primary" data-act="mrReq" data-id="${admEsc(e._id)}">재발송 접수</button>${(!e._lg && !s.rs.length) ? (mrCancelExpired(e) ? `<button class="sm" disabled title="발송일부터 ${CANCEL_DAYS}일이 지나 환불(취소)할 수 없습니다" style="opacity:.5;cursor:not-allowed">상품권 취소</button><span style="flex-basis:100%;font-size:11.5px;color:var(--sub)">발송 ${CANCEL_DAYS}일 초과 — 취소 불가</span>` : `<button class="sm" style="color:#c1121f;border-color:#f0bbb6" data-act="mrCx" data-id="${admEsc(e._id)}">상품권 취소</button>`) : ""}</div>`
+    : s.k === "cxplanned" ? pill("#fff6e0", "#7a5a00", "상품권 취소 처리 중")
+    : s.k === "cxdenied" ? `<b style="color:var(--bad)">${admEsc(s.t)}</b>`
     : s.k === "planned" ? pill("#efe9fb", "#5a3fb0", "상품권 재발송예정")
     : s.k === "done" ? `<b style="color:var(--ok)">${admEsc(s.t)}</b>`
     : s.k === "wait" ? `<span style="color:#b26a00;font-weight:800">${s.t}</span>` : `<span style="color:var(--sub)">${s.t}</span>`;
-  const hist = s => s.rs.length ? s.rs.map(r => `<div>${pill("#efe9fb", "#5a3fb0", "재발송")} ${admEsc(fmtDate(r._date))} · ${admEsc(r.agent || "-")} · ${r.resendDeny ? `<b style="color:var(--bad)">${RESEND_DENY_TEXT}</b>` : mrIsSent(r) ? "발송완료 " + admEsc(shippedDate(r)) : "예정"}</div>`).join("") : `<span style="color:var(--sub)">없음</span>`;
+  const hist = s => (s.rs.length || s.cx) ? (s.cx ? `<div>${pill("#fff6e0", "#7a5a00", "취소")} ${admEsc(fmtDate(s.cx._date))} · ${admEsc(s.cx.agent || "-")} · ${s.cx.cancelDeny ? `<b style="color:var(--bad)">${admEsc(reqDenyText(s.cx))}</b>` : "처리 중"}</div>` : "") + s.rs.map(r => `<div>${pill("#efe9fb", "#5a3fb0", "재발송")} ${admEsc(fmtDate(r._date))} · ${admEsc(r.agent || "-")} · ${r.resendDeny ? `<b style="color:var(--bad)">${admEsc(reqDenyText(r))}</b>` : mrIsSent(r) ? "발송완료 " + admEsc(shippedDate(r)) : "예정"}</div>`).join("") : `<span style="color:var(--sub)">없음</span>`;
   const shipTxt = e => e._lg ? admEsc(e.shipYmd || "-") : (mrIsSent(e) ? admEsc(shippedDate(e)) : "-");
   box.innerHTML = `<div style="margin:2px 0 8px;font-size:13.5px"><b>${admEsc(MRFIND.nm)}</b> · 받은 상품권 ${list.filter((e, i) => sts[i].k !== "nov").length}건 · 발송 완료 ${sent}건 · <b>재발송 접수 가능 ${can}건</b></div>`
     + (list.length && !can && sent && sts.every(s => s.k !== "wait" && s.k !== "bad" && s.k !== "can") ? `<div class="hint" style="margin-bottom:8px;padding:9px 12px;border-radius:10px;background:#fff6e0;color:#7a5a00">지금 <b>재발송 접수할 수 있는 상품권이 없습니다</b>(횟수 ${RESEND_MAX}회를 다 썼거나 발송일부터 ${RESEND_MONTHS}개월이 지남). 아래 표의 안내를 확인해 주세요.</div>` : "")
-    + `<div class="tablewrap"><table class="data"><thead><tr><th>접수일자</th><th>제품</th><th>상품권</th><th>발송일</th><th>재발송 내역</th><th>접수</th></tr></thead><tbody>`
+    + `<div class="tablewrap"><table class="data"><thead><tr><th>접수일자</th><th>제품</th><th>상품권</th><th>발송일</th><th>재발송 내역</th><th>접수/취소</th></tr></thead><tbody>`
     + list.map((e, i) => `<tr><td>${e._lg ? admEsc(e.recv || "-") : admEsc(fmtDate(e._date))}</td><td>${e._lg ? admEsc(e.prodText || "-") + ' <span class="pill">구글폼</span>' + (e.noName ? ' <span class="pill" style="background:#fff0d6;color:#8a5200">성함 확인 불가(번호 일치)</span>' : "") : admEsc(PNAME[e.product] || e.product || "-")}</td><td>${admEsc(e.giftItem || "-")}</td><td>${shipTxt(e)}</td><td>${hist(sts[i])}</td><td>${act(e, sts[i])}</td></tr>`).join("")
     + `</tbody></table></div>`;
 }
@@ -5606,11 +5784,54 @@ async function mrRequest(id){
   alert("재발송 접수가 완료되었습니다.\n「상품권」 탭 맨 위쪽에 「상품권 재발송」 줄로 들어갔습니다. 일괄 출고하면 「상품권 재발송」 시트로 나갑니다.");
 }
 
+/* 🔴 상품권 취소 접수 (2026-11-23 사용자 요청) — 이미 발송된 상품권을 취소(환불)해 달라는 요청. 상담사·관리자·QA 가 접수하고 처리는 회계(「상품권 → 상품권요청」)가 합니다.
+   · 재발송 접수가 하나라도 있는 상품권·구글폼 기록은 취소를 접수하지 않습니다. 같은 상품권에 요청은 1번(문서 이름 cancel_원래건) — 취소불가가 되면 다시 요청할 수 없습니다.
+   · 취소 사유는 상담사가 적습니다(100자 이내, 이름·연락처는 적지 않게 안내). 요청 건에는 이름·연락처가 들어 있고 취소완료 때 가려집니다. */
+const CANCEL_DAYS = 7;     // 2026-11-24 사용자 확정 — 상품권 발송일부터 7일 이내만 취소(환불) 가능. 지나면 「상품권 취소」 단추가 눌리지 않음
+const mrCancelDeadline = sd => new Date(sd.getFullYear(), sd.getMonth(), sd.getDate() + CANCEL_DAYS);      // 발송일 + 7일 (발송일 당일을 0일로 셈 — 7일째 밤까지 가능)
+const mrCancelExpired = e => { const sd = mrShipDate(e); if(!sd) return false; const t = new Date(); t.setHours(0, 0, 0, 0); return t.getTime() > mrCancelDeadline(sd).getTime(); };      // 발송일을 모르면 막지 않습니다(재발송 기한 mrExpired 와 같은 방식)
+async function mrCancelRequest(id){
+  const o = ALL.find(x => x._id === id); if(!o) return;
+  if(!(ME && (isAdm(ME.role) || ME.role === "agent"))){ alert("상품권 취소 접수는 상담사·관리자·QA만 할 수 있습니다."); return; }
+  const s = mrState(o); if(s.k !== "can" || s.rs.length){ alert("지금은 취소를 접수할 수 없는 건입니다.\n(" + (s.t || (s.rs.length ? "재발송 접수 내역이 있습니다" : "이미 처리 중입니다")) + ")"); return; }
+  if(mrCancelExpired(o)){ alert("발송일부터 " + CANCEL_DAYS + "일이 지나 취소(환불)할 수 없는 상품권입니다."); return; }      // 화면에서 단추를 눌러도 한 번 더 막음(오래 열어 둔 화면 대비)
+  const shipD = mrShipDate(o);
+  const r0 = prompt("상품권 취소 사유를 적어 주세요.\n(이름·연락처는 적지 마세요 · 100자 이내)\n\n" + (o.giftItem || "-") + " · 기존 발송일 " + (shipD ? ymdStr(shipD) : "-"), "");
+  if(r0 === null) return;
+  const reason = String(r0).trim().replace(/\s+/g, " ");
+  if(reason.length < 2){ alert("취소 사유를 2글자 이상 적어 주세요."); return; }
+  if(reason.length > 100){ alert("취소 사유는 100자 이내로 적어 주세요. (지금 " + reason.length + "자)"); return; }
+  if(!confirm("상품권 취소를 접수합니다.\n\n" + (o.name || "-") + " · " + (o.giftItem || "-") + "\n기존 발송일 " + (shipD ? ymdStr(shipD) : "-") + "\n사유: " + reason
+      + "\n\n회계 담당자가 상품권 업체에서 취소(환불)를 처리합니다.\n• 취소완료 → 고객의 원래 접수가 삭제되어 고객이 다시 접수할 수 있습니다.\n• 취소불가(유효기간 경과·상품권 사용) → 결과가 「고객검색」의 「내가 요청한 내역」으로 오고, 고객에게 전화로 안내하셔야 합니다.\n이 상품권은 다시 취소를 요청할 수 없습니다.")) return;
+  { const blk = await manualIntakeBlock(); if(blk){ alert(MANUAL_BLOCK_TEXT[blk]); return; } }
+  const F = firebase.firestore.FieldValue;
+  const payload = {
+    type:"resend", reqKind:"cancel", rewardType:"coupon", resendOf:id, resendShip: shipD ? ymdStr(shipD) : "", reqReason:reason,
+    status:"eligible", manual:true, shipState:"pending", reason:"상품권 취소 요청",
+    category:o.category || "", product:o.product || "", giftItem:o.giftItem || "", giftQty:Math.max(1, parseInt(o.giftQty, 10) || 1), source:o.source || "", orderNo:o.orderNo || "",
+    name:o.name || "", phone:o.phone || "", phoneKey:o.phoneKey || mDigits(o.phone), address:"", shipFee:"",
+    agent:(ME && ME.name) || "", agentUid:(ME && ME.uid) || "",
+    consent:{ privacy:"agree", marketing:"", reward:"coupon", agreedAt:new Date().toISOString(), manual:true, resend:true }, survey:[],
+    createdAt:F.serverTimestamp()
+  };
+  try{
+    const db = await initFirebase(), rid = "cancel_" + id;
+    await db.runTransaction(async t => { const ref = db.collection(COLLECTION).doc(rid), snap = await t.get(ref); if(snap.exists) throw new Error("이미 취소가 접수된 상품권입니다."); t.set(ref, payload); });
+  }catch(err){
+    console.error(err);
+    const blk2 = /permission|PERMISSION/i.test(String((err && (err.code || err.message)) || "")) ? await manualIntakeBlock() : "";
+    alert(blk2 ? MANUAL_BLOCK_TEXT[blk2] : "취소 접수 실패: " + (err.message || err)); await loadData(); mrFind(); return;
+  }
+  logAccess("상품권 취소 접수", (o.product || "-") + " · " + (o.giftItem || "-"), 1);      // 이름·번호·사유는 적지 않습니다
+  await loadData(); mrFind();
+  alert("상품권 취소가 접수되었습니다.\n회계 담당자가 「상품권 → 상품권요청」에서 처리합니다. 취소불가로 회신되면 「고객검색」에 알림이 뜹니다.");
+}
+
 /* ── 이벤트 연결 ── */
 $("#mrFind").addEventListener("click", mrFind);
 $("#mrClear").addEventListener("click", () => { $("#mrName").value = ""; $("#mrPhone").value = ""; $("#mrMsg").textContent = ""; MRFIND = null; $("#mrResult").innerHTML = ""; });
 ["#mrName","#mrPhone"].forEach(s => $(s).addEventListener("keydown", e => { if(e.key === "Enter") mrFind(); }));
-$("#mrResult").addEventListener("click", e => { const b = e.target.closest('[data-act="mrReq"]'); if(b) mrRequest(b.dataset.id); });
+$("#mrResult").addEventListener("click", e => { const b = e.target.closest('[data-act="mrReq"]'); if(b) mrRequest(b.dataset.id); const c = e.target.closest('[data-act="mrCx"]'); if(c) mrCancelRequest(c.dataset.id); });
 $$("#mTabs .subtab").forEach(t => t.addEventListener("click", () => mSubTo(t.dataset.msub)));
 $$("#mFindTabs .subtab").forEach(t => t.addEventListener("click", () => mFindTo(t.dataset.mf)));
 $("#mFind").addEventListener("click", mFind);
@@ -5991,6 +6212,7 @@ function updateTabCounts(){
     if(k==="acct"){ put(k,b(teamElig(rw).length)+b(resendPending().length,"a")+b(teamInelig(rw).length,"w")); return; }
     put(k,b(teamElig(rw).length)+b(teamInelig(rw).length,"w")); });
   put("bad",b(badBase().length,"b"));
+  put("cs",b(myCallWait().length,"b"));       // 2026-11-23 고객검색 — 전화 대기 중인 상품권 불가 회신(상담사=본인 요청, 조장·QA=전체)
   put("reserve",b(reserveList("").length,"a"));
 }
 /* 🔴 2026-10-05 속도 — 탭 머리 건수(updateTabCounts)는 전체 접수를 여러 번 훑습니다(사은품·상품권 적합/확인필요, 부적합, 예약발송).
@@ -6012,7 +6234,7 @@ function renderActiveTab(){
   else if(curTab==="point")renderPoint();
   else if(curTab==="reserve")renderReserve();
   else if(curTab==="bad")renderBad();
-  else if(curTab==="cs")renderCS();
+  else if(curTab==="cs"){renderCsMine();renderCS();}
   else if(curTab==="admin")openEventSettings();
 }
 

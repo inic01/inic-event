@@ -3023,7 +3023,28 @@ async function goNext(){
   current++; showStep();
 }
 /* 쿠팡 정품등록 안내 팝업 — 안내만 하며 접수를 막지 않습니다(확인하면 누구나 진행, 구매조회·주문 대조 요구 없음) */
-function showCpGate(){ $("#cpGate").classList.add("on"); }
+/* 팝업 글은 관리자 「안내 문구 관리 ⑩」에서 고칩니다(MSGT). 저장된 글이 없거나 비면 아래 기본 글(= 위 HTML 에 적힌 글)이 나갑니다.
+   ⚠️ 이 값은 report.html DEFAULTS.notices 의 cpGate* 와 같은 문장이어야 합니다. 표기: {{굵게}} [[빨간 굵게]] */
+const CPG_DFLT={
+  cpGateTitle:"쿠팡 로켓배송 구매 고객 전용",
+  cpGateBody:"해당 참여 공간은 {{쿠팡 로켓배송 구매 고객 전용}}입니다.\n쿠팡 로켓배송 구매 고객이 아닌 경우,\n[포토리뷰 이벤트] 창에서 참여해 주세요.",
+  cpGateNote:"※ 구매 정보가 계속 조회되지 않는 경우, 정보가 반영되는 데 시간이 소요될 수 있으므로 {{제품 수령 후 영업일 기준 D+2일}} 이후에 다시 조회해 주세요.\n※ 이중 접수로 인해 중복 출고가 발생할 경우, 중복 출고에 따른 비용은 고객님께서 부담하셔야 합니다.",
+  cpGateAsk:"쿠팡 로켓배송으로 구매해주신게 맞으실까요?",
+  cpGateOk:"쿠팡에서 구매했어요",
+  cpGateNo:"아니요, 포토리뷰로 갈게요"
+};
+function applyCpGateText(){
+  const g=$("#cpGate"); if(!g) return;
+  const T=k=>MSGT(k,CPG_DFLT[k]);
+  $("#cpGateT").textContent=T("cpGateTitle");
+  const ps=g.querySelectorAll("p");   // 본문 · 작은 글씨 · 질문 (HTML 순서)
+  if(ps[0]) ps[0].innerHTML=richPlain(T("cpGateBody"));
+  if(ps[1]) ps[1].innerHTML=richPlain(T("cpGateNote"));
+  if(ps[2]) ps[2].textContent=T("cpGateAsk");
+  $("#cpGateOk").textContent=T("cpGateOk");
+  $("#cpGateNo").textContent=T("cpGateNo");
+}
+function showCpGate(){ applyCpGateText(); $("#cpGate").classList.add("on"); }
 $("#cpGateOk").addEventListener("click",()=>{
   $("#cpGate").classList.remove("on");
   if(getFlow()[current]!=="type" || state.type!=="coupang") return;   // 그 사이 화면이 바뀌었으면 아무것도 하지 않습니다

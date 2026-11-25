@@ -10527,7 +10527,16 @@ const DEFAULTS = {
     checkShipped: { t:"신청하신 ○○이 {{○○}} 출고되었습니다.\n택배사 사정에 따라 수령까지 1~3일 정도 걸릴 수 있습니다.\n배송 조회가 필요하시면 아래 채널을 통해 ‘채팅상담’을 선택하여 문의해 주세요.", k:true },
     /* 🔴 상품권은 택배로 안 갑니다 — 알림톡으로 바로 갑니다 (2026-09-22 2차 점검에서 발견).
           사은품 문구를 같이 쓰면 「택배사 사정」「배송 조회」가 기프티콘 고객에게 나갑니다. */
-    checkShippedCoupon: { t:"신청하신 ○○이 {{○○}} 발송되었습니다.\n문자(알림톡)로 보내 드린 번호를 확인해 주세요.\n못 받으셨거나 번호가 안 보이시면 아래 채널을 통해 ‘채팅상담’을 선택하여 문의해 주세요.", k:true }
+    checkShippedCoupon: { t:"신청하신 ○○이 {{○○}} 발송되었습니다.\n문자(알림톡)로 보내 드린 번호를 확인해 주세요.\n못 받으셨거나 번호가 안 보이시면 아래 채널을 통해 ‘채팅상담’을 선택하여 문의해 주세요.", k:true },
+
+    /* ── 쿠팡 정품등록 「다음」 안내 팝업 (2026-11-24 연결) ──
+       ⚠️ 아래 글은 접수폼 index.html 의 CPG_DFLT 와 같아야 합니다(= 지금 고객 화면에 나가는 글). 한쪽만 고치면 고객 화면이 바뀝니다. */
+    cpGateTitle: { t:"쿠팡 로켓배송 구매 고객 전용", k:false },
+    cpGateBody:  { t:"해당 참여 공간은 {{쿠팡 로켓배송 구매 고객 전용}}입니다.\n쿠팡 로켓배송 구매 고객이 아닌 경우,\n[포토리뷰 이벤트] 창에서 참여해 주세요.", k:false },
+    cpGateNote:  { t:"※ 구매 정보가 계속 조회되지 않는 경우, 정보가 반영되는 데 시간이 소요될 수 있으므로 {{제품 수령 후 영업일 기준 D+2일}} 이후에 다시 조회해 주세요.\n※ 이중 접수로 인해 중복 출고가 발생할 경우, 중복 출고에 따른 비용은 고객님께서 부담하셔야 합니다.", k:false },
+    cpGateAsk:   { t:"쿠팡 로켓배송으로 구매해주신게 맞으실까요?", k:false },
+    cpGateOk:    { t:"쿠팡에서 구매했어요", k:false },
+    cpGateNo:    { t:"아니요, 포토리뷰로 갈게요", k:false }
   },
   /* 제품을 아직 모를 때(구매 확인 단계 등) 보낼 채널 — 지금은 안 씁니다(2026-09-22) */
   kakaoDefault: "생활가전",
@@ -12407,6 +12416,15 @@ const NOTICE_GROUPS = [
     /* 🔴 2026-09-22 — 예전에는 「발송 완료」 딱지만 뜨고 설명이 없었습니다 */
     ["checkShipped", "발송 완료 · 사은품",  "이미 출고된 사은품 건 · {{○○}} 자리에 출고일자가 들어갑니다"],
     ["checkShippedCoupon","발송 완료 · 상품권","이미 발송된 기프티콘 건 · 택배가 아니라 알림톡으로 갑니다"]
+  ]],
+  /* 2026-11-24 — 묶음 제목은 맨 끝에만 붙였습니다(CSV 「구분+이름」 키가 안 바뀝니다) */
+  ["⑩ 쿠팡 정품등록 — 「다음」 안내 팝업", [
+    ["cpGateTitle", "팝업 제목",             "맨 위 굵은 제목"],
+    ["cpGateBody",  "본문",                  "제목 아래 · 쿠팡 로켓배송 구매 고객 전용 안내"],
+    ["cpGateNote",  "작은 글씨 안내",        "본문 아래 회색 작은 글씨 · {{ }} 로 감싼 글은 밑줄과 노란 강조로 나옵니다"],
+    ["cpGateAsk",   "초록 질문",             "버튼 바로 위 초록색 굵은 질문"],
+    ["cpGateOk",    "버튼 · 구매했어요",      "초록 버튼 글자 · 누르면 다음 단계로 넘어갑니다"],
+    ["cpGateNo",    "버튼 · 포토리뷰로",      "흰 버튼 글자 · 누르면 포토리뷰 접수로 돌아갑니다"]
   ]]
 ];
 
@@ -12460,7 +12478,7 @@ const ALWAYS_GROUPS = [
      popup 폰 팝업       — 화면을 덮음. 문구만 고칠 수 있고 모양·버튼은 못 바꿈
    묶음 제목 앞의 번호로 모양을 정합니다.                                   */
 const NOTICE_SHAPE = { "①":"err", "②":"box", "③":"box", "④":"popup",
-                       "⑤":"popup", "⑥":"popup", "⑦":"popup", "⑧":"popup", "⑨":"box" };
+                       "⑤":"popup", "⑥":"popup", "⑦":"popup", "⑧":"popup", "⑨":"box", "⑩":"popup" };
 /* 묶음 번호로 정한 모양과 다른 문구는 여기서 따로 정합니다. */
 const NOTICE_SHAPE_BY_KEY = { consentDeny:"deny" };
 const SHAPE_LABEL = { box:"회색 안내 상자", err:"항목 아래 빨간 글씨", popup:"폰 팝업",
@@ -12537,7 +12555,7 @@ function noticeExportRows(){
   NOTICE_GROUPS.forEach(([title, items]) => {
     items.forEach(([k, t, when]) => {
       const n = (cfg.notices || {})[k] || {};
-      rows.push([String(title).replace(/^[①-⑨]\s*/, ""), t, when,
+      rows.push([String(title).replace(/^[①-⑩]\s*/, ""), t, when,
                  String(n.t || ""), n.k ? "켜짐" : "꺼짐"]);
     });
   });
@@ -12573,7 +12591,7 @@ function noticeExport(){
 
 const NT_SEP = "\u0001";
 const ntKeyOf = (gubun, name) =>
-  String(gubun || "").replace(/^[①-⑨]\s*/, "").trim() + NT_SEP + String(name || "").trim();
+  String(gubun || "").replace(/^[①-⑩]\s*/, "").trim() + NT_SEP + String(name || "").trim();
 
 /* 지금 화면의 모든 칸을 「구분+이름 → 넣는 방법」 으로 모읍니다 */
 function noticeSlots(){
@@ -12665,7 +12683,7 @@ function ntPlan(text, fname){
     if(!r || !String(r[iN] || "").trim()) return;
     const key  = ntKeyOf(r[iG], r[iN]);
     const slot = slots.get(key);
-    const name = String(r[iG] || "").replace(/^[①-⑨]\s*/, "").trim() + " · " + String(r[iN]).trim();
+    const name = String(r[iG] || "").replace(/^[①-⑩]\s*/, "").trim() + " · " + String(r[iN]).trim();
     if(!slot){ miss.push(name); return; }
     const now  = slot.get();
     const next = String(r[iT] == null ? "" : r[iT]);
@@ -12776,7 +12794,8 @@ const NT_PREFIX = {
   "⑥":"접수 > 사진 올리는 칸에서 사진을 고른 직후 뜨는 팝업 · ",
   "⑦":"접수 > [참여 신청하기]를 누른 뒤 서버가 막았을 때 뜨는 팝업 · ",
   "⑧":"접수 > 신청이 끝난 뒤 뜨는 완료 팝업 · ",
-  "⑨":"첫 화면 > 포토리뷰 이벤트 참여 조회 결과 · "
+  "⑨":"첫 화면 > 포토리뷰 이벤트 참여 조회 결과 · ",
+  "⑩":"접수 첫 화면 > 쿠팡 정품등록을 고르고 [다음]을 누르면 뜨는 안내 팝업 · "
 };
 /* ① 항목 아래 빨간 글씨 — 화면마다 달라 키별로 적습니다. [화면, 표시 위치] */
 const NT_ERR_WHERE = {
@@ -12848,9 +12867,9 @@ function ntItems(){
     else {
       where = (NT_PREFIX[g] || "") + when;
       sc = g === "②" || g === "③" ? "lookup" : g === "⑤" ? "consent" : g === "⑥" ? "info"
-         : g === "⑨" ? "check" : "submit";
+         : g === "⑨" ? "check" : g === "⑩" ? "type" : "submit";
       si = g === "②" ? "err" : g === "③" ? "result" : g === "④" ? "dup" : g === "⑤" ? "err"
-         : g === "⑥" ? "upload" : g === "⑦" ? "reject" : g === "⑧" ? "done" : "status";
+         : g === "⑥" ? "upload" : g === "⑦" ? "reject" : g === "⑧" ? "done" : g === "⑩" ? "guide" : "status";
       if(k === "dupAll") si = "dup";
       if(g === "⑨" && (k === "checkNeed")) si = "err";
       if(g === "⑨" && (k === "checkRate" || k === "checkErr")) si = "reject";
